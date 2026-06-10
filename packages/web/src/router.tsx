@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { AuthProvider } from '@/hooks/useAuth';
 import Login from '@/pages/Login';
@@ -12,37 +12,40 @@ import KnowledgeBases from '@/pages/KnowledgeBases';
 import KnowledgeDetail from '@/pages/KnowledgeDetail';
 import Settings from '@/pages/Settings';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function AuthWrapper() {
+  return (
+    <AuthProvider>
+      <Outlet />
+    </AuthProvider>
+  );
+}
+
+function ProtectedRoute() {
   const token = localStorage.getItem('vico_token');
   if (!token) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return <Layout />;
 }
 
 export const router = createBrowserRouter([
   {
-    path: '/login',
-    element: <Login />,
-  },
-  {
-    path: '/',
-    element: (
-      <AuthProvider>
-        <ProtectedRoute>
-          <Layout />
-        </ProtectedRoute>
-      </AuthProvider>
-    ),
+    element: <AuthWrapper />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: <Dashboard /> },
-      { path: 'agents', element: <Agents /> },
-      { path: 'agents/:id', element: <AgentDetail /> },
-      { path: 'skills', element: <Skills /> },
-      { path: 'knowledge', element: <KnowledgeBases /> },
-      { path: 'knowledge/:id', element: <KnowledgeDetail /> },
-      { path: 'conversations', element: <Conversations /> },
-      { path: 'conversations/:id', element: <ConversationDetail /> },
-      { path: 'settings', element: <Settings /> },
+      { path: '/login', element: <Login /> },
+      {
+        element: <ProtectedRoute />,
+        children: [
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: 'dashboard', element: <Dashboard /> },
+          { path: 'agents', element: <Agents /> },
+          { path: 'agents/:id', element: <AgentDetail /> },
+          { path: 'skills', element: <Skills /> },
+          { path: 'knowledge', element: <KnowledgeBases /> },
+          { path: 'knowledge/:id', element: <KnowledgeDetail /> },
+          { path: 'conversations', element: <Conversations /> },
+          { path: 'conversations/:id', element: <ConversationDetail /> },
+          { path: 'settings', element: <Settings /> },
+        ],
+      },
     ],
   },
 ]);
