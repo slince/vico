@@ -1,0 +1,18 @@
+{
+  "name": "employee-mgmt",
+  "displayName": "员工管理助手",
+  "version": "1.0.0",
+  "description": "员工信息查询、考勤管理、请假审批等人事相关操作",
+  "author": "vico",
+  "category": "hr",
+  "parameters": {
+    "company_name": {
+      "type": "string",
+      "label": "公司名称",
+      "default": ""
+    }
+  },
+  "required_tools": [],
+  "dependencies": [],
+  "enabled": true
+}

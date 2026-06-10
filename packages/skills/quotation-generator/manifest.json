@@ -1,0 +1,28 @@
+{
+  "name": "quotation-generator",
+  "displayName": "工程报价方案生成",
+  "version": "1.0.0",
+  "description": "根据工程需求自动生成报价方案，包括材料费用计算、人工成本估算、利润核算等",
+  "author": "vico",
+  "category": "engineering",
+  "parameters": {
+    "profit_margin": {
+      "type": "number",
+      "label": "默认利润率(%)",
+      "default": 15
+    },
+    "tax_rate": {
+      "type": "number",
+      "label": "税率(%)",
+      "default": 13
+    },
+    "company_name": {
+      "type": "string",
+      "label": "公司名称",
+      "default": ""
+    }
+  },
+  "required_tools": [],
+  "dependencies": [],
+  "enabled": true
+}

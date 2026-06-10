@@ -1,0 +1,13 @@
+{
+  "name": "vico",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "dev:server": "pnpm --filter @vico/server dev",
+    "dev:web": "pnpm --filter @vico/web dev",
+    "db:migrate": "pnpm --filter @vico/server db:migrate",
+    "skill:install": "pnpm --filter @vico/server skill:install"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
