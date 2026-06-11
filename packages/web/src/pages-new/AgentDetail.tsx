@@ -124,6 +124,11 @@ export default function AgentDetail() {
   // 删除确认 Sheet 开关
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  // 本地 System Prompt 状态（防抖提交用）
+  const [localSystemPrompt, setLocalSystemPrompt] = useState<string | undefined>();
+  // 本地 Max Tokens 状态（防抖提交用）
+  const [localMaxTokens, setLocalMaxTokens] = useState<number | undefined>();
+
   // 聊天消息容器的 ref，用于自动滚动到底部
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -153,6 +158,10 @@ export default function AgentDetail() {
     queryKey: ['models'],
     queryFn: () => api('/models'),
   });
+
+  // ---- 标记用户是否已编辑过对应字段（用于区分初始值 vs 用户输入） ----
+  const hasEditedPrompt = useRef(false);
+  const hasEditedMaxTokens = useRef(false);
 
   // ====================== Mutations ======================
 
@@ -192,6 +201,24 @@ export default function AgentDetail() {
       navigate('/agents');
     },
   });
+
+  // ---- 防抖提交：System Prompt（仅用户编辑后触发，300ms 防抖） ----
+  useEffect(() => {
+    if (!hasEditedPrompt.current || localSystemPrompt === undefined) return;
+    const timer = setTimeout(() => {
+      updateMutation.mutate({ system_prompt: localSystemPrompt });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [localSystemPrompt]);
+
+  // ---- 防抖提交：Max Tokens（仅用户编辑后触发，300ms 防抖） ----
+  useEffect(() => {
+    if (!hasEditedMaxTokens.current || localMaxTokens === undefined) return;
+    const timer = setTimeout(() => {
+      updateMutation.mutate({ max_tokens: localMaxTokens });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [localMaxTokens]);
 
   // ====================== 聊天逻辑 ======================
 
@@ -442,10 +469,11 @@ export default function AgentDetail() {
               </Label>
               <Textarea
                 id="system-prompt"
-                value={a.system_prompt || ''}
-                onChange={(e) =>
-                  updateMutation.mutate({ system_prompt: e.target.value })
-                }
+                value={localSystemPrompt ?? agent?.system_prompt ?? ''}
+                onChange={(e) => {
+                  hasEditedPrompt.current = true;
+                  setLocalSystemPrompt(e.target.value);
+                }}
                 className="min-h-40 font-mono text-sm"
                 placeholder="输入 System Prompt，定义 Agent 的行为准则..."
               />
@@ -528,12 +556,20 @@ export default function AgentDetail() {
                 <Input
                   id="max-tokens"
                   type="number"
-                  value={a.max_tokens ?? 4096}
-                  onChange={(e) =>
-                    updateMutation.mutate({
-                      max_tokens: parseInt(e.target.value) || 4096,
-                    })
-                  }
+                  value={localMaxTokens ?? agent?.max_tokens ?? 4096}
+                  onChange={(e) => {
+                    hasEditedMaxTokens.current = true;
+                    const val = e.target.value;
+                    // 允许用户清空输入；若为空则不提交
+                    if (val === '') {
+                      setLocalMaxTokens(undefined);
+                      return;
+                    }
+                    const num = parseInt(val, 10);
+                    if (!isNaN(num) && num >= 1 && num <= 128000) {
+                      setLocalMaxTokens(num);
+                    }
+                  }}
                   min={1}
                   max={128000}
                   className="max-w-48"

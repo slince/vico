@@ -120,8 +120,16 @@ export default function Dashboard() {
     return <DashboardSkeleton />;
   }
 
-  // 数据已就绪（useQuery 在非 loading 时保证 data 存在）
-  const stats = data!;
+  // 数据未就绪的边界保护
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        无法加载仪表盘数据，请稍后重试
+      </div>
+    );
+  }
+
+  const stats = data;
 
   return (
     <div className="space-y-6">

@@ -419,10 +419,10 @@ export default function Settings() {
                         设为默认
                       </Button>
                     )}
-                    {/* 默认标签 */}
-                    <Badge variant={m.is_default === 1 ? 'default' : 'secondary'}>
-                      {m.is_default === 1 ? '默认' : ''}
-                    </Badge>
+                    {/* 默认标签：仅默认模型展示 Badge */}
+                    {m.is_default === 1 && (
+                      <Badge variant="default">默认</Badge>
+                    )}
                     {/* 删除按钮 --- 使用 AlertDialog 确认 */}
                     <AlertDialog
                       open={deleteTargetId === m.id}

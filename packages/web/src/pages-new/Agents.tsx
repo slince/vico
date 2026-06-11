@@ -33,6 +33,15 @@ import {
   DialogClose,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 
 /** Agent 数据形状（来自 API 返回） */
 interface Agent {
@@ -58,6 +67,8 @@ export default function Agents() {
   const [createOpen, setCreateOpen] = useState(false);
   // 创建表单的 Agent 名称
   const [newName, setNewName] = useState('');
+  /** 待删除的 Agent（用于 AlertDialog 确认） */
+  const [deleteTarget, setDeleteTarget] = useState<Agent | null>(null);
 
   // 获取 Agent 列表
   const { data: agents, isLoading } = useQuery<Agent[]>({
@@ -94,17 +105,15 @@ export default function Agents() {
 
   /**
    * 处理删除确认
-   * 通过 window.confirm 二次确认后执行删除
+   * 通过 AlertDialog 二次确认后执行删除
    */
-  const handleDelete = useCallback(
-    (agent: Agent) => {
-      // 二次确认防止误删
-      if (confirm(`确认删除 Agent「${agent.name}」？此操作不可撤销。`)) {
-        deleteMutation.mutate(agent.id);
-      }
-    },
-    [deleteMutation],
-  );
+  const handleDeleteConfirm = useCallback(() => {
+    if (deleteTarget) {
+      deleteMutation.mutate(deleteTarget.id, {
+        onSettled: () => setDeleteTarget(null),
+      });
+    }
+  }, [deleteTarget, deleteMutation]);
 
   // 规范化 agent 列表
   const agentList: Agent[] = agents || [];
@@ -239,16 +248,48 @@ export default function Agents() {
                   配置
                 </Link>
               </Button>
-              {/* 删除按钮 */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-destructive"
-                onClick={() => handleDelete(agent)}
+              {/* 删除按钮：使用 AlertDialog 二次确认 */}
+              <AlertDialog
+                open={deleteTarget?.id === agent.id}
+                onOpenChange={(open) => {
+                  if (!open) setDeleteTarget(null);
+                }}
               >
-                <Trash2 size={14} className="mr-1.5" />
-                删除
-              </Button>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => setDeleteTarget(agent)}
+                  >
+                    <Trash2 size={14} className="mr-1.5" />
+                    删除
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>确认删除</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      确定要删除 Agent「{agent.name}」吗？此操作不可撤销，所有关联的对话记录也将被清除。
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setDeleteTarget(null)}
+                    >
+                      取消
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteConfirm}
+                      disabled={deleteMutation.isPending}
+                    >
+                      {deleteMutation.isPending ? '删除中...' : '确认删除'}
+                    </Button>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardFooter>
           </Card>
         ))}

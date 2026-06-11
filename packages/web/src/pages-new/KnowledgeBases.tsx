@@ -320,7 +320,7 @@ export default function KnowledgeBases() {
                 <Button
                   size="sm"
                   onClick={() => handleUploadClick(kb.id)}
-                  disabled={uploadMutation.isPending}
+                  disabled={uploadMutation.isPending && uploadTargetKbId === kb.id}
                 >
                   <Upload className="size-3.5" />
                   上传文档

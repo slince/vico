@@ -47,8 +47,8 @@ export default function Login() {
     try {
       await login(username, password);
       navigate('/dashboard'); // 登录成功后跳转到仪表盘
-    } catch (err: any) {
-      setError(err.message || '登录失败，请检查用户名或密码');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '登录失败，请检查用户名或密码');
     } finally {
       setLoading(false); // 无论成功或失败，结束加载状态
     }

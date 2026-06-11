@@ -349,11 +349,8 @@ export default function ConversationDetail() {
 
   // ---- derived values ----------------------------------------------------
 
-  /** The conversation record (cast for convenience) */
-  const conv = conversation as unknown as ConversationDetail;
-
   /** Message list – default to empty array if not present */
-  const messages: Message[] = conv.messages ?? [];
+  const messages: Message[] = conversation.messages ?? [];
 
   // ---- render ------------------------------------------------------------
 
@@ -376,17 +373,17 @@ export default function ConversationDetail() {
 
           {/* Metadata line: agent name, model, message count */}
           <p className="text-sm text-muted-foreground">
-            Agent: {conv.agent_name ?? conv.agent_id}
+            Agent: {conversation.agent_name ?? conversation.agent_id}
             <Separator
               orientation="vertical"
               className="mx-2 inline-flex h-3 align-middle"
             />
-            模型: {conv.model_name}
+            模型: {conversation.model_name}
             <Separator
               orientation="vertical"
               className="mx-2 inline-flex h-3 align-middle"
             />
-            {conv.message_count} 条消息
+            {conversation.message_count} 条消息
           </p>
         </div>
       </div>

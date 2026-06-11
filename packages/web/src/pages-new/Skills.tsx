@@ -73,6 +73,10 @@ export default function Skills() {
 
   /** 待卸载的 Skill 名称（为空表示未确认卸载） */
   const [uninstallTarget, setUninstallTarget] = useState<string | null>(null);
+  /** 正在安装中的 Skill 名称（用于精准禁用对应按钮） */
+  const [installingName, setInstallingName] = useState<string | null>(null);
+  /** 正在切换启用状态的 Skill 名称 */
+  const [togglingName, setTogglingName] = useState<string | null>(null);
 
   // ---------- 数据获取 ----------
   const { data: skills, isLoading } = useQuery<Skill[]>({
@@ -92,6 +96,7 @@ export default function Skills() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills'] });
     },
+    onSettled: () => setInstallingName(null),
   });
 
   /**
@@ -117,6 +122,7 @@ export default function Skills() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills'] });
     },
+    onSettled: () => setTogglingName(null),
   });
 
   // ---------- 事件处理 ----------
@@ -127,6 +133,7 @@ export default function Skills() {
    */
   const handleInstall = useCallback(
     (skillName: string) => {
+      setInstallingName(skillName);
       installMutation.mutate({ skill_name: skillName });
     },
     [installMutation],
@@ -148,6 +155,7 @@ export default function Skills() {
    */
   const handleToggle = useCallback(
     (name: string, currentEnabled: boolean) => {
+      setTogglingName(name);
       toggleMutation.mutate({ name, enabled: !currentEnabled });
     },
     [toggleMutation],
@@ -216,7 +224,10 @@ export default function Skills() {
           {skillsList.map((skill) => {
             const status = getSkillStatus(skill);
             const statusConfig = STATUS_MAP[status];
-            const isPending = installMutation.isPending || uninstallMutation.isPending || toggleMutation.isPending;
+            // 仅当前 Skill 对应的操作为 pending 时禁用其按钮
+            const isThisInstalling = installingName === skill.name;
+            const isThisToggling = togglingName === skill.name;
+            const isThisUninstalling = uninstallTarget === skill.name && uninstallMutation.isPending;
 
             return (
               <Card
@@ -266,7 +277,7 @@ export default function Skills() {
                     <Button
                       size="sm"
                       onClick={() => handleInstall(skill.name)}
-                      disabled={isPending}
+                      disabled={isThisInstalling}
                     >
                       <Download className="size-3.5" />
                       安装
@@ -278,7 +289,7 @@ export default function Skills() {
                         variant={skill.installed_enabled ? 'outline' : 'default'}
                         size="sm"
                         onClick={() => handleToggle(skill.name, skill.installed_enabled)}
-                        disabled={isPending}
+                        disabled={isThisToggling}
                       >
                         {skill.installed_enabled ? (
                           <PowerOff className="size-3.5" />
@@ -299,7 +310,7 @@ export default function Skills() {
                             variant="destructive"
                             size="sm"
                             onClick={() => setUninstallTarget(skill.name)}
-                            disabled={isPending}
+                            disabled={isThisUninstalling}
                           >
                             <Trash2 className="size-3.5" />
                             卸载
