@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { eq, desc, sql, like, and } from 'drizzle-orm';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { getDb, schema } from '../data/db.js';
+import { getDb, schema } from '../db/db.js';
 
 const { conversations, messages } = schema;
 

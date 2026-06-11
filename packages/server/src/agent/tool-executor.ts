@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { skillManager } from '../skill/manager.js';
 import { SkillTool, ToolContext } from '../skill/types.js';
-import { getDb, schema } from '../data/db.js';
+import { getDb, schema } from '../db/db.js';
 
 const { tool_call_logs } = schema;
 

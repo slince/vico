@@ -3,7 +3,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { getDb, schema } from '../data/db.js';
+import { getDb, schema } from '../db/db.js';
 
 const { agents, agent_skills, agent_knowledge_bases } = schema;
 

@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid';
 import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { getDb, schema } from '../data/db.js';
+import { getDb, schema } from '../db/db.js';
 import { ragManager } from '../memory/rag.js';
 
 const { knowledge_bases, chunks } = schema;

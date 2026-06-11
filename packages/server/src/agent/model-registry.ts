@@ -1,6 +1,6 @@
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
-import { getDb, schema } from '../data/db.js';
+import { getDb, schema } from '../db/db.js';
 
 const { model_configs } = schema;
 

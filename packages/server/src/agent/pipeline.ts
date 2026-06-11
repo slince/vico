@@ -3,7 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { eq, and, sql } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
-import { getDb, schema } from '../data/db.js';
+import { getDb, schema } from '../db/db.js';
 import { skillManager } from '../skill/manager.js';
 import { toolExecutor } from './tool-executor.js';
 import { getDefaultModel, ModelConfigRow } from './model-registry.js';

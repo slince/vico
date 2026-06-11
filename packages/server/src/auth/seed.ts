@@ -1,7 +1,7 @@
 import { randomBytes, scrypt } from 'node:crypto';
 import { v4 as uuid } from 'uuid';
-import { getDb } from '../data/db.js';
-import { user, account, organization, member } from '../data/auth-schema.js';
+import { getDb } from '../db/db.js';
+import { user, account, organization, member } from '../db/auth-schema.js';
 
 const scryptConfig = { N: 16384, r: 16, p: 1, dkLen: 64 } as const;
 

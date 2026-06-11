@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { config } from '../config.js';
 import { scanSkillDirs, loadSkill } from './loader.js';
 import { LoadedSkill, SkillTool, SkillToolDef } from './types.js';
-import { getDb, schema } from '../data/db.js';
+import { getDb, schema } from '../db/db.js';
 
 const { agent_skills, installed_skills } = schema;
 

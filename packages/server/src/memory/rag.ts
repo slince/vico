@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
-import { getSqlite } from '../data/db.js';
+import { getSqlite } from '../db/db.js';
 import { getEmbedder, float32ToBlob, blobToFloat32, cosineSimilarity } from './embedder.js';
 import { config } from '../config.js';
 

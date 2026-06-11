@@ -6,10 +6,10 @@ import { config } from './config.js';
 import { auth } from './auth/index.js';
 import { skillManager } from './skill/manager.js';
 import { registerRoutes } from './api/router.js';
-import { runMigrations } from './data/run-migrations.js';
+import { runMigrations } from './db/run-migrations.js';
 import { seedDefaultOrgAndAdmin } from './auth/seed.js';
-import { getDb } from './data/db.js';
-import { member, session as sessionTable } from './data/auth-schema.js';
+import { getDb } from './db/db.js';
+import { member, session as sessionTable } from './db/auth-schema.js';
 
 /** Hono 上下文变量类型 — better-auth session 信息 */
 export type Variables = {

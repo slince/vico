@@ -1,8 +1,8 @@
 import type { Context } from 'hono';
 import { eq } from 'drizzle-orm';
 import type { Variables } from '../index.js';
-import { getDb } from '../data/db.js';
-import { member } from '../data/auth-schema.js';
+import { getDb } from '../db/db.js';
+import { member } from '../db/auth-schema.js';
 
 export interface AuthContext {
   tenantId: string;

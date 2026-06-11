@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import { getDb } from '../data/db.js';
+import { getDb } from '../db/db.js';
 
 export interface ShortTermMessage {
   role: string;

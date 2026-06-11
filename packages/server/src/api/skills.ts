@@ -3,7 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { skillManager } from '../skill/manager.js';
-import { getDb, schema } from '../data/db.js';
+import { getDb, schema } from '../db/db.js';
 
 const { installed_skills } = schema;
 
