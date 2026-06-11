@@ -1,53 +1,60 @@
-import bcrypt from 'bcryptjs';
-import { v4 as uuid } from 'uuid';
-import { eq } from 'drizzle-orm';
+/**
+ * Vico 认证模块 — 基于 better-auth
+ * 提供邮箱/用户名密码认证、Session 管理、多租户（组织）支持
+ */
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { username } from 'better-auth/plugins';
+import { organization } from 'better-auth/plugins';
+import { getDb } from '../data/db.js';
+import * as authSchema from '../data/auth-schema.js';
 
-import { getDb, schema } from '../data/db.js';
+export const auth = betterAuth({
+  database: drizzleAdapter(getDb(), {
+    provider: 'sqlite',
+    schema: authSchema,
+  }),
 
-const { tenants, users } = schema;
+  /** 邮箱密码登录（同时启用 username 插件，支持用户名登录） */
+  emailAndPassword: {
+    enabled: true,
+    autoSignIn: true,
+    requireEmailVerification: false,
+  },
 
-export interface AuthContext {
-  userId: string;
-  tenantId: string;
-  role: string;
-}
+  /** 用户名登录插件 */
+  plugins: [
+    username({
+      minUsernameLength: 2,
+      maxUsernameLength: 50,
+    }),
+    organization({
+      allowUserToCreateOrganization: true,
+    }),
+  ],
 
-export function hashPassword(password: string): string {
-  return bcrypt.hashSync(password, 10);
-}
+  /** Session 配置 — 7 天有效期，与旧 JWT token_expiry 一致 */
+  session: {
+    expiresIn: 60 * 60 * 24 * 7,
+    updateAge: 60 * 60 * 24,
+  },
 
-export function verifyPassword(password: string, hash: string): boolean {
-  return bcrypt.compareSync(password, hash);
-}
+  /** Cookie 配置 — 开发环境（localhost HTTP） */
+  advanced: {
+    cookiePrefix: 'vico',
+    defaultCookieAttributes: {
+      sameSite: 'lax',
+      secure: false,
+      httpOnly: true,
+    },
+    crossSubDomainCookies: {
+      enabled: false,
+    },
+  },
 
-export function initDefaultTenant() {
-  const db = getDb();
-  const existing = db.select({ id: tenants.id }).from(tenants).limit(1).get();
-  if (!existing) {
-    const tenantId = uuid();
-    const now = Date.now();
-    db.insert(tenants).values({
-      id: tenantId, name: '默认租户', created_at: now, updated_at: now,
-    }).run();
-    const adminId = uuid();
-    const hash = hashPassword('admin123');
-    db.insert(users).values({
-      id: adminId, tenant_id: tenantId, username: 'admin', password_hash: hash, role: 'admin', created_at: now,
-    }).run();
-    console.log('Default tenant and admin user created (admin / admin123)');
-  }
-}
+  /** 信任 Vite 开发服务器来源 */
+  trustedOrigins: ['http://localhost:5173'],
 
-export function createUser(tenantId: string, username: string, password: string, role = 'admin'): AuthContext {
-  const db = getDb();
-  const existing = db.select({ id: users.id }).from(users).where(eq(users.username, username)).get();
-  if (existing) {
-    throw new Error('Username already exists');
-  }
-  const id = uuid();
-  const hash = hashPassword(password);
-  db.insert(users).values({
-    id, tenant_id: tenantId, username, password_hash: hash, role, created_at: Date.now(),
-  }).run();
-  return { userId: id, tenantId, role };
-}
+  /** 密钥 — 替代原 jwt_secret */
+  secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-change-me-in-production',
+});

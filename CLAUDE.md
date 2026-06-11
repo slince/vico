@@ -13,7 +13,7 @@ Vico 是一个面向中小企业的 AI Agent 管理平台，基于"配置 + 即�
 | Agent 框架 | Vercel AI SDK 4（`ai` 包） |
 | 数据库 | better-sqlite3（WAL 模式）+ Drizzle ORM |
 | 嵌入模型 | Transformers.js（本地）/ OpenAI API |
-| 认证 | JWT（hono/jwt）+ bcryptjs |
+| 认证 | better-auth（Session Cookie + username/organization 插件）|
 | 前端 | React 19、Vite 6、Tailwind CSS 4 |
 | UI 组件 | shadcn/ui（radix-rhea 风格） |
 | 前端数据获取 | TanStack Query 5 |
@@ -32,7 +32,7 @@ packages/
 │       ├── agent/       # 聊天管道、工具执行器、模型注册中心
 │       ├── skill/       # 插件系统：类型定义、加载器、管理器
 │       ├── memory/      # 短期记忆、长期记忆、RAG、嵌入器
-│       ├── auth/        # 密码哈希/校验（bcrypt）、租户/用户管理；JWT 签发/校验由 hono/jwt 处理
+│       ├── auth/        # better-auth 实例配置、Seed 默认组织+管理员；/api/auth/* 由 auth.handler() 处理
 │       └── data/        # Drizzle ORM 连接、Schema、迁移（13 张表）
 ├── web/                 # React 管理后台
 │   └── src/
@@ -133,12 +133,14 @@ pnpm skill:install <path> # 从目录安装 Skill
 
 ### 认证
 
-- 使用 `hono/jwt` 中间件保护 `/api/v1/*` 路由，算法为 HS256
-- 公开路由（`/api/v1/auth/login`、`/api/v1/auth/register`）在 JWT 中间件之前注册
-- 登录成功后通过 `sign()` 签发 token，密钥来自 `config.auth.jwt_secret`
-- JWT 中间件自动将 payload 写入 `c.get('jwtPayload')`，再由 payload 传递中间件写入 `c.set('auth', ctx)`，后续通过 `c.get('auth')` 获取认证上下文
-- 租户隔离：SaaS 模式下所有查询按 `tenant_id` 过滤
-- 首次运行时自动创建默认租户和管理员用户（admin/admin123）
+- 基于 **better-auth**，使用 Session Cookie（HTTP-only）代替 JWT Bearer Token
+- 插件：`username`（用户名密码登录）、`organization`（多租户/组织管理）
+- better-auth 的路由通过 `auth.handler(c.req.raw)` 挂载在 `/api/auth/*`
+- Session 中间件在每个请求上调用 `auth.api.getSession()`，将 `user` 和 `session` 注入 Hono 上下文（`c.get('user')`、`c.get('session')`）
+- `getAuthContext(c)` 辅助函数从 session 提取 `{ tenantId, userId }`，供路由处理函数使用
+- 租户隔离：通过 `session.activeOrganizationId` 实现，所有业务查询按 `tenant_id` 过滤
+- 首次运行时通过 `auth/seed.ts` 自动创建默认组织和管理员用户（admin/admin123）
+- 密钥配置：`BETTER_AUTH_SECRET` 环境变量（默认 dev-secret-change-me-in-production）
 
 ### 数据库
 

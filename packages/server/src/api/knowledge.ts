@@ -3,6 +3,7 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import type { Variables } from '../index.js';
+import { getAuthContext } from './helpers.js';
 import { getDb, schema } from '../data/db.js';
 import { ragManager } from '../memory/rag.js';
 
@@ -10,7 +11,8 @@ const { knowledge_bases, chunks } = schema;
 
 export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/knowledge-bases', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const db = getDb();
     return c.json(db.select().from(knowledge_bases)
       .where(eq(knowledge_bases.tenant_id, auth.tenantId))
@@ -19,7 +21,8 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.post('/api/v1/knowledge-bases', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const { name, description } = await c.req.json();
     const db = getDb();
     const id = uuid();
@@ -31,7 +34,8 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.get('/api/v1/knowledge-bases/:id', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const db = getDb();
     const kb = db.select().from(knowledge_bases)
@@ -47,7 +51,8 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.delete('/api/v1/knowledge-bases/:id', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const db = getDb();
     db.delete(schema.agent_knowledge_bases).where(eq(schema.agent_knowledge_bases.kb_id, id)).run();
@@ -56,7 +61,8 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.post('/api/v1/knowledge-bases/:id/upload', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const db = getDb();
 
@@ -90,7 +96,8 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.delete('/api/v1/knowledge-bases/:id/chunks/:chunkId', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const chunkId = c.req.param('chunkId');
     const db = getDb();

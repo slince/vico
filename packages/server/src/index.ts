@@ -1,29 +1,30 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { jwt } from 'hono/jwt';
 import { serve } from '@hono/node-server';
 import { config } from './config.js';
-import { initDefaultTenant, AuthContext } from './auth/index.js';
+import { auth } from './auth/index.js';
 import { skillManager } from './skill/manager.js';
 import { registerRoutes } from './api/router.js';
-import { publicAuthRoutes } from './api/auth.js';
 import { runMigrations } from './data/run-migrations.js';
+import { seedDefaultOrgAndAdmin } from './auth/seed.js';
 
+/** Hono 上下文变量类型 — better-auth session 信息 */
 export type Variables = {
-  auth: AuthContext;
+  user: typeof auth.$Infer.Session.user | null;
+  session: typeof auth.$Infer.Session.session | null;
 };
 
 async function main() {
   runMigrations();
   await skillManager.init();
-  initDefaultTenant();
+  await seedDefaultOrgAndAdmin();
 
   const app = new Hono<{ Variables: Variables }>();
 
-  // CORS
+  /** CORS — 启用 credentials 以支持 session cookie */
   app.use('*', cors({ origin: '*', credentials: true }));
 
-  // Simple in-memory rate limiter (100 requests per minute per IP)
+  /** 简易内存限流（100 次/分钟/IP） */
   const rateMap = new Map<string, { count: number; resetAt: number }>();
   app.use('*', async (c, next) => {
     const ip = c.req.header('x-forwarded-for') || 'unknown';
@@ -40,26 +41,41 @@ async function main() {
     return next();
   });
 
-  // Health check (no auth)
+  /** 健康检查 */
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
-  // Public auth routes (login, register — no JWT required)
-  publicAuthRoutes(app);
+  /** Session 中间件 — 在每个请求上注入 user/session 信息 */
+  app.use('*', async (c, next) => {
+    // 跳过 better-auth 自身的处理路由和健康检查
+    const path = c.req.path;
+    if (path === '/health' || path.startsWith('/api/auth/')) {
+      return next();
+    }
 
-  // JWT middleware — protects all /api/v1/* routes below this point
-  app.use('/api/v1/*', jwt({ secret: config.auth.jwt_secret, alg: 'HS256' }));
+    const result = await auth.api.getSession({
+      headers: c.req.raw.headers,
+    });
 
-  // Copy JWT payload to our custom auth variable
-  app.use('/api/v1/*', async (c, next) => {
-    const payload = c.get('jwtPayload');
-    c.set('auth', { userId: payload.userId, tenantId: payload.tenantId, role: payload.role } as AuthContext);
-    await next();
+    c.set('user', result?.user ?? null);
+    c.set('session', result?.session ?? null);
+    return next();
   });
 
-  // Protected routes
+  /** Auth 守卫中间件 — 保护 /api/v1/* 路由 */
+  app.use('/api/v1/*', async (c, next) => {
+    const session = c.get('session');
+    if (!session || !session.activeOrganizationId) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return next();
+  });
+
+  /** 挂载 better-auth 路由处理器 */
+  app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+
+  /** 注册业务路由 */
   registerRoutes(app);
 
-  // Start server
   serve({ fetch: app.fetch, port: config.server.port, hostname: '0.0.0.0' }, (info) => {
     console.log(`[Vico] Server running on http://localhost:${info.port}`);
     console.log(`[Vico] Deploy mode: ${config.server.deploy_mode}`);

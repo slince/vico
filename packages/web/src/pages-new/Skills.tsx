@@ -1,7 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
+// 1. React
 import { useCallback, useState } from 'react';
+
+// 2. Third-party
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Puzzle, Download, Trash2, Power, PowerOff } from 'lucide-react';
+
+// 3. API
+import { api } from '@/api/client';
+
+// 4. UI components
 import {
   Card,
   CardHeader,

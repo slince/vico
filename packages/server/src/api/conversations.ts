@@ -1,13 +1,15 @@
 import { Hono } from 'hono';
 import { eq, desc, sql, like, and } from 'drizzle-orm';
 import type { Variables } from '../index.js';
+import { getAuthContext } from './helpers.js';
 import { getDb, schema } from '../data/db.js';
 
 const { conversations, messages } = schema;
 
 export function conversationRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/conversations', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const db = getDb();
     const agent_id = c.req.query('agent_id');
     const search = c.req.query('search');
@@ -30,7 +32,8 @@ export function conversationRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.get('/api/v1/conversations/:id', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const db = getDb();
 
@@ -49,7 +52,8 @@ export function conversationRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.delete('/api/v1/conversations/:id', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const db = getDb();
     db.delete(messages).where(eq(messages.conversation_id, id)).run();

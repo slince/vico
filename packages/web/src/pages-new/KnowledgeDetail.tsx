@@ -1,8 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
-import { useParams, useNavigate } from 'react-router-dom';
+// 1. React
 import { useCallback, useState } from 'react';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+
+// 2. Third-party
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Database, Trash2 } from 'lucide-react';
+
+// 3. API
+import { api } from '@/api/client';
+
+// 4. UI components
 import {
   Card,
   CardHeader,
@@ -15,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -142,13 +150,14 @@ export default function KnowledgeDetail() {
   // ---------- 空/错误态 ----------
   if (!kb) {
     return (
-      <div className="text-center py-16 text-muted-foreground">
-        <p>知识库未找到</p>
-        <Button variant="outline" className="mt-4" onClick={handleBack}>
-          <ArrowLeft className="size-4" />
-          返回列表
-        </Button>
-      </div>
+      <Empty>
+        <EmptyMedia variant="icon">
+          <Database size={24} />
+        </EmptyMedia>
+        <EmptyTitle>知识库未找到</EmptyTitle>
+        <EmptyDescription>该知识库可能已被删除，或 ID 无效</EmptyDescription>
+        <Button variant="outline" onClick={handleBack}>返回列表</Button>
+      </Empty>
     );
   }
 

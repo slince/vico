@@ -1,13 +1,15 @@
 import { Hono } from 'hono';
 import { eq, desc, sql, count, sum } from 'drizzle-orm';
 import type { Variables } from '../index.js';
+import { getAuthContext } from './helpers.js';
 import { getDb, schema } from '../data/db.js';
 
-const { conversations, token_usage_logs, agents, installed_skills, knowledge_bases, users } = schema;
+const { conversations, token_usage_logs, agents, installed_skills, knowledge_bases, user } = schema;
 
 export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/dashboard/stats', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const db = getDb();
 
     const [convCount] = db.select({ c: count() }).from(conversations)
@@ -45,10 +47,10 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
       created_at: conversations.created_at,
       updated_at: conversations.updated_at,
       agent_name: agents.name,
-      user_name: users.username,
+      user_name: user.username,
     }).from(conversations)
       .leftJoin(agents, eq(conversations.agent_id, agents.id))
-      .leftJoin(users, eq(conversations.user_id, users.id))
+      .leftJoin(user, eq(conversations.user_id, user.id))
       .where(eq(conversations.tenant_id, auth.tenantId))
       .orderBy(desc(conversations.updated_at))
       .limit(5)

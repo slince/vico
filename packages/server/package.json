@@ -16,17 +16,16 @@
     "@ai-sdk/react": "^1.0.0",
     "@hono/node-server": "^2.0.4",
     "ai": "^4.0.0",
-    "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.0.0",
+    "better-auth": "^1.6.16",
+    "better-sqlite3": "^12.10.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.25",
     "pdf-parse": "^1.1.1",
     "uuid": "^10.0.0",
     "yaml": "^2.6.0",
-    "zod": "^3.23.0"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.0",
     "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^22.0.0",
     "@types/pdf-parse": "^1.1.0",

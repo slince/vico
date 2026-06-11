@@ -1,10 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, streamChat } from '@/api/client';
-import { useParams, useNavigate } from 'react-router-dom';
+// 1. React
 import { useState, useRef, useCallback, useEffect } from 'react';
+
+// 2. 第三方
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Send,
   Bot,
   Settings,
   Puzzle,
@@ -12,90 +13,39 @@ import {
   MessageSquare,
   Trash2,
 } from 'lucide-react';
+
+// 3. API / Hooks / Utils
+import { api } from '@/api/client';
+
+// 4. UI 组件
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Slider } from '@/components/ui/slider';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
 import {
   Empty,
   EmptyMedia,
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 
-// ====================== 类型定义 ======================
+// 5. 页面子组件
+import ConfigPanel from './agent-detail/ConfigPanel';
+import SkillPanel from './agent-detail/SkillPanel';
+import KnowledgePanel from './agent-detail/KnowledgePanel';
+import ChatPanel from './agent-detail/ChatPanel';
 
-/** Skill 数据形状 */
-interface Skill {
-  name: string;
-  displayName: string;
-  description: string;
-}
-
-/** 知识库数据形状 */
-interface KnowledgeBase {
-  id: string;
-  name: string;
-  chunk_count: number;
-}
-
-/** 模型配置数据形状 */
-interface Model {
-  id: string;
-  provider: string;
-  model_name: string;
-}
-
-/** Agent 完整数据形状 */
-interface Agent {
-  id: string;
-  name: string;
-  enabled: boolean;
-  system_prompt?: string;
-  model_id?: string;
-  temperature?: number;
-  max_tokens?: number;
-  skills?: { skill_name: string }[];
-  knowledge_bases?: { kb_id: string }[];
-}
-
-/** 聊天消息 */
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
+// 6. 类型
+import type { Agent, ChatMessage, Skill, KnowledgeBase, Model } from './agent-detail/types';
 
 /**
  * Agent 详情 / 配置页面
@@ -121,7 +71,7 @@ export default function AgentDetail() {
   const [input, setInput] = useState('');
   // 是否正在流式响应中
   const [streaming, setStreaming] = useState(false);
-  // 删除确认 Sheet 开关
+  // 删除确认 AlertDialog 开关
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   // 本地 System Prompt 状态（防抖提交用）
@@ -129,8 +79,9 @@ export default function AgentDetail() {
   // 本地 Max Tokens 状态（防抖提交用）
   const [localMaxTokens, setLocalMaxTokens] = useState<number | undefined>();
 
-  // 聊天消息容器的 ref，用于自动滚动到底部
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  // ---- 标记用户是否已编辑过对应字段（用于区分初始值 vs 用户输入） ----
+  const hasEditedPrompt = useRef(false);
+  const hasEditedMaxTokens = useRef(false);
 
   // ====================== 数据获取 ======================
 
@@ -158,10 +109,6 @@ export default function AgentDetail() {
     queryKey: ['models'],
     queryFn: () => api('/models'),
   });
-
-  // ---- 标记用户是否已编辑过对应字段（用于区分初始值 vs 用户输入） ----
-  const hasEditedPrompt = useRef(false);
-  const hasEditedMaxTokens = useRef(false);
 
   // ====================== Mutations ======================
 
@@ -196,7 +143,6 @@ export default function AgentDetail() {
   const deleteMutation = useMutation({
     mutationFn: () => api(`/agents/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      // 删除成功后返回 Agent 列表页
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       navigate('/agents');
     },
@@ -220,59 +166,26 @@ export default function AgentDetail() {
     return () => clearTimeout(timer);
   }, [localMaxTokens]);
 
-  // ====================== 聊天逻辑 ======================
+  // ====================== 事件处理 ======================
 
-  /**
-   * 发送聊天消息并处理 SSE 流式响应
-   *
-   * 通过 streamChat 建立 SSE 连接，收到 text_delta 事件时
-   * 实时更新助手消息内容，完成后设置 streaming 状态为 false。
-   */
-  const sendMessage = useCallback(() => {
-    if (!input.trim() || streaming || !id) return;
+  /** 更新 System Prompt 并标记用户已编辑 */
+  const handleSystemPromptChange = useCallback((value: string) => {
+    hasEditedPrompt.current = true;
+    setLocalSystemPrompt(value);
+  }, []);
 
-    // 追加用户消息到列表
-    setChatMessages((prev) => [...prev, { role: 'user', content: input }]);
-    setStreaming(true);
-
-    // 累积流式响应的完整文本
-    let fullResponse = '';
-
-    streamChat(
-      { agentId: id, message: input },
-      // onEvent：处理 SSE 事件
-      (event) => {
-        if (event.type === 'text_delta') {
-          fullResponse += event.content;
-          // 使用函数式更新以获取最新消息列表，避免闭包陈旧问题
-          setChatMessages((prev) => {
-            const last = prev[prev.length - 1];
-            // 如果最后一条已是助手消息，则替换其内容；否则追加新消息
-            if (last?.role === 'assistant') {
-              return [
-                ...prev.slice(0, -1),
-                { role: 'assistant', content: fullResponse },
-              ];
-            }
-            return [...prev, { role: 'assistant', content: fullResponse }];
-          });
-        }
-      },
-      // onError：处理错误
-      (err) => {
-        setChatMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: `错误: ${err.message}` },
-        ]);
-        setStreaming(false);
-      },
-      // onDone：流结束
-      () => setStreaming(false),
-    );
-
-    // 清空输入框
-    setInput('');
-  }, [input, streaming, id]);
+  /** 更新 Max Tokens 并标记用户已编辑 */
+  const handleMaxTokensChange = useCallback((value: string) => {
+    hasEditedMaxTokens.current = true;
+    if (value === '') {
+      setLocalMaxTokens(undefined);
+      return;
+    }
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 1 && num <= 128000) {
+      setLocalMaxTokens(num);
+    }
+  }, []);
 
   /**
    * 处理 Skill 复选框切换
@@ -284,8 +197,8 @@ export default function AgentDetail() {
     (skillName: string, boundSkills: string[]) => {
       const isBound = boundSkills.includes(skillName);
       const next = isBound
-        ? boundSkills.filter((n) => n !== skillName) // 取消绑定
-        : [...boundSkills, skillName]; // 新增绑定
+        ? boundSkills.filter((n) => n !== skillName)
+        : [...boundSkills, skillName];
       skillsMutation.mutate(next.map((n) => ({ skill_name: n })));
     },
     [skillsMutation],
@@ -307,19 +220,18 @@ export default function AgentDetail() {
     [kbMutation],
   );
 
-  /**
-   * 执行删除 Agent 并关闭确认 Sheet
-   */
+  /** 删除确认提交 */
   const handleDelete = useCallback(() => {
     deleteMutation.mutate();
   }, [deleteMutation]);
 
-  // ====================== 自动滚动 ======================
-
-  /** 聊天消息更新后自动滚动到底部 */
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, streaming]);
+  /** 通用更新回调（用于 ConfigPanel） */
+  const handleUpdate = useCallback(
+    (data: Record<string, unknown>) => {
+      updateMutation.mutate(data);
+    },
+    [updateMutation],
+  );
 
   // ====================== 加载态 / 空态 ======================
 
@@ -333,7 +245,6 @@ export default function AgentDetail() {
             <Skeleton className="h-4 w-20" />
           </div>
         </div>
-        {/* 配置骨架屏 */}
         <div className="space-y-4">
           <Skeleton className="h-48 w-full rounded-lg" />
           <Skeleton className="h-32 w-full rounded-lg" />
@@ -382,7 +293,6 @@ export default function AgentDetail() {
     <div className="space-y-6">
       {/* 顶部导航栏 */}
       <div className="flex items-center gap-4">
-        {/* 返回按钮 */}
         <Button
           variant="ghost"
           size="icon"
@@ -394,31 +304,33 @@ export default function AgentDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold tracking-tight">{a.name}</h2>
-            {/* 启用 / 禁用状态 Badge */}
             <Badge variant={a.enabled ? 'default' : 'secondary'}>
               {a.enabled ? '启用中' : '已禁用'}
             </Badge>
           </div>
         </div>
-        {/* 删除入口：通过 Sheet 二次确认 */}
-        <Sheet open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <SheetTrigger asChild>
+        {/* 删除入口：使用 AlertDialog 二次确认 */}
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Trash2 size={14} className="mr-1.5" />
               删除
             </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>确认删除</SheetTitle>
-              <SheetDescription>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认删除</AlertDialogTitle>
+              <AlertDialogDescription>
                 确定要删除 Agent「{a.name}」吗？此操作不可撤销，所有关联的对话记录也将被清除。
-              </SheetDescription>
-            </SheetHeader>
-            <SheetFooter className="mt-6">
-              <SheetClose asChild>
-                <Button variant="outline">取消</Button>
-              </SheetClose>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteOpen(false)}
+              >
+                取消
+              </Button>
               <Button
                 variant="destructive"
                 onClick={handleDelete}
@@ -426,14 +338,13 @@ export default function AgentDetail() {
               >
                 {deleteMutation.isPending ? '删除中...' : '确认删除'}
               </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* 主体：Tab 切换区 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        {/* Tab 导航栏 */}
         <TabsList>
           <TabsTrigger value="config">
             <Settings size={14} className="mr-1.5" />
@@ -453,340 +364,48 @@ export default function AgentDetail() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ==================== 配置 Tab ==================== */}
-        <TabsContent value="config" className="mt-4 space-y-4">
-          {/* System Prompt 编辑 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>System Prompt</CardTitle>
-              <CardDescription>
-                定义 Agent 的角色、行为规范和回复风格。修改即时保存。
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Label htmlFor="system-prompt" className="sr-only">
-                System Prompt
-              </Label>
-              <Textarea
-                id="system-prompt"
-                value={localSystemPrompt ?? agent?.system_prompt ?? ''}
-                onChange={(e) => {
-                  hasEditedPrompt.current = true;
-                  setLocalSystemPrompt(e.target.value);
-                }}
-                className="min-h-40 font-mono text-sm"
-                placeholder="输入 System Prompt，定义 Agent 的行为准则..."
-              />
-            </CardContent>
-          </Card>
-
-          {/* 模型选择 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>模型选择</CardTitle>
-              <CardDescription>
-                选择 Agent 使用的大语言模型。不同模型在能力、速度和成本上有所差异。
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Select
-                value={a.model_id || ''}
-                onValueChange={(value) =>
-                  updateMutation.mutate({ model_id: value })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="请选择模型..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {modelsList.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.provider} / {m.model_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {modelsList.length === 0 && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  暂无可用模型，请先在设置中配置模型提供商
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 参数配置 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>参数配置</CardTitle>
-              <CardDescription>
-                调整生成参数以控制回复的创造性和长度。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Temperature 滑块 */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Temperature</Label>
-                  <span className="text-sm text-muted-foreground tabular-nums">
-                    {a.temperature ?? 0.7}
-                  </span>
-                </div>
-                {/* 使用 Slider 替代原生 range 输入 */}
-                <Slider
-                  value={[a.temperature ?? 0.7]}
-                  // 仅在用户释放滑块时提交，避免拖动过程中频繁请求
-                  onValueCommit={([v]) =>
-                    updateMutation.mutate({ temperature: v })
-                  }
-                  min={0}
-                  max={2}
-                  step={0.1}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>0 — 精确</span>
-                  <span>2 — 创造</span>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Max Tokens 数字输入 */}
-              <div className="space-y-2">
-                <Label htmlFor="max-tokens">Max Tokens</Label>
-                <Input
-                  id="max-tokens"
-                  type="number"
-                  value={localMaxTokens ?? agent?.max_tokens ?? 4096}
-                  onChange={(e) => {
-                    hasEditedMaxTokens.current = true;
-                    const val = e.target.value;
-                    // 允许用户清空输入；若为空则不提交
-                    if (val === '') {
-                      setLocalMaxTokens(undefined);
-                      return;
-                    }
-                    const num = parseInt(val, 10);
-                    if (!isNaN(num) && num >= 1 && num <= 128000) {
-                      setLocalMaxTokens(num);
-                    }
-                  }}
-                  min={1}
-                  max={128000}
-                  className="max-w-48"
-                />
-                <p className="text-xs text-muted-foreground">
-                  单次回复的最大 token 数，范围 1–128000
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* 配置 Tab */}
+        <TabsContent value="config">
+          <ConfigPanel
+            agent={a}
+            modelsList={modelsList}
+            localSystemPrompt={localSystemPrompt}
+            onSystemPromptChange={handleSystemPromptChange}
+            localMaxTokens={localMaxTokens}
+            onMaxTokensChange={handleMaxTokensChange}
+            onUpdate={handleUpdate}
+          />
         </TabsContent>
 
-        {/* ==================== Skill 绑定 Tab ==================== */}
-        <TabsContent value="skills" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>绑定 Skill 插件</CardTitle>
-              <CardDescription>
-                勾选需要为此 Agent 启用的 Skill。Skill 可扩展 Agent 的工具能力。
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {skillsList.length === 0 ? (
-                <Empty>
-                  <EmptyMedia variant="icon">
-                    <Puzzle size={24} />
-                  </EmptyMedia>
-                  <EmptyTitle>暂无可用 Skill</EmptyTitle>
-                  <EmptyDescription>
-                    请先到 Skill 管理页安装插件
-                  </EmptyDescription>
-                </Empty>
-              ) : (
-                <div className="space-y-1">
-                  {skillsList.map((s) => {
-                    const isBound = boundSkills.includes(s.name);
-                    return (
-                      <label
-                        key={s.name}
-                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors has-checked:bg-accent/50"
-                      >
-                        {/* shadcn Checkbox：受控组件 */}
-                        <Checkbox
-                          checked={isBound}
-                          onCheckedChange={() =>
-                            toggleSkill(s.name, boundSkills)
-                          }
-                        />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium leading-none">
-                            {s.displayName}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                            {s.description}
-                          </p>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Skill 绑定 Tab */}
+        <TabsContent value="skills">
+          <SkillPanel
+            skillsList={skillsList}
+            boundSkills={boundSkills}
+            onToggleSkill={toggleSkill}
+          />
         </TabsContent>
 
-        {/* ==================== 知识库绑定 Tab ==================== */}
-        <TabsContent value="knowledge" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>绑定知识库</CardTitle>
-              <CardDescription>
-                勾选要关联的知识库，Agent 将在对话中检索其中的文档内容作为上下文。
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {kbsList.length === 0 ? (
-                <Empty>
-                  <EmptyMedia variant="icon">
-                    <Database size={24} />
-                  </EmptyMedia>
-                  <EmptyTitle>暂无知识库</EmptyTitle>
-                  <EmptyDescription>
-                    请先到知识库页上传文档并创建知识库
-                  </EmptyDescription>
-                </Empty>
-              ) : (
-                <div className="space-y-1">
-                  {kbsList.map((kb) => {
-                    const isBound = boundKbs.includes(kb.id);
-                    return (
-                      <label
-                        key={kb.id}
-                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors has-checked:bg-accent/50"
-                      >
-                        <Checkbox
-                          checked={isBound}
-                          onCheckedChange={() => toggleKb(kb.id, boundKbs)}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium leading-none">
-                            {kb.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {kb.chunk_count} 个文档块
-                          </p>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* 知识库绑定 Tab */}
+        <TabsContent value="knowledge">
+          <KnowledgePanel
+            kbsList={kbsList}
+            boundKbs={boundKbs}
+            onToggleKb={toggleKb}
+          />
         </TabsContent>
 
-        {/* ==================== 测试对话 Tab ==================== */}
-        <TabsContent value="chat" className="mt-4">
-          <Card className="flex flex-col h-[calc(100vh-14rem)]">
-            <CardHeader className="pb-3">
-              <CardTitle>预览 &amp; 测试对话</CardTitle>
-              <CardDescription>
-                在此测试当前配置下的 Agent 效果，所有对话均为临时会话
-              </CardDescription>
-            </CardHeader>
-
-            <Separator />
-
-            {/* 消息列表区域 */}
-            <CardContent className="flex-1 overflow-hidden p-0">
-              <ScrollArea className="h-full px-4 py-3">
-                {/* 空消息提示 */}
-                {chatMessages.length === 0 && (
-                  <div className="flex items-center justify-center h-full py-20">
-                    <Empty>
-                      <EmptyMedia variant="icon">
-                        <MessageSquare size={24} />
-                      </EmptyMedia>
-                      <EmptyTitle>开始测试</EmptyTitle>
-                      <EmptyDescription>
-                        在下方输入消息，体验 Agent 的回复效果
-                      </EmptyDescription>
-                    </Empty>
-                  </div>
-                )}
-
-                {/* 消息列表 */}
-                {chatMessages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex mb-3 ${
-                      msg.role === 'user' ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                        msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-accent'
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap break-words">
-                        {msg.content || '...'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                {/* 流式响应指示器 */}
-                {streaming && (
-                  <div className="flex justify-start mb-3">
-                    <div className="flex items-center gap-2 bg-accent rounded-lg px-3 py-2">
-                      <Spinner className="size-3.5" />
-                      <span className="text-xs text-muted-foreground">
-                        正在生成...
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* 滚动锚点：新消息自动滚动到此 */}
-                <div ref={chatEndRef} />
-              </ScrollArea>
-            </CardContent>
-
-            <Separator />
-
-            {/* 输入区域 */}
-            <CardContent className="pt-3 pb-3">
-              <div className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  // 回车发送，Shift+Enter 换行
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder="输入测试消息，Enter 发送..."
-                  disabled={streaming}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={sendMessage}
-                  disabled={streaming || !input.trim()}
-                  size="icon"
-                >
-                  {streaming ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    <Send size={16} />
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        {/* 测试对话 Tab */}
+        <TabsContent value="chat">
+          <ChatPanel
+            agentId={id!}
+            messages={chatMessages}
+            onMessagesChange={setChatMessages}
+            input={input}
+            onInputChange={setInput}
+            streaming={streaming}
+            onStreamingChange={setStreaming}
+          />
         </TabsContent>
       </Tabs>
     </div>

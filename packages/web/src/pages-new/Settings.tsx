@@ -1,7 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
+// 1. React
 import { useCallback, useState } from 'react';
-import { Plus, Trash2, Check, RotateCcw } from 'lucide-react';
+
+// 2. Third-party
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Trash2, Check } from 'lucide-react';
+
+// 3. API
+import { api } from '@/api/client';
+
+// 4. UI components
 import {
   Card,
   CardHeader,
@@ -10,28 +17,13 @@ import {
   CardContent,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from '@/components/ui/empty';
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -41,6 +33,9 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
+
+// 5. Sub-components
+import AddModelDialog from './settings/AddModelDialog';
 
 /** 提供商预设配置：包含默认的 baseURL 和推荐模型列表 */
 const PROVIDER_PRESETS: Record<string, { label: string; baseURL: string; models: string[] }> = {
@@ -220,7 +215,7 @@ export default function Settings() {
   /** 当前选中提供商的预设模型列表 */
   const currentPresetModels = PROVIDER_PRESETS[provider]?.models || [];
   /** 当前 baseURL 与预设是否一致（用于判断是否显示重置按钮） */
-  const isBaseURLModified = PROVIDER_PRESETS[provider]?.baseURL && baseURL !== PROVIDER_PRESETS[provider].baseURL;
+  const isBaseURLModified = !!(PROVIDER_PRESETS[provider]?.baseURL && baseURL !== PROVIDER_PRESETS[provider].baseURL);
 
   // ---------- 加载态 ----------
   if (isLoading) {
@@ -266,110 +261,24 @@ export default function Settings() {
             </Button>
           </DialogTrigger>
           {/* 添加模型对话框 */}
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>添加 LLM 模型</DialogTitle>
-              <DialogDescription>
-                选择一个模型提供商并填写对应的 API Key 和模型名称
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              {/* 提供商 + 模型名称行 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="model-provider">提供商</Label>
-                  <Select value={provider} onValueChange={handleProviderChange}>
-                    <SelectTrigger id="model-provider" className="w-full">
-                      <SelectValue placeholder="选择提供商" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(PROVIDER_PRESETS).map(([key, preset]) => (
-                        <SelectItem key={key} value={key}>
-                          {preset.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {/* 模型名称输入（含建议下拉） */}
-                <div className="space-y-2 relative">
-                  <Label htmlFor="model-name">模型名称</Label>
-                  <Input
-                    id="model-name"
-                    value={modelName}
-                    onChange={(e) => {
-                      setModelName(e.target.value);
-                      setShowSuggestions(true);
-                    }}
-                    onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    placeholder={`e.g. ${currentPresetModels[0] || 'model-name'}`}
-                  />
-                  {/* 模型名称建议下拉列表 */}
-                  {showSuggestions && currentPresetModels.length > 0 && (
-                    <div className="absolute z-10 top-full mt-0.5 w-full bg-popover border rounded-md shadow-lg py-1">
-                      {currentPresetModels.map((m) => (
-                        <button
-                          key={m}
-                          type="button"
-                          onMouseDown={() => handleModelSuggestionPick(m)}
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors"
-                        >
-                          {m}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* API Key 输入 */}
-              <div className="space-y-2">
-                <Label htmlFor="model-apikey">API Key</Label>
-                <Input
-                  id="model-apikey"
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
-                />
-              </div>
-
-              {/* Base URL 输入 */}
-              <div className="space-y-2">
-                <Label htmlFor="model-baseurl">Base URL</Label>
-                <div className="flex gap-1.5">
-                  <Input
-                    id="model-baseurl"
-                    value={baseURL}
-                    onChange={(e) => setBaseURL(e.target.value)}
-                    placeholder={PROVIDER_PRESETS[provider]?.baseURL || 'https://api.example.com/v1'}
-                    className="flex-1"
-                  />
-                  {/* 仅在 Base URL 被修改后显示重置按钮 */}
-                  {isBaseURLModified && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={handleResetBaseURL}
-                      title="重置为默认 URL"
-                    >
-                      <RotateCcw className="size-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-            <DialogFooter showCloseButton>
-              <Button
-                onClick={handleAddModel}
-                disabled={!modelName.trim() || !apiKey.trim() || addMutation.isPending}
-              >
-                {addMutation.isPending ? '添加中...' : '添加'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
+          <AddModelDialog
+            provider={provider}
+            onProviderChange={handleProviderChange}
+            modelName={modelName}
+            onModelNameChange={setModelName}
+            apiKey={apiKey}
+            onApiKeyChange={setApiKey}
+            baseURL={baseURL}
+            onBaseURLChange={setBaseURL}
+            showSuggestions={showSuggestions}
+            onShowSuggestionsChange={setShowSuggestions}
+            currentPresetModels={currentPresetModels}
+            isBaseURLModified={isBaseURLModified}
+            onResetBaseURL={handleResetBaseURL}
+            onModelSuggestionPick={handleModelSuggestionPick}
+            onSubmit={handleAddModel}
+            isPending={addMutation.isPending}
+          />
         </Dialog>
       </div>
 

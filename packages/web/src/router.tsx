@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { AuthProvider } from '@/hooks/useAuth';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
 // 新版页面（shadcn/ui 重写）
 import Login from '@/pages-new/Login';
 import Dashboard from '@/pages-new/Dashboard';
@@ -33,9 +33,11 @@ function AuthWrapper() {
   );
 }
 
+/** 路由守卫 — 基于 better-auth session 状态（非 localStorage） */
 function ProtectedRoute() {
-  const token = localStorage.getItem('vico_token');
-  if (!token) return <Navigate to="/login" replace />;
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <Layout />;
 }
 

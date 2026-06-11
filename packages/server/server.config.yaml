@@ -3,8 +3,7 @@ server:
   deploy_mode: private
 
 auth:
-  jwt_secret: "${JWT_SECRET}"
-  token_expiry: 7d
+  session_expiry_days: 7
 
 database:
   path: "./data/vico.db"

@@ -1,55 +1,70 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import { api, setToken, clearToken } from '@/api/client';
-
-interface User {
-  id: string;
-  username: string;
-  role: string;
-  tenantId: string;
-}
+import { authClient } from '@/api/auth-client';
+import type { Session, User } from 'better-auth';
 
 interface AuthContextType {
   user: User | null;
+  session: Session['session'] | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  tenantId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/** 认证提供者 — 基于 better-auth session cookie */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session['session'] | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // 挂载时检查 session
   useEffect(() => {
-    const token = localStorage.getItem('vico_token');
-    if (token) {
-      api('/auth/me')
-        .then((u: any) => setUser(u))
-        .catch(() => clearToken())
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
+    authClient.getSession().then(({ data, error }) => {
+      if (!error && data) {
+        setUser(data.user as User);
+        setSession(data.session as Session['session']);
+      }
+    }).finally(() => setLoading(false));
+  }, []);
+
+  /** 用户名密码登录 */
+  const login = useCallback(async (username: string, password: string) => {
+    const { data, error } = await authClient.signIn.username({
+      username,
+      password,
+    });
+    if (error) throw new Error(error.message || '登录失败');
+
+    // 登录后拉取完整 session
+    const sessionRes = await authClient.getSession();
+    if (sessionRes.data) {
+      setUser(sessionRes.data.user as User);
+      setSession(sessionRes.data.session as Session['session']);
     }
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const data = await api<{ token: string; user: User }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
-    });
-    setToken(data.token);
-    setUser(data.user);
+  /** 登出 */
+  const logout = useCallback(async () => {
+    await authClient.signOut().catch(() => {});
+    setUser(null);
+    setSession(null);
   }, []);
 
-  const logout = useCallback(() => {
-    clearToken();
-    setUser(null);
-  }, []);
+  const tenantId = session?.activeOrganizationId ?? null;
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{
+      user,
+      session,
+      loading,
+      login,
+      logout,
+      isAuthenticated: !!user && !!session?.activeOrganizationId,
+      tenantId,
+    }}>
       {children}
     </AuthContext.Provider>
   );

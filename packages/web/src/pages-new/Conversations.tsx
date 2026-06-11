@@ -1,9 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/api/client';
-import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+// 1. React
 import { useState, useCallback } from 'react';
 
+// 2. Third-party
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { Search } from 'lucide-react';
+
+// 3. API
+import { api } from '@/api/client';
+
+// 4. UI components
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
@@ -22,13 +28,15 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Empty,
   EmptyMedia,
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty';
+
+// 5. Sub-components
+import ConversationTableSkeleton from './conversations/ConversationTableSkeleton';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,73 +59,6 @@ interface Agent {
   name: string;
 }
 
-// ---------------------------------------------------------------------------
-// Loading skeleton
-// ---------------------------------------------------------------------------
-
-/**
- * Renders skeleton placeholder rows while the conversations query is loading.
- *
- * Uses five skeleton rows with the same column layout as the real table so the
- * visual jump when data arrives is minimal.
- */
-function ConversationTableSkeleton() {
-  // Build an array of 5 placeholder indices for skeleton rows
-  const skeletonRows = Array.from({ length: 5 }, (_, i) => i);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>对话记录</CardTitle>
-        <CardDescription>所有用户与 Agent 的对话记录</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>用户</TableHead>
-              <TableHead>Agent</TableHead>
-              <TableHead>消息数</TableHead>
-              <TableHead>模型</TableHead>
-              <TableHead>时间</TableHead>
-              <TableHead>操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {skeletonRows.map((idx) => (
-              <TableRow key={idx}>
-                {/* User column skeleton */}
-                <TableCell>
-                  <Skeleton className="h-4 w-20" />
-                </TableCell>
-                {/* Agent column skeleton */}
-                <TableCell>
-                  <Skeleton className="h-4 w-28" />
-                </TableCell>
-                {/* Message count skeleton */}
-                <TableCell>
-                  <Skeleton className="h-4 w-10" />
-                </TableCell>
-                {/* Model name skeleton */}
-                <TableCell>
-                  <Skeleton className="h-4 w-24" />
-                </TableCell>
-                {/* Timestamp skeleton */}
-                <TableCell>
-                  <Skeleton className="h-4 w-36" />
-                </TableCell>
-                {/* Actions skeleton */}
-                <TableCell>
-                  <Skeleton className="h-8 w-12 rounded-md" />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Main page component

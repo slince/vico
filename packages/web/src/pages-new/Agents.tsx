@@ -1,8 +1,15 @@
+// 1. React
+import { useState, useCallback } from 'react';
+
+// 2. Third-party
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, Edit3, Bot } from 'lucide-react';
-import { useState, useCallback } from 'react';
+
+// 3. API
+import { api } from '@/api/client';
+
+// 4. UI components
 import {
   Card,
   CardHeader,
@@ -12,8 +19,6 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,12 +30,6 @@ import {
 } from '@/components/ui/empty';
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
@@ -42,6 +41,9 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
+
+// 5. Sub-components
+import CreateAgentDialog from './agents/CreateAgentDialog';
 
 /** Agent 数据形状（来自 API 返回） */
 interface Agent {
@@ -163,7 +165,12 @@ export default function Agents() {
                 创建 Agent
               </Button>
             </DialogTrigger>
-            {renderCreateDialog(newName, setNewName, handleCreate, createMutation)}
+            <CreateAgentDialog
+            name={newName}
+            onNameChange={setNewName}
+            onSubmit={handleCreate}
+            mutation={{ error: createMutation.error as Error | null, isPending: createMutation.isPending }}
+          />
           </Dialog>
         </div>
         {/* 空状态提示 */}
@@ -194,7 +201,12 @@ export default function Agents() {
               创建 Agent
             </Button>
           </DialogTrigger>
-          {renderCreateDialog(newName, setNewName, handleCreate, createMutation)}
+          <CreateAgentDialog
+            name={newName}
+            onNameChange={setNewName}
+            onSubmit={handleCreate}
+            mutation={{ error: createMutation.error as Error | null, isPending: createMutation.isPending }}
+          />
         </Dialog>
       </div>
 
@@ -298,64 +310,3 @@ export default function Agents() {
   );
 }
 
-/**
- * 渲染创建 Agent 的 Dialog 内容
- *
- * @param name - 当前输入的名称值
- * @param setName - 更新名称的 setter
- * @param onSubmit - 提交回调
- * @param mutation - 创建 mutation 对象，用于展示错误信息
- */
-function renderCreateDialog(
-  name: string,
-  setName: (v: string) => void,
-  onSubmit: () => void,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mutation: { error: any; isPending: boolean },
-) {
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>创建 Agent</DialogTitle>
-        <DialogDescription>
-          输入 Agent 名称以创建新的智能代理。后续可在详情页配置模型、系统提示词、Skill 绑定等。
-        </DialogDescription>
-      </DialogHeader>
-
-      {/* 表单主体 */}
-      <div className="space-y-4 py-4">
-        <div className="space-y-2">
-          <Label htmlFor="agent-name">Agent 名称</Label>
-          <Input
-            id="agent-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="例如：客服助手、数据分析师"
-            // 支持回车快速提交
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onSubmit();
-            }}
-          />
-        </div>
-
-        {/* 错误信息展示 */}
-        {mutation.error && (
-          <p className="text-sm text-destructive">
-            {(mutation.error as Error).message}
-          </p>
-        )}
-      </div>
-
-      <DialogFooter>
-        {/* 取消按钮：关闭 Dialog */}
-        <DialogClose asChild>
-          <Button variant="outline">取消</Button>
-        </DialogClose>
-        {/* 确认创建：名称非空时可用 */}
-        <Button onClick={onSubmit} disabled={!name.trim() || mutation.isPending}>
-          {mutation.isPending ? '创建中...' : '创建'}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  );
-}

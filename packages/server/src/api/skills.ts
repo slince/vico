@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and } from 'drizzle-orm';
 import type { Variables } from '../index.js';
+import { getAuthContext } from './helpers.js';
 import { skillManager } from '../skill/manager.js';
 import { getDb, schema } from '../data/db.js';
 
@@ -8,7 +9,8 @@ const { installed_skills } = schema;
 
 export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/skills', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const installed = skillManager.getInstalledSkills(auth.tenantId);
     const allManifests = skillManager.getAllManifests();
 
@@ -25,7 +27,8 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.get('/api/v1/skills/:name', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const name = c.req.param('name');
     const manifest = skillManager.getManifest(name);
     if (!manifest) return c.json({ error: 'Skill not found' }, 404);
@@ -44,7 +47,8 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.post('/api/v1/skills/install', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const { skill_name, config: cfg } = await c.req.json();
 
     try {
@@ -56,7 +60,8 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.patch('/api/v1/skills/:name/config', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const name = c.req.param('name');
     const cfg = await c.req.json();
     skillManager.updateSkillConfig(auth.tenantId, name, cfg);
@@ -64,7 +69,8 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.post('/api/v1/skills/:name/toggle', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const name = c.req.param('name');
     const { enabled } = await c.req.json();
     skillManager.toggleSkill(auth.tenantId, name, !!enabled);
@@ -72,7 +78,8 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.delete('/api/v1/skills/:name', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const name = c.req.param('name');
     skillManager.uninstallSkill(auth.tenantId, name);
     return c.json({ message: 'deleted' });

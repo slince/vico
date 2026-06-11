@@ -2,13 +2,15 @@ import { Hono } from 'hono';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import type { Variables } from '../index.js';
+import { getAuthContext } from './helpers.js';
 import { getDb, schema } from '../data/db.js';
 
 const { agents, agent_skills, agent_knowledge_bases } = schema;
 
 export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/agents', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const db = getDb();
     const rows = db.select().from(agents)
       .where(eq(agents.tenant_id, auth.tenantId))
@@ -32,7 +34,8 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.post('/api/v1/agents', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const { name, system_prompt, model_id, temperature, max_tokens, rag_mode } = await c.req.json();
 
     const db = getDb();
@@ -49,7 +52,8 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.get('/api/v1/agents/:id', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const db = getDb();
 
@@ -68,7 +72,8 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.patch('/api/v1/agents/:id', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const body = await c.req.json();
     const db = getDb();
@@ -98,7 +103,8 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.delete('/api/v1/agents/:id', (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const db = getDb();
     db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
@@ -108,7 +114,8 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.put('/api/v1/agents/:id/skills', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const { skills } = await c.req.json() as { skills: { skill_name: string; config?: Record<string, any> }[] } || { skills: [] };
     const db = getDb();
@@ -127,7 +134,8 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.put('/api/v1/agents/:id/knowledge', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const { knowledge_bases } = await c.req.json() as { knowledge_bases: { kb_id: string; mode?: string }[] } || { knowledge_bases: [] };
     const db = getDb();

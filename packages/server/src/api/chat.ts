@@ -1,10 +1,12 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
+import { getAuthContext } from './helpers.js';
 import { runPipeline } from '../agent/pipeline.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
   app.post('/api/v1/chat', async (c) => {
-    const auth = c.get('auth');
+    const auth = getAuthContext(c);
+    if (auth instanceof Response) return auth;
     const body = await c.req.json();
     const { agentId, conversationId, message } = body;
 

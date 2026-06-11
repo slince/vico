@@ -18,8 +18,7 @@ interface AppConfig {
     deploy_mode: 'private' | 'saas';
   };
   auth: {
-    jwt_secret: string;
-    token_expiry: string;
+    session_expiry_days: number;
   };
   database: {
     path: string;
@@ -56,7 +55,7 @@ function loadConfig(): AppConfig {
   const configPath = process.env.CONFIG_PATH || resolve(__dirname, '../server.config.yaml');
   const defaultConfig: AppConfig = {
     server: { port: 3001, deploy_mode: 'private' },
-    auth: { jwt_secret: 'dev-secret-change-me', token_expiry: '7d' },
+    auth: { session_expiry_days: 7 },
     database: { path: resolve(__dirname, '../data/vico.db') },
     skills: { scan_paths: [resolve(__dirname, '../../skills'), resolve(__dirname, '../data/custom-skills')] },
     memory: { stm_window: 20, ltm_auto_extract: true, ltm_max_entries: 10000 },
