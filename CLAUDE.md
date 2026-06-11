@@ -50,6 +50,34 @@ packages/
         └── resources/      # 知识文档
 ```
 
+## 编码规范
+
+### 注释要求（强制执行）
+
+- **方法/函数级别**：每个函数、方法、导出的组件必须包含完备的 JSDoc 注释，说明用途、参数含义、返回值
+- **重要代码行**：关键逻辑行、非显而易见的操作、边界条件处理必须添加行注释说明意图
+- **类/接口**：每个类、接口、类型定义需注释其职责和使用场景
+- **模块文件**：文件顶部需简要说明该模块的职责
+
+示例格式：
+```typescript
+/**
+ * 根据用户查询从知识库检索相关文档片段
+ * 采用混合搜索策略：70% 语义相似度 + 30% 关键词匹配
+ * 
+ * @param query - 用户原始查询文本
+ * @param limit - 返回的最大片段数，默认 5
+ * @returns 按相关度降序排列的文档片段数组
+ */
+async function searchDocuments(query: string, limit = 5): Promise<SearchResult[]> {
+    // 将查询文本向量化
+    const embedding = await embedder.embed(query);
+    // 执行混合搜索并去重合并
+    const results = hybridSearch(embedding, query, limit);
+    return results;
+}
+```
+
 ## 常用命令
 
 ```bash
