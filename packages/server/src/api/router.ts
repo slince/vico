@@ -1,4 +1,5 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
+import type { Variables } from '../index.js';
 import { authRoutes } from './auth.js';
 import { agentRoutes } from './agents.js';
 import { skillRoutes } from './skills.js';
@@ -8,7 +9,7 @@ import { modelRoutes } from './models.js';
 import { dashboardRoutes } from './dashboard.js';
 import { chatRoutes } from './chat.js';
 
-export function registerRoutes(app: FastifyInstance) {
+export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   authRoutes(app);
   agentRoutes(app);
   skillRoutes(app);

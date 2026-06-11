@@ -78,6 +78,14 @@ async function searchDocuments(query: string, limit = 5): Promise<SearchResult[]
 }
 ```
 
+### 关键代码文档沉淀（强制执行）
+
+- **何时沉淀**：完成关键功能、核心模块、重要算法后，必须在 `docs/insights/` 目录下创建对应的文档
+- **文档命名**：`{模块名}-{功能简述}.md`，如 `agent-pipeline-flow.md`、`auth-jwt-design.md`
+- **文档内容**：需包含设计思路、关键流程、数据结构、API 说明、使用示例
+- **目录组织**：文档放在 `docs/insights/` 下，优先归入已有子目录；若无合适的子目录，AI 自行按领域创建新的子目录
+- **知识库参考**：修改或扩展已有模块前，必须先查阅 `docs/insights/` 中对应领域的文档，理解现有设计后再动手
+
 ## 常用命令
 
 ```bash
