@@ -4,7 +4,7 @@ import type { Session, User } from 'better-auth';
 
 interface AuthContextType {
   user: User | null;
-  session: Session['session'] | null;
+  session: Session | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -17,7 +17,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 /** 认证提供者 — 基于 better-auth session cookie */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session['session'] | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   // 挂载时检查 session
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authClient.getSession().then(({ data, error }) => {
       if (!error && data) {
         setUser(data.user as User);
-        setSession(data.session as Session['session']);
+        setSession(data.session as Session);
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -42,7 +42,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sessionRes = await authClient.getSession();
     if (sessionRes.data) {
       setUser(sessionRes.data.user as User);
-      setSession(sessionRes.data.session as Session['session']);
+      setSession(sessionRes.data.session as Session);
+    }
+
+    // 若存在组织但未选择活跃组织，自动选择第一个
+    if (sessionRes.data?.session && !(sessionRes.data.session as any).activeOrganizationId) {
+      const orgList = await authClient.organization.list();
+      const orgs = orgList.data;
+      if (orgs && orgs.length > 0) {
+        await authClient.organization.setActive({ organizationId: orgs[0].id });
+        const updated = await authClient.getSession();
+        if (updated.data) {
+          setUser(updated.data.user as User);
+          setSession(updated.data.session as Session);
+        }
+      }
     }
   }, []);
 
@@ -53,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
-  const tenantId = session?.activeOrganizationId ?? null;
+  const tenantId = (session as any)?.activeOrganizationId ?? null;
 
   return (
     <AuthContext.Provider value={{
@@ -62,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       login,
       logout,
-      isAuthenticated: !!user && !!session?.activeOrganizationId,
+      isAuthenticated: !!user,
       tenantId,
     }}>
       {children}

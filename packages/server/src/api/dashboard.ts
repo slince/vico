@@ -58,13 +58,14 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
 
     // Token usage trend (last 30 days)
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const dayExpr = sql<string>`date(${token_usage_logs.created_at} / 1000, 'unixepoch')`;
     const tokenTrend = db.select({
-      day: sql<string>`date(${token_usage_logs.created_at} / 1000, 'unixepoch')`,
+      day: dayExpr,
       total: sql<number>`SUM(${token_usage_logs.prompt_tokens} + ${token_usage_logs.completion_tokens})`,
     }).from(token_usage_logs)
       .where(sql`${token_usage_logs.tenant_id} = ${auth.tenantId} AND ${token_usage_logs.created_at} >= ${thirtyDaysAgo}`)
-      .groupBy(sql`day`)
-      .orderBy(sql`day`)
+      .groupBy(dayExpr)
+      .orderBy(dayExpr)
       .all();
 
     return c.json({

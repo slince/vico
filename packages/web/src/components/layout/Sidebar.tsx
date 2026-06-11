@@ -53,11 +53,11 @@ export function Sidebar() {
       <div className="p-3 border-t border-sidebar-border">
         <div className="flex items-center gap-2 px-3 py-2">
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-            {user?.username?.[0]?.toUpperCase()}
+            {user?.name?.[0]?.toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.username}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.role}</p>
+            <p className="text-sm font-medium truncate">{(user as any)?.username ?? user?.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
           <button onClick={logout} className="p-1.5 hover:bg-sidebar-accent rounded-md" title="退出登录">
             <LogOut size={16} />

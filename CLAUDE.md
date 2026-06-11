@@ -54,6 +54,17 @@ packages/
 
 ## 编码规范
 
+### TypeScript 后端编码规范（强制执行）
+
+编写或修改 `packages/server/src/` 下的任何代码时，**务必遵守** [docs/ts-server-best-practices.md](docs/ts-server-best-practices.md) 中的全部规范，核心要点：
+
+- **路由层**：每个 handler 第一行必须是 `getAuthContext(c)`，不做业务逻辑，不写 try-catch
+- **数据库**：所有查询带 `tenant_id` 过滤，主键用 `uuid()`，时间戳用 `Date.now()`，JSON 字段显式序列化
+- **单例模式**：Manager 类采用模块级 `export const xxx = new Xxx()` 单例
+- **ESM 导入**：始终带 `.js` 扩展名，导入顺序为 Node 内置 → 第三方 → 本地模块
+- **类型安全**：避免 `any`，JSON 字段存取时显式 `JSON.stringify/parse`
+- **错误处理**：路由层自然冒泡，核心模块在边界 catch，非关键路径静默降级
+
 ### 注释要求（强制执行）
 
 - **方法/函数级别**：每个函数、方法、导出的组件必须包含完备的 JSDoc 注释，说明用途、参数含义、返回值

@@ -55,6 +55,9 @@ export const auth = betterAuth({
   /** 信任 Vite 开发服务器来源 */
   trustedOrigins: ['http://localhost:5173'],
 
+  /** 服务端基础 URL — 消除 "Base URL is not set" 警告 */
+  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
+
   /** 密钥 — 替代原 jwt_secret */
   secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-change-me-in-production',
 });

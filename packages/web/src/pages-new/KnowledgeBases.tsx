@@ -126,10 +126,9 @@ export default function KnowledgeBases() {
       const formData = new FormData();
       // 将文件添加到表单数据
       formData.append('file', file);
-      const token = localStorage.getItem('vico_token');
       const res = await fetch(`/api/v1/knowledge-bases/${kbId}/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
         body: formData,
       });
       if (!res.ok) {

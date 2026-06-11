@@ -29,10 +29,9 @@ export default function KnowledgeBases() {
     mutationFn: async ({ kbId, file }: { kbId: string; file: File }) => {
       const formData = new FormData();
       formData.append('file', file);
-      const token = localStorage.getItem('vico_token');
       const res = await fetch(`/api/v1/knowledge-bases/${kbId}/upload`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
         body: formData,
       });
       if (!res.ok) {
