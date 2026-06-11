@@ -38,7 +38,7 @@ export async function seedDefaultOrgAndAdmin() {
   const existing = db.select({ id: organization.id }).from(organization).limit(1).get();
   if (existing) return;
 
-  const now = Date.now();
+  const now = new Date();
   const orgId = uuid();
   const userId = uuid();
   const accountId = uuid();

@@ -98,6 +98,7 @@ async function searchDocuments(query: string, limit = 5): Promise<SearchResult[]
 - **文档内容**：需包含设计思路、关键流程、数据结构、API 说明、使用示例
 - **目录组织**：文档放在 `docs/insights/` 下，优先归入已有子目录；若无合适的子目录，AI 自行按领域创建新的子目录
 - **知识库参考**：修改或扩展已有模块前，必须先查阅 `docs/insights/` 中对应领域的文档，理解现有设计后再动手
+- **架构参考**：修改核心模块（Agent 引擎、Skill 系统、记忆系统、RAG、认证）前，必须查阅 [docs/architecture.md](docs/architecture.md) 了解模块职责和数据流
 
 ## 常用命令
 

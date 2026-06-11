@@ -1,12 +1,15 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
+import { eq } from 'drizzle-orm';
 import { config } from './config.js';
 import { auth } from './auth/index.js';
 import { skillManager } from './skill/manager.js';
 import { registerRoutes } from './api/router.js';
 import { runMigrations } from './data/run-migrations.js';
 import { seedDefaultOrgAndAdmin } from './auth/seed.js';
+import { getDb } from './data/db.js';
+import { member, session as sessionTable } from './data/auth-schema.js';
 
 /** Hono 上下文变量类型 — better-auth session 信息 */
 export type Variables = {
@@ -61,11 +64,31 @@ async function main() {
     return next();
   });
 
-  /** Auth 守卫中间件 — 保护 /api/v1/* 路由 */
+  /** Auth 守卫中间件 — 保护 /api/v1/* 路由，private 模式下自动选择第一个组织 */
   app.use('/api/v1/*', async (c, next) => {
     const session = c.get('session');
-    if (!session || !session.activeOrganizationId) {
+    const user = c.get('user');
+    if (!session || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
+    }
+    // 若用户尚未选择活跃组织（private 部署模式下自动选择第一个）
+    if (!session.activeOrganizationId) {
+      const db = getDb();
+      const membership = db
+        .select({ organizationId: member.organizationId })
+        .from(member)
+        .where(eq(member.userId, user.id))
+        .limit(1)
+        .get();
+      if (!membership) {
+        return c.json({ error: 'No organization found' }, 401);
+      }
+      // 直接更新 session 记录的活跃组织
+      db.update(sessionTable)
+        .set({ activeOrganizationId: membership.organizationId })
+        .where(eq(sessionTable.id, session.id))
+        .run();
+      session.activeOrganizationId = membership.organizationId;
     }
     return next();
   });
