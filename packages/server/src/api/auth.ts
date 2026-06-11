@@ -1,12 +1,15 @@
 import { Hono } from 'hono';
 import { eq } from 'drizzle-orm';
+import { sign, verify } from 'hono/jwt';
 import type { Variables } from '../index.js';
-import { signToken, verifyPassword, createUser, AuthContext } from '../auth/index.js';
+import { verifyPassword, createUser, AuthContext } from '../auth/index.js';
 import { getDb, schema } from '../data/db.js';
+import { config } from '../config.js';
 
 const { users } = schema;
 
-export function authRoutes(app: Hono<{ Variables: Variables }>) {
+/** Public routes — registered before JWT middleware, no enforced auth. */
+export function publicAuthRoutes(app: Hono<{ Variables: Variables }>) {
   app.post('/api/v1/auth/login', async (c) => {
     const { username, password } = await c.req.json();
     if (!username || !password) {
@@ -20,7 +23,7 @@ export function authRoutes(app: Hono<{ Variables: Variables }>) {
     }
 
     const ctx: AuthContext = { userId: user.id, tenantId: user.tenant_id, role: user.role };
-    const token = signToken(ctx);
+    const token = await sign(ctx, config.auth.jwt_secret);
     return c.json({ token, user: { id: user.id, username: user.username, role: user.role, tenantId: user.tenant_id } });
   });
 
@@ -30,17 +33,30 @@ export function authRoutes(app: Hono<{ Variables: Variables }>) {
       return c.json({ error: 'Username and password required' }, 400);
     }
 
-    const auth = c.get('auth');
-    if (!auth) return c.json({ error: 'Unauthorized' }, 401);
+    // Register requires caller auth; verify token manually since this is before JWT middleware
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
 
     try {
-      const userCtx = createUser(auth.tenantId, username, password, role || 'admin');
-      return c.json({ userId: userCtx.userId, tenantId: userCtx.tenantId });
-    } catch (err: any) {
-      return c.json({ error: err.message }, 400);
+      const payload = await verify(authHeader.slice(7), config.auth.jwt_secret);
+      const ctx = payload as AuthContext;
+
+      try {
+        const userCtx = createUser(ctx.tenantId, username, password, role || 'admin');
+        return c.json({ userId: userCtx.userId, tenantId: userCtx.tenantId });
+      } catch (err: any) {
+        return c.json({ error: err.message }, 400);
+      }
+    } catch {
+      return c.json({ error: 'Invalid token' }, 401);
     }
   });
+}
 
+/** Protected routes — registered after JWT middleware. */
+export function authRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/auth/me', (c) => {
     const auth = c.get('auth');
     const db = getDb();

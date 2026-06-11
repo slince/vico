@@ -1,8 +1,7 @@
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 import { eq } from 'drizzle-orm';
-import { config } from '../config.js';
+
 import { getDb, schema } from '../data/db.js';
 
 const { tenants, users } = schema;
@@ -19,14 +18,6 @@ export function hashPassword(password: string): string {
 
 export function verifyPassword(password: string, hash: string): boolean {
   return bcrypt.compareSync(password, hash);
-}
-
-export function signToken(ctx: AuthContext): string {
-  return jwt.sign(ctx, config.auth.jwt_secret, { expiresIn: config.auth.token_expiry as any });
-}
-
-export function verifyToken(token: string): AuthContext {
-  return jwt.verify(token, config.auth.jwt_secret) as AuthContext;
 }
 
 export function initDefaultTenant() {

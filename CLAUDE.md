@@ -13,7 +13,7 @@ Vico 是一个面向中小企业的 AI Agent 管理平台，基于"配置 + 即�
 | Agent 框架 | Vercel AI SDK 4（`ai` 包） |
 | 数据库 | better-sqlite3（WAL 模式）+ Drizzle ORM |
 | 嵌入模型 | Transformers.js（本地）/ OpenAI API |
-| 认证 | JWT + bcryptjs |
+| 认证 | JWT（hono/jwt）+ bcryptjs |
 | 前端 | React 19、Vite 6、Tailwind CSS 4 |
 | UI 组件 | shadcn/ui（radix-rhea 风格） |
 | 服务端状态 | TanStack Query 5 |
@@ -27,12 +27,12 @@ packages/
 │   └── src/
 │       ├── index.ts     # Hono 启动、CORS、限流、认证中间件
 │       ├── config.ts    # YAML 配置加载器，支持环境变量插值
-│       ├── api/         # 路由处理（Fastify 插件，按领域划分）
+│       ├── api/         # 路由处理（Hono 路由注册函数，按领域划分）
 │       │   ├── router.ts、auth.ts、agents.ts、skills.ts、chat.ts 等（Hono 路由注册函数）
 │       ├── agent/       # 聊天管道、工具执行器、模型注册中心
 │       ├── skill/       # 插件系统：类型定义、加载器、管理器
 │       ├── memory/      # 短期记忆、长期记忆、RAG、嵌入器
-│       ├── auth/        # JWT 签发/校验、bcrypt、租户初始化
+│       ├── auth/        # 密码哈希/校验（bcrypt）、租户/用户管理；JWT 签发/校验由 hono/jwt 处理
 │       └── data/        # Drizzle ORM 连接、Schema、迁移（13 张表）
 ├── web/                 # React 管理后台
 │   └── src/
@@ -120,10 +120,12 @@ pnpm skill:install <path> # 从目录安装 Skill
 
 ### 认证
 
-- 基于 JWT，通过 Hono 中间件 `app.use('*', ...)` 跳过公开路径
-- 通过 `c.set('auth', ctx)` 将认证上下文附加到每个请求，通过 `c.get('auth')` 获取
+- 使用 `hono/jwt` 中间件保护 `/api/v1/*` 路由，算法为 HS256
+- 公开路由（`/api/v1/auth/login`、`/api/v1/auth/register`）在 JWT 中间件之前注册
+- 登录成功后通过 `sign()` 签发 token，密钥来自 `config.auth.jwt_secret`
+- JWT 中间件自动将 payload 写入 `c.get('jwtPayload')`，再由 payload 传递中间件写入 `c.set('auth', ctx)`，后续通过 `c.get('auth')` 获取认证上下文
 - 租户隔离：SaaS 模式下所有查询按 `tenant_id` 过滤
-- 首次运行时自动创建默认租户和管理员用户
+- 首次运行时自动创建默认租户和管理员用户（admin/admin123）
 
 ### 数据库
 
