@@ -16,7 +16,7 @@ Vico 是一个面向中小企业的 AI Agent 管理平台，基于"配置 + 即�
 | 认证 | JWT（hono/jwt）+ bcryptjs |
 | 前端 | React 19、Vite 6、Tailwind CSS 4 |
 | UI 组件 | shadcn/ui（radix-rhea 风格） |
-| 服务端状态 | TanStack Query 5 |
+| 前端数据获取 | TanStack Query 5 |
 | 校验 | Zod |
 
 ## 目录结构
@@ -40,7 +40,9 @@ packages/
 │       ├── router.tsx   # 全部路由及认证守卫
 │       ├── api/client.ts  # REST 客户端 + SSE 流式请求工具
 │       ├── hooks/       # useAuth、use-mobile
-│       ├── pages/       # 登录、仪表盘、Agent、Skill、知识库、会话、设置
+│       ├── lib/         # 工具函数（cn、utils）
+│       ├── pages-new/   # 新版页面（shadcn/ui 重写，当前使用中）
+│       ├── pages/       # 旧版页面（/old 路由下保留对照）
 │       └── components/  # 布局（侧边栏+容器）+ shadcn/ui 基础组件
 └── skills/              # 预置 Skill 插件（基于文件系统）
     └── <skill-name>/
@@ -77,6 +79,17 @@ async function searchDocuments(query: string, limit = 5): Promise<SearchResult[]
     return results;
 }
 ```
+
+### Web 前端组件规范（强制执行）
+
+编写或修改 `packages/web/src/` 下的任何组件时，**务必遵守** [docs/react-best-practices.md](docs/react-best-practices.md) 中的全部规范，核心要点：
+
+- **组件拆分**：单个文件不超过 200 行，子组件提取到页面同级子目录（如 `pages-new/dashboard/StatCard.tsx`）
+- **职责单一**：页面组件只做数据获取和布局编排，UI 渲染交给子组件
+- **状态覆盖**：每个组件必须处理加载态（Skeleton）、空态（Empty）、错误态、正常态
+- **禁止内联子组件**：不要在页面文件内部定义 StatCard、Dialog 等子组件函数
+- **类型分离**：页面级类型定义在 `types.ts`，不混入组件文件
+- **导入顺序**：React → 第三方 → API/Hooks → UI 组件 → 子组件 → 类型
 
 ### 关键代码文档沉淀（强制执行）
 
