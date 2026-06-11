@@ -9,7 +9,7 @@ Vico 是一个面向中小企业的 AI Agent 管理平台，基于"配置 + 即�
 | 层 | 技术 |
 |-------|-----------|
 | 包管理器 | pnpm 9 + Turborepo（monorepo） |
-| 后端 | TypeScript、Fastify 5、ESM |
+| 后端 | TypeScript、Hono 4、ESM |
 | Agent 框架 | Vercel AI SDK 4（`ai` 包） |
 | 数据库 | better-sqlite3（WAL 模式） |
 | 嵌入模型 | Transformers.js（本地）/ OpenAI API |
@@ -25,10 +25,10 @@ Vico 是一个面向中小企业的 AI Agent 管理平台，基于"配置 + 即�
 packages/
 ├── server/              # 后端 API + Agent 引擎
 │   └── src/
-│       ├── index.ts     # Fastify 启动、CORS、认证中间件
+│       ├── index.ts     # Hono 启动、CORS、限流、认证中间件
 │       ├── config.ts    # YAML 配置加载器，支持环境变量插值
 │       ├── api/         # 路由处理（Fastify 插件，按领域划分）
-│       │   ├── router.ts、auth.ts、agents.ts、skills.ts、chat.ts 等
+│       │   ├── router.ts、auth.ts、agents.ts、skills.ts、chat.ts 等（Hono 路由注册函数）
 │       ├── agent/       # 聊天管道、工具执行器、模型注册中心
 │       ├── skill/       # 插件系统：类型定义、加载器、管理器
 │       ├── memory/      # 短期记忆、长期记忆、RAG、嵌入器
@@ -120,8 +120,8 @@ pnpm skill:install <path> # 从目录安装 Skill
 
 ### 认证
 
-- 基于 JWT，通过 Fastify `onRequest` 钩子跳过公开路径
-- 将 `authContext`（userId、tenantId、role）附加到每个请求
+- 基于 JWT，通过 Hono 中间件 `app.use('*', ...)` 跳过公开路径
+- 通过 `c.set('auth', ctx)` 将认证上下文附加到每个请求，通过 `c.get('auth')` 获取
 - 租户隔离：SaaS 模式下所有查询按 `tenant_id` 过滤
 - 首次运行时自动创建默认租户和管理员用户
 
@@ -135,7 +135,7 @@ pnpm skill:install <path> # 从目录安装 Skill
 ## 关键模式
 
 - **单例模式**：`skillManager`、`toolExecutor`、`shortTermMemory`、`longTermMemory`、`ragManager`、`getDb()` 均为模块级单例
-- **Fastify 插件**：路由文件导出函数 `(app: FastifyInstance) => void`
+- **Hono 路由函数**：路由文件导出函数 `(app: Hono<{ Variables: Variables }>) => void`，通过 `c.get('auth')` 获取认证上下文
 - **SSE 流式传输**：通过 `ReadableStream` 实现 `text/event-stream`，由 AI SDK 异步迭代器转换
 - **Provider 适配器**：模型注册中心将 provider 字符串映射到 Vercel AI SDK provider 函数
 - **无 ORM**：所有数据库操作使用原生 SQL + 预处理语句

@@ -1,15 +1,16 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
+import type { Variables } from '../index.js';
 import { skillManager } from '../skill/manager.js';
 import { getDb } from '../data/db.js';
 
-export function skillRoutes(app: FastifyInstance) {
-  app.get('/api/v1/skills', async (req) => {
-    const ctx = req.authContext!;
-    const installed = skillManager.getInstalledSkills(ctx.tenantId);
+export function skillRoutes(app: Hono<{ Variables: Variables }>) {
+  app.get('/api/v1/skills', (c) => {
+    const auth = c.get('auth');
+    const installed = skillManager.getInstalledSkills(auth.tenantId);
     const allManifests = skillManager.getAllManifests();
 
     // Merge: show all available skills with installation status
-    return allManifests.map((m) => {
+    return c.json(allManifests.map((m) => {
       const inst = (installed as any[]).find((i) => i.skill_name === m.name);
       return {
         ...m,
@@ -18,58 +19,58 @@ export function skillRoutes(app: FastifyInstance) {
         installed_enabled: inst ? !!inst.enabled : false,
         installed_version: inst ? inst.version : null,
       };
-    });
+    }));
   });
 
-  app.get('/api/v1/skills/:name', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { name } = req.params as any;
+  app.get('/api/v1/skills/:name', (c) => {
+    const auth = c.get('auth');
+    const name = c.req.param('name');
     const manifest = skillManager.getManifest(name);
-    if (!manifest) return reply.status(404).send({ error: 'Skill not found' });
+    if (!manifest) return c.json({ error: 'Skill not found' }, 404);
 
     const db = getDb();
-    const inst = db.prepare('SELECT * FROM installed_skills WHERE tenant_id = ? AND skill_name = ?').get(ctx.tenantId, name);
+    const inst = db.prepare('SELECT * FROM installed_skills WHERE tenant_id = ? AND skill_name = ?').get(auth.tenantId, name);
 
-    return {
+    return c.json({
       ...manifest,
       installed: !!inst,
       installed_config: inst ? JSON.parse((inst as any).config) : {},
       installed_enabled: inst ? !!(inst as any).enabled : false,
-    };
+    });
   });
 
-  app.post('/api/v1/skills/install', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { skill_name, config: cfg } = req.body as any;
+  app.post('/api/v1/skills/install', async (c) => {
+    const auth = c.get('auth');
+    const { skill_name, config: cfg } = await c.req.json();
 
     try {
-      const result = await skillManager.installSkill(ctx.tenantId, skill_name, cfg || {});
-      return result;
+      const result = await skillManager.installSkill(auth.tenantId, skill_name, cfg || {});
+      return c.json(result);
     } catch (err: any) {
-      return reply.status(400).send({ error: err.message });
+      return c.json({ error: err.message }, 400);
     }
   });
 
-  app.patch('/api/v1/skills/:name/config', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { name } = req.params as any;
-    const cfg = req.body as any;
-    skillManager.updateSkillConfig(ctx.tenantId, name, cfg);
-    return { message: 'updated' };
+  app.patch('/api/v1/skills/:name/config', async (c) => {
+    const auth = c.get('auth');
+    const name = c.req.param('name');
+    const cfg = await c.req.json();
+    skillManager.updateSkillConfig(auth.tenantId, name, cfg);
+    return c.json({ message: 'updated' });
   });
 
-  app.post('/api/v1/skills/:name/toggle', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { name } = req.params as any;
-    const { enabled } = req.body as any;
-    skillManager.toggleSkill(ctx.tenantId, name, !!enabled);
-    return { message: 'updated' };
+  app.post('/api/v1/skills/:name/toggle', async (c) => {
+    const auth = c.get('auth');
+    const name = c.req.param('name');
+    const { enabled } = await c.req.json();
+    skillManager.toggleSkill(auth.tenantId, name, !!enabled);
+    return c.json({ message: 'updated' });
   });
 
-  app.delete('/api/v1/skills/:name', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { name } = req.params as any;
-    skillManager.uninstallSkill(ctx.tenantId, name);
-    return { message: 'deleted' };
+  app.delete('/api/v1/skills/:name', (c) => {
+    const auth = c.get('auth');
+    const name = c.req.param('name');
+    skillManager.uninstallSkill(auth.tenantId, name);
+    return c.json({ message: 'deleted' });
   });
 }

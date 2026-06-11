@@ -1,44 +1,31 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
+import type { Variables } from '../index.js';
 import { runPipeline } from '../agent/pipeline.js';
 
-export function chatRoutes(app: FastifyInstance) {
-  app.post('/api/v1/chat', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { agentId, conversationId, message } = req.body as any;
+export function chatRoutes(app: Hono<{ Variables: Variables }>) {
+  app.post('/api/v1/chat', async (c) => {
+    const auth = c.get('auth');
+    const body = await c.req.json();
+    const { agentId, conversationId, message } = body;
 
     if (!agentId || !message) {
-      return reply.status(400).send({ error: 'agentId and message are required' });
+      return c.json({ error: 'agentId and message are required' }, 400);
     }
 
     const result = await runPipeline(message, {
-      tenantId: ctx.tenantId,
+      tenantId: auth.tenantId,
       agentId,
-      userId: ctx.userId,
+      userId: auth.userId,
       conversationId: conversationId || undefined,
     });
 
-    reply.raw.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'X-Conversation-Id': result.metadata.conversationId,
+    return new Response(result.stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Conversation-Id': result.metadata.conversationId,
+      },
     });
-
-    const reader = result.stream.getReader();
-    const pump = async () => {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          reply.raw.end();
-          break;
-        }
-        reply.raw.write(value);
-      }
-    };
-    pump().catch(() => {
-      reply.raw.end();
-    });
-
-    return reply.hijack();
   });
 }

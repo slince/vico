@@ -1,12 +1,13 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
+import type { Variables } from '../index.js';
 import { getDb } from '../data/db.js';
 import { v4 as uuid } from 'uuid';
 
-export function agentRoutes(app: FastifyInstance) {
-  app.get('/api/v1/agents', async (req, reply) => {
-    const ctx = req.authContext!;
+export function agentRoutes(app: Hono<{ Variables: Variables }>) {
+  app.get('/api/v1/agents', (c) => {
+    const auth = c.get('auth');
     const db = getDb();
-    const agents = db.prepare('SELECT * FROM agents WHERE tenant_id = ? ORDER BY updated_at DESC').all(ctx.tenantId);
+    const agents = db.prepare('SELECT * FROM agents WHERE tenant_id = ? ORDER BY updated_at DESC').all(auth.tenantId);
 
     // Enrich with bound skills
     const result = (agents as any[]).map((a) => {
@@ -15,45 +16,45 @@ export function agentRoutes(app: FastifyInstance) {
       return { ...a, skill_names: skills.map((s) => s.skill_name), kb_ids: kbs.map((k) => k.kb_id) };
     });
 
-    return result;
+    return c.json(result);
   });
 
-  app.post('/api/v1/agents', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { name, system_prompt, model_id, temperature, max_tokens, rag_mode } = req.body as any;
+  app.post('/api/v1/agents', async (c) => {
+    const auth = c.get('auth');
+    const { name, system_prompt, model_id, temperature, max_tokens, rag_mode } = await c.req.json();
 
     const db = getDb();
     const id = uuid();
     const now = Date.now();
     db.prepare(`INSERT INTO agents (id, tenant_id, name, system_prompt, model_id, temperature, max_tokens, rag_mode, enabled, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`).run(
-      id, ctx.tenantId, name, system_prompt || '', model_id || '', temperature || 0.7, max_tokens || 4096, rag_mode || 'auto', now, now
+      id, auth.tenantId, name, system_prompt || '', model_id || '', temperature || 0.7, max_tokens || 4096, rag_mode || 'auto', now, now
     );
-    return { id, message: 'created' };
+    return c.json({ id, message: 'created' });
   });
 
-  app.get('/api/v1/agents/:id', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { id } = req.params as any;
+  app.get('/api/v1/agents/:id', (c) => {
+    const auth = c.get('auth');
+    const id = c.req.param('id');
     const db = getDb();
 
-    const agent = db.prepare('SELECT * FROM agents WHERE id = ? AND tenant_id = ?').get(id, ctx.tenantId);
-    if (!agent) return reply.status(404).send({ error: 'Agent not found' });
+    const agent = db.prepare('SELECT * FROM agents WHERE id = ? AND tenant_id = ?').get(id, auth.tenantId);
+    if (!agent) return c.json({ error: 'Agent not found' }, 404);
 
     const skills = db.prepare('SELECT skill_name, config FROM agent_skills WHERE agent_id = ?').all(id);
     const kbs = db.prepare('SELECT kb_id, mode FROM agent_knowledge_bases WHERE agent_id = ?').all(id);
 
-    return { ...agent as any, skills, knowledge_bases: kbs };
+    return c.json({ ...agent as any, skills, knowledge_bases: kbs });
   });
 
-  app.patch('/api/v1/agents/:id', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { id } = req.params as any;
-    const body = req.body as any;
+  app.patch('/api/v1/agents/:id', async (c) => {
+    const auth = c.get('auth');
+    const id = c.req.param('id');
+    const body = await c.req.json();
     const db = getDb();
 
-    const agent = db.prepare('SELECT * FROM agents WHERE id = ? AND tenant_id = ?').get(id, ctx.tenantId);
-    if (!agent) return reply.status(404).send({ error: 'Agent not found' });
+    const agent = db.prepare('SELECT * FROM agents WHERE id = ? AND tenant_id = ?').get(id, auth.tenantId);
+    if (!agent) return c.json({ error: 'Agent not found' }, 404);
 
     const allowed = ['name', 'system_prompt', 'model_id', 'temperature', 'max_tokens', 'rag_mode', 'enabled'];
     const sets: string[] = [];
@@ -68,27 +69,27 @@ export function agentRoutes(app: FastifyInstance) {
     if (sets.length > 0) {
       sets.push('updated_at = ?');
       vals.push(Date.now());
-      vals.push(ctx.tenantId, id);
+      vals.push(auth.tenantId, id);
       db.prepare(`UPDATE agents SET ${sets.join(', ')} WHERE tenant_id = ? AND id = ?`).run(...vals);
     }
 
-    return { message: 'updated' };
+    return c.json({ message: 'updated' });
   });
 
-  app.delete('/api/v1/agents/:id', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { id } = req.params as any;
+  app.delete('/api/v1/agents/:id', (c) => {
+    const auth = c.get('auth');
+    const id = c.req.param('id');
     const db = getDb();
     db.prepare('DELETE FROM agent_skills WHERE agent_id = ?').run(id);
     db.prepare('DELETE FROM agent_knowledge_bases WHERE agent_id = ?').run(id);
-    db.prepare('DELETE FROM agents WHERE id = ? AND tenant_id = ?').run(id, ctx.tenantId);
-    return { message: 'deleted' };
+    db.prepare('DELETE FROM agents WHERE id = ? AND tenant_id = ?').run(id, auth.tenantId);
+    return c.json({ message: 'deleted' });
   });
 
-  app.put('/api/v1/agents/:id/skills', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { id } = req.params as any;
-    const { skills } = req.body as { skills: { skill_name: string; config?: Record<string, any> }[] } || { skills: [] };
+  app.put('/api/v1/agents/:id/skills', async (c) => {
+    const auth = c.get('auth');
+    const id = c.req.param('id');
+    const { skills } = await c.req.json() as { skills: { skill_name: string; config?: Record<string, any> }[] } || { skills: [] };
     const db = getDb();
 
     db.prepare('DELETE FROM agent_skills WHERE agent_id = ?').run(id);
@@ -97,13 +98,13 @@ export function agentRoutes(app: FastifyInstance) {
         id, s.skill_name, JSON.stringify(s.config || {})
       );
     }
-    return { message: 'updated' };
+    return c.json({ message: 'updated' });
   });
 
-  app.put('/api/v1/agents/:id/knowledge', async (req, reply) => {
-    const ctx = req.authContext!;
-    const { id } = req.params as any;
-    const { knowledge_bases } = req.body as { knowledge_bases: { kb_id: string; mode?: string }[] } || { knowledge_bases: [] };
+  app.put('/api/v1/agents/:id/knowledge', async (c) => {
+    const auth = c.get('auth');
+    const id = c.req.param('id');
+    const { knowledge_bases } = await c.req.json() as { knowledge_bases: { kb_id: string; mode?: string }[] } || { knowledge_bases: [] };
     const db = getDb();
 
     db.prepare('DELETE FROM agent_knowledge_bases WHERE agent_id = ?').run(id);
@@ -112,6 +113,6 @@ export function agentRoutes(app: FastifyInstance) {
         id, kb.kb_id, kb.mode || 'auto'
       );
     }
-    return { message: 'updated' };
+    return c.json({ message: 'updated' });
   });
 }
