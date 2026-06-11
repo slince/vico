@@ -11,7 +11,7 @@ Vico 是一个面向中小企业的 AI Agent 管理平台，基于"配置 + 即�
 | 包管理器 | pnpm 9 + Turborepo（monorepo） |
 | 后端 | TypeScript、Hono 4、ESM |
 | Agent 框架 | Vercel AI SDK 4（`ai` 包） |
-| 数据库 | better-sqlite3（WAL 模式） |
+| 数据库 | better-sqlite3（WAL 模式）+ Drizzle ORM |
 | 嵌入模型 | Transformers.js（本地）/ OpenAI API |
 | 认证 | JWT + bcryptjs |
 | 前端 | React 19、Vite 6、Tailwind CSS 4 |
@@ -33,7 +33,7 @@ packages/
 │       ├── skill/       # 插件系统：类型定义、加载器、管理器
 │       ├── memory/      # 短期记忆、长期记忆、RAG、嵌入器
 │       ├── auth/        # JWT 签发/校验、bcrypt、租户初始化
-│       └── data/        # SQLite 单例、数据库迁移（13 张表）
+│       └── data/        # Drizzle ORM 连接、Schema、迁移（13 张表）
 ├── web/                 # React 管理后台
 │   └── src/
 │       ├── main.tsx     # QueryClient + RouterProvider
@@ -127,10 +127,11 @@ pnpm skill:install <path> # 从目录安装 Skill
 
 ### 数据库
 
-- 通过 `better-sqlite3` 预处理语句直接执行 SQL — 无 ORM
-- 版本化迁移，位于 `src/data/migrations.ts`（由 `schema_version` 表跟踪）
-- 通过 `getDb()` 获取单例连接
-- 启用 WAL 模式以支持并发读取
+- **ORM**：Drizzle ORM（`drizzle-orm/better-sqlite3`），类型安全的查询构建器
+- **Schema**：定义在 `src/data/schema.ts`，共 13 张表，使用 snake_case 列名
+- **迁移**：由 `drizzle-kit generate` 生成 SQL 文件（`drizzle/` 目录），通过 `drizzle-orm/better-sqlite3/migrator` 执行
+- **双出口**：`getDb()` 返回 Drizzle 实例（常规 CRUD），`getSqlite()` 返回原始 better-sqlite3 连接（BLOB/向量操作）
+- 通过 `getDb()` 获取单例连接，启用 WAL 模式以支持并发读取
 
 ## 关键模式
 
@@ -138,7 +139,7 @@ pnpm skill:install <path> # 从目录安装 Skill
 - **Hono 路由函数**：路由文件导出函数 `(app: Hono<{ Variables: Variables }>) => void`，通过 `c.get('auth')` 获取认证上下文
 - **SSE 流式传输**：通过 `ReadableStream` 实现 `text/event-stream`，由 AI SDK 异步迭代器转换
 - **Provider 适配器**：模型注册中心将 provider 字符串映射到 Vercel AI SDK provider 函数
-- **无 ORM**：所有数据库操作使用原生 SQL + 预处理语句
+- **Drizzle 查询**：使用类型安全的查询 API（`db.select().from(table).where(eq(...))` 等），替代原生 SQL 字符串
 - **暂无测试**：早期 MVP 阶段
 
 ## shadcn/ui 备注

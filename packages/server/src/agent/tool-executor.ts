@@ -1,7 +1,9 @@
+import { v4 as uuid } from 'uuid';
 import { skillManager } from '../skill/manager.js';
 import { SkillTool, ToolContext } from '../skill/types.js';
-import { getDb } from '../data/db.js';
-import { v4 as uuid } from 'uuid';
+import { getDb, schema } from '../data/db.js';
+
+const { tool_call_logs } = schema;
 
 interface ToolExecResult {
   success: boolean;
@@ -63,12 +65,12 @@ export class ToolExecutor {
   ) {
     try {
       const db = getDb();
-      db.prepare(`INSERT INTO tool_call_logs (id, tenant_id, agent_id, conversation_id, message_id, tool_name, args, result, status, duration_ms, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-        uuid(), context.tenantId, context.agentId, '', '',
-        toolName, JSON.stringify(args), result ? JSON.stringify(result) : error || '',
-        status, durationMs, Date.now()
-      );
+      db.insert(tool_call_logs).values({
+        id: uuid(), tenant_id: context.tenantId, agent_id: context.agentId,
+        conversation_id: '', message_id: '', tool_name: toolName,
+        args: JSON.stringify(args), result: result ? JSON.stringify(result) : error || '',
+        status, duration_ms: durationMs, created_at: Date.now(),
+      }).run();
     } catch { /* log failure non-critical */ }
   }
 }

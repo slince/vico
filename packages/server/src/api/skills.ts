@@ -1,7 +1,10 @@
 import { Hono } from 'hono';
+import { eq, and } from 'drizzle-orm';
 import type { Variables } from '../index.js';
 import { skillManager } from '../skill/manager.js';
-import { getDb } from '../data/db.js';
+import { getDb, schema } from '../data/db.js';
+
+const { installed_skills } = schema;
 
 export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/skills', (c) => {
@@ -9,9 +12,8 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
     const installed = skillManager.getInstalledSkills(auth.tenantId);
     const allManifests = skillManager.getAllManifests();
 
-    // Merge: show all available skills with installation status
     return c.json(allManifests.map((m) => {
-      const inst = (installed as any[]).find((i) => i.skill_name === m.name);
+      const inst = installed.find((i) => i.skill_name === m.name);
       return {
         ...m,
         installed: !!inst,
@@ -29,13 +31,15 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
     if (!manifest) return c.json({ error: 'Skill not found' }, 404);
 
     const db = getDb();
-    const inst = db.prepare('SELECT * FROM installed_skills WHERE tenant_id = ? AND skill_name = ?').get(auth.tenantId, name);
+    const inst = db.select().from(installed_skills)
+      .where(and(eq(installed_skills.tenant_id, auth.tenantId), eq(installed_skills.skill_name, name)))
+      .get();
 
     return c.json({
       ...manifest,
       installed: !!inst,
-      installed_config: inst ? JSON.parse((inst as any).config) : {},
-      installed_enabled: inst ? !!(inst as any).enabled : false,
+      installed_config: inst ? JSON.parse(inst.config) : {},
+      installed_enabled: inst ? !!inst.enabled : false,
     });
   });
 

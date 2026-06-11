@@ -1,8 +1,11 @@
+import { eq, and } from 'drizzle-orm';
+import { v4 as uuid } from 'uuid';
 import { config } from '../config.js';
 import { scanSkillDirs, loadSkill } from './loader.js';
 import { LoadedSkill, SkillTool, SkillToolDef } from './types.js';
-import { getDb } from '../data/db.js';
-import { v4 as uuid } from 'uuid';
+import { getDb, schema } from '../data/db.js';
+
+const { agent_skills, installed_skills } = schema;
 
 interface SkillRegistryEntry {
   skillName: string;
@@ -44,7 +47,8 @@ class SkillManager {
 
   getToolsForAgent(agentId: string): SkillTool[] {
     const db = getDb();
-    const bindings = db.prepare('SELECT skill_name, config FROM agent_skills WHERE agent_id = ?').all(agentId) as { skill_name: string; config: string }[];
+    const bindings = db.select({ skill_name: agent_skills.skill_name, config: agent_skills.config })
+      .from(agent_skills).where(eq(agent_skills.agent_id, agentId)).all();
 
     const tools: SkillTool[] = [];
     for (const binding of bindings) {
@@ -64,7 +68,8 @@ class SkillManager {
 
   getPromptForAgent(agentId: string): string {
     const db = getDb();
-    const bindings = db.prepare('SELECT skill_name FROM agent_skills WHERE agent_id = ?').all(agentId) as { skill_name: string }[];
+    const bindings = db.select({ skill_name: agent_skills.skill_name })
+      .from(agent_skills).where(eq(agent_skills.agent_id, agentId)).all();
 
     const prompts: string[] = [];
     for (const binding of bindings) {
@@ -77,54 +82,68 @@ class SkillManager {
   }
 
   registerToAgent(agentId: string, skillName: string, config_override: Record<string, any> = {}) {
-    const db = getDb();
     const manifest = this.getManifest(skillName);
     if (!manifest) throw new Error(`Skill not found: ${skillName}`);
 
-    db.prepare('INSERT OR REPLACE INTO agent_skills (agent_id, skill_name, config) VALUES (?, ?, ?)').run(
-      agentId, skillName, JSON.stringify(config_override)
-    );
+    const db = getDb();
+    db.insert(agent_skills).values({
+      agent_id: agentId, skill_name: skillName, config: JSON.stringify(config_override),
+    }).onConflictDoUpdate({
+      target: [agent_skills.agent_id, agent_skills.skill_name],
+      set: { config: JSON.stringify(config_override) },
+    }).run();
   }
 
   unregisterFromAgent(agentId: string, skillName: string) {
     const db = getDb();
-    db.prepare('DELETE FROM agent_skills WHERE agent_id = ? AND skill_name = ?').run(agentId, skillName);
+    db.delete(agent_skills).where(
+      and(eq(agent_skills.agent_id, agentId), eq(agent_skills.skill_name, skillName))
+    ).run();
   }
 
   installSkill(tenantId: string, skillName: string, config_override: Record<string, any> = {}) {
-    const db = getDb();
     const manifest = this.getManifest(skillName);
     if (!manifest) throw new Error(`Skill not found: ${skillName}`);
 
-    const existing = db.prepare('SELECT id FROM installed_skills WHERE tenant_id = ? AND skill_name = ?').get(tenantId, skillName);
+    const db = getDb();
+    const existing = db.select({ id: installed_skills.id }).from(installed_skills)
+      .where(and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.skill_name, skillName)))
+      .get();
     if (existing) throw new Error(`Skill already installed: ${skillName}`);
 
     const id = uuid();
-    db.prepare('INSERT INTO installed_skills (id, tenant_id, skill_name, display_name, version, config, enabled, installed_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)').run(
-      id, tenantId, skillName, manifest.displayName, manifest.version, JSON.stringify(config_override), Date.now()
-    );
+    db.insert(installed_skills).values({
+      id, tenant_id: tenantId, skill_name: skillName, display_name: manifest.displayName,
+      version: manifest.version, config: JSON.stringify(config_override), enabled: 1, installed_at: Date.now(),
+    }).run();
     return { id, ...manifest };
   }
 
   uninstallSkill(tenantId: string, skillName: string) {
     const db = getDb();
-    db.prepare('DELETE FROM installed_skills WHERE tenant_id = ? AND skill_name = ?').run(tenantId, skillName);
-    db.prepare('DELETE FROM agent_skills WHERE skill_name = ?').run(skillName);
+    db.delete(installed_skills).where(
+      and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.skill_name, skillName))
+    ).run();
+    db.delete(agent_skills).where(eq(agent_skills.skill_name, skillName)).run();
   }
 
   toggleSkill(tenantId: string, skillName: string, enabled: boolean) {
     const db = getDb();
-    db.prepare('UPDATE installed_skills SET enabled = ? WHERE tenant_id = ? AND skill_name = ?').run(enabled ? 1 : 0, tenantId, skillName);
+    db.update(installed_skills).set({ enabled: enabled ? 1 : 0 })
+      .where(and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.skill_name, skillName)))
+      .run();
   }
 
   updateSkillConfig(tenantId: string, skillName: string, config: Record<string, any>) {
     const db = getDb();
-    db.prepare('UPDATE installed_skills SET config = ? WHERE tenant_id = ? AND skill_name = ?').run(JSON.stringify(config), tenantId, skillName);
+    db.update(installed_skills).set({ config: JSON.stringify(config) })
+      .where(and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.skill_name, skillName)))
+      .run();
   }
 
   getInstalledSkills(tenantId: string) {
     const db = getDb();
-    return db.prepare('SELECT * FROM installed_skills WHERE tenant_id = ?').all(tenantId);
+    return db.select().from(installed_skills).where(eq(installed_skills.tenant_id, tenantId)).all();
   }
 }
 

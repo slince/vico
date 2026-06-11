@@ -1,7 +1,9 @@
-import { streamText, generateText, tool } from 'ai';
+import { streamText, tool } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
-import { getDb } from '../data/db.js';
+import { eq, and, sql } from 'drizzle-orm';
+import { v4 as uuid } from 'uuid';
+import { getDb, schema } from '../data/db.js';
 import { skillManager } from '../skill/manager.js';
 import { toolExecutor } from './tool-executor.js';
 import { getDefaultModel, ModelConfigRow } from './model-registry.js';
@@ -9,8 +11,9 @@ import { shortTermMemory } from '../memory/short-term.js';
 import { longTermMemory } from '../memory/long-term.js';
 import { ragManager } from '../memory/rag.js';
 import { SkillToolDef } from '../skill/types.js';
-import { v4 as uuid } from 'uuid';
 import { config } from '../config.js';
+
+const { agents, agent_knowledge_bases, conversations, messages } = schema;
 
 function resolveModelProvider(modelConfig: ModelConfigRow) {
   const apiKey = modelConfig.api_key_encrypted;
@@ -63,7 +66,9 @@ export async function runPipeline(
   const db = getDb();
 
   // 1. Load agent config
-  const agent = db.prepare('SELECT * FROM agents WHERE id = ? AND tenant_id = ?').get(ctx.agentId, ctx.tenantId) as any;
+  const agent = db.select().from(agents)
+    .where(and(eq(agents.id, ctx.agentId), eq(agents.tenant_id, ctx.tenantId)))
+    .get();
   if (!agent) throw new Error('Agent not found');
 
   // 2. Resolve model
@@ -77,10 +82,11 @@ export async function runPipeline(
   if (!conversationId) {
     conversationId = uuid();
     const now = Date.now();
-    db.prepare(`INSERT INTO conversations (id, tenant_id, agent_id, user_id, title, model_name, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-      conversationId, ctx.tenantId, ctx.agentId, ctx.userId, '', modelConfig.model_name, now, now
-    );
+    db.insert(conversations).values({
+      id: conversationId, tenant_id: ctx.tenantId, agent_id: ctx.agentId,
+      user_id: ctx.userId, title: '', model_name: modelConfig.model_name,
+      created_at: now, updated_at: now,
+    }).run();
   }
 
   // 4. Build system prompt
@@ -93,7 +99,8 @@ export async function runPipeline(
   // 6. RAG retrieval
   let ragContext = '';
   if (agent.rag_mode !== 'disabled') {
-    const kbBindings = db.prepare('SELECT kb_id FROM agent_knowledge_bases WHERE agent_id = ?').all(ctx.agentId) as { kb_id: string }[];
+    const kbBindings = db.select({ kb_id: agent_knowledge_bases.kb_id })
+      .from(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, ctx.agentId)).all();
     if (kbBindings.length > 0) {
       const kbIds = kbBindings.map((b) => b.kb_id);
       const chunks = await ragManager.hybridSearch(message, kbIds, config.rag.retrieval_top_k);
@@ -129,7 +136,7 @@ export async function runPipeline(
   // 10. Execute stream
   const aiTools = toolDefsToAITools(toolDefs);
 
-  const { textStream, steps } = streamText({
+  const { textStream } = streamText({
     model,
     system: systemPrompt,
     messages: allMessages as any,
@@ -138,7 +145,6 @@ export async function runPipeline(
     temperature: agent.temperature ?? 0.7,
     maxTokens: agent.max_tokens ?? 4096,
     onStepFinish: async (event) => {
-      // Handle tool calls
       if (event.toolCalls && event.toolCalls.length > 0) {
         for (const toolCall of event.toolCalls) {
           const execResult = await toolExecutor.execute(
@@ -169,17 +175,20 @@ export async function runPipeline(
           controller.enqueue(encoder.encode(`data: ${event}\n\n`));
         }
 
-        // Save user message
+        // Save messages
         const now = Date.now();
-        db.prepare(`INSERT INTO messages (id, conversation_id, role, content, created_at)
-          VALUES (?, ?, ?, ?, ?)`).run(uuid(), conversationId, 'user', message, now);
-
-        // Save assistant message
-        db.prepare(`INSERT INTO messages (id, conversation_id, role, content, created_at)
-          VALUES (?, ?, ?, ?, ?)`).run(uuid(), conversationId, 'assistant', finalText, now);
+        db.insert(messages).values({
+          id: uuid(), conversation_id: conversationId, role: 'user', content: message, created_at: now,
+        }).run();
+        db.insert(messages).values({
+          id: uuid(), conversation_id: conversationId, role: 'assistant', content: finalText, created_at: now,
+        }).run();
 
         // Update conversation
-        db.prepare(`UPDATE conversations SET message_count = message_count + 2, updated_at = ? WHERE id = ?`).run(now, conversationId);
+        db.update(conversations).set({
+          message_count: sql`message_count + 2`,
+          updated_at: now,
+        }).where(eq(conversations.id, conversationId)).run();
 
         // Update short-term memory
         shortTermMemory.push(conversationId, { role: 'user', content: message, timestamp: now });

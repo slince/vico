@@ -1,19 +1,31 @@
 import { Hono } from 'hono';
-import type { Variables } from '../index.js';
-import { getDb } from '../data/db.js';
+import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
+import type { Variables } from '../index.js';
+import { getDb, schema } from '../data/db.js';
+
+const { agents, agent_skills, agent_knowledge_bases } = schema;
 
 export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/agents', (c) => {
     const auth = c.get('auth');
     const db = getDb();
-    const agents = db.prepare('SELECT * FROM agents WHERE tenant_id = ? ORDER BY updated_at DESC').all(auth.tenantId);
+    const rows = db.select().from(agents)
+      .where(eq(agents.tenant_id, auth.tenantId))
+      .orderBy(desc(agents.updated_at))
+      .all();
 
-    // Enrich with bound skills
-    const result = (agents as any[]).map((a) => {
-      const skills = db.prepare('SELECT skill_name FROM agent_skills WHERE agent_id = ?').all(a.id) as { skill_name: string }[];
-      const kbs = db.prepare('SELECT kb_id FROM agent_knowledge_bases WHERE agent_id = ?').all(a.id) as { kb_id: string }[];
-      return { ...a, skill_names: skills.map((s) => s.skill_name), kb_ids: kbs.map((k) => k.kb_id) };
+    // Enrich with bound skills and knowledge bases
+    const result = rows.map((a) => {
+      const skills = db.select({ skill_name: agent_skills.skill_name })
+        .from(agent_skills).where(eq(agent_skills.agent_id, a.id)).all();
+      const kbs = db.select({ kb_id: agent_knowledge_bases.kb_id })
+        .from(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, a.id)).all();
+      return {
+        ...a,
+        skill_names: skills.map((s) => s.skill_name),
+        kb_ids: kbs.map((k) => k.kb_id),
+      };
     });
 
     return c.json(result);
@@ -26,10 +38,13 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     const db = getDb();
     const id = uuid();
     const now = Date.now();
-    db.prepare(`INSERT INTO agents (id, tenant_id, name, system_prompt, model_id, temperature, max_tokens, rag_mode, enabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`).run(
-      id, auth.tenantId, name, system_prompt || '', model_id || '', temperature || 0.7, max_tokens || 4096, rag_mode || 'auto', now, now
-    );
+    db.insert(agents).values({
+      id, tenant_id: auth.tenantId, name,
+      system_prompt: system_prompt || '', model_id: model_id || '',
+      temperature: temperature ?? 0.7, max_tokens: max_tokens ?? 4096,
+      rag_mode: rag_mode || 'auto', enabled: 1,
+      created_at: now, updated_at: now,
+    }).run();
     return c.json({ id, message: 'created' });
   });
 
@@ -38,13 +53,18 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     const id = c.req.param('id');
     const db = getDb();
 
-    const agent = db.prepare('SELECT * FROM agents WHERE id = ? AND tenant_id = ?').get(id, auth.tenantId);
+    const agent = db.select().from(agents)
+      .where(and(eq(agents.id, id), eq(agents.tenant_id, auth.tenantId)))
+      .get();
+
     if (!agent) return c.json({ error: 'Agent not found' }, 404);
 
-    const skills = db.prepare('SELECT skill_name, config FROM agent_skills WHERE agent_id = ?').all(id);
-    const kbs = db.prepare('SELECT kb_id, mode FROM agent_knowledge_bases WHERE agent_id = ?').all(id);
+    const skills = db.select({ skill_name: agent_skills.skill_name, config: agent_skills.config })
+      .from(agent_skills).where(eq(agent_skills.agent_id, id)).all();
+    const kbs = db.select({ kb_id: agent_knowledge_bases.kb_id, mode: agent_knowledge_bases.mode })
+      .from(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).all();
 
-    return c.json({ ...agent as any, skills, knowledge_bases: kbs });
+    return c.json({ ...agent, skills, knowledge_bases: kbs });
   });
 
   app.patch('/api/v1/agents/:id', async (c) => {
@@ -53,24 +73,25 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     const db = getDb();
 
-    const agent = db.prepare('SELECT * FROM agents WHERE id = ? AND tenant_id = ?').get(id, auth.tenantId);
+    const agent = db.select().from(agents)
+      .where(and(eq(agents.id, id), eq(agents.tenant_id, auth.tenantId)))
+      .get();
+
     if (!agent) return c.json({ error: 'Agent not found' }, 404);
 
     const allowed = ['name', 'system_prompt', 'model_id', 'temperature', 'max_tokens', 'rag_mode', 'enabled'];
-    const sets: string[] = [];
-    const vals: any[] = [];
+    const updateData: Record<string, any> = {};
     for (const [k, v] of Object.entries(body)) {
       if (allowed.includes(k) && v !== undefined) {
-        sets.push(`${k} = ?`);
-        vals.push(v);
+        updateData[k] = v;
       }
     }
 
-    if (sets.length > 0) {
-      sets.push('updated_at = ?');
-      vals.push(Date.now());
-      vals.push(auth.tenantId, id);
-      db.prepare(`UPDATE agents SET ${sets.join(', ')} WHERE tenant_id = ? AND id = ?`).run(...vals);
+    if (Object.keys(updateData).length > 0) {
+      updateData.updated_at = Date.now();
+      db.update(agents).set(updateData)
+        .where(and(eq(agents.tenant_id, auth.tenantId), eq(agents.id, id)))
+        .run();
     }
 
     return c.json({ message: 'updated' });
@@ -80,9 +101,9 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = c.get('auth');
     const id = c.req.param('id');
     const db = getDb();
-    db.prepare('DELETE FROM agent_skills WHERE agent_id = ?').run(id);
-    db.prepare('DELETE FROM agent_knowledge_bases WHERE agent_id = ?').run(id);
-    db.prepare('DELETE FROM agents WHERE id = ? AND tenant_id = ?').run(id, auth.tenantId);
+    db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
+    db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).run();
+    db.delete(agents).where(and(eq(agents.id, id), eq(agents.tenant_id, auth.tenantId))).run();
     return c.json({ message: 'deleted' });
   });
 
@@ -92,11 +113,15 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     const { skills } = await c.req.json() as { skills: { skill_name: string; config?: Record<string, any> }[] } || { skills: [] };
     const db = getDb();
 
-    db.prepare('DELETE FROM agent_skills WHERE agent_id = ?').run(id);
+    db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
     for (const s of skills) {
-      db.prepare('INSERT OR REPLACE INTO agent_skills (agent_id, skill_name, config) VALUES (?, ?, ?)').run(
-        id, s.skill_name, JSON.stringify(s.config || {})
-      );
+      db.insert(agent_skills).values({
+        agent_id: id, skill_name: s.skill_name,
+        config: JSON.stringify(s.config || {}),
+      }).onConflictDoUpdate({
+        target: [agent_skills.agent_id, agent_skills.skill_name],
+        set: { config: JSON.stringify(s.config || {}) },
+      }).run();
     }
     return c.json({ message: 'updated' });
   });
@@ -107,11 +132,14 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     const { knowledge_bases } = await c.req.json() as { knowledge_bases: { kb_id: string; mode?: string }[] } || { knowledge_bases: [] };
     const db = getDb();
 
-    db.prepare('DELETE FROM agent_knowledge_bases WHERE agent_id = ?').run(id);
+    db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).run();
     for (const kb of knowledge_bases) {
-      db.prepare('INSERT OR REPLACE INTO agent_knowledge_bases (agent_id, kb_id, mode) VALUES (?, ?, ?)').run(
-        id, kb.kb_id, kb.mode || 'auto'
-      );
+      db.insert(agent_knowledge_bases).values({
+        agent_id: id, kb_id: kb.kb_id, mode: kb.mode || 'auto',
+      }).onConflictDoUpdate({
+        target: [agent_knowledge_bases.agent_id, agent_knowledge_bases.kb_id],
+        set: { mode: kb.mode || 'auto' },
+      }).run();
     }
     return c.json({ message: 'updated' });
   });

@@ -1,7 +1,7 @@
-import { getDb } from '../data/db.js';
+import { v4 as uuid } from 'uuid';
+import { getSqlite } from '../data/db.js';
 import { getEmbedder, float32ToBlob, blobToFloat32, cosineSimilarity } from './embedder.js';
 import { config } from '../config.js';
-import { v4 as uuid } from 'uuid';
 
 export interface MemoryEntry {
   id: string;
@@ -23,7 +23,7 @@ class LongTermMemory {
     type: 'fact' | 'preference' | 'summary' | 'decision' = 'fact',
     importance = 0.5
   ): Promise<void> {
-    const db = getDb();
+    const db = getSqlite();
     const embedder = await getEmbedder();
     const embedding = await embedder.embed(content);
 
@@ -34,7 +34,7 @@ class LongTermMemory {
   }
 
   async retrieve(tenantId: string, userId: string, query: string, topK = 5): Promise<MemoryEntry[]> {
-    const db = getDb();
+    const db = getSqlite();
     const embedder = await getEmbedder();
     const queryEmb = await embedder.embed(query);
 
@@ -79,7 +79,7 @@ class LongTermMemory {
     }
 
     // Prune old entries
-    const db = getDb();
+    const db = getSqlite();
     const count = (db.prepare('SELECT COUNT(*) as c FROM memory_entries WHERE tenant_id = ? AND user_id = ?').get(tenantId, userId) as any)?.c || 0;
     if (count > config.memory.ltm_max_entries) {
       db.prepare('DELETE FROM memory_entries WHERE id IN (SELECT id FROM memory_entries WHERE tenant_id = ? AND user_id = ? ORDER BY created_at ASC LIMIT ?)').run(

@@ -1,42 +1,76 @@
 import { Hono } from 'hono';
+import { eq, desc, sql, count, sum } from 'drizzle-orm';
 import type { Variables } from '../index.js';
-import { getDb } from '../data/db.js';
+import { getDb, schema } from '../data/db.js';
+
+const { conversations, token_usage_logs, agents, installed_skills, knowledge_bases, users } = schema;
 
 export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/dashboard/stats', (c) => {
     const auth = c.get('auth');
     const db = getDb();
 
-    const totalConversations = (db.prepare('SELECT COUNT(*) as c FROM conversations WHERE tenant_id = ?').get(auth.tenantId) as any)?.c || 0;
+    const [convCount] = db.select({ c: count() }).from(conversations)
+      .where(eq(conversations.tenant_id, auth.tenantId)).all();
+    const totalConversations = convCount?.c ?? 0;
 
-    const totalTokens = (db.prepare('SELECT COALESCE(SUM(prompt_tokens + completion_tokens), 0) as c FROM token_usage_logs WHERE tenant_id = ?').get(auth.tenantId) as any)?.c || 0;
+    const [tokenRow] = db.select({ c: sql<number>`COALESCE(SUM(${token_usage_logs.prompt_tokens} + ${token_usage_logs.completion_tokens}), 0)` })
+      .from(token_usage_logs).where(eq(token_usage_logs.tenant_id, auth.tenantId)).all();
+    const totalTokens = tokenRow?.c ?? 0;
 
-    const activeAgents = (db.prepare('SELECT COUNT(*) as c FROM agents WHERE tenant_id = ? AND enabled = 1').get(auth.tenantId) as any)?.c || 0;
+    const [activeAgentRow] = db.select({ c: count() }).from(agents)
+      .where(sql`${agents.tenant_id} = ${auth.tenantId} AND ${agents.enabled} = 1`).all();
+    const activeAgents = activeAgentRow?.c ?? 0;
 
-    const totalAgents = (db.prepare('SELECT COUNT(*) as c FROM agents WHERE tenant_id = ?').get(auth.tenantId) as any)?.c || 0;
+    const [totalAgentRow] = db.select({ c: count() }).from(agents)
+      .where(eq(agents.tenant_id, auth.tenantId)).all();
+    const totalAgents = totalAgentRow?.c ?? 0;
 
-    const installedSkills = (db.prepare('SELECT COUNT(*) as c FROM installed_skills WHERE tenant_id = ? AND enabled = 1').get(auth.tenantId) as any)?.c || 0;
+    const [skillRow] = db.select({ c: count() }).from(installed_skills)
+      .where(sql`${installed_skills.tenant_id} = ${auth.tenantId} AND ${installed_skills.enabled} = 1`).all();
+    const installedSkillsCount = skillRow?.c ?? 0;
 
-    const totalKnowledgeBases = (db.prepare('SELECT COUNT(*) as c FROM knowledge_bases WHERE tenant_id = ?').get(auth.tenantId) as any)?.c || 0;
+    const [kbRow] = db.select({ c: count() }).from(knowledge_bases)
+      .where(eq(knowledge_bases.tenant_id, auth.tenantId)).all();
+    const totalKnowledgeBases = kbRow?.c ?? 0;
 
-    // Recent conversations
-    const recentConversations = db.prepare(
-      'SELECT c.*, a.name as agent_name, u.username as user_name FROM conversations c LEFT JOIN agents a ON c.agent_id = a.id LEFT JOIN users u ON c.user_id = u.id WHERE c.tenant_id = ? ORDER BY c.updated_at DESC LIMIT 5'
-    ).all(auth.tenantId);
+    // Recent conversations with joins
+    const recentConversations = db.select({
+      id: conversations.id,
+      title: conversations.title,
+      agent_id: conversations.agent_id,
+      user_id: conversations.user_id,
+      message_count: conversations.message_count,
+      total_tokens: conversations.total_tokens,
+      created_at: conversations.created_at,
+      updated_at: conversations.updated_at,
+      agent_name: agents.name,
+      user_name: users.username,
+    }).from(conversations)
+      .leftJoin(agents, eq(conversations.agent_id, agents.id))
+      .leftJoin(users, eq(conversations.user_id, users.id))
+      .where(eq(conversations.tenant_id, auth.tenantId))
+      .orderBy(desc(conversations.updated_at))
+      .limit(5)
+      .all();
 
-    // Token usage trend (last 30 days, grouped by day)
+    // Token usage trend (last 30 days)
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const tokenTrend = db.prepare(
-      `SELECT date(created_at / 1000, 'unixepoch') as day, SUM(prompt_tokens + completion_tokens) as total
-       FROM token_usage_logs WHERE tenant_id = ? AND created_at >= ? GROUP BY day ORDER BY day`
-    ).all(auth.tenantId, thirtyDaysAgo);
+    const tokenTrend = db.select({
+      day: sql<string>`date(${token_usage_logs.created_at} / 1000, 'unixepoch')`,
+      total: sql<number>`SUM(${token_usage_logs.prompt_tokens} + ${token_usage_logs.completion_tokens})`,
+    }).from(token_usage_logs)
+      .where(sql`${token_usage_logs.tenant_id} = ${auth.tenantId} AND ${token_usage_logs.created_at} >= ${thirtyDaysAgo}`)
+      .groupBy(sql`day`)
+      .orderBy(sql`day`)
+      .all();
 
     return c.json({
       totalConversations,
       totalTokens,
       activeAgents,
       totalAgents,
-      installedSkills,
+      installedSkills: installedSkillsCount,
       totalKnowledgeBases,
       recentConversations,
       tokenTrend,

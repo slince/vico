@@ -1,9 +1,9 @@
-import { getDb } from '../data/db.js';
-import { getEmbedder, float32ToBlob, blobToFloat32, cosineSimilarity } from './embedder.js';
-import { config } from '../config.js';
 import { v4 as uuid } from 'uuid';
 import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
+import { getSqlite } from '../data/db.js';
+import { getEmbedder, float32ToBlob, blobToFloat32, cosineSimilarity } from './embedder.js';
+import { config } from '../config.js';
 
 export interface RetrievedChunk {
   id: string;
@@ -14,7 +14,7 @@ export interface RetrievedChunk {
 
 class RAGManager {
   async indexText(kbId: string, text: string, metadata: Record<string, any> = {}): Promise<number> {
-    const db = getDb();
+    const db = getSqlite();
     const embedder = await getEmbedder();
     const chunks = this.splitText(text);
     const embeddings = await embedder.embedBatch(chunks);
@@ -78,7 +78,7 @@ class RAGManager {
   }
 
   async semanticSearch(query: string, kbIds: string[], topK: number): Promise<RetrievedChunk[]> {
-    const db = getDb();
+    const db = getSqlite();
     const embedder = await getEmbedder();
     const queryEmb = await embedder.embed(query);
 
@@ -98,7 +98,7 @@ class RAGManager {
   }
 
   async keywordSearch(query: string, kbIds: string[], topK: number): Promise<RetrievedChunk[]> {
-    const db = getDb();
+    const db = getSqlite();
     const keywords = query.toLowerCase().split(/\s+/).filter((k) => k.length > 1);
     if (keywords.length === 0) return [];
 
@@ -154,8 +154,6 @@ class RAGManager {
     const { chunk_size, chunk_overlap } = config.rag;
     const chunks: string[] = [];
     const cleaned = text.replace(/\s+/g, ' ').trim();
-
-    // Split by paragraphs first
     const paragraphs = cleaned.split(/\n\s*\n/);
     let current = '';
 
@@ -165,7 +163,6 @@ class RAGManager {
         current = '';
       }
       if (para.length > chunk_size) {
-        // Long paragraph: split into overlapping chunks
         const words = para.split(/\s+/);
         let i = 0;
         while (i < words.length) {
@@ -177,11 +174,7 @@ class RAGManager {
         current += (current ? ' ' : '') + para;
       }
     }
-
-    if (current.trim()) {
-      chunks.push(current.trim());
-    }
-
+    if (current.trim()) chunks.push(current.trim());
     return chunks.length > 0 ? chunks : [cleaned.slice(0, 2000)];
   }
 }
