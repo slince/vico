@@ -12,8 +12,52 @@ import { longTermMemory } from '../memory/long-term.js';
 import { ragManager } from '../memory/rag.js';
 import { SkillToolDef } from '../skill/types.js';
 import { config } from '../config.js';
+import { z } from 'zod';
 
 const { agents, agent_knowledge_bases, conversations, messages } = schema;
+
+/** Convert JSON Schema to Zod schema for AI SDK tool compatibility */
+function jsonSchemaToZod(schema: Record<string, unknown>): z.ZodType<any> {
+  const type = schema.type as string;
+  switch (type) {
+    case 'string': {
+      let s = z.string();
+      if (schema.description) s = s.describe(schema.description as string);
+      return s;
+    }
+    case 'number':
+    case 'integer': {
+      let n = z.number();
+      if (schema.description) n = n.describe(schema.description as string);
+      return n;
+    }
+    case 'boolean': {
+      let b = z.boolean();
+      if (schema.description) b = b.describe(schema.description as string);
+      return b;
+    }
+    case 'array': {
+      const items = schema.items
+        ? jsonSchemaToZod(schema.items as Record<string, unknown>)
+        : z.any();
+      return z.array(items);
+    }
+    case 'object': {
+      if (!schema.properties) return z.record(z.any());
+      const shape: Record<string, z.ZodType<any>> = {};
+      const props = schema.properties as Record<string, Record<string, unknown>>;
+      const required = (schema.required as string[]) || [];
+      for (const [key, propSchema] of Object.entries(props)) {
+        let field = jsonSchemaToZod(propSchema);
+        if (!required.includes(key)) field = field.optional();
+        shape[key] = field;
+      }
+      return z.object(shape);
+    }
+    default:
+      return z.any();
+  }
+}
 
 function resolveModelProvider(modelConfig: ModelConfigRow) {
   const apiKey = modelConfig.api_key_encrypted;
@@ -21,7 +65,7 @@ function resolveModelProvider(modelConfig: ModelConfigRow) {
 
   switch (modelConfig.provider) {
     case 'anthropic':
-      return createAnthropic({ apiKey })(modelConfig.model_name);
+      return createAnthropic({ apiKey, baseURL })(modelConfig.model_name);
     case 'deepseek':
     case 'qwen':
     case 'custom':
@@ -37,7 +81,7 @@ function toolDefsToAITools(defs: SkillToolDef[]) {
   for (const def of defs) {
     toolMap[def.name] = tool({
       description: def.description,
-      parameters: def.parameters as any,
+      parameters: jsonSchemaToZod(def.parameters as Record<string, unknown>),
     });
   }
   return toolMap;

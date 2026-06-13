@@ -17,7 +17,7 @@ export function resolveModelProvider(modelConfig: ModelConfigRow) {
 
   switch (modelConfig.provider) {
     case 'anthropic':
-      return createAnthropic({ apiKey })(modelConfig.model_name);
+      return createAnthropic({ apiKey, baseURL })(modelConfig.model_name);
     case 'deepseek':
     case 'qwen':
     case 'custom':

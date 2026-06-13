@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import { getDb } from '../db/db.js';
+import { getSqlite } from '../db/db.js';
 
 export interface ShortTermMessage {
   role: string;
@@ -15,7 +15,7 @@ class ShortTermMemory {
       return this.cache.get(conversationId)!;
     }
 
-    const db = getDb();
+    const db = getSqlite();
     const rows = db.prepare(
       'SELECT role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?'
     ).all(conversationId, config.memory.stm_window * 2) as { role: string; content: string; created_at: number }[];
