@@ -1,9 +1,10 @@
 import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
 import { getMemory } from '../memory-setup.js';
+import type { MastraModelConfig } from '@mastra/core/llm';
 
 /**
- * Vico Main Agent — 通用任务路由调度器。
+ * Main Agent — 通用任务路由调度器。
  *
  * 职责：
  * 1. 接收用户消息，理解任务意图
@@ -11,9 +12,12 @@ import { getMemory } from '../memory-setup.js';
  * 3. 复杂任务拆解为多个子任务分派
  * 4. 汇总子 Agent 结果，返回整合后的最终回复
  * 5. 没有合适 Agent 时自行回答
+ *
+ * 模型通过 requestContext 动态注入，使用当前租户的默认模型配置。
+ * 未传入 requestContext 时回退为占位模型。
  */
-export const vicoMainAgent = new Agent({
-  id: 'vico-main',
+export const mainAgent = new Agent({
+  id: 'main',
   name: 'Vico',
   description: '通用 AI 助手，能够理解任务、分派给专业 Agent、汇总结果',
   instructions: `
@@ -36,7 +40,12 @@ export const vicoMainAgent = new Agent({
 - 汇总结果时保持信息完整，不要丢失重要内容
 - 如果 Agent 返回的结果不完整或有问题，可以补充说明
 `.trim(),
-  model: createOpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-placeholder' }).chat('gpt-4o'),
+  model: ({ requestContext }) => {
+    const model = requestContext?.get('model') as MastraModelConfig | undefined;
+    if (model) return model;
+    // 回退：仅在未传入 requestContext 或未配置模型时使用
+    return createOpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-placeholder' }).chat('gpt-4o');
+  },
   memory: getMemory(),
   defaultOptions: {
     maxSteps: 15,

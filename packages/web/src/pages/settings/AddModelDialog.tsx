@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -79,6 +80,10 @@ interface AddModelDialogProps {
   onResetBaseURL: () => void;
   /** 选择模型名称建议回调 */
   onModelSuggestionPick: (name: string) => void;
+  /** 是否设为默认模型 */
+  isDefault: boolean;
+  /** 默认模型状态变更回调 */
+  onIsDefaultChange: (isDefault: boolean) => void;
   /** 提交表单回调 */
   onSubmit: () => void;
   /** 是否正在提交中 */
@@ -110,6 +115,8 @@ export default function AddModelDialog(props: AddModelDialogProps) {
     isBaseURLModified,
     onResetBaseURL,
     onModelSuggestionPick,
+    isDefault,
+    onIsDefaultChange,
     onSubmit,
     isPending,
   } = props;
@@ -210,6 +217,18 @@ export default function AddModelDialog(props: AddModelDialogProps) {
               </Button>
             )}
           </div>
+        </div>
+
+        {/* 设为默认 */}
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="model-is-default"
+            checked={isDefault}
+            onCheckedChange={(checked) => onIsDefaultChange(checked === true)}
+          />
+          <Label htmlFor="model-is-default" className="cursor-pointer text-sm font-normal">
+            {t('llm.isDefaultLabel')}
+          </Label>
         </div>
       </div>
       <DialogFooter showCloseButton>

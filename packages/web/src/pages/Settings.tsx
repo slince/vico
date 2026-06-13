@@ -103,6 +103,7 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState('');
   const [baseURL, setBaseURL] = useState(PROVIDER_PRESETS.openai.baseURL);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isDefault, setIsDefault] = useState(false);
 
   // ---------- 数据获取 ----------
   const { data: models, isLoading } = useQuery<ModelEntry[]>({
@@ -162,6 +163,7 @@ export default function Settings() {
     setApiKey('');
     setProvider('openai');
     setBaseURL(PROVIDER_PRESETS.openai.baseURL);
+    setIsDefault(false);
   }, []);
 
   /** 打开新增模型对话框 */
@@ -171,8 +173,9 @@ export default function Settings() {
     setApiKey('');
     setProvider('openai');
     setBaseURL(PROVIDER_PRESETS.openai.baseURL);
+    setIsDefault(modelsList.length === 0);
     setAddDialogOpen(true);
-  }, []);
+  }, [modelsList.length]);
 
   /** 打开编辑模型对话框，预填已有数据 */
   const openEditDialog = useCallback((model: ModelEntry) => {
@@ -181,6 +184,7 @@ export default function Settings() {
     setModelName(model.model_name);
     setApiKey('');
     setBaseURL(model.base_url || PROVIDER_PRESETS[model.provider]?.baseURL || '');
+    setIsDefault(model.is_default === 1);
     setAddDialogOpen(true);
   }, []);
 
@@ -216,6 +220,7 @@ export default function Settings() {
         provider,
         model_name: modelName.trim(),
         base_url: baseURL || null,
+        is_default: isDefault ? 1 : 0,
       };
       if (apiKey.trim()) {
         patchData.api_key_encrypted = apiKey.trim();
@@ -223,13 +228,12 @@ export default function Settings() {
       editMutation.mutate({ id: editingModelId, data: patchData });
     } else {
       // 新增模式
-      const isDefault = modelsList.length === 0 ? 1 : 0;
       addMutation.mutate({
         provider,
         model_name: modelName.trim(),
         api_key_encrypted: apiKey.trim(),
         base_url: baseURL || null,
-        is_default: isDefault,
+        is_default: isDefault ? 1 : 0,
       });
     }
   }, [editingModelId, modelName, apiKey, provider, baseURL, addMutation, editMutation, modelsList.length]);
@@ -320,6 +324,8 @@ export default function Settings() {
                   isBaseURLModified={isBaseURLModified}
                   onResetBaseURL={handleResetBaseURL}
                   onModelSuggestionPick={handleModelSuggestionPick}
+                  isDefault={isDefault}
+                  onIsDefaultChange={setIsDefault}
                   onSubmit={handleSubmit}
                   isPending={addMutation.isPending || editMutation.isPending}
                 />

@@ -65,22 +65,33 @@ class ModelManager {
     return resolveModelProvider(config);
   }
 
-  /** 新增模型配置 */
+  /** 新增模型配置，若设为默认则先取消其他默认 */
   async create(tenantId: string, data: Omit<ModelConfigRow, 'id' | 'created_at'>): Promise<ModelConfigRow> {
     const db = getDb();
     const id = uuid();
     const now = Date.now();
+    const isDefault = data.is_default ? 1 : 0;
+    if (isDefault) {
+      await db.update(model_configs).set({ is_default: 0 })
+        .where(eq(model_configs.tenant_id, tenantId))
+        .run();
+    }
     await db.insert(model_configs).values({
       id, tenant_id: tenantId, provider: data.provider, model_name: data.model_name,
       api_key_encrypted: encryptApiKey(data.api_key_encrypted), base_url: data.base_url || null,
-      is_default: data.is_default || 0, created_at: now,
+      is_default: isDefault, created_at: now,
     }).run();
     return (await this.getById(tenantId, id))!;
   }
 
-  /** 更新模型配置 */
+  /** 更新模型配置，若设为默认则先取消其他默认 */
   async update(tenantId: string, id: string, data: Partial<ModelConfigRow>): Promise<void> {
     const db = getDb();
+    if (data.is_default === 1) {
+      await db.update(model_configs).set({ is_default: 0 })
+        .where(eq(model_configs.tenant_id, tenantId))
+        .run();
+    }
     const updateData: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(data)) {
       if (v !== undefined && k !== 'id' && k !== 'tenant_id' && k !== 'created_at') {

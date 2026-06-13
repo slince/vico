@@ -38,6 +38,7 @@
     "save": "Save",
     "saving": "Saving...",
     "apiKeyKeepHint": "Leave blank to keep existing key",
+    "isDefaultLabel": "Set as default model",
     "defaultBadge": "Default",
     "setDefault": "Set as default",
     "customProvider": "Custom"

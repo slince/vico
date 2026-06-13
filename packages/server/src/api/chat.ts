@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { v4 as uuidv4 } from 'uuid';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
+import { RequestContext } from '@mastra/core/request-context';
 import { mastra } from '../mastra.js';
 import { agentToolCache } from '../agent/cache/agent-tool-cache.js';
 import { createSSEStream, createNetworkSSEStream } from '../agent/sse-utils.js';
@@ -13,7 +14,7 @@ import type { LanguageModel } from 'ai';
 import logger from '../lib/logger.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
-  /** 单 Agent 对话 — 使用 VicoMainAgent 调度器 + 动态注入租户 Agent 工具 */
+  /** 单 Agent 对话 — 使用 MainAgent 调度器 + 动态注入租户 Agent 工具 */
   app.post('/api/v1/chat', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
@@ -29,7 +30,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       const cid = conversationId || uuidv4();
       const threadId = `${agentId}-${auth.userId}-${cid}`;
 
-      // 获取模型名称，存入 thread metadata
+      // 获取租户默认模型配置
       const modelConfig = await modelManager.getDefault(auth.tenantId);
       const modelName = modelConfig?.model_name || '';
 
@@ -50,8 +51,8 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         },
       });
 
-      // 获取 VicoMainAgent — 通用任务路由调度器
-      const vicoAgent = mastra.getAgent('vicoMainAgent');
+      // 获取 MainAgent — 通用任务路由调度器
+      const vicoAgent = mastra.getAgent('mainAgent');
 
       // 获取租户自定义 Agent 对应的动态工具和能力描述
       const agentTools = await agentToolCache.getToolsForTenant(auth.tenantId);
@@ -63,7 +64,14 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}`
         : '';
 
-      // 执行流式对话 — 使用 stream() 注入动态工具和增强 instructions
+      // 构建 requestContext，注入当前租户默认模型
+      const requestContext = new RequestContext();
+      if (modelConfig) {
+        const model = resolveModelProvider(modelConfig);
+        requestContext.set('model', model);
+      }
+
+      // 执行流式对话 — 使用 stream() 注入动态工具、增强 instructions 和模型
       const output = await vicoAgent.stream([{ role: 'user', content: message }], {
         clientTools: agentTools,
         instructions: baseInstructions + dynamicInstructions,
@@ -72,6 +80,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
           resource: auth.tenantId,
         },
         maxSteps: 15,
+        requestContext,
       });
 
       // 包装为 SSE 流，流结束后异步提取工作记忆

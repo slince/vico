@@ -1,6 +1,6 @@
 import { Mastra } from '@mastra/core';
 import { MastraServer } from '@mastra/hono';
-import { vicoMainAgent } from './agent/agents/vico-main.agent.js';
+import { mainAgent } from './agent/agents/main.agent.js';
 import { agentProxy } from './agent/agents/agent-proxy.agent.js';
 import { getStorage } from './agent/memory-setup.js';
 import { createApp } from './app.js';
@@ -9,14 +9,14 @@ import { createApp } from './app.js';
  * Mastra 实例 — 全局单例。
  *
  * 预注册两个 Agent：
- * - vicoMainAgent: 通用任务路由调度，负责分析意图并分派给专业 Agent
+ * - mainAgent: 通用任务路由调度，负责分析意图并分派给专业 Agent
  * - agentProxy: 配置驱动的 Agent 代理模板，运行时通过 RunContext 动态注入配置
  *
  * 使用 LibSQLStore 作为持久化存储后端，为 Memory 的消息存储与召回提供支持。
  */
 export const mastra = new Mastra({
   agents: {
-    vicoMainAgent,
+    mainAgent,
     agentProxy,
   },
   storage: getStorage(),

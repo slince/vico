@@ -38,6 +38,7 @@
     "save": "保存",
     "saving": "保存中...",
     "apiKeyKeepHint": "留空则保持现有密钥不变",
+    "isDefaultLabel": "设为默认模型",
     "defaultBadge": "默认",
     "setDefault": "设为默认",
     "customProvider": "自定义"
