@@ -2,14 +2,15 @@ import { Hono } from 'hono';
 import { v4 as uuidv4 } from 'uuid';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { createAgent } from '../agent/agent-factory.js';
+import { mastra } from '../mastra.js';
+import { agentToolCache } from '../agent/mastra/cache/agent-tool-cache.js';
 import { createSSEStream, createNetworkSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
 import { getDefaultModel } from '../agent/model-registry.js';
 import logger from '../lib/logger.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
-  /** 单 Agent 对话 — 使用 Mastra Agent */
+  /** 单 Agent 对话 — 使用 VicoMainAgent 调度器 + 动态注入租户 Agent 工具 */
   app.post('/api/v1/chat', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
@@ -46,23 +47,32 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         },
       });
 
-      // 创建 Mastra Agent
-      const agent = await createAgent({
-        tenantId: auth.tenantId,
-        agentId,
-        userId: auth.userId,
-      });
+      // 获取 VicoMainAgent — 通用任务路由调度器
+      const vicoAgent = mastra.getAgent('vicoMainAgent');
 
-      // 执行流式对话 — 使用 streamLegacy 兼容 AI SDK v4 模型
-      const output = await agent.streamLegacy([{ role: 'user', content: message }], {
+      // 获取租户自定义 Agent 对应的动态工具和能力描述
+      const agentTools = await agentToolCache.getToolsForTenant(auth.tenantId);
+      const agentDescriptions = await agentToolCache.getAgentDescriptions(auth.tenantId);
+
+      // 构建动态 instructions：原始 prompt + 当前可用专业 Agent 列表
+      const baseInstructions = await vicoAgent.getInstructions();
+      const dynamicInstructions = agentDescriptions
+        ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}`
+        : '';
+
+      // 执行流式对话 — 使用 stream() 注入动态工具和增强 instructions
+      const output = await vicoAgent.stream([{ role: 'user', content: message }], {
+        clientTools: agentTools,
+        instructions: baseInstructions + dynamicInstructions,
         memory: {
           thread: threadId,
           resource: auth.tenantId,
         },
+        maxSteps: 15,
       });
 
       // 包装为 SSE 流
-      const stream = createSSEStream(output as unknown as import('@mastra/core/stream').MastraModelOutput<unknown>);
+      const stream = createSSEStream(output);
 
       return new Response(stream, {
         headers: {
