@@ -13,18 +13,8 @@ import { agentProxy } from '../agents/agent-proxy.agent.js';
 import { getSkillToolsForMastraAgent } from '../tools/skill-tool-adapter.js';
 import { createRagSearchTool } from '../tools/rag-tool.js';
 import { agentManager } from '../../services/agent/agent-manager.js';
+import type { AgentRow } from '../../services/agent/types.js';
 import logger from '../../lib/logger.js';
-
-/** Vico Agent 数据库行的最小类型 */
-interface AgentRow {
-  id: string;
-  name: string;
-  description?: string | null;
-  system_prompt?: string | null;
-  model_id?: string | null;
-  rag_mode?: string | null;
-  max_steps?: number | null;
-}
 
 /**
  * 为单个用户定义的 Agent 创建 Mastra Tool。
@@ -42,7 +32,7 @@ interface AgentRow {
 export function createAgentTool(agentRow: AgentRow, tenantId: string) {
   return createTool({
     id: `agent_${agentRow.id}`,
-    description: `委托任务给「${agentRow.name}」Agent。${agentRow.description || ''}。当用户需要 ${agentRow.name} 相关能力时调用此工具`,
+    description: `委托任务给「${agentRow.name}」Agent。当用户需要 ${agentRow.name} 相关能力时调用此工具`,
     inputSchema: z.object({
       task: z.string().describe(`要委托给 ${agentRow.name} 的具体任务描述`),
       context: z.string().optional().describe('附加上下文信息'),
