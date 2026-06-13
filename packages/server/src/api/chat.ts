@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { v4 as uuidv4 } from 'uuid';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { createAgent } from '../agent/agent-factory.js';
@@ -9,37 +10,49 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
   app.post('/api/v1/chat', async (c) => {
     const auth = getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const body = await c.req.json();
-    const { agentId, message } = body;
-    if (!agentId || !message) {
-      return c.json({ error: 'agentId and message are required' }, 400);
+
+    try {
+      const body = await c.req.json();
+      const { agentId, message, conversationId } = body;
+      if (!agentId || !message) {
+        return c.json({ error: 'agentId and message are required' }, 400);
+      }
+
+      // 为每个对话生成唯一标识，实现对话隔离
+      const cid = conversationId || uuidv4();
+
+      // 创建 Mastra Agent
+      const agent = await createAgent({
+        tenantId: auth.tenantId,
+        agentId,
+        userId: auth.userId,
+      });
+
+      // 执行流式对话 — Mastra Agent 自动处理 memory/thread
+      const output = await agent.stream([{ role: 'user', content: message }], {
+        memory: {
+          thread: `${agentId}-${auth.userId}-${cid}`,
+          resource: auth.tenantId,
+        },
+      });
+
+      // 包装为 SSE 流
+      const stream = createSSEStream(output);
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    } catch (error: any) {
+      console.error('Chat stream error:', error.message);
+      return c.json(
+        { error: error?.message || 'An internal error occurred' },
+        500,
+      );
     }
-
-    // 创建 Mastra Agent
-    const agent = await createAgent({
-      tenantId: auth.tenantId,
-      agentId,
-      userId: auth.userId,
-    });
-
-    // 执行流式对话 — Mastra Agent 自动处理 memory/thread
-    const output = await agent.stream([{ role: 'user', content: message }], {
-      memory: {
-        thread: `${agentId}-${auth.userId}`,
-        resource: auth.tenantId,
-      },
-    });
-
-    // 包装为 SSE 流
-    const stream = createSSEStream(output);
-
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
   });
 
   /** 团队对话 — 保留现有实现 */
