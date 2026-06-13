@@ -87,6 +87,64 @@ class LongTermMemory {
       );
     }
   }
+
+  /**
+   * 按类型检索记忆条目
+   * 从 memory_entries 表中筛选指定 type，支持单个或多个类型。
+   * @param tenantId - 租户 ID
+   * @param userId - 用户 ID
+   * @param type - 记忆类型或类型数组
+   * @param limit - 返回条目上限（默认 20）
+   */
+  async searchByType(
+    tenantId: string,
+    userId: string,
+    type: string | string[],
+    limit: number = 20,
+  ): Promise<MemoryEntry[]> {
+    const db = getSqlite();
+    const types = Array.isArray(type) ? type : [type];
+    const placeholders = types.map(() => '?').join(',');
+    const rows = db.prepare(
+      `SELECT * FROM memory_entries
+       WHERE tenant_id = ? AND user_id = ? AND type IN (${placeholders})
+       ORDER BY importance DESC, created_at DESC
+       LIMIT ?`
+    ).all(tenantId, userId, ...types, limit) as any[];
+    return rows.map((r) => ({
+      ...r,
+      embedding: r.embedding ? blobToFloat32(r.embedding) : null,
+    }));
+  }
+
+  /**
+   * 按内容+类型覆盖写入记忆（去重更新）
+   * 同 tenant + user + type + 内容前 120 字符匹配时更新，否则插入。
+   * 用于 WorkingMemory 的去重存储。
+   */
+  async upsertByContent(
+    entry: Omit<MemoryEntry, 'id' | 'created_at' | 'embedding'> & { expires_at?: number | null },
+  ): Promise<void> {
+    const db = getSqlite();
+    const contentKey = entry.content.slice(0, 120);
+    const existing = db.prepare(
+      `SELECT id FROM memory_entries
+       WHERE tenant_id = ? AND user_id = ? AND type = ? AND substr(content, 1, 120) = ?
+       LIMIT 1`
+    ).get(entry.tenant_id, entry.user_id, entry.type, contentKey) as { id: string } | undefined;
+
+    if (existing) {
+      db.prepare(
+        `UPDATE memory_entries SET content = ?, importance = ?, expires_at = ? WHERE id = ?`
+      ).run(entry.content, entry.importance, entry.expires_at ?? null, existing.id);
+    } else {
+      const id = uuid();
+      db.prepare(
+        `INSERT INTO memory_entries (id, tenant_id, user_id, type, content, importance, created_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(id, entry.tenant_id, entry.user_id, entry.type, entry.content, entry.importance, Date.now(), entry.expires_at ?? null);
+    }
+  }
 }
 
 export const longTermMemory = new LongTermMemory();
