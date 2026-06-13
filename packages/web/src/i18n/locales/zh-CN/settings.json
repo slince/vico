@@ -1,0 +1,39 @@
+{
+  "title": "设置",
+  "general": {
+    "tab": "通用设置",
+    "language": "界面语言",
+    "languageDesc": "选择界面显示语言，更改后立即生效"
+  },
+  "llm": {
+    "tab": "LLM 模型",
+    "title": "LLM 模型设置",
+    "description": "管理 AI 模型提供商和 API 密钥，配置后可被 Agent 引用",
+    "addModel": "添加模型",
+    "modelName": "模型名称",
+    "provider": "提供商",
+    "apiKey": "API Key",
+    "baseUrl": "Base URL",
+    "actions": "操作",
+    "emptyTitle": "暂无模型",
+    "emptyDescription": "添加您的第一个 LLM 模型提供商，为 Agent 提供推理能力",
+    "confirmDeleteTitle": "确认删除",
+    "confirmDeleteDesc": "确定要删除模型配置「{{name}}」吗？引用该模型的 Agent 将无法正常工作。",
+    "addDialogTitle": "添加 LLM 模型",
+    "addDialogDesc": "选择一个模型提供商并填写对应的 API Key 和模型名称",
+    "providerLabel": "提供商",
+    "providerPlaceholder": "选择提供商",
+    "modelNameLabel": "模型名称",
+    "modelNamePlaceholder": "e.g. {{name}}",
+    "apiKeyLabel": "API Key",
+    "apiKeyPlaceholder": "sk-...",
+    "baseUrlLabel": "Base URL",
+    "baseUrlReset": "重置为默认 URL",
+    "cancel": "取消",
+    "add": "添加",
+    "adding": "添加中...",
+    "defaultBadge": "默认",
+    "setDefault": "设为默认",
+    "customProvider": "自定义"
+  }
+}

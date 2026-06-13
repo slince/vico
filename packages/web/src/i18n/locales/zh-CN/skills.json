@@ -1,0 +1,16 @@
+{
+  "pageTitle": "Skill 管理",
+  "pageDescription": "管理平台中的 Skill 插件，按需安装并启用",
+  "emptyTitle": "暂无 Skill",
+  "emptyDescription": "请确保 skills 目录下有可用的 Skill 包，它们将自动出现在此处",
+  "confirmUninstallTitle": "确认卸载",
+  "confirmUninstallDesc": "确定要卸载 Skill「{{name}}」吗？此操作会移除该 Skill 的配置和关联数据。",
+  "statusEnabled": "已启用",
+  "statusDisabled": "已禁用",
+  "statusNotInstalled": "未安装",
+  "installButton": "安装",
+  "uninstallButton": "卸载",
+  "enableButton": "启用",
+  "disableButton": "禁用",
+  "paramConfig": "参数配置:"
+}

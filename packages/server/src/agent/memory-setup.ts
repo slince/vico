@@ -57,14 +57,8 @@ export function getMemory(): Memory {
   if (!_memory) {
     _memory = new Memory({
       storage: getStorage(),
-      vector: getVector(),
-      embedder: 'openai/text-embedding-3-small',
       options: {
         lastMessages: 10,
-        semanticRecall: {
-          topK: 5,
-          messageRange: { before: 2, after: 1 },
-        },
       },
     });
   }

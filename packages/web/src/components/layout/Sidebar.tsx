@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import {
@@ -12,24 +14,25 @@ import {
   Users,
 } from 'lucide-react';
 
-const navItems = [
-  { to: '/dashboard', label: '仪表盘', icon: LayoutDashboard },
-  { to: '/agents', label: 'Agent 管理', icon: Bot },
-  { to: '/teams', label: 'Agent 团队', icon: Users },
-  { to: '/skills', label: 'Skill 管理', icon: Puzzle },
-  { to: '/knowledge', label: '知识库', icon: Database },
-  { to: '/conversations', label: '对话记录', icon: MessageSquare },
-  { to: '/settings', label: 'LLM 设置', icon: Settings },
-];
-
 export function Sidebar() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation('sidebar');
+
+  const navItems = useMemo(() => [
+    { to: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { to: '/agents', label: t('agents'), icon: Bot },
+    { to: '/teams', label: t('teams'), icon: Users },
+    { to: '/skills', label: t('skills'), icon: Puzzle },
+    { to: '/knowledge', label: t('knowledge'), icon: Database },
+    { to: '/conversations', label: t('conversations'), icon: MessageSquare },
+    { to: '/settings', label: t('settings'), icon: Settings },
+  ], [t]);
 
   return (
     <aside className="w-60 border-r bg-sidebar text-sidebar-foreground flex flex-col">
       <div className="p-4 border-b border-sidebar-border">
         <h1 className="text-xl font-bold tracking-tight">Vico</h1>
-        <p className="text-xs text-muted-foreground mt-1">AI Agent 管理平台</p>
+        <p className="text-xs text-muted-foreground mt-1">{t('brandSubtitle')}</p>
       </div>
 
       <nav className="flex-1 p-3 space-y-1">
@@ -61,7 +64,7 @@ export function Sidebar() {
             <p className="text-sm font-medium truncate">{(user as any)?.username ?? user?.name}</p>
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
-          <button onClick={logout} className="p-1.5 hover:bg-sidebar-accent rounded-md" title="退出登录">
+          <button onClick={logout} className="p-1.5 hover:bg-sidebar-accent rounded-md" title={t('logout')}>
             <LogOut size={16} />
           </button>
         </div>

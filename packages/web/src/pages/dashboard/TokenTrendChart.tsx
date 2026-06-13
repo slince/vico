@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import type { DashboardStats } from './types';
 
@@ -13,19 +14,18 @@ import type { DashboardStats } from './types';
  * @returns 趋势图表 JSX 元素
  */
 export function TokenTrendChart({ data }: { data: DashboardStats['tokenTrend'] }) {
-  // 计算所有天中的最大值，用于柱子高度的比例缩放
+  const { t } = useTranslation('dashboard');
   const max = Math.max(...data.map((d) => d.total), 0);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Token 消耗趋势 (近30天)</CardTitle>
+        <CardTitle className="text-base">{t('tokenTrendTitle')}</CardTitle>
       </CardHeader>
       <CardContent>
         {data.length > 0 ? (
           <div className="flex items-end gap-1 h-32">
             {data.map((d, i) => {
-              // 按最大值比例计算柱高百分比，最小值不低于 2% 确保可见
               const height = max > 0 ? Math.max((d.total / max) * 100, 2) : 0;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
@@ -39,9 +39,8 @@ export function TokenTrendChart({ data }: { data: DashboardStats['tokenTrend'] }
             })}
           </div>
         ) : (
-          // 空数据友好提示
           <p className="text-sm text-muted-foreground py-6 text-center">
-            暂无 Token 消耗数据，开始使用 Agent 后将在此展示趋势
+            {t('noTokenData')}
           </p>
         )}
       </CardContent>

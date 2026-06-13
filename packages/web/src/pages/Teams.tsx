@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 
 // 2. Third-party
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, Edit3, Users } from 'lucide-react';
@@ -42,33 +43,26 @@ interface Team {
  * Agent 团队管理页面
  *
  * 以卡片网格展示所有团队，支持创建、删除操作。
- * 使用 Dialog 弹窗创建新团队，使用 AlertDialog 二次确认删除。
  * 加载时展示 Skeleton 骨架屏，无数据时展示 Empty 空状态。
  */
 export default function Teams() {
+  const { t } = useTranslation('teams');
   const queryClient = useQueryClient();
 
-  // 控制创建 Dialog 的开关状态
   const [createOpen, setCreateOpen] = useState(false);
-  // 创建表单的团队名称
   const [newName, setNewName] = useState('');
-  // 创建表单的团队描述
   const [newDescription, setNewDescription] = useState('');
-  /** 待删除的团队（用于 AlertDialog 确认） */
   const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
 
-  // 获取团队列表
   const { data: teams, isLoading } = useQuery<Team[]>({
     queryKey: ['teams'],
     queryFn: () => api('/teams'),
   });
 
-  /** 创建团队的 mutation */
   const createMutation = useMutation({
     mutationFn: (data: { name: string; description: string }) =>
       api('/teams', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      // 刷新列表并重置表单状态
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       setCreateOpen(false);
       setNewName('');
@@ -76,44 +70,32 @@ export default function Teams() {
     },
   });
 
-  /** 删除团队的 mutation */
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api(`/teams/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['teams'] }),
   });
 
-  /**
-   * 处理创建表单提交
-   * 校验名称非空后触发创建 mutation
-   */
   const handleCreate = useCallback(() => {
     if (!newName.trim()) return;
     createMutation.mutate({ name: newName.trim(), description: newDescription.trim() });
   }, [newName, newDescription, createMutation]);
 
-  /**
-   * 处理删除确认
-   * 通过 AlertDialog 二次确认后执行删除
-   */
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTarget) {
       deleteMutation.mutate(deleteTarget.id, { onSettled: () => setDeleteTarget(null) });
     }
   }, [deleteTarget, deleteMutation]);
 
-  // 规范化团队列表
   const teamList: Team[] = teams || [];
 
-  // ====================== 加载态（骨架屏） ======================
+  // ====================== 加载态 ======================
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Agent 团队</h2>
-          {/* 加载态占位按钮 */}
+          <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
           <Skeleton className="h-9 w-32 rounded-md" />
         </div>
-        {/* 骨架卡片网格：渲染 6 个占位卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
@@ -138,11 +120,10 @@ export default function Teams() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Agent 团队</h2>
-          {/* 空状态下的创建入口 */}
+          <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button><Plus size={16} className="mr-2" />创建团队</Button>
+              <Button><Plus size={16} className="mr-2" />{t('createButton')}</Button>
             </DialogTrigger>
             <CreateTeamDialog
               name={newName} onNameChange={setNewName}
@@ -152,11 +133,10 @@ export default function Teams() {
             />
           </Dialog>
         </div>
-        {/* 空状态提示 */}
         <Empty>
           <EmptyMedia variant="icon"><Users size={32} /></EmptyMedia>
-          <EmptyTitle>暂无 Agent 团队</EmptyTitle>
-          <EmptyDescription>创建团队将多个 Agent 组合在一起，通过协调者自动分配任务</EmptyDescription>
+          <EmptyTitle>{t('emptyTitle')}</EmptyTitle>
+          <EmptyDescription>{t('emptyDescription')}</EmptyDescription>
         </Empty>
       </div>
     );
@@ -165,13 +145,11 @@ export default function Teams() {
   // ====================== 正常数据态 ======================
   return (
     <div className="space-y-6">
-      {/* 顶部标题栏 */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Agent 团队</h2>
-        {/* 创建团队按钮（Dialog 入口） */}
+        <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button><Plus size={16} className="mr-2" />创建团队</Button>
+            <Button><Plus size={16} className="mr-2" />{t('createButton')}</Button>
           </DialogTrigger>
           <CreateTeamDialog
             name={newName} onNameChange={setNewName}
@@ -182,41 +160,35 @@ export default function Teams() {
         </Dialog>
       </div>
 
-      {/* 团队卡片网格 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {teamList.map((team) => (
           <Card key={team.id} className="hover:shadow-md transition-shadow">
-            {/* 卡片头部：团队名称 + 路由策略徽章 */}
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <Link to={`/teams/${team.id}`} className="hover:text-primary transition-colors">
                     <CardTitle className="text-base truncate">{team.name}</CardTitle>
                   </Link>
-                  <CardDescription className="mt-1">{team.member_count || 0} 个成员</CardDescription>
+                  <CardDescription className="mt-1">{t('memberCount', { count: team.member_count || 0 })}</CardDescription>
                 </div>
                 <Badge variant={team.routing_strategy === 'supervisor' ? 'default' : 'secondary'}>
-                  {team.routing_strategy === 'supervisor' ? '协调者模式' : team.routing_strategy}
+                  {team.routing_strategy === 'supervisor' ? t('routingSupervisor') : team.routing_strategy}
                 </Badge>
               </div>
             </CardHeader>
 
-            {/* 卡片内容：团队描述预览 */}
             <CardContent className="pb-2">
               <p className="text-xs text-muted-foreground line-clamp-2">
-                {team.description || '暂无描述'}
+                {team.description || t('noDescription')}
               </p>
             </CardContent>
 
             <Separator />
 
-            {/* 卡片底部：操作区 */}
             <CardFooter className="pt-3 pb-3 flex items-center justify-between">
-              {/* 配置按钮 */}
               <Button variant="outline" size="sm" asChild>
-                <Link to={`/teams/${team.id}`}><Edit3 size={14} className="mr-1.5" />配置</Link>
+                <Link to={`/teams/${team.id}`}><Edit3 size={14} className="mr-1.5" />{t('common:config')}</Link>
               </Button>
-              {/* 删除按钮：使用 AlertDialog 二次确认 */}
               <AlertDialog
                 open={deleteTarget?.id === team.id}
                 onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
@@ -224,18 +196,18 @@ export default function Teams() {
                 <AlertDialogTrigger asChild>
                   <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive"
                     onClick={() => setDeleteTarget(team)}>
-                    <Trash2 size={14} className="mr-1.5" />删除
+                    <Trash2 size={14} className="mr-1.5" />{t('deleteButton')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>确认删除</AlertDialogTitle>
-                    <AlertDialogDescription>确定要删除团队「{team.name}」吗？此操作不可撤销。</AlertDialogDescription>
+                    <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
+                    <AlertDialogDescription>{t('confirmDeleteDesc', { name: team.name })}</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <Button variant="outline" onClick={() => setDeleteTarget(null)}>取消</Button>
+                    <Button variant="outline" onClick={() => setDeleteTarget(null)}>{t('common:cancel')}</Button>
                     <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleteMutation.isPending}>
-                      {deleteMutation.isPending ? '删除中...' : '确认删除'}
+                      {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>

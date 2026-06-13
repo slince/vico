@@ -4,6 +4,8 @@ import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { createAgent } from '../agent/agent-factory.js';
 import { createSSEStream, createNetworkSSEStream } from '../agent/sse-utils.js';
+import { getMemory } from '../agent/memory-setup.js';
+import { getDefaultModel } from '../agent/model-registry.js';
 import logger from '../lib/logger.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
@@ -21,6 +23,28 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 
       // 为每个对话生成唯一标识，实现对话隔离
       const cid = conversationId || uuidv4();
+      const threadId = `${agentId}-${auth.userId}-${cid}`;
+
+      // 获取模型名称，存入 thread metadata
+      const modelConfig = await getDefaultModel(auth.tenantId);
+      const modelName = modelConfig?.model_name || '';
+
+      // 预先创建 Mastra thread，保存 Agent/用户/模型 等元信息
+      const memory = getMemory();
+      await memory.saveThread({
+        thread: {
+          id: threadId,
+          resourceId: auth.tenantId,
+          title: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          metadata: {
+            agent_id: agentId,
+            user_id: auth.userId,
+            model_name: modelName,
+          },
+        },
+      });
 
       // 创建 Mastra Agent
       const agent = await createAgent({
@@ -29,16 +53,16 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         userId: auth.userId,
       });
 
-      // 执行流式对话 — Mastra Agent 自动处理 memory/thread
-      const output = await agent.stream([{ role: 'user', content: message }], {
+      // 执行流式对话 — 使用 streamLegacy 兼容 AI SDK v4 模型
+      const output = await agent.streamLegacy([{ role: 'user', content: message }], {
         memory: {
-          thread: `${agentId}-${auth.userId}-${cid}`,
+          thread: threadId,
           resource: auth.tenantId,
         },
       });
 
       // 包装为 SSE 流
-      const stream = createSSEStream(output);
+      const stream = createSSEStream(output as unknown as import('@mastra/core/stream').MastraModelOutput<unknown>);
 
       return new Response(stream, {
         headers: {

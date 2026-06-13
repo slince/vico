@@ -2,6 +2,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 // 2. Third-party
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Database, Plus, Trash2, Upload } from 'lucide-react';
@@ -61,53 +62,33 @@ const ACCEPTED_FILE_TYPES = '.pdf,.txt,.md,.csv';
  * 使用卡片网格展示所有知识库，支持创建、删除和上传文档操作
  */
 export default function KnowledgeBases() {
+  const { t } = useTranslation('knowledge');
   const queryClient = useQueryClient();
 
-  // ---------- 对话框状态 ----------
-  /** 控制创建知识库对话框的开关 */
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  /** 创建表单 - 知识库名称 */
   const [name, setName] = useState('');
-  /** 创建表单 - 知识库描述 */
   const [desc, setDesc] = useState('');
-  /** 待删除的知识库 ID（为空表示未确认删除） */
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  // ---------- 文件上传 ----------
-  /** 用于触发文件选择的隐藏 input 引用 */
   const fileInputRef = useRef<HTMLInputElement>(null);
-  /** 当前要上传到的知识库 ID */
   const [uploadTargetKbId, setUploadTargetKbId] = useState<string | null>(null);
 
-  // ---------- 数据获取 ----------
   const { data: kbs, isLoading } = useQuery<KnowledgeBase[]>({
     queryKey: ['knowledge-bases'],
     queryFn: () => api('/knowledge-bases'),
   });
 
-  // ---------- 变更操作 ----------
-
-  /**
-   * 创建知识库变更
-   * 成功后刷新列表并关闭对话框、清空表单
-   */
   const createMutation = useMutation({
     mutationFn: (data: { name: string; description: string }) =>
       api('/knowledge-bases', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      // 刷新知识库列表
       queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
-      // 重置 UI 状态
       setCreateDialogOpen(false);
       setName('');
       setDesc('');
     },
   });
 
-  /**
-   * 删除知识库变更
-   * 成功后刷新列表并清空待删除目标
-   */
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       api(`/knowledge-bases/${id}`, { method: 'DELETE' }),
@@ -117,14 +98,9 @@ export default function KnowledgeBases() {
     },
   });
 
-  /**
-   * 上传文档变更
-   * 使用 FormData 直接通过 fetch 发送，因为 api() 客户端默认 Content-Type 为 JSON
-   */
   const uploadMutation = useMutation({
     mutationFn: async ({ kbId, file }: { kbId: string; file: File }) => {
       const formData = new FormData();
-      // 将文件添加到表单数据
       formData.append('file', file);
       const res = await fetch(`/api/v1/knowledge-bases/${kbId}/upload`, {
         method: 'POST',
@@ -142,54 +118,34 @@ export default function KnowledgeBases() {
     },
   });
 
-  // ---------- 事件处理 ----------
-
-  /**
-   * 打开文件选择器以上传文档
-   * 程序化触发隐藏的 file input
-   * @param kbId - 目标知识库的 ID
-   */
   const handleUploadClick = useCallback((kbId: string) => {
     setUploadTargetKbId(kbId);
-    // 通过 ref 安全地触发原生文件选择器
     fileInputRef.current?.click();
   }, []);
 
-  /**
-   * 处理用户选择的文件并触发上传
-   * @param e - 文件 input 的 change 事件
-   */
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file && uploadTargetKbId) {
         uploadMutation.mutate({ kbId: uploadTargetKbId, file });
       }
-      // 重置 input 值，允许重复选择同一文件
       e.target.value = '';
       setUploadTargetKbId(null);
     },
     [uploadMutation, uploadTargetKbId],
   );
 
-  /**
-   * 提交创建知识库表单
-   */
   const handleCreate = useCallback(() => {
     if (!name.trim()) return;
     createMutation.mutate({ name: name.trim(), description: desc.trim() });
   }, [name, desc, createMutation]);
 
-  /**
-   * 确认删除知识库
-   */
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId) {
       deleteMutation.mutate(deleteTargetId);
     }
   }, [deleteTargetId, deleteMutation]);
 
-  // ---------- 派生数据 ----------
   const kbList = kbs || [];
 
   // ---------- 加载态 ----------
@@ -224,55 +180,52 @@ export default function KnowledgeBases() {
   // ---------- 渲染 ----------
   return (
     <div className="space-y-6">
-      {/* 页面标题栏 */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">知识库</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="size-4" />
-              新建知识库
+              {t('createButton')}
             </Button>
           </DialogTrigger>
-          {/* 创建知识库对话框 */}
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>新建知识库</DialogTitle>
+              <DialogTitle>{t('createDialogTitle')}</DialogTitle>
               <DialogDescription>
-                创建一个新的知识库来存储和管理文档
+                {t('createDialogDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="kb-name">名称</Label>
+                <Label htmlFor="kb-name">{t('name')}</Label>
                 <Input
                   id="kb-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="输入知识库名称"
+                  placeholder={t('namePlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="kb-desc">描述（可选）</Label>
+                <Label htmlFor="kb-desc">{t('desc')}</Label>
                 <Textarea
                   id="kb-desc"
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
-                  placeholder="输入知识库描述"
+                  placeholder={t('descPlaceholder')}
                   rows={3}
                 />
               </div>
             </div>
             <DialogFooter showCloseButton>
               <Button onClick={handleCreate} disabled={!name.trim() || createMutation.isPending}>
-                {createMutation.isPending ? '创建中...' : '创建'}
+                {createMutation.isPending ? t('common:creating') : t('common:create')}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* 隐藏的文件选择器，程序化触发 */}
       <input
         ref={fileInputRef}
         type="file"
@@ -281,21 +234,19 @@ export default function KnowledgeBases() {
         onChange={handleFileChange}
       />
 
-      {/* 空状态 */}
       {kbList.length === 0 ? (
         <Empty>
           <EmptyMedia variant="icon">
             <Database className="size-5" />
           </EmptyMedia>
           <EmptyHeader>
-            <EmptyTitle>暂无知识库</EmptyTitle>
+            <EmptyTitle>{t('emptyTitle')}</EmptyTitle>
             <EmptyDescription>
-              点击上方按钮创建第一个知识库，或从 Skill 中自动导入
+              {t('emptyDescription')}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
-        /* 知识库卡片网格 */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {kbList.map((kb) => (
             <Card key={kb.id}>
@@ -309,29 +260,26 @@ export default function KnowledgeBases() {
                       {kb.name}
                     </Link>
                   </CardTitle>
-                  {/* 来源类型标识 */}
                   <Badge variant={kb.source === 'skill_resource' ? 'secondary' : 'outline'}>
-                    {kb.source === 'skill_resource' ? 'Skill内置' : '手动上传'}
+                    {kb.source === 'skill_resource' ? t('sourceSkill') : t('sourceUpload')}
                   </Badge>
                 </div>
-                <CardDescription>{kb.description || '无描述'}</CardDescription>
+                <CardDescription>{kb.description || t('noDescription')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-xs text-muted-foreground">
-                  {kb.chunk_count} 个文档块
+                  {t('chunkCount', { count: kb.chunk_count })}
                 </p>
               </CardContent>
               <CardFooter className="border-t gap-2">
-                {/* 上传文档按钮 */}
                 <Button
                   size="sm"
                   onClick={() => handleUploadClick(kb.id)}
                   disabled={uploadMutation.isPending && uploadTargetKbId === kb.id}
                 >
                   <Upload className="size-3.5" />
-                  上传文档
+                  {t('uploadButton')}
                 </Button>
-                {/* 删除按钮 --- 使用 AlertDialog 确认 */}
                 <AlertDialog
                   open={deleteTargetId === kb.id}
                   onOpenChange={(open) => {
@@ -349,9 +297,9 @@ export default function KnowledgeBases() {
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>确认删除</AlertDialogTitle>
+                      <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        确定要删除知识库「{kb.name}」吗？此操作不可撤销，所有文档块将被永久移除。
+                        {t('confirmDeleteDesc', { name: kb.name })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -359,14 +307,14 @@ export default function KnowledgeBases() {
                         variant="outline"
                         onClick={() => setDeleteTargetId(null)}
                       >
-                        取消
+                        {t('common:cancel')}
                       </Button>
                       <Button
                         variant="destructive"
                         onClick={handleDeleteConfirm}
                         disabled={deleteMutation.isPending}
                       >
-                        {deleteMutation.isPending ? '删除中...' : '确认删除'}
+                        {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
                       </Button>
                     </AlertDialogFooter>
                   </AlertDialogContent>

@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatDateOnly } from '@/lib/date-format';
 import type { DashboardStats } from './types';
 
 /**
@@ -17,10 +19,12 @@ export function RecentConversations({
 }: {
   conversations: DashboardStats['recentConversations'];
 }) {
+  const { t } = useTranslation('dashboard');
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">最近对话</CardTitle>
+        <CardTitle className="text-base">{t('recentConversations')}</CardTitle>
       </CardHeader>
       <CardContent>
         {conversations.length > 0 ? (
@@ -30,26 +34,23 @@ export function RecentConversations({
                 key={c.id}
                 className="flex items-center justify-between py-2 border-b last:border-0"
               >
-                {/* 左侧：Agent 名称与用户信息 */}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">
-                    {c.agent_name || '未知 Agent'}
+                    {c.agent_name || t('unknownAgent')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {c.user_name} &middot; {c.message_count} 条消息
+                    {c.user_name} &middot; {t('messagesCount', { count: c.message_count })}
                   </p>
                 </div>
-                {/* 右侧：更新日期 Badge */}
                 <Badge variant="secondary" className="shrink-0 ml-3">
-                  {new Date(c.updated_at).toLocaleDateString('zh-CN')}
+                  {formatDateOnly(c.updated_at)}
                 </Badge>
               </div>
             ))}
           </div>
         ) : (
-          // 空数据友好提示
           <p className="text-sm text-muted-foreground py-6 text-center">
-            暂无对话记录，创建 Agent 并开始聊天后将在此展示
+            {t('noConversations')}
           </p>
         )}
       </CardContent>

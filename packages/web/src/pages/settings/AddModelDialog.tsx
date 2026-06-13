@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import {
   DialogContent,
   DialogHeader,
@@ -110,22 +111,24 @@ export default function AddModelDialog(props: AddModelDialogProps) {
     isPending,
   } = props;
 
+  const { t } = useTranslation('settings');
+
   return (
     <DialogContent className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>添加 LLM 模型</DialogTitle>
+        <DialogTitle>{t('llm.addDialogTitle')}</DialogTitle>
         <DialogDescription>
-          选择一个模型提供商并填写对应的 API Key 和模型名称
+          {t('llm.addDialogDesc')}
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         {/* 提供商 + 模型名称行 */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="model-provider">提供商</Label>
+            <Label htmlFor="model-provider">{t('llm.providerLabel')}</Label>
             <Select value={provider} onValueChange={onProviderChange}>
               <SelectTrigger id="model-provider" className="w-full">
-                <SelectValue placeholder="选择提供商" />
+                <SelectValue placeholder={t('llm.providerPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(PROVIDER_PRESETS).map(([key, preset]) => (
@@ -138,7 +141,7 @@ export default function AddModelDialog(props: AddModelDialogProps) {
           </div>
           {/* 模型名称输入（含建议下拉） */}
           <div className="space-y-2 relative">
-            <Label htmlFor="model-name">模型名称</Label>
+            <Label htmlFor="model-name">{t('llm.modelNameLabel')}</Label>
             <Input
               id="model-name"
               value={modelName}
@@ -148,7 +151,7 @@ export default function AddModelDialog(props: AddModelDialogProps) {
               }}
               onFocus={() => onShowSuggestionsChange(true)}
               onBlur={() => setTimeout(() => onShowSuggestionsChange(false), 200)}
-              placeholder={`e.g. ${currentPresetModels[0] || 'model-name'}`}
+              placeholder={t('llm.modelNamePlaceholder', { name: currentPresetModels[0] || 'model-name' })}
             />
             {/* 模型名称建议下拉列表 */}
             {showSuggestions && currentPresetModels.length > 0 && (
@@ -170,19 +173,19 @@ export default function AddModelDialog(props: AddModelDialogProps) {
 
         {/* API Key 输入 */}
         <div className="space-y-2">
-          <Label htmlFor="model-apikey">API Key</Label>
+          <Label htmlFor="model-apikey">{t('llm.apiKeyLabel')}</Label>
           <Input
             id="model-apikey"
             type="password"
             value={apiKey}
             onChange={(e) => onApiKeyChange(e.target.value)}
-            placeholder="sk-..."
+            placeholder={t('llm.apiKeyPlaceholder')}
           />
         </div>
 
         {/* Base URL 输入 */}
         <div className="space-y-2">
-          <Label htmlFor="model-baseurl">Base URL</Label>
+          <Label htmlFor="model-baseurl">{t('llm.baseUrlLabel')}</Label>
           <div className="flex gap-1.5">
             <Input
               id="model-baseurl"
@@ -198,7 +201,7 @@ export default function AddModelDialog(props: AddModelDialogProps) {
                 variant="outline"
                 size="icon"
                 onClick={onResetBaseURL}
-                title="重置为默认 URL"
+                title={t('llm.baseUrlReset')}
               >
                 <RotateCcw className="size-4" />
               </Button>
@@ -211,7 +214,7 @@ export default function AddModelDialog(props: AddModelDialogProps) {
           onClick={onSubmit}
           disabled={!modelName.trim() || !apiKey.trim() || isPending}
         >
-          {isPending ? '添加中...' : '添加'}
+          {isPending ? t('llm.adding') : t('llm.add')}
         </Button>
       </DialogFooter>
     </DialogContent>

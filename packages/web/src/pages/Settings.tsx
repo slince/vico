@@ -2,8 +2,9 @@
 import { useCallback, useState } from 'react';
 
 // 2. Third-party
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Check } from 'lucide-react';
+import { Plus, Trash2, Check, Settings as SettingsIcon } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -16,6 +17,7 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +38,7 @@ import {
 
 // 5. Sub-components
 import AddModelDialog from './settings/AddModelDialog';
+import LanguageSwitcher from './settings/LanguageSwitcher';
 
 /** 提供商预设配置：包含默认的 baseURL 和推荐模型列表 */
 const PROVIDER_PRESETS: Record<string, { label: string; baseURL: string; models: string[] }> = {
@@ -77,28 +80,27 @@ interface ModelEntry {
 }
 
 /**
- * LLM 模型设置页面
- * 管理 AI 模型提供商的 API Key 和模型配置，支持增删及设置默认模型
+ * 设置页面
+ *
+ * 通过 Tabs 组织两个功能区：
+ * 1. 通用设置 — 界面语言切换
+ * 2. LLM 模型 — AI 模型提供商配置
  */
 export default function Settings() {
+  const { t } = useTranslation('settings');
   const queryClient = useQueryClient();
 
-  // ---------- 对话框状态 ----------
-  /** 控制添加模型对话框的开关 */
+  const [activeTab, setActiveTab] = useState('general');
+
+  // ---------- LLM 对话框状态 ----------
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  /** 待删除的模型 ID（为空表示未确认删除） */
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  // ---------- 表单状态 ----------
-  /** 当前选中的模型提供商 */
+  // ---------- LLM 表单状态 ----------
   const [provider, setProvider] = useState('openai');
-  /** 用户输入的模型名称 */
   const [modelName, setModelName] = useState('');
-  /** 用户输入的 API Key */
   const [apiKey, setApiKey] = useState('');
-  /** 用户输入的 Base URL（默认跟随 provider 预设） */
   const [baseURL, setBaseURL] = useState(PROVIDER_PRESETS.openai.baseURL);
-  /** 是否显示模型名称建议下拉 */
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // ---------- 数据获取 ----------
@@ -109,16 +111,11 @@ export default function Settings() {
 
   // ---------- 变更操作 ----------
 
-  /**
-   * 添加模型变更
-   * 成功后刷新列表并重置表单状态
-   */
   const addMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       api('/models', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['models'] });
-      // 重置对话框与表单状态
       setAddDialogOpen(false);
       setModelName('');
       setApiKey('');
@@ -127,10 +124,6 @@ export default function Settings() {
     },
   });
 
-  /**
-   * 删除模型变更
-   * 成功后刷新列表并清空待删除目标
-   */
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       api(`/models/${id}`, { method: 'DELETE' }),
@@ -140,10 +133,6 @@ export default function Settings() {
     },
   });
 
-  /**
-   * 设为默认模型变更
-   * 成功后刷新列表
-   */
   const setDefaultMutation = useMutation({
     mutationFn: (id: string) =>
       api(`/models/${id}`, { method: 'PATCH', body: JSON.stringify({ is_default: 1 }) }),
@@ -154,10 +143,6 @@ export default function Settings() {
 
   // ---------- 事件处理 ----------
 
-  /**
-   * 切换提供商时同步更新 baseURL 为对应预设值
-   * @param newProvider - 新选中的提供商键名
-   */
   const handleProviderChange = useCallback((newProvider: string) => {
     setProvider(newProvider);
     const preset = PROVIDER_PRESETS[newProvider];
@@ -166,18 +151,11 @@ export default function Settings() {
     }
   }, []);
 
-  /**
-   * 选择模型名称建议
-   * @param name - 建议的模型名称
-   */
   const handleModelSuggestionPick = useCallback((name: string) => {
     setModelName(name);
     setShowSuggestions(false);
   }, []);
 
-  /**
-   * 将 baseURL 重置为当前提供商的默认值
-   */
   const handleResetBaseURL = useCallback(() => {
     const preset = PROVIDER_PRESETS[provider];
     if (preset) {
@@ -185,12 +163,8 @@ export default function Settings() {
     }
   }, [provider]);
 
-  /**
-   * 提交添加模型表单
-   */
   const handleAddModel = useCallback(() => {
     if (!modelName.trim() || !apiKey.trim()) return;
-    // 首个模型自动设为默认
     const isDefault = modelsList.length === 0 ? 1 : 0;
     addMutation.mutate({
       provider,
@@ -201,9 +175,6 @@ export default function Settings() {
     });
   }, [modelName, apiKey, provider, baseURL, addMutation, models]);
 
-  /**
-   * 确认删除指定的模型
-   */
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId) {
       deleteMutation.mutate(deleteTargetId);
@@ -212,9 +183,7 @@ export default function Settings() {
 
   // ---------- 派生数据 ----------
   const modelsList = models || [];
-  /** 当前选中提供商的预设模型列表 */
   const currentPresetModels = PROVIDER_PRESETS[provider]?.models || [];
-  /** 当前 baseURL 与预设是否一致（用于判断是否显示重置按钮） */
   const isBaseURLModified = !!(PROVIDER_PRESETS[provider]?.baseURL && baseURL !== PROVIDER_PRESETS[provider].baseURL);
 
   // ---------- 加载态 ----------
@@ -222,11 +191,7 @@ export default function Settings() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-40" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-          <Skeleton className="h-9 w-28" />
+          <Skeleton className="h-8 w-40" />
         </div>
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -245,141 +210,162 @@ export default function Settings() {
   // ---------- 渲染 ----------
   return (
     <div className="space-y-6">
-      {/* 页面标题栏 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">LLM 模型设置</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            配置 AI 模型提供商的 API Key 和模型，至少添加一个模型后即可使用
-          </p>
-        </div>
-        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="size-4" />
-              添加模型
-            </Button>
-          </DialogTrigger>
-          {/* 添加模型对话框 */}
-          <AddModelDialog
-            provider={provider}
-            onProviderChange={handleProviderChange}
-            modelName={modelName}
-            onModelNameChange={setModelName}
-            apiKey={apiKey}
-            onApiKeyChange={setApiKey}
-            baseURL={baseURL}
-            onBaseURLChange={setBaseURL}
-            showSuggestions={showSuggestions}
-            onShowSuggestionsChange={setShowSuggestions}
-            currentPresetModels={currentPresetModels}
-            isBaseURLModified={isBaseURLModified}
-            onResetBaseURL={handleResetBaseURL}
-            onModelSuggestionPick={handleModelSuggestionPick}
-            onSubmit={handleAddModel}
-            isPending={addMutation.isPending}
-          />
-        </Dialog>
-      </div>
+      {/* 页面标题 */}
+      <h2 className="text-2xl font-bold tracking-tight">{t('title')}</h2>
 
-      {/* 空状态 */}
-      {modelsList.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>暂无模型配置</EmptyTitle>
-            <EmptyDescription>
-              请添加至少一个 LLM 模型以启用 AI 对话功能
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        /* 模型列表 */
-        <div className="space-y-3">
-          {modelsList.map((m) => (
-            <Card key={m.id}>
-              <CardContent className="py-0">
-                <div className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* 默认模型标识：绿色对勾图标 */}
-                    {m.is_default === 1 && (
-                      <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
-                        <Check className="size-3" />
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="general">
+            <SettingsIcon size={14} className="mr-1.5" />
+            {t('general.tab')}
+          </TabsTrigger>
+          <TabsTrigger value="llm">
+            <Check size={14} className="mr-1.5" />
+            {t('llm.tab')}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* 通用设置 Tab */}
+        <TabsContent value="general">
+          <div className="mt-4 space-y-4">
+            <LanguageSwitcher />
+          </div>
+        </TabsContent>
+
+        {/* LLM 模型 Tab */}
+        <TabsContent value="llm">
+          <div className="mt-4 space-y-4">
+            {/* 操作栏 */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">{t('llm.title')}</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {t('llm.description')}
+                </p>
+              </div>
+              <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="size-4" />
+                    {t('llm.addModel')}
+                  </Button>
+                </DialogTrigger>
+                <AddModelDialog
+                  provider={provider}
+                  onProviderChange={handleProviderChange}
+                  modelName={modelName}
+                  onModelNameChange={setModelName}
+                  apiKey={apiKey}
+                  onApiKeyChange={setApiKey}
+                  baseURL={baseURL}
+                  onBaseURLChange={setBaseURL}
+                  showSuggestions={showSuggestions}
+                  onShowSuggestionsChange={setShowSuggestions}
+                  currentPresetModels={currentPresetModels}
+                  isBaseURLModified={isBaseURLModified}
+                  onResetBaseURL={handleResetBaseURL}
+                  onModelSuggestionPick={handleModelSuggestionPick}
+                  onSubmit={handleAddModel}
+                  isPending={addMutation.isPending}
+                />
+              </Dialog>
+            </div>
+
+            {/* 空状态 */}
+            {modelsList.length === 0 ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>{t('llm.emptyTitle')}</EmptyTitle>
+                  <EmptyDescription>{t('llm.emptyDescription')}</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              /* 模型列表 */
+              <div className="space-y-3">
+                {modelsList.map((m) => (
+                  <Card key={m.id}>
+                    <CardContent className="py-0">
+                      <div className="flex items-center justify-between py-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {m.is_default === 1 && (
+                            <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
+                              <Check className="size-3" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">
+                              {m.provider} / {m.model_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              API Key: {m.api_key_encrypted.slice(0, 8)}...
+                              {m.base_url ? ` \u00b7 ${m.base_url}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {m.is_default !== 1 && (
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => setDefaultMutation.mutate(m.id)}
+                              disabled={setDefaultMutation.isPending}
+                            >
+                              {t('llm.setDefault')}
+                            </Button>
+                          )}
+                          {m.is_default === 1 && (
+                            <Badge variant="default">{t('llm.defaultBadge')}</Badge>
+                          )}
+                          <AlertDialog
+                            open={deleteTargetId === m.id}
+                            onOpenChange={(open) => {
+                              if (!open) setDeleteTargetId(null);
+                            }}
+                          >
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeleteTargetId(m.id)}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>{t('llm.confirmDeleteTitle')}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {t('llm.confirmDeleteDesc', { name: `${m.provider} / ${m.model_name}` })}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setDeleteTargetId(null)}
+                                >
+                                  {t('llm.cancel')}
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={handleDeleteConfirm}
+                                  disabled={deleteMutation.isPending}
+                                >
+                                  {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
+                                </Button>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">
-                        {m.provider} / {m.model_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        API Key: {m.api_key_encrypted.slice(0, 8)}...
-                        {m.base_url ? ` · ${m.base_url}` : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* 非默认模型：显示"设为默认"按钮 */}
-                    {m.is_default !== 1 && (
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        onClick={() => setDefaultMutation.mutate(m.id)}
-                        disabled={setDefaultMutation.isPending}
-                      >
-                        设为默认
-                      </Button>
-                    )}
-                    {/* 默认标签：仅默认模型展示 Badge */}
-                    {m.is_default === 1 && (
-                      <Badge variant="default">默认</Badge>
-                    )}
-                    {/* 删除按钮 --- 使用 AlertDialog 确认 */}
-                    <AlertDialog
-                      open={deleteTargetId === m.id}
-                      onOpenChange={(open) => {
-                        if (!open) setDeleteTargetId(null);
-                      }}
-                    >
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteTargetId(m.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>确认删除</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            确定要删除模型「{m.provider} / {m.model_name}」吗？此操作不可撤销。
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <Button
-                            variant="outline"
-                            onClick={() => setDeleteTargetId(null)}
-                          >
-                            取消
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={handleDeleteConfirm}
-                            disabled={deleteMutation.isPending}
-                          >
-                            {deleteMutation.isPending ? '删除中...' : '确认删除'}
-                          </Button>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

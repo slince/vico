@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 
 // 2. Third-party
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, Edit3, Bot } from 'lucide-react';
@@ -59,56 +60,41 @@ interface Agent {
  * Agent 管理页面
  *
  * 以卡片网格展示所有 Agent，支持创建、删除操作。
- * 使用 Dialog 弹窗创建新 Agent，使用 DropdownMenu 提供快捷操作入口。
  * 加载时展示 Skeleton 骨架屏，无数据时展示 Empty 空状态。
  */
 export default function Agents() {
+  const { t } = useTranslation('agents');
   const queryClient = useQueryClient();
 
-  // 控制创建 Dialog 的开关状态
   const [createOpen, setCreateOpen] = useState(false);
-  // 创建表单的 Agent 名称
   const [newName, setNewName] = useState('');
-  /** 待删除的 Agent（用于 AlertDialog 确认） */
   const [deleteTarget, setDeleteTarget] = useState<Agent | null>(null);
 
-  // 获取 Agent 列表
   const { data: agents, isLoading } = useQuery<Agent[]>({
     queryKey: ['agents'],
     queryFn: () => api('/agents'),
   });
 
-  /** 创建 Agent 的 mutation */
   const createMutation = useMutation({
     mutationFn: (data: { name: string }) =>
       api('/agents', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
-      // 刷新列表并重置表单状态
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       setCreateOpen(false);
       setNewName('');
     },
   });
 
-  /** 删除 Agent 的 mutation */
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api(`/agents/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
   });
 
-  /**
-   * 处理创建表单提交
-   * 校验名称非空后触发创建 mutation
-   */
   const handleCreate = useCallback(() => {
     if (!newName.trim()) return;
     createMutation.mutate({ name: newName.trim() });
   }, [newName, createMutation]);
 
-  /**
-   * 处理删除确认
-   * 通过 AlertDialog 二次确认后执行删除
-   */
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTarget) {
       deleteMutation.mutate(deleteTarget.id, {
@@ -117,19 +103,16 @@ export default function Agents() {
     }
   }, [deleteTarget, deleteMutation]);
 
-  // 规范化 agent 列表
   const agentList: Agent[] = agents || [];
 
-  // ====================== 加载态（骨架屏） ======================
+  // ====================== 加载态 ======================
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Agent 管理</h2>
-          {/* 加载态占位按钮 */}
+          <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
           <Skeleton className="h-9 w-32 rounded-md" />
         </div>
-        {/* 骨架卡片网格：渲染 6 个占位卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
@@ -156,31 +139,29 @@ export default function Agents() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">Agent 管理</h2>
-          {/* 空状态下的创建入口 */}
+          <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus size={16} className="mr-2" />
-                创建 Agent
+                {t('createButton')}
               </Button>
             </DialogTrigger>
             <CreateAgentDialog
-            name={newName}
-            onNameChange={setNewName}
-            onSubmit={handleCreate}
-            mutation={{ error: createMutation.error as Error | null, isPending: createMutation.isPending }}
-          />
+              name={newName}
+              onNameChange={setNewName}
+              onSubmit={handleCreate}
+              mutation={{ error: createMutation.error as Error | null, isPending: createMutation.isPending }}
+            />
           </Dialog>
         </div>
-        {/* 空状态提示 */}
         <Empty>
           <EmptyMedia variant="icon">
             <Bot size={32} />
           </EmptyMedia>
-          <EmptyTitle>暂无 Agent</EmptyTitle>
+          <EmptyTitle>{t('emptyTitle')}</EmptyTitle>
           <EmptyDescription>
-            点击上方「创建 Agent」按钮，开始构建您的第一个 AI Agent
+            {t('emptyDescription')}
           </EmptyDescription>
         </Empty>
       </div>
@@ -190,15 +171,13 @@ export default function Agents() {
   // ====================== 正常数据态 ======================
   return (
     <div className="space-y-6">
-      {/* 顶部标题栏 */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Agent 管理</h2>
-        {/* 创建 Agent 按钮（Dialog 入口） */}
+        <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus size={16} className="mr-2" />
-              创建 Agent
+              {t('createButton')}
             </Button>
           </DialogTrigger>
           <CreateAgentDialog
@@ -210,14 +189,12 @@ export default function Agents() {
         </Dialog>
       </div>
 
-      {/* Agent 卡片网格 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {agentList.map((agent) => (
           <Card
             key={agent.id}
             className="hover:shadow-md transition-shadow group/card"
           >
-            {/* 卡片头部：Agent 名称 + 状态徽章 */}
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
@@ -230,37 +207,31 @@ export default function Agents() {
                     </CardTitle>
                   </Link>
                   <CardDescription className="mt-1">
-                    {/* 统计信息：已绑定的 Skill 和知识库数量 */}
-                    {agent.skill_names?.length || 0} 个 Skill &middot;{' '}
-                    {agent.kb_ids?.length || 0} 个知识库
+                    {t('skillsCount', { count: agent.skill_names?.length || 0 })} &middot;{' '}
+                    {t('knowledgeCount', { count: agent.kb_ids?.length || 0 })}
                   </CardDescription>
                 </div>
-                {/* 启用/禁用状态 Badge */}
                 <Badge variant={agent.enabled ? 'default' : 'secondary'}>
-                  {agent.enabled ? '启用' : '禁用'}
+                  {agent.enabled ? t('statusEnabled') : t('statusDisabled')}
                 </Badge>
               </div>
             </CardHeader>
 
-            {/* 卡片内容：System Prompt 预览 */}
             <CardContent className="pb-2">
               <p className="text-xs text-muted-foreground line-clamp-2">
-                {agent.system_prompt || '暂无 System Prompt'}
+                {agent.system_prompt || t('noSystemPrompt')}
               </p>
             </CardContent>
 
             <Separator />
 
-            {/* 卡片底部：操作区 */}
             <CardFooter className="pt-3 pb-3 flex items-center justify-between">
-              {/* 配置按钮 */}
               <Button variant="outline" size="sm" asChild>
                 <Link to={`/agents/${agent.id}`}>
                   <Edit3 size={14} className="mr-1.5" />
-                  配置
+                  {t('tabConfig')}
                 </Link>
               </Button>
-              {/* 删除按钮：使用 AlertDialog 二次确认 */}
               <AlertDialog
                 open={deleteTarget?.id === agent.id}
                 onOpenChange={(open) => {
@@ -275,14 +246,14 @@ export default function Agents() {
                     onClick={() => setDeleteTarget(agent)}
                   >
                     <Trash2 size={14} className="mr-1.5" />
-                    删除
+                    {t('deleteButton')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>确认删除</AlertDialogTitle>
+                    <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      确定要删除 Agent「{agent.name}」吗？此操作不可撤销，所有关联的对话记录也将被清除。
+                      {t('confirmDeleteDesc', { name: agent.name })}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -290,14 +261,14 @@ export default function Agents() {
                       variant="outline"
                       onClick={() => setDeleteTarget(null)}
                     >
-                      取消
+                      {t('common:cancel')}
                     </Button>
                     <Button
                       variant="destructive"
                       onClick={handleDeleteConfirm}
                       disabled={deleteMutation.isPending}
                     >
-                      {deleteMutation.isPending ? '删除中...' : '确认删除'}
+                      {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
                     </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -309,4 +280,3 @@ export default function Agents() {
     </div>
   );
 }
-

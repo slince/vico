@@ -1,31 +1,19 @@
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
+  Card, CardHeader, CardTitle, CardDescription, CardContent,
 } from '@/components/ui/card';
 
 import type { AgentOption, Member } from './types';
 
-/** MembersPanel 组件的 props */
 export interface MembersPanelProps {
-  /** 尚未加入团队的 Agent（用于添加） */
   availableForAdd: AgentOption[];
-  /** 当前成员列表 */
   members: Member[];
-  /** 添加成员回调 */
   onAddMember: (agentId: string) => void;
-  /** 移除成员回调 */
   onRemoveMember: (agentId: string) => void;
 }
 
@@ -40,25 +28,24 @@ export default function MembersPanel({
   onAddMember,
   onRemoveMember,
 }: MembersPanelProps) {
+  const { t } = useTranslation('teams');
+
   return (
     <div className="space-y-4">
-      {/* 添加成员 */}
       <Card>
         <CardHeader>
-          <CardTitle>添加成员</CardTitle>
-          <CardDescription>
-            选择要加入团队的 Agent
-          </CardDescription>
+          <CardTitle>{t('addMember')}</CardTitle>
+          <CardDescription>{t('addMemberDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Select onValueChange={onAddMember}>
             <SelectTrigger>
-              <SelectValue placeholder="选择 Agent..." />
+              <SelectValue placeholder={t('addMemberPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
               {availableForAdd.length === 0 ? (
                 <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                  所有 Agent 已在团队中
+                  {t('allAgentsInTeam')}
                 </div>
               ) : (
                 availableForAdd.map((a) => (
@@ -72,14 +59,13 @@ export default function MembersPanel({
         </CardContent>
       </Card>
 
-      {/* 当前成员列表 */}
       <Card>
         <CardHeader>
-          <CardTitle>当前成员 ({members.length})</CardTitle>
+          <CardTitle>{t('currentMembers')} ({members.length})</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {members.length === 0 ? (
-            <p className="text-sm text-muted-foreground">暂无成员</p>
+            <p className="text-sm text-muted-foreground">{t('noMembers')}</p>
           ) : (
             members.map((m) => (
               <div
@@ -89,7 +75,7 @@ export default function MembersPanel({
                 <div>
                   <p className="text-sm font-medium">{m.agent_name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {m.role || '成员'}
+                    {m.role || t('memberRole')}
                   </p>
                 </div>
                 <Button

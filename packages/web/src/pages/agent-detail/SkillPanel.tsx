@@ -1,28 +1,18 @@
+import { useTranslation } from 'react-i18next';
 import { Puzzle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
+  Card, CardHeader, CardTitle, CardDescription, CardContent,
 } from '@/components/ui/card';
 import {
-  Empty,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyDescription,
+  Empty, EmptyMedia, EmptyTitle, EmptyDescription,
 } from '@/components/ui/empty';
 
 import type { Skill } from './types';
 
-/** SkillPanel 组件的 props */
 export interface SkillPanelProps {
-  /** 可用 Skill 列表 */
   skillsList: Skill[];
-  /** 已绑定的 Skill 名称列表 */
   boundSkills: string[];
-  /** Skill 复选框切换回调 */
   onToggleSkill: (skillName: string, boundSkills: string[]) => void;
 }
 
@@ -30,24 +20,20 @@ export interface SkillPanelProps {
  * Skill 绑定面板
  *
  * 展示所有可用 Skill 的复选框列表，勾选即绑定到当前 Agent。
- * 取消勾选则解绑。无可用 Skill 时展示 Empty 空状态。
- *
- * @param props - 组件属性
- * @returns Skill 绑定面板 JSX 元素
  */
 export default function SkillPanel({
   skillsList,
   boundSkills,
   onToggleSkill,
 }: SkillPanelProps) {
+  const { t } = useTranslation('agents');
+
   return (
     <div className="mt-4">
       <Card>
         <CardHeader>
-          <CardTitle>绑定 Skill 插件</CardTitle>
-          <CardDescription>
-            勾选需要为此 Agent 启用的 Skill。Skill 可扩展 Agent 的工具能力。
-          </CardDescription>
+          <CardTitle>{t('skillBindTitle')}</CardTitle>
+          <CardDescription>{t('skillBindDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {skillsList.length === 0 ? (
@@ -55,10 +41,8 @@ export default function SkillPanel({
               <EmptyMedia variant="icon">
                 <Puzzle size={24} />
               </EmptyMedia>
-              <EmptyTitle>暂无可用 Skill</EmptyTitle>
-              <EmptyDescription>
-                请先到 Skill 管理页安装插件
-              </EmptyDescription>
+              <EmptyTitle>{t('skillsEmptyTitle')}</EmptyTitle>
+              <EmptyDescription>{t('skillsEmptyDesc')}</EmptyDescription>
             </Empty>
           ) : (
             <div className="space-y-1">

@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 
 // 2. Third-party
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Search } from 'lucide-react';
@@ -34,6 +35,7 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty';
+import { formatDateTime } from '@/lib/date-format';
 
 // 5. Sub-components
 import ConversationTableSkeleton from './conversations/ConversationTableSkeleton';
@@ -42,7 +44,6 @@ import ConversationTableSkeleton from './conversations/ConversationTableSkeleton
 // Types
 // ---------------------------------------------------------------------------
 
-/** Shape of a conversation row returned by GET /conversations */
 interface Conversation {
   id: string;
   user_id: string;
@@ -53,16 +54,10 @@ interface Conversation {
   updated_at: string;
 }
 
-/** Shape of an agent row returned by GET /agents */
 interface Agent {
   id: string;
   name: string;
 }
-
-
-// ---------------------------------------------------------------------------
-// Main page component
-// ---------------------------------------------------------------------------
 
 /**
  * Conversations list page.
@@ -72,19 +67,17 @@ interface Agent {
  * page (`/conversations/:id`).
  *
  * States handled:
- * - **loading** – skeleton table rows
- * - **empty**   – Empty component with descriptive text
- * - **error**   – queried data is `undefined` and not loading (edge-case guard)
- * - **data**    – fully populated table
+ * - loading – skeleton table rows
+ * - empty   – Empty component with descriptive text
+ * - error   – fallback message
+ * - data    – fully populated table
  */
 export default function Conversations() {
-  // ---- local filter state ------------------------------------------------
+  const { t } = useTranslation('conversations');
+
   const [search, setSearch] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
 
-  // ---- queries -----------------------------------------------------------
-
-  /** Fetch the filtered conversations list */
   const {
     data: conversations,
     isLoading: conversationsLoading,
@@ -92,30 +85,20 @@ export default function Conversations() {
     queryKey: ['conversations', search, agentFilter],
     queryFn: () => {
       const params = new URLSearchParams();
-      if (search) params.set('search', search); // full-text search term
-      if (agentFilter) params.set('agent_id', agentFilter); // filter by agent
+      if (search) params.set('search', search);
+      if (agentFilter) params.set('agent_id', agentFilter);
       return api(`/conversations?${params.toString()}`);
     },
   });
 
-  /** Fetch the agents list (used to populate the filter dropdown) */
   const { data: agents } = useQuery<Agent[]>({
     queryKey: ['agents'],
     queryFn: () => api('/agents'),
   });
 
-  // ---- derived values ----------------------------------------------------
-
-  /** Guard against undefined data – treat as empty array */
   const convs: Conversation[] = conversations ?? [];
   const agentsList: Agent[] = agents ?? [];
 
-  // ---- event handlers ---------------------------------------------------
-
-  /**
-   * Updates the search term state.
-   * Uses `useCallback` to keep a stable reference across renders.
-   */
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearch(e.target.value);
@@ -123,41 +106,27 @@ export default function Conversations() {
     [],
   );
 
-  /**
-   * Updates the agent filter state. An empty string means "all agents".
-   * Uses `useCallback` to keep a stable reference across renders.
-   */
   const handleAgentFilterChange = useCallback((value: string) => {
-    // The Select component passes the raw value string; "all" resets the filter
     setAgentFilter(value === 'all' ? '' : value);
   }, []);
 
-  // ---- loading state -----------------------------------------------------
   if (conversationsLoading) {
     return <ConversationTableSkeleton />;
   }
 
-  // ---- error / edge-case state -------------------------------------------
-  // If not loading but data is undefined (e.g. a 500 from the API), show a
-  // fallback message rather than a blank page.
   if (!conversations) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        无法加载对话记录，请稍后重试
+        {t('loadError')}
       </div>
     );
   }
 
-  // ---- render ------------------------------------------------------------
-
   return (
     <div className="space-y-6">
-      {/* Page heading */}
-      <h2 className="text-2xl font-bold tracking-tight">对话记录</h2>
+      <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
 
-      {/* Search + filter toolbar */}
       <div className="flex gap-3 items-center">
-        {/* Search input with leading icon */}
         <div className="relative flex-1 max-w-sm">
           <Search
             size={16}
@@ -167,22 +136,20 @@ export default function Conversations() {
             type="text"
             value={search}
             onChange={handleSearchChange}
-            placeholder="搜索对话..."
+            placeholder={t('searchPlaceholder')}
             className="pl-9"
           />
         </div>
 
-        {/* Agent filter dropdown */}
         <Select
           value={agentFilter || 'all'}
           onValueChange={handleAgentFilterChange}
         >
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="全部 Agent" />
+            <SelectValue placeholder={t('filterAll')} />
           </SelectTrigger>
           <SelectContent>
-            {/* Default "all agents" option */}
-            <SelectItem value="all">全部 Agent</SelectItem>
+            <SelectItem value="all">{t('filterAll')}</SelectItem>
             {agentsList.map((agent) => (
               <SelectItem key={agent.id} value={agent.id}>
                 {agent.name}
@@ -192,76 +159,66 @@ export default function Conversations() {
         </Select>
       </div>
 
-      {/* Empty state – shown when the filtered list is empty */}
       {convs.length === 0 ? (
         <Empty>
           <EmptyMedia variant="icon">
             <Search size={24} className="text-muted-foreground" />
           </EmptyMedia>
-          <EmptyTitle>暂无对话记录</EmptyTitle>
+          <EmptyTitle>{t('emptyTitle')}</EmptyTitle>
           <EmptyDescription>
             {search || agentFilter
-              ? '没有匹配的对话记录，试试调整筛选条件'
-              : '还没有任何对话记录'}
+              ? t('noMatchDescription')
+              : t('emptyDescription')}
           </EmptyDescription>
         </Empty>
       ) : (
-        /* Data table wrapped in a Card */
         <Card>
           <CardHeader>
-            <CardTitle>对话记录</CardTitle>
+            <CardTitle>{t('tableTitle')}</CardTitle>
             <CardDescription>
-              共 {convs.length} 条对话记录
+              {t('totalRecords', { count: convs.length })}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>用户</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>消息数</TableHead>
-                  <TableHead>模型</TableHead>
-                  <TableHead>时间</TableHead>
-                  <TableHead>操作</TableHead>
+                  <TableHead>{t('columnUser')}</TableHead>
+                  <TableHead>{t('columnAgent')}</TableHead>
+                  <TableHead>{t('columnMessages')}</TableHead>
+                  <TableHead>{t('columnModel')}</TableHead>
+                  <TableHead>{t('columnTime')}</TableHead>
+                  <TableHead>{t('columnActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {convs.map((conversation) => (
                   <TableRow key={conversation.id}>
-                    {/* Display truncated user ID as identifier */}
                     <TableCell className="text-sm font-mono">
                       {conversation.user_id?.slice(0, 8)}
                     </TableCell>
 
-                    {/* Agent name falls back to truncated agent ID */}
                     <TableCell className="text-sm">
                       {conversation.agent_name ??
                         conversation.agent_id?.slice(0, 8)}
                     </TableCell>
 
-                    {/* Message count */}
                     <TableCell className="text-sm">
                       {conversation.message_count}
                     </TableCell>
 
-                    {/* Model name */}
                     <TableCell className="text-xs text-muted-foreground">
                       {conversation.model_name}
                     </TableCell>
 
-                    {/* Formatted update timestamp (zh-CN locale) */}
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(conversation.updated_at).toLocaleString(
-                        'zh-CN',
-                      )}
+                      {formatDateTime(conversation.updated_at)}
                     </TableCell>
 
-                    {/* Link to conversation detail */}
                     <TableCell>
                       <Button variant="link" size="sm" asChild>
                         <Link to={`/conversations/${conversation.id}`}>
-                          查看
+                          {t('viewButton')}
                         </Link>
                       </Button>
                     </TableCell>

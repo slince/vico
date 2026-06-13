@@ -1,4 +1,6 @@
 // 1. Third-party
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { MessageSquare, Zap, Bot, Puzzle, Database } from 'lucide-react';
 
@@ -15,45 +17,6 @@ import { DashboardSkeleton } from './dashboard/DashboardSkeleton';
 import type { DashboardStats, StatCardConfig } from './dashboard/types';
 
 /**
- * 统计卡片配置列表
- *
- * 每项定义了一张仪表盘统计卡片的内容与外观。
- * 使用 getValue 函数从原始数据中提取格式化后的显示值。
- */
-const statCards: StatCardConfig[] = [
-  {
-    label: '总对话数',
-    getValue: (s) => s.totalConversations.toLocaleString(),
-    icon: MessageSquare,
-    iconColor: 'text-blue-600 bg-blue-50',
-  },
-  {
-    label: 'Token 消耗',
-    getValue: (s) => s.totalTokens.toLocaleString(),
-    icon: Zap,
-    iconColor: 'text-amber-600 bg-amber-50',
-  },
-  {
-    label: 'Agent 状态',
-    getValue: (s) => `${s.activeAgents}/${s.totalAgents}`,
-    icon: Bot,
-    iconColor: 'text-green-600 bg-green-50',
-  },
-  {
-    label: '已安装 Skill',
-    getValue: (s) => String(s.installedSkills),
-    icon: Puzzle,
-    iconColor: 'text-purple-600 bg-purple-50',
-  },
-  {
-    label: '知识库',
-    getValue: (s) => String(s.totalKnowledgeBases),
-    icon: Database,
-    iconColor: 'text-indigo-600 bg-indigo-50',
-  },
-];
-
-/**
  * 仪表盘页面组件
  *
  * 展示系统概览数据，包括：
@@ -67,23 +30,55 @@ const statCards: StatCardConfig[] = [
  * @returns 仪表盘页面 JSX 元素
  */
 export default function Dashboard() {
-  // 使用 TanStack Query 获取仪表盘数据，每 30 秒自动刷新
+  const { t } = useTranslation('dashboard');
+
   const { data, isLoading } = useQuery<DashboardStats>({
     queryKey: ['dashboard'],
     queryFn: () => api('/dashboard/stats'),
-    refetchInterval: 30_000, // 30 秒轮询
+    refetchInterval: 30_000,
   });
 
-  // 加载态：展示骨架屏网格
+  const statCards: StatCardConfig[] = useMemo(() => [
+    {
+      label: t('totalConversations'),
+      getValue: (s) => s.totalConversations.toLocaleString(),
+      icon: MessageSquare,
+      iconColor: 'text-blue-600 bg-blue-50',
+    },
+    {
+      label: t('tokenUsage'),
+      getValue: (s) => s.totalTokens.toLocaleString(),
+      icon: Zap,
+      iconColor: 'text-amber-600 bg-amber-50',
+    },
+    {
+      label: t('agentStatus'),
+      getValue: (s) => `${s.activeAgents}/${s.totalAgents}`,
+      icon: Bot,
+      iconColor: 'text-green-600 bg-green-50',
+    },
+    {
+      label: t('installedSkills'),
+      getValue: (s) => String(s.installedSkills),
+      icon: Puzzle,
+      iconColor: 'text-purple-600 bg-purple-50',
+    },
+    {
+      label: t('knowledgeBases'),
+      getValue: (s) => String(s.totalKnowledgeBases),
+      icon: Database,
+      iconColor: 'text-indigo-600 bg-indigo-50',
+    },
+  ], [t]);
+
   if (isLoading) {
     return <DashboardSkeleton />;
   }
 
-  // 数据未就绪的边界保护
   if (!data) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
-        无法加载仪表盘数据，请稍后重试
+        {t('loadError')}
       </div>
     );
   }
@@ -92,10 +87,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* 页面标题 */}
-      <h2 className="text-2xl font-bold tracking-tight">仪表盘</h2>
+      <h2 className="text-2xl font-bold tracking-tight">{t('title')}</h2>
 
-      {/* 统计卡片网格：响应式布局，2 列到 5 列 */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {statCards.map(({ label, getValue, icon: Icon, iconColor }) => {
           const value = getValue(stats);
@@ -111,7 +104,6 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* 双列区域：Token 趋势 + 最近对话 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TokenTrendChart data={stats.tokenTrend} />
         <RecentConversations conversations={stats.recentConversations} />

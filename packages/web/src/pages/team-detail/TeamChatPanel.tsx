@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,36 +7,24 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
+  Card, CardHeader, CardTitle, CardDescription, CardContent,
 } from '@/components/ui/card';
 import {
-  Empty,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyDescription,
+  Empty, EmptyMedia, EmptyTitle, EmptyDescription,
 } from '@/components/ui/empty';
 import { useTeamChat } from '@/hooks/useTeamChat';
 
-/** TeamChatPanel 组件的 props */
 export interface TeamChatPanelProps {
-  /** 当前团队 ID */
   teamId: string;
 }
 
 /**
  * 团队对话测试面板
  *
- * 提供团队协作的实时对话测试区域，支持：
- * - 消息列表展示（用户、助手和委派事件）
- * - SSE 流式响应（实时打字效果）
- * - 委派事件展示（蓝色气泡 + Agent 名称）
- * - 回车发送、Shift+Enter 换行
+ * 提供团队协作的实时对话测试区域，支持 SSE 流式响应和委派事件展示。
  */
 export default function TeamChatPanel({ teamId }: TeamChatPanelProps) {
+  const { t } = useTranslation('teams');
   const { messages, input, handleInputChange, sendMessage, isLoading } = useTeamChat({ teamId });
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -46,10 +35,8 @@ export default function TeamChatPanel({ teamId }: TeamChatPanelProps) {
   return (
     <Card className="flex flex-col h-[calc(100vh-14rem)]">
       <CardHeader className="pb-3">
-        <CardTitle>团队对话测试</CardTitle>
-        <CardDescription>
-          向团队发送消息，观察协调者如何分配任务
-        </CardDescription>
+        <CardTitle>{t('chatTitle')}</CardTitle>
+        <CardDescription>{t('chatDesc')}</CardDescription>
       </CardHeader>
 
       <Separator />
@@ -62,10 +49,8 @@ export default function TeamChatPanel({ teamId }: TeamChatPanelProps) {
                 <EmptyMedia variant="icon">
                   <MessageSquare size={24} />
                 </EmptyMedia>
-                <EmptyTitle>开始测试</EmptyTitle>
-                <EmptyDescription>
-                  在下方输入消息，测试团队协作效果
-                </EmptyDescription>
+                <EmptyTitle>{t('chatEmptyTitle')}</EmptyTitle>
+                <EmptyDescription>{t('chatEmptyDesc')}</EmptyDescription>
               </Empty>
             </div>
           )}
@@ -103,7 +88,7 @@ export default function TeamChatPanel({ teamId }: TeamChatPanelProps) {
               <div className="flex items-center gap-2 bg-accent rounded-lg px-3 py-2">
                 <Spinner className="size-3.5" />
                 <span className="text-xs text-muted-foreground">
-                  正在生成...
+                  {t('common:generating')}
                 </span>
               </div>
             </div>
@@ -126,7 +111,7 @@ export default function TeamChatPanel({ teamId }: TeamChatPanelProps) {
                 sendMessage();
               }
             }}
-            placeholder="输入测试消息，Enter 发送..."
+            placeholder={t('chatPlaceholder')}
             disabled={isLoading}
             className="flex-1"
           />

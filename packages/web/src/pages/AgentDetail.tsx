@@ -2,17 +2,12 @@
 import { useState, useCallback, useEffect } from 'react';
 
 // 2. 第三方
+import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
-  Bot,
-  Settings,
-  Puzzle,
-  Database,
-  MessageSquare,
-  Trash2,
+  ArrowLeft, Bot, Settings, Puzzle, Database, MessageSquare, Trash2,
 } from 'lucide-react';
 
 // 3. API / Hooks / Utils
@@ -24,19 +19,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Empty,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyDescription,
+  Empty, EmptyMedia, EmptyTitle, EmptyDescription,
 } from '@/components/ui/empty';
 import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
+  AlertDialog, AlertDialogTrigger, AlertDialogContent,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 
 // 5. 页面子组件
@@ -51,34 +38,24 @@ import type { Agent, Skill, KnowledgeBase, Model } from './agent-detail/types';
 /**
  * Agent 详情 / 配置页面
  *
- * 通过 Tabs 组织四个功能区：
- * 1. 配置 — System Prompt、模型选择、温度 / MaxTokens
- * 2. Skill 绑定 — 复选框列表
- * 3. 知识库绑定 — 复选框列表
- * 4. 测试对话 — SSE 流式聊天
- *
+ * 通过 Tabs 组织四个功能区：配置、Skill 绑定、知识库绑定、测试对话。
  * 所有修改即时通过 PATCH/PUT mutation 提交，无需保存按钮。
  */
 export default function AgentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation('agents');
 
-  // 当前激活的 Tab
   const [activeTab, setActiveTab] = useState('config');
-  // 删除确认 AlertDialog 开关
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // ====================== 数据获取 ======================
-
-  /** 获取当前 Agent 详情 */
   const { data: agent, isLoading } = useQuery<Agent>({
     queryKey: ['agent', id],
     queryFn: () => api(`/agents/${id}`),
     enabled: !!id,
   });
 
-  // react-hook-form：管理 System Prompt / Max Tokens 本地状态
   const { register, watch, formState: { dirtyFields } } = useForm({
     values: {
       system_prompt: agent?.system_prompt ?? '',
@@ -86,34 +63,27 @@ export default function AgentDetail() {
     },
   });
 
-  /** 获取全部 Skill 列表，用于绑定面板 */
   const { data: allSkills } = useQuery<Skill[]>({
     queryKey: ['skills'],
     queryFn: () => api('/skills'),
   });
 
-  /** 获取全部知识库列表，用于绑定面板 */
   const { data: allKbs } = useQuery<KnowledgeBase[]>({
     queryKey: ['knowledge-bases'],
     queryFn: () => api('/knowledge-bases'),
   });
 
-  /** 获取可用模型列表 */
   const { data: models } = useQuery<Model[]>({
     queryKey: ['models'],
     queryFn: () => api('/models'),
   });
 
-  // ====================== Mutations ======================
-
-  /** 通用更新 Agent 配置（System Prompt、模型、温度等） */
   const updateMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       api(`/agents/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', id] }),
   });
 
-  /** 更新 Skill 绑定关系 */
   const skillsMutation = useMutation({
     mutationFn: (skills: { skill_name: string }[]) =>
       api(`/agents/${id}/skills`, {
@@ -123,7 +93,6 @@ export default function AgentDetail() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', id] }),
   });
 
-  /** 更新知识库绑定关系 */
   const kbMutation = useMutation({
     mutationFn: (kbs: { kb_id: string }[]) =>
       api(`/agents/${id}/knowledge`, {
@@ -133,7 +102,6 @@ export default function AgentDetail() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', id] }),
   });
 
-  /** 删除 Agent */
   const deleteMutation = useMutation({
     mutationFn: () => api(`/agents/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
@@ -142,7 +110,6 @@ export default function AgentDetail() {
     },
   });
 
-  // ---- 防抖提交：监听表单字段变化，仅用户编辑后触发（300ms 防抖） ----
   const watchedPrompt = watch('system_prompt');
   const watchedMaxTokens = watch('max_tokens');
 
@@ -158,14 +125,6 @@ export default function AgentDetail() {
     return () => clearTimeout(timer);
   }, [watchedPrompt, watchedMaxTokens]);
 
-  // ====================== 事件处理 ======================
-
-  /**
-   * 处理 Skill 复选框切换
-   *
-   * 根据当前选中状态，在绑定列表中添加或移除指定 Skill，
-   * 然后通过 skillsMutation 提交新的完整绑定列表。
-   */
   const toggleSkill = useCallback(
     (skillName: string, boundSkills: string[]) => {
       const isBound = boundSkills.includes(skillName);
@@ -177,11 +136,6 @@ export default function AgentDetail() {
     [skillsMutation],
   );
 
-  /**
-   * 处理知识库复选框切换
-   *
-   * 逻辑同 toggleSkill，操作对象为知识库 ID 列表。
-   */
   const toggleKb = useCallback(
     (kbId: string, boundKbs: string[]) => {
       const isBound = boundKbs.includes(kbId);
@@ -193,20 +147,16 @@ export default function AgentDetail() {
     [kbMutation],
   );
 
-  /** 删除确认提交 */
   const handleDelete = useCallback(() => {
     deleteMutation.mutate();
   }, [deleteMutation]);
 
-  /** 通用更新回调（用于 ConfigPanel） */
   const handleUpdate = useCallback(
     (data: Record<string, unknown>) => {
       updateMutation.mutate(data);
     },
     [updateMutation],
   );
-
-  // ====================== 加载态 / 空态 ======================
 
   if (isLoading) {
     return (
@@ -232,26 +182,22 @@ export default function AgentDetail() {
         <EmptyMedia variant="icon">
           <Bot size={32} />
         </EmptyMedia>
-        <EmptyTitle>Agent 未找到</EmptyTitle>
+        <EmptyTitle>{t('agentNotFound')}</EmptyTitle>
         <EmptyDescription>
-          该 Agent 可能已被删除，或 ID 无效
+          {t('agentNotFoundDesc')}
         </EmptyDescription>
         <Button variant="outline" onClick={() => navigate('/agents')}>
-          返回列表
+          {t('backToList')}
         </Button>
       </Empty>
     );
   }
 
-  // ====================== 数据预处理 ======================
-
   const a = agent;
 
-  // 已绑定的 Skill 名称列表
   const boundSkills: string[] = (a.skills || []).map(
     (s: { skill_name: string }) => s.skill_name,
   );
-  // 已绑定的知识库 ID 列表
   const boundKbs: string[] = (a.knowledge_bases || []).map(
     (k: { kb_id: string }) => k.kb_id,
   );
@@ -260,17 +206,14 @@ export default function AgentDetail() {
   const kbsList = allKbs || [];
   const modelsList = models || [];
 
-  // ====================== 页面渲染 ======================
-
   return (
     <div className="space-y-6">
-      {/* 顶部导航栏 */}
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate('/agents')}
-          aria-label="返回列表"
+          aria-label={t('backToList')}
         >
           <ArrowLeft size={20} />
         </Button>
@@ -278,66 +221,60 @@ export default function AgentDetail() {
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold tracking-tight">{a.name}</h2>
             <Badge variant={a.enabled ? 'default' : 'secondary'}>
-              {a.enabled ? '启用中' : '已禁用'}
+              {a.enabled ? t('statusEnabledDetail') : t('statusDisabledDetail')}
             </Badge>
           </div>
         </div>
-        {/* 删除入口：使用 AlertDialog 二次确认 */}
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Trash2 size={14} className="mr-1.5" />
-              删除
+              {t('deleteButton')}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>确认删除</AlertDialogTitle>
+              <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                确定要删除 Agent「{a.name}」吗？此操作不可撤销，所有关联的对话记录也将被清除。
+                {t('confirmDeleteDesc', { name: a.name })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setDeleteOpen(false)}
-              >
-                取消
+              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                {t('common:cancel')}
               </Button>
               <Button
                 variant="destructive"
                 onClick={handleDelete}
                 disabled={deleteMutation.isPending}
               >
-                {deleteMutation.isPending ? '删除中...' : '确认删除'}
+                {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
 
-      {/* 主体：Tab 切换区 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="config">
             <Settings size={14} className="mr-1.5" />
-            配置
+            {t('tabConfig')}
           </TabsTrigger>
           <TabsTrigger value="skills">
             <Puzzle size={14} className="mr-1.5" />
-            Skill 绑定
+            {t('tabSkills')}
           </TabsTrigger>
           <TabsTrigger value="knowledge">
             <Database size={14} className="mr-1.5" />
-            知识库绑定
+            {t('tabKnowledge')}
           </TabsTrigger>
           <TabsTrigger value="chat">
             <MessageSquare size={14} className="mr-1.5" />
-            测试对话
+            {t('tabChat')}
           </TabsTrigger>
         </TabsList>
 
-        {/* 配置 Tab */}
         <TabsContent value="config">
           <ConfigPanel
             agent={a}
@@ -347,7 +284,6 @@ export default function AgentDetail() {
           />
         </TabsContent>
 
-        {/* Skill 绑定 Tab */}
         <TabsContent value="skills">
           <SkillPanel
             skillsList={skillsList}
@@ -356,7 +292,6 @@ export default function AgentDetail() {
           />
         </TabsContent>
 
-        {/* 知识库绑定 Tab */}
         <TabsContent value="knowledge">
           <KnowledgePanel
             kbsList={kbsList}
@@ -365,7 +300,6 @@ export default function AgentDetail() {
           />
         </TabsContent>
 
-        {/* 测试对话 Tab */}
         <TabsContent value="chat">
           <ChatPanel agentId={id!} />
         </TabsContent>

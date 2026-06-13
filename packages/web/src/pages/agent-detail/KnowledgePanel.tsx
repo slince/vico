@@ -1,28 +1,18 @@
+import { useTranslation } from 'react-i18next';
 import { Database } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
+  Card, CardHeader, CardTitle, CardDescription, CardContent,
 } from '@/components/ui/card';
 import {
-  Empty,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyDescription,
+  Empty, EmptyMedia, EmptyTitle, EmptyDescription,
 } from '@/components/ui/empty';
 
 import type { KnowledgeBase } from './types';
 
-/** KnowledgePanel 组件的 props */
 export interface KnowledgePanelProps {
-  /** 可用知识库列表 */
   kbsList: KnowledgeBase[];
-  /** 已绑定的知识库 ID 列表 */
   boundKbs: string[];
-  /** 知识库复选框切换回调 */
   onToggleKb: (kbId: string, boundKbs: string[]) => void;
 }
 
@@ -30,24 +20,20 @@ export interface KnowledgePanelProps {
  * 知识库绑定面板
  *
  * 展示所有可用知识库的复选框列表，勾选即关联到当前 Agent。
- * Agent 将在对话中检索已关联知识库的文档内容作为上下文。
- *
- * @param props - 组件属性
- * @returns 知识库绑定面板 JSX 元素
  */
 export default function KnowledgePanel({
   kbsList,
   boundKbs,
   onToggleKb,
 }: KnowledgePanelProps) {
+  const { t } = useTranslation('agents');
+
   return (
     <div className="mt-4">
       <Card>
         <CardHeader>
-          <CardTitle>绑定知识库</CardTitle>
-          <CardDescription>
-            勾选要关联的知识库，Agent 将在对话中检索其中的文档内容作为上下文。
-          </CardDescription>
+          <CardTitle>{t('kbBindTitle')}</CardTitle>
+          <CardDescription>{t('kbBindDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {kbsList.length === 0 ? (
@@ -55,10 +41,8 @@ export default function KnowledgePanel({
               <EmptyMedia variant="icon">
                 <Database size={24} />
               </EmptyMedia>
-              <EmptyTitle>暂无知识库</EmptyTitle>
-              <EmptyDescription>
-                请先到知识库页上传文档并创建知识库
-              </EmptyDescription>
+              <EmptyTitle>{t('knowledgeEmptyTitle')}</EmptyTitle>
+              <EmptyDescription>{t('knowledgeEmptyDesc')}</EmptyDescription>
             </Empty>
           ) : (
             <div className="space-y-1">
@@ -78,7 +62,7 @@ export default function KnowledgePanel({
                         {kb.name}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {kb.chunk_count} 个文档块
+                        {t('common:chunks', { count: kb.chunk_count })}
                       </p>
                     </div>
                   </label>

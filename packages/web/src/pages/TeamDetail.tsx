@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 // 2. 第三方
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -35,32 +36,23 @@ import type { Member, TeamDetailData, AgentOption } from './team-detail/types';
 /**
  * Agent 团队详情 / 配置页面
  *
- * 通过 Tabs 组织三个功能区：
- * 1. 概览 — 团队名称、描述、协调者 Agent 选择（500ms 防抖自动保存）
- * 2. 成员管理 — Select 下拉添加 / 删除成员，展示当前成员列表
- * 3. 测试对话 — SSE 流式团队聊天，展示委派事件和文本回复
- *
+ * 通过 Tabs 组织三个功能区：概览、成员管理、测试对话。
  * 概览页修改通过 500ms 防抖 PATCH 自动提交，无需保存按钮。
  */
 export default function TeamDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation('teams');
 
-  // 当前激活的 Tab
   const [activeTab, setActiveTab] = useState('overview');
-  // 删除确认 AlertDialog 开关
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // 本地概览字段状态（防抖提交用）
   const [localName, setLocalName] = useState<string | undefined>();
   const [localDescription, setLocalDescription] = useState<string | undefined>();
   const [localSupervisorId, setLocalSupervisorId] = useState<string | undefined>();
 
-  // 标记用户是否已编辑过概览字段
   const hasEdited = useRef(false);
-
-  // ====================== 数据获取 ======================
 
   const { data: team, isLoading } = useQuery<TeamDetailData>({
     queryKey: ['team', id],
@@ -72,8 +64,6 @@ export default function TeamDetail() {
     queryKey: ['agents'],
     queryFn: () => api('/agents'),
   });
-
-  // ====================== Mutations ======================
 
   const updateMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -98,7 +88,6 @@ export default function TeamDetail() {
     },
   });
 
-  // ---- 防抖提交：概览字段（500ms 防抖） ----
   useEffect(() => {
     if (!hasEdited.current) return;
     const timer = setTimeout(() => {
@@ -111,7 +100,6 @@ export default function TeamDetail() {
     return () => clearTimeout(timer);
   }, [localName, localDescription, localSupervisorId]);
 
-  // ---- 初始化本地状态 ----
   useEffect(() => {
     if (team) {
       setLocalName(team.name);
@@ -121,9 +109,6 @@ export default function TeamDetail() {
     }
   }, [team?.id]);
 
-  // ====================== 事件处理 ======================
-
-  /** 更新概览字段并标记用户已编辑 */
   const handleFieldChange = useCallback(
     (setter: (v: string) => void, value: string) => {
       hasEdited.current = true;
@@ -132,7 +117,6 @@ export default function TeamDetail() {
     [],
   );
 
-  /** 处理成员添加 */
   const handleAddMember = useCallback(
     (agentId: string) => {
       if (!team || !agentId) return;
@@ -143,7 +127,6 @@ export default function TeamDetail() {
     [team, membersMutation],
   );
 
-  /** 处理成员移除 */
   const handleRemoveMember = useCallback(
     (agentId: string) => {
       if (!team) return;
@@ -155,8 +138,6 @@ export default function TeamDetail() {
     },
     [team, membersMutation],
   );
-
-  // ====================== 加载态 / 空态 ======================
 
   if (isLoading) {
     return (
@@ -179,44 +160,39 @@ export default function TeamDetail() {
         <EmptyMedia variant="icon">
           <Users size={32} />
         </EmptyMedia>
-        <EmptyTitle>团队未找到</EmptyTitle>
+        <EmptyTitle>{t('teamNotFound')}</EmptyTitle>
         <EmptyDescription>
-          该团队可能已被删除，或 ID 无效
+          {t('teamNotFoundDesc')}
         </EmptyDescription>
         <Button variant="outline" onClick={() => navigate('/teams')}>
-          返回列表
+          {t('common:backToList')}
         </Button>
       </Empty>
     );
   }
 
-  // ====================== 数据预处理 ======================
-
-  const t = team;
+  const tm = team;
   const agentsList: AgentOption[] = allAgents || [];
   const availableForAdd = agentsList.filter(
-    (a) => !t.members.some((m: Member) => m.agent_id === a.id),
+    (a) => !tm.members.some((m: Member) => m.agent_id === a.id),
   );
-
-  // ====================== 页面渲染 ======================
 
   return (
     <div className="space-y-6">
-      {/* 顶部导航栏 */}
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate('/teams')}
-          aria-label="返回列表"
+          aria-label={t('common:backToList')}
         >
           <ArrowLeft size={20} />
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold tracking-tight">{t.name}</h2>
+            <h2 className="text-2xl font-bold tracking-tight">{tm.name}</h2>
             <Badge variant="default">
-              {t.routing_strategy === 'supervisor' ? '协调者模式' : t.routing_strategy}
+              {tm.routing_strategy === 'supervisor' ? t('routingSupervisor') : tm.routing_strategy}
             </Badge>
           </div>
         </div>
@@ -224,53 +200,48 @@ export default function TeamDetail() {
           <AlertDialogTrigger asChild>
             <Button variant="outline" size="sm">
               <Trash2 size={14} className="mr-1.5" />
-              删除
+              {t('deleteButton')}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>确认删除</AlertDialogTitle>
+              <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                确定要删除团队「{t.name}」吗？此操作不可撤销。
+                {t('confirmDeleteDesc', { name: tm.name })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setDeleteOpen(false)}
-              >
-                取消
+              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                {t('common:cancel')}
               </Button>
               <Button
                 variant="destructive"
                 onClick={() => deleteMutation.mutate()}
                 disabled={deleteMutation.isPending}
               >
-                {deleteMutation.isPending ? '删除中...' : '确认删除'}
+                {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </div>
 
-      {/* 主体：Tab 切换区 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">
             <Settings size={14} className="mr-1.5" />
-            概览
+            {t('tabOverview')}
           </TabsTrigger>
           <TabsTrigger value="members">
             <UserPlus size={14} className="mr-1.5" />
-            成员管理
+            {t('tabMembers')}
           </TabsTrigger>
           <TabsTrigger value="chat">
             <MessageSquare size={14} className="mr-1.5" />
-            测试对话
+            {t('tabChat')}
           </TabsTrigger>
         </TabsList>
 
-        {/* 概览 Tab */}
         <TabsContent value="overview">
           <OverviewPanel
             localName={localName ?? ''}
@@ -283,17 +254,15 @@ export default function TeamDetail() {
           />
         </TabsContent>
 
-        {/* 成员管理 Tab */}
         <TabsContent value="members">
           <MembersPanel
             availableForAdd={availableForAdd}
-            members={t.members}
+            members={tm.members}
             onAddMember={handleAddMember}
             onRemoveMember={handleRemoveMember}
           />
         </TabsContent>
 
-        {/* 测试对话 Tab */}
         <TabsContent value="chat">
           <TeamChatPanel teamId={id!} />
         </TabsContent>

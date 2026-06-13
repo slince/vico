@@ -1,0 +1,15 @@
+{
+  "title": "Dashboard",
+  "totalConversations": "Total Conversations",
+  "tokenUsage": "Token Usage",
+  "agentStatus": "Agent Status",
+  "installedSkills": "Installed Skills",
+  "knowledgeBases": "Knowledge Bases",
+  "tokenTrendTitle": "Token Usage Trend (Last 30 Days)",
+  "recentConversations": "Recent Conversations",
+  "noConversations": "No conversations yet. Create an agent and start chatting to see them here.",
+  "noTokenData": "No token usage data yet. Start using agents to see trends here.",
+  "loadError": "Unable to load dashboard data. Please try again later.",
+  "messagesCount": "{{count}} messages",
+  "unknownAgent": "Unknown Agent"
+}

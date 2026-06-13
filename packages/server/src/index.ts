@@ -10,6 +10,7 @@ import { runMigrations } from './db/run-migrations.js';
 import { seedDefaultOrgAndAdmin } from './auth/seed.js';
 import { getDb } from './db/db.js';
 import { member, session as sessionTable } from './db/auth-schema.js';
+import { getStorage } from './agent/memory-setup.js';
 import logger from './lib/logger.js';
 
 /** better-auth session 扩展类型 — 包含 organization 插件注入的 activeOrganizationId */
@@ -24,6 +25,7 @@ export type Variables = {
 async function main() {
   runMigrations();
   await skillManager.init();
+  await getStorage().init(); // 初始化 Mastra 存储表（mastra_threads/messages/resources）
   await seedDefaultOrgAndAdmin();
 
   const app = new Hono<{ Variables: Variables }>();

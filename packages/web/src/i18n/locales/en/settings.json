@@ -1,0 +1,39 @@
+{
+  "title": "Settings",
+  "general": {
+    "tab": "General",
+    "language": "Interface Language",
+    "languageDesc": "Select the display language. Changes take effect immediately."
+  },
+  "llm": {
+    "tab": "LLM Models",
+    "title": "LLM Model Settings",
+    "description": "Manage AI model providers and API keys for Agent use",
+    "addModel": "Add Model",
+    "modelName": "Model Name",
+    "provider": "Provider",
+    "apiKey": "API Key",
+    "baseUrl": "Base URL",
+    "actions": "Actions",
+    "emptyTitle": "No Models",
+    "emptyDescription": "Add your first LLM model provider to enable reasoning for Agents",
+    "confirmDeleteTitle": "Confirm Delete",
+    "confirmDeleteDesc": "Are you sure you want to delete model configuration \"{{name}}\"? Agents using this model may not work properly.",
+    "addDialogTitle": "Add LLM Model",
+    "addDialogDesc": "Select a model provider and enter the corresponding API Key and model name",
+    "providerLabel": "Provider",
+    "providerPlaceholder": "Select Provider",
+    "modelNameLabel": "Model Name",
+    "modelNamePlaceholder": "e.g. {{name}}",
+    "apiKeyLabel": "API Key",
+    "apiKeyPlaceholder": "sk-...",
+    "baseUrlLabel": "Base URL",
+    "baseUrlReset": "Reset to default URL",
+    "cancel": "Cancel",
+    "add": "Add",
+    "adding": "Adding...",
+    "defaultBadge": "Default",
+    "setDefault": "Set as default",
+    "customProvider": "Custom"
+  }
+}
