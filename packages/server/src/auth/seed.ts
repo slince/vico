@@ -35,7 +35,7 @@ export async function seedDefaultOrgAndAdmin() {
   const db = getDb();
 
   // 检查是否已有组织
-  const existing = db.select({ id: organization.id }).from(organization).limit(1).get();
+  const existing = await db.select({ id: organization.id }).from(organization).limit(1).get();
   if (existing) return;
 
   const now = new Date();
@@ -44,7 +44,7 @@ export async function seedDefaultOrgAndAdmin() {
   const accountId = uuid();
 
   // 创建默认组织（租户）
-  db.insert(organization).values({
+  await db.insert(organization).values({
     id: orgId,
     name: '默认租户',
     slug: 'default',
@@ -53,7 +53,7 @@ export async function seedDefaultOrgAndAdmin() {
   }).run();
 
   // 创建管理员用户
-  db.insert(user).values({
+  await db.insert(user).values({
     id: userId,
     name: '管理员',
     email: 'admin@vico.local',
@@ -66,7 +66,7 @@ export async function seedDefaultOrgAndAdmin() {
 
   // 使用 better-auth 兼容的 scrypt 哈希创建账户凭证
   const hash = await hashPassword('admin123');
-  db.insert(account).values({
+  await db.insert(account).values({
     id: accountId,
     userId,
     accountId: userId,
@@ -77,7 +77,7 @@ export async function seedDefaultOrgAndAdmin() {
   }).run();
 
   // 将用户加入组织
-  db.insert(member).values({
+  await db.insert(member).values({
     id: uuid(),
     organizationId: orgId,
     userId,

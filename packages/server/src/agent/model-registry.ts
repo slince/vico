@@ -15,46 +15,46 @@ export interface ModelConfigRow {
   created_at: number;
 }
 
-export function listModels(tenantId: string): ModelConfigRow[] {
+export async function listModels(tenantId: string): Promise<ModelConfigRow[]> {
   const db = getDb();
-  return db.select().from(model_configs)
+  return (await db.select().from(model_configs)
     .where(eq(model_configs.tenant_id, tenantId))
-    .all() as ModelConfigRow[];
+    .all()) as ModelConfigRow[];
 }
 
-export function getDefaultModel(tenantId: string): ModelConfigRow | null {
+export async function getDefaultModel(tenantId: string): Promise<ModelConfigRow | null> {
   const db = getDb();
-  const row = db.select().from(model_configs)
+  const row = await db.select().from(model_configs)
     .where(and(eq(model_configs.tenant_id, tenantId), eq(model_configs.is_default, 1)))
     .limit(1)
     .get();
   if (row) return row as ModelConfigRow;
-  return (db.select().from(model_configs)
+  return (await db.select().from(model_configs)
     .where(eq(model_configs.tenant_id, tenantId))
     .limit(1)
     .get() as ModelConfigRow) || null;
 }
 
-export function getModelById(tenantId: string, id: string): ModelConfigRow | null {
+export async function getModelById(tenantId: string, id: string): Promise<ModelConfigRow | null> {
   const db = getDb();
-  return (db.select().from(model_configs)
+  return (await db.select().from(model_configs)
     .where(and(eq(model_configs.tenant_id, tenantId), eq(model_configs.id, id)))
     .get() as ModelConfigRow) || null;
 }
 
-export function addModel(tenantId: string, data: Omit<ModelConfigRow, 'id' | 'created_at'>): ModelConfigRow {
+export async function addModel(tenantId: string, data: Omit<ModelConfigRow, 'id' | 'created_at'>): Promise<ModelConfigRow> {
   const db = getDb();
   const id = uuid();
   const now = Date.now();
-  db.insert(model_configs).values({
+  await db.insert(model_configs).values({
     id, tenant_id: tenantId, provider: data.provider, model_name: data.model_name,
     api_key_encrypted: data.api_key_encrypted, base_url: data.base_url || null,
     is_default: data.is_default || 0, created_at: now,
   }).run();
-  return getModelById(tenantId, id)!;
+  return (await getModelById(tenantId, id))!;
 }
 
-export function updateModel(tenantId: string, id: string, data: Partial<ModelConfigRow>) {
+export async function updateModel(tenantId: string, id: string, data: Partial<ModelConfigRow>) {
   const db = getDb();
   const updateData: Record<string, any> = {};
   for (const [k, v] of Object.entries(data)) {
@@ -63,14 +63,14 @@ export function updateModel(tenantId: string, id: string, data: Partial<ModelCon
     }
   }
   if (Object.keys(updateData).length > 0) {
-    db.update(model_configs).set(updateData)
+    await db.update(model_configs).set(updateData)
       .where(and(eq(model_configs.tenant_id, tenantId), eq(model_configs.id, id)))
       .run();
   }
 }
 
-export function deleteModel(tenantId: string, id: string) {
-  getDb().delete(model_configs)
+export async function deleteModel(tenantId: string, id: string) {
+  await getDb().delete(model_configs)
     .where(and(eq(model_configs.tenant_id, tenantId), eq(model_configs.id, id)))
     .run();
 }

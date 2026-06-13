@@ -10,9 +10,10 @@
  * - 阈值：config.memory.stm_window * 2 条消息后触发
  * - 摘要存储为 memory_entries（type='observation'），conversation_id 嵌入 content 中
  * - 检索时按 conversation_id 前缀匹配
+ * - 使用 libsql async 客户端（替代已废弃的 getSqlite）
  */
 import { v4 as uuid } from 'uuid';
-import { getSqlite } from '../../db/db.js';
+import { getClient } from '../../db/db.js';
 import { config } from '../../config.js';
 
 export class ObservationalMemory {
@@ -33,20 +34,31 @@ export class ObservationalMemory {
    * @returns 是否执行了压缩
    */
   async maybeCompress(tenantId: string, conversationId: string): Promise<boolean> {
-    const db = getSqlite();
+    const client = getClient();
 
-    const countRow = db.prepare(
-      `SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?`
-    ).get(conversationId) as { count: number };
+    const countRs = await client.execute({
+      sql: `SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?`,
+      args: [conversationId],
+    });
+    const countRow = countRs.rows[0];
+    const count = Number(countRow[countRs.columns.indexOf('count')]);
 
-    if (countRow.count < this.compressThreshold) return false;
+    if (count < this.compressThreshold) return false;
 
-    const recentMessages = db.prepare(
-      `SELECT role, content FROM messages
+    const recentRs = await client.execute({
+      sql: `SELECT role, content FROM messages
        WHERE conversation_id = ?
        ORDER BY created_at DESC
-       LIMIT ?`
-    ).all(conversationId, this.compressThreshold) as { role: string; content: string }[];
+       LIMIT ?`,
+      args: [conversationId, this.compressThreshold],
+    });
+
+    const roleIdx = recentRs.columns.indexOf('role');
+    const contentIdx = recentRs.columns.indexOf('content');
+    const recentMessages = recentRs.rows.map((r) => ({
+      role: r[roleIdx] as string,
+      content: r[contentIdx] as string,
+    }));
 
     const summary = recentMessages
       .reverse()
@@ -55,10 +67,11 @@ export class ObservationalMemory {
       .join('\n');
 
     const id = uuid();
-    db.prepare(
-      `INSERT INTO memory_entries (id, tenant_id, user_id, type, content, importance, created_at)
-       VALUES (?, ?, '', 'observation', ?, 0.3, ?)`
-    ).run(id, tenantId, `[Conversation ${conversationId}]\n${summary}`, Date.now());
+    await client.execute({
+      sql: `INSERT INTO memory_entries (id, tenant_id, user_id, type, content, importance, created_at)
+       VALUES (?, ?, '', 'observation', ?, 0.3, ?)`,
+      args: [id, tenantId, `[Conversation ${conversationId}]\n${summary}`, Date.now()],
+    });
 
     return true;
   }
@@ -72,14 +85,21 @@ export class ObservationalMemory {
    * @returns 最近的观察记忆条目列表
    */
   async retrieve(tenantId: string, conversationId: string, limit: number = 3) {
-    const db = getSqlite();
-    const rows = db.prepare(
-      `SELECT * FROM memory_entries
+    const client = getClient();
+    const rs = await client.execute({
+      sql: `SELECT * FROM memory_entries
        WHERE tenant_id = ? AND type = 'observation' AND content LIKE ?
        ORDER BY created_at DESC
-       LIMIT ?`
-    ).all(tenantId, `%[Conversation ${conversationId}]%`, limit);
-    return rows;
+       LIMIT ?`,
+      args: [tenantId, `%[Conversation ${conversationId}]%`, limit],
+    });
+    return rs.rows.map((r) => {
+      const row: Record<string, unknown> = {};
+      for (let i = 0; i < rs.columns.length; i++) {
+        row[rs.columns[i]] = r[i];
+      }
+      return row;
+    });
   }
 
   /**

@@ -17,17 +17,17 @@ export interface AuthContext {
  * @param c Hono 上下文
  * @returns AuthContext，若未认证则返回 401 Response
  */
-export function getAuthContext(c: Context<{ Variables: Variables }>): AuthContext | Response {
+export async function getAuthContext(c: Context<{ Variables: Variables }>): Promise<AuthContext | Response> {
   const session = c.get('session');
   const user = c.get('user');
   if (!session || !user) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   // 若活跃组织尚未设置，自动选择用户第一个所在组织
-  let orgId = session.activeOrganizationId;
+  let orgId = (session as any).activeOrganizationId;
   if (!orgId) {
     const db = getDb();
-    const membership = db
+    const membership = await db
       .select({ organizationId: member.organizationId })
       .from(member)
       .where(eq(member.userId, user.id))
