@@ -28,6 +28,17 @@ async function main() {
 
   const app = new Hono<{ Variables: Variables }>();
 
+  /** 自定义错误处理 — 返回原始错误信息，方便调试 */
+  app.onError((err, c) => {
+    logger.error({ err }, 'Unhandled error');
+    const message = err instanceof Error ? err.message : 'An internal error occurred';
+    const stack = err instanceof Error ? err.stack : undefined;
+    return c.json(
+      { error: message, stack: config.server.deploy_mode === 'private' ? stack : undefined },
+      500,
+    );
+  });
+
   /** CORS — 启用 credentials 以支持 session cookie */
   app.use('*', cors({ origin: '*', credentials: true }));
 

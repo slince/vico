@@ -16,9 +16,12 @@ export function runMigrations() {
   try {
     migrate(db, { migrationsFolder });
   } catch (err: any) {
-    if (!err.message?.includes('already exists')) {
+    const msg = err?.message ?? '';
+    // 忽略已存在的表/列（幂等迁移）
+    if (!msg.includes('already exists') && !msg.includes('duplicate column name')) {
       throw err;
     }
+    logger.warn({ msg }, 'Migration skipped (already applied)');
   }
   logger.info('All migrations applied.');
 }

@@ -8,6 +8,13 @@
       "when": 1781200817998,
       "tag": "0000_tan_bucky",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1781200818000,
+      "tag": "0002_add_max_steps",
+      "breakpoints": true
     }
   ]
 }
