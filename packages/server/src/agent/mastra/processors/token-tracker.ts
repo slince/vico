@@ -1,5 +1,4 @@
 // Mastra output processor: Token 用量统计 → token_usage_logs 表
-// Mastra 每次 LLM 调用完成后触发，记录 prompt/completion token 数
 
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../../db/db.js';
@@ -12,15 +11,11 @@ interface TokenTrackerOptions {
   modelName: string;
 }
 
-/**
- * 创建 Token 用量统计 output processor。
- * 记录每次模型调用的 prompt tokens 和 completion tokens。
- */
+/** 创建 Token 用量统计 output processor */
 export function createTokenTracker(opts: TokenTrackerOptions) {
   return {
-    type: 'output' as const,
-    name: 'token-tracker',
-    async process(args: { result: any; usage?: { promptTokens: number; completionTokens: number } }) {
+    id: 'token-tracker' as const,
+    async processOutputResult(args: any) {
       const usage = args?.usage;
       if (usage) {
         try {
@@ -34,11 +29,9 @@ export function createTokenTracker(opts: TokenTrackerOptions) {
             completion_tokens: usage.completionTokens || 0,
             created_at: Date.now(),
           }).run();
-        } catch {
-          // Token 统计写入失败不阻塞主流程
-        }
+        } catch { /* non-critical */ }
       }
       return args;
     },
-  };
+  } as any;
 }

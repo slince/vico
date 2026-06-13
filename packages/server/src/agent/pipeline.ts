@@ -222,3 +222,113 @@ export async function runPipeline(
     },
   };
 }
+
+/**
+ * 统一入口：根据 config.server.agent_engine 选择 Mastra 或 Legacy pipeline。
+ * 前端和 API 路由层无需感知引擎切换。
+ * Mastra 失败时自动回退到 Legacy pipeline。
+ */
+export async function runChatPipeline(
+  message: string,
+  ctx: PipelineContext,
+): Promise<PipelineResult> {
+  const engine = config.server.agent_engine || 'legacy';
+
+  if (engine === 'mastra') {
+    try {
+      const { createMastraAgent } = await import('./mastra/index.js');
+      const { agent, conversationId, modelName } = await createMastraAgent(ctx);
+
+      const result = await (agent.stream as any)(message, {
+        threadId: ctx.conversationId || '',
+        resourceId: ctx.tenantId,
+      });
+
+      return mastraStreamToPipelineResult(result, conversationId, ctx.agentId, modelName, message, ctx);
+    } catch (err) {
+      console.error('[Mastra] Error, falling back to legacy pipeline:', err);
+    }
+  }
+
+  return runPipeline(message, ctx);
+}
+
+/**
+ * 将 Mastra Agent stream 结果转换为 Vico SSE 格式的 PipelineResult。
+ * 保持 data: {"type":"text_delta","content":"..."}\n\n 格式不变。
+ */
+function mastraStreamToPipelineResult(
+  mastraResult: any,
+  conversationId: string,
+  agentId: string,
+  modelName: string,
+  message: string,
+  ctx: PipelineContext,
+): PipelineResult {
+  const encoder = new TextEncoder();
+  let finalText = '';
+
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        if (mastraResult.textStream) {
+          for await (const text of mastraResult.textStream) {
+            finalText += text;
+            const event = JSON.stringify({ type: 'text_delta', content: text });
+            controller.enqueue(encoder.encode(`data: ${event}\n\n`));
+          }
+        } else if (mastraResult[Symbol.asyncIterator]) {
+          for await (const chunk of mastraResult) {
+            const text = chunk?.text || chunk?.content || chunk?.textDelta || '';
+            if (text) {
+              finalText += text;
+              const event = JSON.stringify({ type: 'text_delta', content: text });
+              controller.enqueue(encoder.encode(`data: ${event}\n\n`));
+            }
+          }
+        } else if (mastraResult.stream) {
+          const reader = mastraResult.stream.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const text = typeof value === 'string' ? value : new TextDecoder().decode(value);
+            finalText += text;
+            const event = JSON.stringify({ type: 'text_delta', content: text });
+            controller.enqueue(encoder.encode(`data: ${event}\n\n`));
+          }
+        }
+
+        const now = Date.now();
+        const db = getDb();
+
+        db.update(conversations).set({
+          message_count: sql`message_count + 2`,
+          updated_at: now,
+        }).where(eq(conversations.id, conversationId)).run();
+
+        shortTermMemory.push(conversationId, { role: 'user', content: message, timestamp: now });
+        shortTermMemory.push(conversationId, { role: 'assistant', content: finalText, timestamp: now });
+
+        if (config.memory.ltm_auto_extract) {
+          longTermMemory.extractAndStore(ctx.tenantId, ctx.userId, [
+            { role: 'user', content: message },
+            { role: 'assistant', content: finalText },
+          ]).catch(() => {});
+        }
+
+        const doneEvent = JSON.stringify({ type: 'done', usage: {} });
+        controller.enqueue(encoder.encode(`data: ${doneEvent}\n\n`));
+        controller.close();
+      } catch (err: any) {
+        const errorEvent = JSON.stringify({ type: 'error', message: err.message });
+        controller.enqueue(encoder.encode(`data: ${errorEvent}\n\n`));
+        controller.close();
+      }
+    },
+  });
+
+  return {
+    stream: readableStream,
+    metadata: { conversationId, agentId, modelName },
+  };
+}

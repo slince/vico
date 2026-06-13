@@ -112,7 +112,7 @@ export async function createMastraAgent(
   // 7. 用 withMastra 包裹 model
   const wrappedModel = withMastra(model as any, {
     memory: {
-      storage: getMastraStorage(),
+      storage: getMastraStorage() as any,
       threadId: mastraCtx.threadId,
       resourceId: mastraCtx.resourceId,
       lastMessages: config.memory.stm_window * 2,

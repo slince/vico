@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { runPipeline } from '../agent/pipeline.js';
+import { runChatPipeline } from '../agent/pipeline.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
   app.post('/api/v1/chat', async (c) => {
@@ -14,7 +14,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       return c.json({ error: 'agentId and message are required' }, 400);
     }
 
-    const result = await runPipeline(message, {
+    const result = await runChatPipeline(message, {
       tenantId: auth.tenantId,
       agentId,
       userId: auth.userId,
