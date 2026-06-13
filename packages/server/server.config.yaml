@@ -1,6 +1,7 @@
 server:
   port: 3001
   deploy_mode: private
+  agent_engine: legacy  # 'mastra' 或 'legacy'，切换 Agent 引擎
 
 auth:
   session_expiry_days: 7
