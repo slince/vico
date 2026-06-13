@@ -1,3 +1,8 @@
+/**
+ * @deprecated Phase 3 upgraded: WorkingMemory uses searchByType/upsertByContent
+ * for structured user facts. The vector-based retrieve() method is retained
+ * for semantic similarity search in both legacy and enhanced pipelines.
+ */
 import { v4 as uuid } from 'uuid';
 import { getSqlite } from '../db/db.js';
 import { getEmbedder, float32ToBlob, blobToFloat32, cosineSimilarity } from './embedder.js';
@@ -7,7 +12,7 @@ export interface MemoryEntry {
   id: string;
   tenant_id: string;
   user_id: string;
-  type: 'fact' | 'preference' | 'summary' | 'decision';
+  type: 'fact' | 'preference' | 'summary' | 'decision' | 'working' | 'observation';
   content: string;
   embedding: Float32Array | null;
   importance: number;
@@ -123,7 +128,7 @@ class LongTermMemory {
    * 用于 WorkingMemory 的去重存储。
    */
   async upsertByContent(
-    entry: Omit<MemoryEntry, 'id' | 'created_at' | 'embedding'> & { expires_at?: number | null },
+    entry: Omit<MemoryEntry, 'id' | 'created_at' | 'embedding' | 'expires_at'> & { expires_at?: number | null },
   ): Promise<void> {
     const db = getSqlite();
     const contentKey = entry.content.slice(0, 120);

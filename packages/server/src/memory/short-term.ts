@@ -1,3 +1,9 @@
+/**
+ * @deprecated Phase 1 enhanced pipeline uses this module directly.
+ * Phase 3 adds WorkingMemory + ObservationalMemory as supplemental
+ * memory layers. This module is retained as the primary conversation
+ * window cache for both legacy and enhanced pipelines.
+ */
 import { config } from '../config.js';
 import { getSqlite } from '../db/db.js';
 
