@@ -9,7 +9,8 @@ import { organization } from 'better-auth/plugins';
 import { getDb } from '../db/db.js';
 import * as authSchema from '../db/auth-schema.js';
 
-export const auth = betterAuth({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const auth: any = betterAuth({
   database: drizzleAdapter(getDb(), {
     provider: 'sqlite',
     schema: authSchema,

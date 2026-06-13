@@ -1,72 +1,47 @@
 import { Hono } from 'hono';
-import { eq, desc, sql, count, sum } from 'drizzle-orm';
+import { eq, sql, count } from 'drizzle-orm';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { getDb, schema } from '../db/db.js';
 
-const { conversations, token_usage_logs, agents, installed_skills, knowledge_bases, user } = schema;
+const { agents, installed_skills, knowledge_bases } = schema;
 
 export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
-  app.get('/api/v1/dashboard/stats', (c) => {
-    const auth = getAuthContext(c);
+  app.get('/api/v1/dashboard/stats', async (c) => {
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const db = getDb();
 
-    const [convCount] = db.select({ c: count() }).from(conversations)
-      .where(eq(conversations.tenant_id, auth.tenantId)).all();
-    const totalConversations = convCount?.c ?? 0;
+    // TODO: conversations and token_usage_logs tables were removed (Mastra Memory handles).
+    // These stats will return zeros until Mastra Memory equivalents are implemented.
 
-    const [tokenRow] = db.select({ c: sql<number>`COALESCE(SUM(${token_usage_logs.prompt_tokens} + ${token_usage_logs.completion_tokens}), 0)` })
-      .from(token_usage_logs).where(eq(token_usage_logs.tenant_id, auth.tenantId)).all();
-    const totalTokens = tokenRow?.c ?? 0;
+    // Total conversations — removed with conversations table
+    const totalConversations = 0;
 
-    const [activeAgentRow] = db.select({ c: count() }).from(agents)
+    // Token usage — removed with token_usage_logs table (now handled by token-tracker processor)
+    const totalTokens = 0;
+
+    const [activeAgentRow] = await db.select({ c: count() }).from(agents)
       .where(sql`${agents.tenant_id} = ${auth.tenantId} AND ${agents.enabled} = 1`).all();
     const activeAgents = activeAgentRow?.c ?? 0;
 
-    const [totalAgentRow] = db.select({ c: count() }).from(agents)
+    const [totalAgentRow] = await db.select({ c: count() }).from(agents)
       .where(eq(agents.tenant_id, auth.tenantId)).all();
     const totalAgents = totalAgentRow?.c ?? 0;
 
-    const [skillRow] = db.select({ c: count() }).from(installed_skills)
+    const [skillRow] = await db.select({ c: count() }).from(installed_skills)
       .where(sql`${installed_skills.tenant_id} = ${auth.tenantId} AND ${installed_skills.enabled} = 1`).all();
     const installedSkillsCount = skillRow?.c ?? 0;
 
-    const [kbRow] = db.select({ c: count() }).from(knowledge_bases)
+    const [kbRow] = await db.select({ c: count() }).from(knowledge_bases)
       .where(eq(knowledge_bases.tenant_id, auth.tenantId)).all();
     const totalKnowledgeBases = kbRow?.c ?? 0;
 
-    // Recent conversations with joins
-    const recentConversations = db.select({
-      id: conversations.id,
-      title: conversations.title,
-      agent_id: conversations.agent_id,
-      user_id: conversations.user_id,
-      message_count: conversations.message_count,
-      total_tokens: conversations.total_tokens,
-      created_at: conversations.created_at,
-      updated_at: conversations.updated_at,
-      agent_name: agents.name,
-      user_name: user.username,
-    }).from(conversations)
-      .leftJoin(agents, eq(conversations.agent_id, agents.id))
-      .leftJoin(user, eq(conversations.user_id, user.id))
-      .where(eq(conversations.tenant_id, auth.tenantId))
-      .orderBy(desc(conversations.updated_at))
-      .limit(5)
-      .all();
+    // TODO: Recent conversations — needs Mastra Memory thread listing
+    const recentConversations: any[] = [];
 
-    // Token usage trend (last 30 days)
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const dayExpr = sql<string>`date(${token_usage_logs.created_at} / 1000, 'unixepoch')`;
-    const tokenTrend = db.select({
-      day: dayExpr,
-      total: sql<number>`SUM(${token_usage_logs.prompt_tokens} + ${token_usage_logs.completion_tokens})`,
-    }).from(token_usage_logs)
-      .where(sql`${token_usage_logs.tenant_id} = ${auth.tenantId} AND ${token_usage_logs.created_at} >= ${thirtyDaysAgo}`)
-      .groupBy(dayExpr)
-      .orderBy(dayExpr)
-      .all();
+    // TODO: Token usage trend — needs token-tracker processor storage
+    const tokenTrend: any[] = [];
 
     return c.json({
       totalConversations,

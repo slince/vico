@@ -25,8 +25,8 @@ export interface PipelineContext {
  * 解析 Agent 使用的模型。
  * 若 agent 指定了 model_id，使用该模型；否则使用租户默认模型。
  */
-export function resolveAgentModel(tenantId: string, modelId?: string) {
-  let modelConfig = modelId ? getModelById(tenantId, modelId) : getDefaultModel(tenantId);
+export async function resolveAgentModel(tenantId: string, modelId?: string) {
+  const modelConfig = modelId ? await getModelById(tenantId, modelId) : await getDefaultModel(tenantId);
   if (!modelConfig) {
     throw new Error('No LLM model configured. Please add a model in Settings first.');
   }

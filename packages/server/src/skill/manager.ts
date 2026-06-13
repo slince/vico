@@ -45,9 +45,9 @@ class SkillManager {
     return this.registry.get(name)?.skillDir ?? null;
   }
 
-  getToolsForAgent(agentId: string): SkillTool[] {
+  async getToolsForAgent(agentId: string): Promise<SkillTool[]> {
     const db = getDb();
-    const bindings = db.select({ skill_name: agent_skills.skill_name, config: agent_skills.config })
+    const bindings = await db.select({ skill_name: agent_skills.skill_name, config: agent_skills.config })
       .from(agent_skills).where(eq(agent_skills.agent_id, agentId)).all();
 
     const tools: SkillTool[] = [];
@@ -62,13 +62,14 @@ class SkillManager {
     return tools;
   }
 
-  getToolDefsForAgent(agentId: string): SkillToolDef[] {
-    return this.getToolsForAgent(agentId).map((t) => t.definition);
+  async getToolDefsForAgent(agentId: string): Promise<SkillToolDef[]> {
+    const tools = await this.getToolsForAgent(agentId);
+    return tools.map((t) => t.definition);
   }
 
-  getPromptForAgent(agentId: string): string {
+  async getPromptForAgent(agentId: string): Promise<string> {
     const db = getDb();
-    const bindings = db.select({ skill_name: agent_skills.skill_name })
+    const bindings = await db.select({ skill_name: agent_skills.skill_name })
       .from(agent_skills).where(eq(agent_skills.agent_id, agentId)).all();
 
     const prompts: string[] = [];
@@ -81,12 +82,12 @@ class SkillManager {
     return prompts.join('\n\n');
   }
 
-  registerToAgent(agentId: string, skillName: string, config_override: Record<string, any> = {}) {
+  async registerToAgent(agentId: string, skillName: string, config_override: Record<string, any> = {}) {
     const manifest = this.getManifest(skillName);
     if (!manifest) throw new Error(`Skill not found: ${skillName}`);
 
     const db = getDb();
-    db.insert(agent_skills).values({
+    await db.insert(agent_skills).values({
       agent_id: agentId, skill_name: skillName, config: JSON.stringify(config_override),
     }).onConflictDoUpdate({
       target: [agent_skills.agent_id, agent_skills.skill_name],
@@ -94,54 +95,54 @@ class SkillManager {
     }).run();
   }
 
-  unregisterFromAgent(agentId: string, skillName: string) {
+  async unregisterFromAgent(agentId: string, skillName: string) {
     const db = getDb();
-    db.delete(agent_skills).where(
+    await db.delete(agent_skills).where(
       and(eq(agent_skills.agent_id, agentId), eq(agent_skills.skill_name, skillName))
     ).run();
   }
 
-  installSkill(tenantId: string, skillName: string, config_override: Record<string, any> = {}) {
+  async installSkill(tenantId: string, skillName: string, config_override: Record<string, any> = {}) {
     const manifest = this.getManifest(skillName);
     if (!manifest) throw new Error(`Skill not found: ${skillName}`);
 
     const db = getDb();
-    const existing = db.select({ id: installed_skills.id }).from(installed_skills)
+    const existing = await db.select({ id: installed_skills.id }).from(installed_skills)
       .where(and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.skill_name, skillName)))
       .get();
     if (existing) throw new Error(`Skill already installed: ${skillName}`);
 
     const id = uuid();
-    db.insert(installed_skills).values({
+    await db.insert(installed_skills).values({
       id, tenant_id: tenantId, skill_name: skillName, display_name: manifest.displayName,
       version: manifest.version, config: JSON.stringify(config_override), enabled: 1, installed_at: Date.now(),
     }).run();
     return { id, ...manifest };
   }
 
-  uninstallSkill(tenantId: string, skillName: string) {
+  async uninstallSkill(tenantId: string, skillName: string) {
     const db = getDb();
-    db.delete(installed_skills).where(
+    await db.delete(installed_skills).where(
       and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.skill_name, skillName))
     ).run();
-    db.delete(agent_skills).where(eq(agent_skills.skill_name, skillName)).run();
+    await db.delete(agent_skills).where(eq(agent_skills.skill_name, skillName)).run();
   }
 
-  toggleSkill(tenantId: string, skillName: string, enabled: boolean) {
+  async toggleSkill(tenantId: string, skillName: string, enabled: boolean) {
     const db = getDb();
-    db.update(installed_skills).set({ enabled: enabled ? 1 : 0 })
+    await db.update(installed_skills).set({ enabled: enabled ? 1 : 0 })
       .where(and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.skill_name, skillName)))
       .run();
   }
 
-  updateSkillConfig(tenantId: string, skillName: string, config: Record<string, any>) {
+  async updateSkillConfig(tenantId: string, skillName: string, config: Record<string, any>) {
     const db = getDb();
-    db.update(installed_skills).set({ config: JSON.stringify(config) })
+    await db.update(installed_skills).set({ config: JSON.stringify(config) })
       .where(and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.skill_name, skillName)))
       .run();
   }
 
-  getInstalledSkills(tenantId: string) {
+  async getInstalledSkills(tenantId: string) {
     const db = getDb();
     return db.select().from(installed_skills).where(eq(installed_skills.tenant_id, tenantId)).all();
   }

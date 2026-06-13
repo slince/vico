@@ -84,12 +84,12 @@ function jsonSchemaToZod(schema: Record<string, unknown>): ZodTypeAny {
  * @param context - Vico ToolContext 传递给 handler 的运行时上下文
  * @returns Mastra Tool 实例
  */
-function adaptTool(def: SkillToolDef, context: ToolContext) {
+async function adaptTool(def: SkillToolDef, context: ToolContext) {
   // SkillToolDef.parameters 始终为 object 类型 JSON Schema
   const zodSchema = jsonSchemaToZod(def.parameters as Record<string, unknown>);
 
   // Resolve handler once at construction time, not on every invocation
-  const tools = skillManager.getToolsForAgent(context.agentId);
+  const tools = await skillManager.getToolsForAgent(context.agentId);
   const tool = tools.find((t) => t.definition.name === def.name);
   if (!tool) throw new Error(`Tool ${def.name} handler not found`);
 
@@ -118,14 +118,14 @@ function adaptTool(def: SkillToolDef, context: ToolContext) {
  * @param context - Vico ToolContext 运行时上下文
  * @returns 以工具名为 key 的 Mastra Tool 映射
  */
-export function getSkillToolsForMastraAgent(
+export async function getSkillToolsForMastraAgent(
   agentId: string,
   context: ToolContext,
-): Record<string, ReturnType<typeof createTool>> {
-  const defs = skillManager.getToolDefsForAgent(agentId);
+): Promise<Record<string, ReturnType<typeof createTool>>> {
+  const defs = await skillManager.getToolDefsForAgent(agentId);
   const tools: Record<string, ReturnType<typeof createTool>> = {};
   for (const def of defs) {
-    tools[def.name] = adaptTool(def, context);
+    tools[def.name] = await adaptTool(def, context);
   }
   return tools;
 }

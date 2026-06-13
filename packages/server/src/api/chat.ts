@@ -8,7 +8,7 @@ import { createSSEStream } from '../agent/sse-utils.js';
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
   /** 单 Agent 对话 — 使用 Mastra Agent */
   app.post('/api/v1/chat', async (c) => {
-    const auth = getAuthContext(c);
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
     try {
@@ -57,7 +57,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 
   /** 团队对话 — 保留现有实现 */
   app.post('/api/v1/teams/:id/chat', async (c) => {
-    const auth = getAuthContext(c);
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const teamId = c.req.param('id');
     const body = await c.req.json();

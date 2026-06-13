@@ -9,7 +9,6 @@
  * - processors: 审计日志 + Token 跟踪
  */
 import { Agent } from '@mastra/core/agent';
-import type { LanguageModel } from '@ai-sdk/provider';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { eq, and } from 'drizzle-orm';
@@ -34,7 +33,7 @@ const { agents } = schema;
  * @param modelConfig - 来自 model_configs 表的模型配置行
  * @returns AI SDK LanguageModel 实例，可直接传入 Mastra Agent 的 model 配置
  */
-export function resolveModelProvider(modelConfig: ModelConfigRow): LanguageModel {
+export function resolveModelProvider(modelConfig: ModelConfigRow): any {
   const apiKey = modelConfig.api_key_encrypted;
   const baseURL = modelConfig.base_url || undefined;
 
@@ -93,14 +92,14 @@ export async function createAgent(ctx: AgentContext): Promise<Agent> {
   const model = resolveModelProvider(modelConfig);
 
   // 3. 构建 instructions
-  const skillPrompts = skillManager.getPromptForAgent(ctx.agentId);
+  const skillPrompts = await skillManager.getPromptForAgent(ctx.agentId);
   let instructions = agentRow.system_prompt || '';
   if (skillPrompts) {
     instructions += '\n\n## 技能指南\n' + skillPrompts;
   }
 
   // 4. 构建 tools
-  const skillTools = getSkillToolsForMastraAgent(ctx.agentId, {
+  const skillTools = await getSkillToolsForMastraAgent(ctx.agentId, {
     tenantId: ctx.tenantId,
     agentId: ctx.agentId,
     userId: ctx.userId,

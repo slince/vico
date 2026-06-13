@@ -15,7 +15,7 @@ export function authRoutes(app: Hono<{ Variables: Variables }>) {
       id: user.id,
       username: (user as any).username ?? user.name,
       role: 'admin',
-      tenantId: session?.activeOrganizationId,
+      tenantId: (session as any)?.activeOrganizationId,
     });
   });
 }

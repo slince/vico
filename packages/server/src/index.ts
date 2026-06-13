@@ -72,9 +72,9 @@ async function main() {
       return c.json({ error: 'Unauthorized' }, 401);
     }
     // 若用户尚未选择活跃组织（private 部署模式下自动选择第一个）
-    if (!session.activeOrganizationId) {
+    if (!(session as any).activeOrganizationId) {
       const db = getDb();
-      const membership = db
+      const membership = await db
         .select({ organizationId: member.organizationId })
         .from(member)
         .where(eq(member.userId, user.id))
@@ -84,11 +84,11 @@ async function main() {
         return c.json({ error: 'No organization found' }, 401);
       }
       // 直接更新 session 记录的活跃组织
-      db.update(sessionTable)
+      await db.update(sessionTable)
         .set({ activeOrganizationId: membership.organizationId })
         .where(eq(sessionTable.id, session.id))
         .run();
-      session.activeOrganizationId = membership.organizationId;
+      (session as any).activeOrganizationId = membership.organizationId;
     }
     return next();
   });

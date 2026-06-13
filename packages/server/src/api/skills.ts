@@ -8,10 +8,10 @@ import { getDb, schema } from '../db/db.js';
 const { installed_skills } = schema;
 
 export function skillRoutes(app: Hono<{ Variables: Variables }>) {
-  app.get('/api/v1/skills', (c) => {
-    const auth = getAuthContext(c);
+  app.get('/api/v1/skills', async (c) => {
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const installed = skillManager.getInstalledSkills(auth.tenantId);
+    const installed = await skillManager.getInstalledSkills(auth.tenantId);
     const allManifests = skillManager.getAllManifests();
 
     return c.json(allManifests.map((m) => {
@@ -26,15 +26,15 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
     }));
   });
 
-  app.get('/api/v1/skills/:name', (c) => {
-    const auth = getAuthContext(c);
+  app.get('/api/v1/skills/:name', async (c) => {
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const name = c.req.param('name');
     const manifest = skillManager.getManifest(name);
     if (!manifest) return c.json({ error: 'Skill not found' }, 404);
 
     const db = getDb();
-    const inst = db.select().from(installed_skills)
+    const inst = await db.select().from(installed_skills)
       .where(and(eq(installed_skills.tenant_id, auth.tenantId), eq(installed_skills.skill_name, name)))
       .get();
 
@@ -47,7 +47,7 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.post('/api/v1/skills/install', async (c) => {
-    const auth = getAuthContext(c);
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const { skill_name, config: cfg } = await c.req.json();
 
@@ -60,28 +60,28 @@ export function skillRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.patch('/api/v1/skills/:name/config', async (c) => {
-    const auth = getAuthContext(c);
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const name = c.req.param('name');
     const cfg = await c.req.json();
-    skillManager.updateSkillConfig(auth.tenantId, name, cfg);
+    await skillManager.updateSkillConfig(auth.tenantId, name, cfg);
     return c.json({ message: 'updated' });
   });
 
   app.post('/api/v1/skills/:name/toggle', async (c) => {
-    const auth = getAuthContext(c);
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const name = c.req.param('name');
     const { enabled } = await c.req.json();
-    skillManager.toggleSkill(auth.tenantId, name, !!enabled);
+    await skillManager.toggleSkill(auth.tenantId, name, !!enabled);
     return c.json({ message: 'updated' });
   });
 
-  app.delete('/api/v1/skills/:name', (c) => {
-    const auth = getAuthContext(c);
+  app.delete('/api/v1/skills/:name', async (c) => {
+    const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const name = c.req.param('name');
-    skillManager.uninstallSkill(auth.tenantId, name);
+    await skillManager.uninstallSkill(auth.tenantId, name);
     return c.json({ message: 'deleted' });
   });
 }
