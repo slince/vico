@@ -13,8 +13,7 @@ import { agentProxy } from '../agents/agent-proxy.agent.js';
 import { getSkillToolsForMastraAgent } from '../tools/skill-tool-adapter.js';
 import { createRagSearchTool } from '../tools/rag-tool.js';
 import { agentManager } from '../../services/agent/agent-manager.js';
-import {AgentDetail, AgentRow} from '../../services/agent/types.js';
-
+import { AgentDetail } from '../../services/agent/types.js';
 
 /**
  * 为单个用户定义的 Agent 创建 Mastra Tool。
@@ -84,7 +83,7 @@ export function createAgentTool(agent: AgentDetail, tenantId: string) {
             thread: `proxy-${agent.id}-${Date.now()}`,
             resource: tenantId,
           },
-        } as any,
+        },
       );
 
       return result.text;
