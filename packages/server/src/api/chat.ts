@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { createAgent } from '../agent/agent-factory.js';
-import { createSSEStream } from '../agent/sse-utils.js';
+import { createSSEStream, createNetworkSSEStream } from '../agent/sse-utils.js';
 import logger from '../lib/logger.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
@@ -57,31 +57,35 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     }
   });
 
-  /** 团队对话 — 保留现有实现 */
+  /** 团队对话 — 基于 Mastra agent.network() 的多 Agent 协作 */
   app.post('/api/v1/teams/:id/chat', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const teamId = c.req.param('id');
     const body = await c.req.json();
-    const { message, conversationId } = body;
+    const { message } = body;
     if (!message) return c.json({ error: 'message is required' }, 400);
 
-    // 保留 orchestrator 导入
-    const { runTeamPipeline } = await import('../agent/orchestrator.js');
-    const result = await runTeamPipeline(teamId, message, {
-      tenantId: auth.tenantId,
-      agentId: teamId,
-      userId: auth.userId,
-      conversationId: conversationId || undefined,
-    });
+    try {
+      const { createTeamNetwork } = await import('../agent/team-network.js');
+      const { stream } = await createTeamNetwork(teamId, message, {
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+      });
 
-    return new Response(result.stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-Conversation-Id': result.metadata.conversationId,
-      },
-    });
+      const sseStream = createNetworkSSEStream(stream);
+
+      return new Response(sseStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'An internal error occurred';
+      logger.error({ err: error, teamId }, 'Team chat error');
+      return c.json({ error: message }, 500);
+    }
   });
 }

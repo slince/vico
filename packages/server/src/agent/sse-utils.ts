@@ -12,7 +12,7 @@
  * - done:        { type: 'done', usage: { promptTokens, completionTokens } }
  * - error:       { type: 'error', message: string }
  */
-import type { MastraModelOutput } from '@mastra/core/stream';
+import type { MastraModelOutput, MastraAgentNetworkStream, ChunkType } from '@mastra/core/stream';
 
 /**
  * 将 MastraModelOutput 转换为符合 Vico 前端约定的 SSE ReadableStream。
@@ -71,6 +71,90 @@ export function createSSEStream(output: MastraModelOutput<unknown>): ReadableStr
             : {},
         });
       } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        enqueue({ type: 'error', message });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+}
+
+/**
+ * 将 MastraAgentNetworkStream 转换为 SSE ReadableStream。
+ *
+ * MastraAgentNetworkStream 是 ReadableStream<ChunkType>，不含 textStream 等高级 getter。
+ * 直接迭代原始 chunk，将 text-delta / tool-call / tool-result 映射为 SSE 事件。
+ *
+ * @param networkStream - supervisor.network() 返回的 MastraAgentNetworkStream
+ * @returns Hono SSE 响应体
+ */
+export function createNetworkSSEStream(
+  networkStream: MastraAgentNetworkStream,
+): ReadableStream {
+  const encoder = new TextEncoder();
+
+  return new ReadableStream({
+    async start(controller) {
+      const enqueue = (data: unknown) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+
+      try {
+        const reader = (networkStream as unknown as ReadableStream<ChunkType>).getReader();
+        let inputTokens = 0;
+        let outputTokens = 0;
+
+        while (true) {
+          const { done, value: chunk } = await reader.read();
+          if (done) break;
+
+          if (!chunk || typeof chunk !== 'object' || !('type' in chunk)) continue;
+
+          const c = chunk as { type: string; payload?: Record<string, unknown> };
+
+          switch (c.type) {
+            case 'text-delta':
+            case 'routing-agent-text-delta':
+              if (c.payload?.text && typeof c.payload.text === 'string') {
+                enqueue({ type: 'text_delta', content: c.payload.text });
+              }
+              break;
+            case 'tool-call':
+              if (c.payload) {
+                enqueue({
+                  type: 'tool_call',
+                  toolName: c.payload.toolName,
+                  args: c.payload.args,
+                });
+              }
+              break;
+            case 'tool-result':
+              if (c.payload) {
+                enqueue({
+                  type: 'tool_result',
+                  toolName: c.payload.toolName,
+                  result: c.payload.result,
+                });
+              }
+              break;
+          }
+        }
+
+        // 读取顶层 usage
+        try {
+          const netUsage = await networkStream.usage;
+          inputTokens = netUsage.inputTokens;
+          outputTokens = netUsage.outputTokens;
+        } catch {
+          // 忽略
+        }
+
+        enqueue({
+          type: 'done',
+          usage: { promptTokens: inputTokens, completionTokens: outputTokens },
+        });
+      } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         enqueue({ type: 'error', message });
       } finally {
