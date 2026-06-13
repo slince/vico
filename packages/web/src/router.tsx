@@ -14,7 +14,7 @@ import ConversationDetail from '@/pages/ConversationDetail';
 import KnowledgeBases from '@/pages/KnowledgeBases';
 import KnowledgeDetail from '@/pages/KnowledgeDetail';
 import Settings from '@/pages/Settings';
-import ChatPage from '@/pages/ChatPage';
+import Chat from '@/pages/Chat';
 
 function AuthWrapper() {
   return (
@@ -43,8 +43,8 @@ export const router = createBrowserRouter([
           // ===================== 新版路由（默认） =====================
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <Dashboard /> },
-          { path: 'chat', element: <ChatPage /> },
-          { path: 'chat/:conversationId', element: <ChatPage /> },
+          { path: 'chat', element: <Chat /> },
+          { path: 'chat/:conversationId', element: <Chat /> },
           { path: 'agents', element: <Agents /> },
           { path: 'agents/:id', element: <AgentDetail /> },
           { path: 'teams', element: <Teams /> },
