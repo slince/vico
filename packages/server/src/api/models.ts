@@ -10,7 +10,7 @@ export function modelRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
     const models = await modelManager.list(auth.tenantId);
     // 掩码 API Key 后再返回给前端
-    const masked = models.map((m) => ({ ...m, api_key_encrypted: maskApiKey(m.api_key_encrypted) }));
+    const masked = models.map((m) => ({ ...m, api_key: maskApiKey(m.api_key) }));
     return c.json(masked);
   });
 

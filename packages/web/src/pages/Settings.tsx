@@ -74,7 +74,7 @@ interface ModelEntry {
   id: string;
   provider: string;
   model_name: string;
-  api_key_encrypted: string;
+  api_key: string;
   base_url: string | null;
   is_default: number;
 }
@@ -223,7 +223,7 @@ export default function Settings() {
         is_default: isDefault ? 1 : 0,
       };
       if (apiKey.trim()) {
-        patchData.api_key_encrypted = apiKey.trim();
+        patchData.api_key = apiKey.trim();
       }
       editMutation.mutate({ id: editingModelId, data: patchData });
     } else {
@@ -231,7 +231,7 @@ export default function Settings() {
       addMutation.mutate({
         provider,
         model_name: modelName.trim(),
-        api_key_encrypted: apiKey.trim(),
+        api_key: apiKey.trim(),
         base_url: baseURL || null,
         is_default: isDefault ? 1 : 0,
       });
@@ -358,7 +358,7 @@ export default function Settings() {
                               {m.provider} / {m.model_name}
                             </p>
                             <p className="text-xs text-muted-foreground truncate">
-                              API Key: {m.api_key_encrypted.slice(0, 8)}...
+                              API Key: {m.api_key.slice(0, 8)}...
                               {m.base_url ? ` \u00b7 ${m.base_url}` : ''}
                             </p>
                           </div>

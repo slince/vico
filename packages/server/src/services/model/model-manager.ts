@@ -19,7 +19,7 @@ class ModelManager {
     const rows = await db.select().from(model_configs)
       .where(eq(model_configs.tenant_id, tenantId))
       .all();
-    return rows.map((r) => ({ ...r, api_key_encrypted: decryptApiKey(r.api_key_encrypted) })) as ModelConfigRow[];
+    return rows.map((r) => ({ ...r, api_key: decryptApiKey(r.api_key) })) as ModelConfigRow[];
   }
 
   /** 获取租户的默认模型，若无则返回第一个可用模型 */
@@ -30,13 +30,13 @@ class ModelManager {
       .limit(1)
       .get();
     const result = row
-      ? { ...row, api_key_encrypted: decryptApiKey(row.api_key_encrypted) }
+      ? { ...row, api_key: decryptApiKey(row.api_key) }
       : (await db.select().from(model_configs)
           .where(eq(model_configs.tenant_id, tenantId))
           .limit(1)
           .get());
     if (result) {
-      (result as ModelConfigRow).api_key_encrypted = decryptApiKey((result as ModelConfigRow).api_key_encrypted);
+      (result as ModelConfigRow).api_key = decryptApiKey((result as ModelConfigRow).api_key);
     }
     return result as ModelConfigRow | null;
   }
@@ -48,7 +48,7 @@ class ModelManager {
       .where(and(eq(model_configs.tenant_id, tenantId), eq(model_configs.id, id)))
       .get();
     if (!row) return null;
-    return { ...row, api_key_encrypted: decryptApiKey(row.api_key_encrypted) } as ModelConfigRow;
+    return { ...row, api_key: decryptApiKey(row.api_key) } as ModelConfigRow;
   }
 
   /**
@@ -78,7 +78,7 @@ class ModelManager {
     }
     await db.insert(model_configs).values({
       id, tenant_id: tenantId, provider: data.provider, model_name: data.model_name,
-      api_key_encrypted: encryptApiKey(data.api_key_encrypted), base_url: data.base_url || null,
+      api_key: encryptApiKey(data.api_key), base_url: data.base_url || null,
       is_default: isDefault, created_at: now,
     }).run();
     return (await this.getById(tenantId, id))!;
@@ -95,7 +95,7 @@ class ModelManager {
     const updateData: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(data)) {
       if (v !== undefined && k !== 'id' && k !== 'tenant_id' && k !== 'created_at') {
-        updateData[k] = k === 'api_key_encrypted' ? encryptApiKey(v as string) : v;
+        updateData[k] = k === 'api_key' ? encryptApiKey(v as string) : v;
       }
     }
     if (Object.keys(updateData).length > 0) {

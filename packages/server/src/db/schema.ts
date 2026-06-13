@@ -8,7 +8,7 @@ export const model_configs = sqliteTable('model_configs', {
   tenant_id: text('tenant_id').notNull().references(() => organization.id),
   provider: text('provider').notNull(),
   model_name: text('model_name').notNull(),
-  api_key_encrypted: text('api_key_encrypted').notNull(),
+  api_key: text('api_key_encrypted').notNull(),
   base_url: text('base_url'),
   is_default: integer('is_default').notNull().default(0),
   created_at: integer('created_at').notNull(),

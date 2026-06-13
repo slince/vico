@@ -14,7 +14,7 @@ import type { ModelConfigRow } from '../../services/model/types.js';
  * @returns AI SDK LanguageModel 实例，可直接传入 Mastra Agent
  */
 export function resolveModelProvider(modelConfig: ModelConfigRow): MastraModelConfig {
-  const apiKey = modelConfig.api_key_encrypted;
+  const apiKey = modelConfig.api_key;
   const baseURL = modelConfig.base_url || undefined;
 
   switch (modelConfig.provider) {
