@@ -37,7 +37,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.post('/api/v1/agents', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const { name, system_prompt, model_id, temperature, max_tokens, rag_mode } = await c.req.json();
+    const { name, system_prompt, model_id, temperature, max_tokens, max_steps, rag_mode } = await c.req.json();
 
     const db = getDb();
     const id = uuid();
@@ -46,7 +46,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
       id, tenant_id: auth.tenantId, name,
       system_prompt: system_prompt || '', model_id: model_id || '',
       temperature: temperature ?? 0.7, max_tokens: max_tokens ?? 4096,
-      rag_mode: rag_mode || 'auto', enabled: 1,
+      max_steps: max_steps ?? 10, rag_mode: rag_mode || 'auto', enabled: 1,
       created_at: now, updated_at: now,
     }).run();
     return c.json({ id, message: 'created' });
@@ -85,7 +85,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
 
     if (!agent) return c.json({ error: 'Agent not found' }, 404);
 
-    const allowed = ['name', 'system_prompt', 'model_id', 'temperature', 'max_tokens', 'rag_mode', 'enabled'];
+    const allowed = ['name', 'system_prompt', 'model_id', 'temperature', 'max_tokens', 'max_steps', 'rag_mode', 'enabled'];
     const updateData: Record<string, any> = {};
     for (const [k, v] of Object.entries(body)) {
       if (allowed.includes(k) && v !== undefined) {

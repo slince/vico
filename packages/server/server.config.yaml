@@ -25,5 +25,5 @@ rag:
   embedder: local
   embedder_model: "Xenova/all-MiniLM-L6-v2"
 
-llm:
-  models: []
+tool:
+  timeout_ms: 30000

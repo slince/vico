@@ -5,6 +5,9 @@
  * 输出结构化 JSON 日志。可用于后续接入 Mastra Observability 域做持久化。
  */
 import type { OutputProcessor, ProcessOutputResultArgs } from '@mastra/core/processors';
+import { createLogger } from '../../lib/logger.js';
+
+const log = createLogger('token-tracker');
 
 /** Token 用量跟踪处理器配置 */
 interface TokenTrackerConfig {
@@ -34,20 +37,16 @@ export function createTokenTracker(config: TokenTrackerConfig): OutputProcessor 
       const { usage } = args.result;
       if (!usage) return args.messages;
 
-      console.log(
-        JSON.stringify({
-          component: 'token',
-          tenantId: config.tenantId,
-          agentId: config.agentId,
-          modelName: config.modelName,
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
-          totalTokens: usage.totalTokens,
-          reasoningTokens: usage.reasoningTokens,
-          cachedInputTokens: usage.cachedInputTokens,
-          timestamp: Date.now(),
-        }),
-      );
+      log.info({
+        tenantId: config.tenantId,
+        agentId: config.agentId,
+        modelName: config.modelName,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        reasoningTokens: usage.reasoningTokens,
+        cachedInputTokens: usage.cachedInputTokens,
+      }, 'Token usage');
 
       // 返回原始 messages，不做修改
       return args.messages;

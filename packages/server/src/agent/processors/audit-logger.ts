@@ -5,6 +5,9 @@
  * 输出结构化 JSON 日志。可用于后续接入 Mastra Observability 域做持久化。
  */
 import type { OutputProcessor, ProcessOutputResultArgs } from '@mastra/core/processors';
+import { createLogger } from '../../lib/logger.js';
+
+const log = createLogger('audit');
 
 /** 审计日志处理器配置 */
 interface AuditLoggerConfig {
@@ -16,12 +19,6 @@ interface AuditLoggerConfig {
   conversationId?: string;
 }
 
-/**
- * 创建工具调用审计日志处理器
- *
- * 在 Agent 输出处理管道末尾运行，从 `result.steps` 中提取所有 tool-call 记录
- * 并输出为结构化日志。
- */
 export function createAuditLogger(config: AuditLoggerConfig): OutputProcessor {
   return {
     id: 'audit-logger',
@@ -39,18 +36,14 @@ export function createAuditLogger(config: AuditLoggerConfig): OutputProcessor {
         if (!toolCalls || toolCalls.length === 0) continue;
 
         for (const tc of toolCalls) {
-          console.log(
-            JSON.stringify({
-              component: 'audit',
-              tenantId: config.tenantId,
-              agentId: config.agentId,
-              conversationId: config.conversationId,
-              toolName: tc.payload.toolName,
-              toolCallId: tc.payload.toolCallId,
-              status: 'completed',
-              timestamp: Date.now(),
-            }),
-          );
+          log.info({
+            tenantId: config.tenantId,
+            agentId: config.agentId,
+            conversationId: config.conversationId,
+            toolName: tc.payload.toolName,
+            toolCallId: tc.payload.toolCallId,
+            status: 'completed',
+          }, 'Tool call completed');
         }
       }
 

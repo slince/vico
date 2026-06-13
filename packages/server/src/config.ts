@@ -5,13 +5,6 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-interface LLMModelConfig {
-  provider: 'openai' | 'anthropic' | 'deepseek' | 'qwen' | 'custom';
-  model_name: string;
-  api_key: string;
-  base_url?: string;
-}
-
 interface AppConfig {
   server: {
     port: number;
@@ -38,17 +31,15 @@ interface AppConfig {
     embedder: 'local' | 'api';
     embedder_model: string;
   };
-  llm: {
-    models: LLMModelConfig[];
+  /** 工具执行超时配置 */
+  tool: {
+    timeout_ms: number;
   };
-}
-
-function resolveEnv(value: string): string {
-  if (value.startsWith('${') && value.endsWith('}')) {
-    const envKey = value.slice(2, -1);
-    return process.env[envKey] || value;
-  }
-  return value;
+  /** 文件上传配置 */
+  upload: {
+    max_size_bytes: number;
+    allowed_mime_types: string[];
+  };
 }
 
 function loadConfig(): AppConfig {
@@ -60,7 +51,8 @@ function loadConfig(): AppConfig {
     skills: { scan_paths: [resolve(__dirname, '../../skills'), resolve(__dirname, '../db/custom-skills')] },
     memory: { stm_window: 20, ltm_auto_extract: true, ltm_max_entries: 10000 },
     rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'local', embedder_model: 'Xenova/all-MiniLM-L6-v2' },
-    llm: { models: [] },
+    tool: { timeout_ms: 30000 },
+    upload: { max_size_bytes: 50 * 1024 * 1024, allowed_mime_types: ['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'text/x-python', 'text/javascript', 'application/json'] },
   };
 
   if (existsSync(configPath)) {
@@ -75,14 +67,9 @@ function loadConfig(): AppConfig {
       skills: { ...defaultConfig.skills, ...parsed.skills },
       memory: { ...defaultConfig.memory, ...parsed.memory },
       rag: { ...defaultConfig.rag, ...parsed.rag },
-      llm: { ...defaultConfig.llm, ...parsed.llm },
+      tool: { ...defaultConfig.tool, ...parsed.tool },
+      upload: { ...defaultConfig.upload, ...parsed.upload },
     };
-    if (merged.llm.models) {
-      merged.llm.models = merged.llm.models.map((m) => ({
-        ...m,
-        api_key: resolveEnv(m.api_key),
-      }));
-    }
     return merged;
   }
 
@@ -90,4 +77,4 @@ function loadConfig(): AppConfig {
 }
 
 export const config = loadConfig();
-export type { AppConfig, LLMModelConfig };
+export type { AppConfig };

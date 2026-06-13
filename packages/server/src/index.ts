@@ -10,11 +10,15 @@ import { runMigrations } from './db/run-migrations.js';
 import { seedDefaultOrgAndAdmin } from './auth/seed.js';
 import { getDb } from './db/db.js';
 import { member, session as sessionTable } from './db/auth-schema.js';
+import logger from './lib/logger.js';
+
+/** better-auth session 扩展类型 — 包含 organization 插件注入的 activeOrganizationId */
+type SessionWithOrg = typeof auth.$Infer.Session.session & { activeOrganizationId?: string | null };
 
 /** Hono 上下文变量类型 — better-auth session 信息 */
 export type Variables = {
   user: typeof auth.$Infer.Session.user | null;
-  session: typeof auth.$Infer.Session.session | null;
+  session: SessionWithOrg | null;
 };
 
 async function main() {
@@ -27,20 +31,53 @@ async function main() {
   /** CORS — 启用 credentials 以支持 session cookie */
   app.use('*', cors({ origin: '*', credentials: true }));
 
-  /** 简易内存限流（100 次/分钟/IP） */
-  const rateMap = new Map<string, { count: number; resetAt: number }>();
+  /** 路径差异化限流（by IP）*/
+  const rateMap = new Map<string, { count: number; resetAt: number; limit: number }>();
+
+  // 每 5 分钟清理过期条目
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of rateMap) {
+      if (now > v.resetAt) rateMap.delete(k);
+    }
+  }, 5 * 60 * 1000);
+
+  /** 根据路径获取限流配额 */
+  function getRateLimit(path: string, ip: string): { limit: number } {
+    if (path.startsWith('/api/auth/sign-in') || path.startsWith('/api/auth/sign-up')) {
+      return { limit: 5 };   // 登录/注册：防暴力破解
+    }
+    if (path.startsWith('/api/v1/chat')) {
+      return { limit: 30 };  // Chat SSE
+    }
+    return { limit: 100 };   // 默认 CRUD
+  }
+
   app.use('*', async (c, next) => {
+    const path = c.req.path;
+    // 跳过健康检查和 better-auth 内部路由
+    if (path === '/health' || path.startsWith('/api/auth/')) return next();
+
     const ip = c.req.header('x-forwarded-for') || 'unknown';
     const now = Date.now();
-    const entry = rateMap.get(ip);
+    const { limit } = getRateLimit(path, ip);
+    const key = `${ip}:${path.startsWith('/api/auth/sign') ? 'auth' : path.startsWith('/api/v1/chat') ? 'chat' : 'default'}`;
+
+    const entry = rateMap.get(key);
     if (!entry || now > entry.resetAt) {
-      rateMap.set(ip, { count: 1, resetAt: now + 60000 });
+      rateMap.set(key, { count: 1, resetAt: now + 60000, limit });
+      c.res.headers.set('X-RateLimit-Limit', String(limit));
+      c.res.headers.set('X-RateLimit-Remaining', String(limit - 1));
       return next();
     }
-    if (entry.count >= 100) {
+    if (entry.count >= entry.limit) {
+      const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+      c.res.headers.set('Retry-After', String(retryAfter));
       return c.json({ error: 'Too many requests' }, 429);
     }
     entry.count++;
+    c.res.headers.set('X-RateLimit-Limit', String(entry.limit));
+    c.res.headers.set('X-RateLimit-Remaining', String(entry.limit - entry.count));
     return next();
   });
 
@@ -72,7 +109,7 @@ async function main() {
       return c.json({ error: 'Unauthorized' }, 401);
     }
     // 若用户尚未选择活跃组织（private 部署模式下自动选择第一个）
-    if (!(session as any).activeOrganizationId) {
+    if (!session.activeOrganizationId) {
       const db = getDb();
       const membership = await db
         .select({ organizationId: member.organizationId })
@@ -88,7 +125,7 @@ async function main() {
         .set({ activeOrganizationId: membership.organizationId })
         .where(eq(sessionTable.id, session.id))
         .run();
-      (session as any).activeOrganizationId = membership.organizationId;
+      session.activeOrganizationId = membership.organizationId;
     }
     return next();
   });
@@ -100,12 +137,11 @@ async function main() {
   registerRoutes(app);
 
   serve({ fetch: app.fetch, port: config.server.port, hostname: '0.0.0.0' }, (info) => {
-    console.log(`[Vico] Server running on http://localhost:${info.port}`);
-    console.log(`[Vico] Deploy mode: ${config.server.deploy_mode}`);
+    logger.info({ port: info.port, deployMode: config.server.deploy_mode }, 'Server started');
   });
 }
 
 main().catch((err) => {
-  console.error(err);
+  logger.fatal({ err }, 'Server failed to start');
   process.exit(1);
 });

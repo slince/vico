@@ -2,6 +2,7 @@ import { randomBytes, scrypt } from 'node:crypto';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '../db/db.js';
 import { user, account, organization, member } from '../db/auth-schema.js';
+import logger from '../lib/logger.js';
 
 const scryptConfig = { N: 16384, r: 16, p: 1, dkLen: 64 } as const;
 
@@ -85,5 +86,5 @@ export async function seedDefaultOrgAndAdmin() {
     createdAt: now,
   }).run();
 
-  console.log('[Seed] 默认组织和管理员已创建 (admin / admin123)');
+  logger.info('Default org and admin created (admin / admin123)');
 }

@@ -147,7 +147,7 @@ export async function createAgent(ctx: AgentContext): Promise<Agent> {
     outputProcessors,
     maxRetries: 0,
     defaultOptions: {
-      maxSteps: 10,
+      maxSteps: agentRow.max_steps ?? 10,
     },
   });
 }

@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { scanSkillDirs, loadSkill } from './loader.js';
 import { LoadedSkill, SkillTool, SkillToolDef } from './types.js';
 import { getDb, schema } from '../db/db.js';
+import logger from '../lib/logger.js';
 
 const { agent_skills, installed_skills } = schema;
 
@@ -26,9 +27,9 @@ class SkillManager {
       try {
         const loaded = await loadSkill(dir);
         this.registry.set(loaded.manifest.name, { skillName: loaded.manifest.name, skillDir: dir, loaded });
-        console.log(`[SkillManager] Discovered: ${loaded.manifest.name} (${loaded.manifest.version})`);
+        logger.info({ skillName: loaded.manifest.name, version: loaded.manifest.version }, 'Skill discovered');
       } catch (err) {
-        console.error(`[SkillManager] Failed to load skill from ${dir}:`, err);
+        logger.error({ err, dir }, 'Failed to load skill');
       }
     }
   }

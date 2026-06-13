@@ -7,6 +7,7 @@ import { createTool } from '@mastra/core/tools';
 import { z, type ZodTypeAny } from 'zod';
 import { skillManager } from '../../skill/manager.js';
 import type { SkillToolDef, ToolContext } from '../../skill/types.js';
+import { config } from '../../config.js';
 
 /**
  * 将 JSON Schema 参数对象递归转换为 Zod schema。
@@ -78,7 +79,7 @@ function jsonSchemaToZod(schema: Record<string, unknown>): ZodTypeAny {
  *
  * - 使用 createTool() 创建 Mastra 原生 Tool 实例
  * - JSON Schema parameters -> Zod inputSchema
- * - execute 中查找 Skill 的 handler 实现并调用
+ * - execute 中查找 Skill 的 handler 实现并调用，带超时保护
  *
  * @param def - Skill 工具定义（name, description, JSON Schema parameters）
  * @param context - Vico ToolContext 传递给 handler 的运行时上下文
@@ -102,8 +103,14 @@ async function adaptTool(def: SkillToolDef, context: ToolContext) {
     // Mastra execute 签名: (inputData, toolExecutionContext)
     // inputData 已是经 inputSchema 校验后的参数对象
     execute: async (args) => {
-      // 将校验后的参数转发给 Vico Skill handler，保持与原有行为一致
-      return tool.handler(args, safeContext);
+      // 将校验后的参数转发给 Vico Skill handler，带超时保护
+      const timeoutMs = config.tool.timeout_ms;
+      return Promise.race([
+        tool.handler(args, safeContext),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Tool "${def.name}" timed out after ${timeoutMs}ms`)), timeoutMs),
+        ),
+      ]);
     },
     inputSchema: zodSchema,
   });

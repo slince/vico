@@ -13,9 +13,10 @@ export function authRoutes(app: Hono<{ Variables: Variables }>) {
     if (!user) return c.json({ error: 'Not authenticated' }, 401);
     return c.json({
       id: user.id,
-      username: (user as any).username ?? user.name,
+      // better-auth username 插件类型推断在 zod v4 下不完整，运行时确保 username 字段存在
+      username: (user as { username?: string }).username ?? user.name,
       role: 'admin',
-      tenantId: (session as any)?.activeOrganizationId,
+      tenantId: session?.activeOrganizationId,
     });
   });
 }

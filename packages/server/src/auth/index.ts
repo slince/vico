@@ -9,6 +9,8 @@ import { organization } from 'better-auth/plugins';
 import { getDb } from '../db/db.js';
 import * as authSchema from '../db/auth-schema.js';
 
+// better-auth 返回类型涉及 zod v4 内部泛型，跨文件引用不可移植，且
+// ReturnType<typeof betterAuth> 会捕获字面量 options 类型，与 BetterAuthOptions 协变不兼容。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const auth: any = betterAuth({
   database: drizzleAdapter(getDb(), {

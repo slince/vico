@@ -10,11 +10,15 @@
  * - 阈值：config.memory.stm_window * 2 条消息后触发
  * - 摘要存储为 memory_entries（type='observation'），conversation_id 嵌入 content 中
  * - 检索时按 conversation_id 前缀匹配
- * - 使用 libsql async 客户端（替代已废弃的 getSqlite）
+ * - memory_entries 使用 Drizzle ORM 操作；messages 表已移交 Mastra Storage，
+ *   但压缩逻辑仍需直接查询 messages 表（通过 raw SQL）
  */
 import { v4 as uuid } from 'uuid';
-import { getClient } from '../../db/db.js';
+import { eq, and, like, sql, desc } from 'drizzle-orm';
+import { getClient, getDb, schema } from '../../db/db.js';
 import { config } from '../../config.js';
+
+const { memory_entries } = schema;
 
 export class ObservationalMemory {
   private readonly compressThreshold: number;
@@ -27,7 +31,7 @@ export class ObservationalMemory {
    * 检查并执行对话摘要压缩
    *
    * 从 messages 表获取指定 conversation 的消息数，超过阈值时生成摘要。
-   * 摘要内容为最近 N 条消息的拼接（不含工具调用），避免上下文窗口溢出。
+   * messages 表已移交 Mastra Storage 管理，但物理表仍存在，通过 raw SQL 查询。
    *
    * @param tenantId - 租户 ID
    * @param conversationId - 对话 ID
@@ -66,40 +70,34 @@ export class ObservationalMemory {
       .map((m) => `[${m.role === 'user' ? '用户' : '助手'}]: ${m.content.slice(0, 200)}`)
       .join('\n');
 
-    const id = uuid();
-    await client.execute({
-      sql: `INSERT INTO memory_entries (id, tenant_id, user_id, type, content, importance, created_at)
-       VALUES (?, ?, '', 'observation', ?, 0.3, ?)`,
-      args: [id, tenantId, `[Conversation ${conversationId}]\n${summary}`, Date.now()],
-    });
+    const db = getDb();
+    await db.insert(memory_entries).values({
+      id: uuid(),
+      tenant_id: tenantId,
+      user_id: '',
+      type: 'observation',
+      content: `[Conversation ${conversationId}]\n${summary}`,
+      importance: 0.3,
+      created_at: Date.now(),
+    }).run();
 
     return true;
   }
 
   /**
    * 检索对话的观察记忆摘要
-   *
-   * @param tenantId - 租户 ID
-   * @param conversationId - 对话 ID
-   * @param limit - 返回条目上限
-   * @returns 最近的观察记忆条目列表
    */
   async retrieve(tenantId: string, conversationId: string, limit: number = 3) {
-    const client = getClient();
-    const rs = await client.execute({
-      sql: `SELECT * FROM memory_entries
-       WHERE tenant_id = ? AND type = 'observation' AND content LIKE ?
-       ORDER BY created_at DESC
-       LIMIT ?`,
-      args: [tenantId, `%[Conversation ${conversationId}]%`, limit],
-    });
-    return rs.rows.map((r) => {
-      const row: Record<string, unknown> = {};
-      for (let i = 0; i < rs.columns.length; i++) {
-        row[rs.columns[i]] = r[i];
-      }
-      return row;
-    });
+    const db = getDb();
+    return db.select().from(memory_entries)
+      .where(and(
+        eq(memory_entries.tenant_id, tenantId),
+        eq(memory_entries.type, 'observation'),
+        like(memory_entries.content, `%[Conversation ${conversationId}]%`),
+      ))
+      .orderBy(desc(memory_entries.created_at))
+      .limit(limit)
+      .all();
   }
 
   /**
@@ -107,10 +105,10 @@ export class ObservationalMemory {
    *
    * 移除内部标签前缀 [Conversation ...]，只保留摘要内容。
    */
-  retrieveAsPrompt(rows: any[]): string {
+  retrieveAsPrompt(rows: { content: string }[]): string {
     if (rows.length === 0) return '';
-    const summaries = rows.map((r: any) => {
-      const content = (r.content as string).replace(/^\[Conversation .+\]\n?/, '');
+    const summaries = rows.map((r) => {
+      const content = r.content.replace(/^\[Conversation .+\]\n?/, '');
       return content;
     });
     return '## 对话历史摘要\n' + summaries.join('\n---\n');

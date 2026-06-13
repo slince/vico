@@ -4,6 +4,7 @@ import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { createAgent } from '../agent/agent-factory.js';
 import { createSSEStream } from '../agent/sse-utils.js';
+import logger from '../lib/logger.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
   /** 单 Agent 对话 — 使用 Mastra Agent */
@@ -48,7 +49,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'An internal error occurred';
-      console.error('Chat stream error:', message);
+      logger.error({ err: error }, 'Chat stream error');
       return c.json(
         { error: message },
         500,

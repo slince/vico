@@ -17,7 +17,7 @@ const { agent_knowledge_bases, agents } = schema;
  * 查询 agent_knowledge_bases 表（JOIN agents 按 tenant_id 过滤）获取 Agent 绑定的知识库列表，
  * 使用 Mastra Memory embedder 将查询文本向量化，
  * 然后通过 LibSQLVector 在各知识库索引中进行语义搜索，
- * 返回拼接后的结果文本。
+ * 返回拼接后的结果文本。执行带超时保护。
  *
  * 若 Agent 未绑定任何知识库，返回 null。
  * 若 embedder 未配置，execute 返回错误提示文本。
@@ -54,10 +54,10 @@ export async function createRagSearchTool(agentId: string, tenantId: string) {
       const memory = getMemory();
       if (!memory.embedder) return '嵌入模型未配置';
 
-      const vector = getVector();
-      try {
-        // 使用 Mastra Memory 的 embedder 将查询文本向量化
-        const embedResult = await memory.embedder.doEmbed({ values: [query.trim()] });
+      const timeoutMs = config.tool.timeout_ms;
+      const searchPromise = (async () => {
+        const vector = getVector();
+        const embedResult = await memory.embedder!.doEmbed({ values: [query.trim()] });
         const queryEmbedding = embedResult.embeddings[0];
 
         const results: string[] = [];
@@ -70,21 +70,29 @@ export async function createRagSearchTool(agentId: string, tenantId: string) {
               topK: config.rag.retrieval_top_k,
             });
             for (const r of searchResults) {
-              // content 存储在 metadata 中
               if (r.metadata?.content && typeof r.metadata.content === 'string') {
                 results.push(r.metadata.content);
               }
             }
           } catch {
-            // 索引可能尚未创建，静默跳过
             continue;
           }
         }
 
         if (results.length === 0) return '未找到相关知识库内容';
         return results.join('\n\n---\n\n');
-      } catch (err: any) {
-        return `知识库搜索失败: ${err.message}`;
+      })();
+
+      try {
+        return await Promise.race([
+          searchPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`RAG search timed out after ${timeoutMs}ms`)), timeoutMs),
+          ),
+        ]);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        return `知识库搜索失败: ${message}`;
       }
     },
   });

@@ -24,7 +24,7 @@ export async function getAuthContext(c: Context<{ Variables: Variables }>): Prom
     return c.json({ error: 'Unauthorized' }, 401);
   }
   // 若活跃组织尚未设置，自动选择用户第一个所在组织
-  let orgId = (session as any).activeOrganizationId;
+  let orgId = session.activeOrganizationId;
   if (!orgId) {
     const db = getDb();
     const membership = await db

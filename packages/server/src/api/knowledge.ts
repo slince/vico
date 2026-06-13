@@ -1,11 +1,36 @@
 import { Hono } from 'hono';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
-import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
+import { mkdirSync, writeFileSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
+import { extname } from 'node:path';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { getDb, schema } from '../db/db.js';
 import { ragManager } from '../memory/rag.js';
+import { config } from '../config.js';
+
+/** 文件名消毒 — 移除路径分隔符、null 字节等危险字符，仅保留安全的文件名字符 */
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[/\\:\0\x00-\x1f]/g, '_')  // 路径分隔符、控制字符
+    .replace(/^\.+/, '')                    // 去除开头的点（隐藏文件）
+    .slice(0, 255);                         // 限制长度
+}
+
+/** 通过 magic bytes 检测文件是否为允许的类型 */
+const MAGIC_BYTES: Record<string, number[]> = {
+  'application/pdf': [0x25, 0x50, 0x44, 0x46],
+};
+
+const EXT_TO_MIME: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.txt': 'text/plain',
+  '.md': 'text/markdown',
+  '.csv': 'text/csv',
+  '.py': 'text/x-python',
+  '.js': 'text/javascript',
+  '.json': 'application/json',
+};
 
 const { knowledge_bases } = schema;
 
@@ -77,19 +102,47 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     }
     if (!file || !file.name) return c.json({ error: 'No file uploaded' }, 400);
 
+    // 文件大小检查
+    if (file.size > config.upload.max_size_bytes) {
+      const limitMB = Math.round(config.upload.max_size_bytes / 1024 / 1024);
+      return c.json({ error: `File too large (max ${limitMB}MB)` }, 413);
+    }
+
+    // 文件名消毒
+    const safeName = sanitizeFilename(file.name);
+    if (!safeName) return c.json({ error: 'Invalid filename' }, 400);
+
+    // MIME type 白名单
+    const ext = extname(safeName).toLowerCase();
+    const declaredType = file.type || EXT_TO_MIME[ext] || 'application/octet-stream';
+    if (!config.upload.allowed_mime_types.includes(declaredType)) {
+      return c.json({ error: `Unsupported file type: ${declaredType}` }, 400);
+    }
+
     const tmpDir = '/tmp/vico-uploads';
     mkdirSync(tmpDir, { recursive: true });
-    const tmpPath = `${tmpDir}/${uuid()}-${file.name}`;
+    const tmpPath = `${tmpDir}/${uuid()}-${safeName}`;
     const buf = Buffer.from(await file.arrayBuffer());
     writeFileSync(tmpPath, buf);
+
+    // Magic bytes 校验：对已知类型验证文件头
+    const expectedMagic = MAGIC_BYTES[declaredType];
+    if (expectedMagic) {
+      const header = buf.subarray(0, expectedMagic.length);
+      if (!expectedMagic.every((b, i) => header[i] === b)) {
+        try { unlinkSync(tmpPath); } catch {}
+        return c.json({ error: 'File content does not match declared type' }, 400);
+      }
+    }
 
     try {
       const count = await ragManager.indexFile(id, tmpPath);
       unlinkSync(tmpPath);
       return c.json({ message: 'indexed', chunk_count: count });
-    } catch (err: any) {
+    } catch (err) {
       try { unlinkSync(tmpPath); } catch {}
-      return c.json({ error: err.message }, 400);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      return c.json({ error: message }, 400);
     }
   });
 

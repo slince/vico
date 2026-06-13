@@ -2,6 +2,7 @@ import { migrate } from 'drizzle-orm/libsql/migrator';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getDb } from './db.js';
+import logger from '../lib/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,5 +20,5 @@ export function runMigrations() {
       throw err;
     }
   }
-  console.log('[DB] All migrations applied.');
+  logger.info('All migrations applied.');
 }

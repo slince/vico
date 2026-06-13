@@ -3,6 +3,7 @@ import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { config } from '../config.js';
 import { getVector, getMemory } from '../agent/memory-setup.js';
+import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
 
@@ -89,9 +90,9 @@ class RAGManager {
       if (statSync(fullPath).isFile()) {
         try {
           total += await this.indexFile(kbId, fullPath);
-          console.log(`[RAG] Indexed: ${file}`);
+          logger.info({ file }, 'RAG indexed');
         } catch (err) {
-          console.error(`[RAG] Failed to index ${file}:`, err);
+          logger.error({ err, file }, 'RAG index failed');
         }
       }
     }
