@@ -6,7 +6,7 @@ import { mastra } from '../mastra.js';
 import { agentToolCache } from '../agent/mastra/cache/agent-tool-cache.js';
 import { createSSEStream, createNetworkSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
-import { getDefaultModel } from '../agent/model-registry.js';
+import { modelManager } from '../services/model/model-manager.js';
 import { resolveModelProvider } from '../agent/mastra/bridges/model-bridge.js';
 import { workingMemory } from '../agent/memory/working-memory.js';
 import type { LanguageModel } from 'ai';
@@ -30,7 +30,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       const threadId = `${agentId}-${auth.userId}-${cid}`;
 
       // 获取模型名称，存入 thread metadata
-      const modelConfig = await getDefaultModel(auth.tenantId);
+      const modelConfig = await modelManager.getDefault(auth.tenantId);
       const modelName = modelConfig?.model_name || '';
 
       // 预先创建 Mastra thread，保存 Agent/用户/模型 等元信息
@@ -78,7 +78,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       const userMessage = message as string;
       const stream = createSSEStream(output, {
         onComplete: async (fullText: string) => {
-          const modelConfig = await getDefaultModel(auth.tenantId);
+          const modelConfig = await modelManager.getDefault(auth.tenantId);
           if (!modelConfig) return;
           const model = resolveModelProvider(modelConfig) as unknown as LanguageModel;
           await workingMemory.extractAndStore(model, auth.tenantId, auth.userId, [

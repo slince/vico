@@ -12,10 +12,10 @@ import { z } from 'zod';
 import { agentProxy } from '../agents/agent-proxy.agent.js';
 import { getSkillToolsForMastraAgent } from '../../tools/skill-tool-adapter.js';
 import { createRagSearchTool } from '../../tools/rag-tool.js';
-import { getDefaultModel } from '../../model-registry.js';
+import { modelManager } from '../../../services/model/model-manager.js';
 import { skillManager } from '../../../skill/manager.js';
 import logger from '../../../lib/logger.js';
-import type { ModelConfigRow } from '../../model-registry.js';
+import type { ModelConfigRow } from '../../../services/model/types.js';
 
 /** Vico Agent 数据库行的最小类型 */
 interface AgentRow {
@@ -53,7 +53,7 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
       // 1. 解析该 Agent 使用的模型配置（从 DB 获取）
       let modelConfig: ModelConfigRow | null = null;
       try {
-        modelConfig = await getDefaultModel(tenantId);
+        modelConfig = await modelManager.getDefault(tenantId);
       } catch (err) {
         logger.warn({ err, agentId: agentRow.id }, 'Failed to resolve model for agent tool');
       }

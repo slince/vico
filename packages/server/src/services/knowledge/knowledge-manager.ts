@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { extname } from 'node:path';
@@ -41,6 +41,15 @@ const { knowledge_bases, agent_knowledge_bases } = schema;
  * 封装知识库 CRUD 和文件上传索引逻辑。
  */
 class KnowledgeManager {
+  /** 获取租户下知识库总数 */
+  async count(tenantId: string): Promise<number> {
+    const db = getDb();
+    const [row] = await db.select({ c: count() }).from(knowledge_bases)
+      .where(eq(knowledge_bases.tenant_id, tenantId))
+      .all();
+    return row?.c ?? 0;
+  }
+
   /** 获取租户下所有知识库 */
   async list(tenantId: string): Promise<KnowledgeBaseRow[]> {
     const db = getDb();

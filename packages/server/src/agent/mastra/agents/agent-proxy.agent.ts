@@ -2,7 +2,7 @@ import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
 import { getMemory } from '../../memory-setup.js';
 import { resolveModelProvider } from '../bridges/model-bridge.js';
-import type { ModelConfigRow } from '../../model-registry.js';
+import type { ModelConfigRow } from '../../../services/model/types.js';
 
 /**
  * Agent 代理模板 — 通用 Agent 代理。

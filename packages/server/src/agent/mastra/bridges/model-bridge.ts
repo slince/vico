@@ -1,7 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import type { MastraModelConfig } from '@mastra/core/llm';
-import type { ModelConfigRow } from '../../model-registry.js';
+import type { ModelConfigRow } from '../../../services/model/types.js';
 
 /**
  * 根据 Vico model_configs 行创建 AI SDK LanguageModel。

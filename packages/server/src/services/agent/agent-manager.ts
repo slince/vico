@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
 import { agentToolCache } from '../../agent/mastra/cache/agent-tool-cache.js';
@@ -24,6 +24,28 @@ const { agents, agent_skills, agent_knowledge_bases } = schema;
  */
 class AgentManager {
   // ── 查询 ──
+
+  /**
+   * 获取租户下启用状态的 Agent 总数。
+   */
+  async countEnabled(tenantId: string): Promise<number> {
+    const db = getDb();
+    const [row] = await db.select({ c: count() }).from(agents)
+      .where(and(eq(agents.tenant_id, tenantId), eq(agents.enabled, 1)))
+      .all();
+    return row?.c ?? 0;
+  }
+
+  /**
+   * 获取租户下 Agent 总数（含禁用）。
+   */
+  async count(tenantId: string): Promise<number> {
+    const db = getDb();
+    const [row] = await db.select({ c: count() }).from(agents)
+      .where(eq(agents.tenant_id, tenantId))
+      .all();
+    return row?.c ?? 0;
+  }
 
   /**
    * 获取租户下所有 Agent 列表，附带关联的 skill_names 和 kb_ids。

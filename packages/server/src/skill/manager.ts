@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { config } from '../config.js';
 import { scanSkillDirs, loadSkill } from './loader.js';
@@ -146,6 +146,15 @@ class SkillManager {
   async getInstalledSkills(tenantId: string) {
     const db = getDb();
     return db.select().from(installed_skills).where(eq(installed_skills.tenant_id, tenantId)).all();
+  }
+
+  /** 获取租户下已启用的 Skill 数量 */
+  async countEnabled(tenantId: string): Promise<number> {
+    const db = getDb();
+    const [row] = await db.select({ c: count() }).from(installed_skills)
+      .where(and(eq(installed_skills.tenant_id, tenantId), eq(installed_skills.enabled, 1)))
+      .all();
+    return row?.c ?? 0;
   }
 }
 

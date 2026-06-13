@@ -13,7 +13,7 @@ import type { MastraAgentNetworkStream } from '@mastra/core/stream';
 import { eq, and } from 'drizzle-orm';
 import { getDb, schema } from '../db/db.js';
 import { resolveModelProvider } from './mastra/bridges/model-bridge.js';
-import { getDefaultModel } from './model-registry.js';
+import { modelManager } from '../services/model/model-manager.js';
 import { skillManager } from '../skill/manager.js';
 import { getSkillToolsForMastraAgent } from './tools/skill-tool-adapter.js';
 import { createRagSearchTool } from './tools/rag-tool.js';
@@ -83,7 +83,7 @@ async function createMemberAgent(
   // 加载模型
   let model: ReturnType<typeof resolveModelProvider> | null = null;
   try {
-    const modelConfig = await getDefaultModel(tenantId);
+    const modelConfig = await modelManager.getDefault(tenantId);
     if (modelConfig) {
       model = resolveModelProvider(modelConfig);
     }
@@ -174,7 +174,7 @@ export async function createTeamNetwork(
     supervisorInstructions = (await supAgent.getInstructions()) as string;
   } else {
     // 使用默认模型 + 简单指令
-    const modelConfig = await getDefaultModel(context.tenantId);
+    const modelConfig = await modelManager.getDefault(context.tenantId);
     if (!modelConfig) throw new Error('No LLM model configured');
     supervisorModel = resolveModelProvider(modelConfig);
     supervisorInstructions = `你是团队"${teamConfig.teamName}"的协调者。根据用户请求，分配合适的团队成员来处理任务。`;
