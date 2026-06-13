@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '../../db/db.js';
 import { getMemory } from '../../agent/memory-setup.js';
-import type { ConversationItem, ConversationDetail, MessageItem } from './types.js';
+import type { ConversationItem, ConversationDetail, MessageItem, RecentConversation } from './types.js';
 
 const { agents } = schema;
 
@@ -175,6 +175,74 @@ class ConversationManager {
     }
 
     return { ...conv, messages };
+  }
+
+  /**
+   * 获取租户下对话总数。
+   */
+  async count(tenantId: string): Promise<number> {
+    const memory = getMemory();
+    const result = await memory.listThreads({
+      perPage: false,
+      filter: { resourceId: tenantId },
+    });
+    return result.threads.length;
+  }
+
+  /**
+   * 获取最近 N 条对话，含最后一条消息预览。
+   * Mastra listThreads 按 updatedAt 降序返回。
+   */
+  async recent(tenantId: string, limit = 5): Promise<RecentConversation[]> {
+    const memory = getMemory();
+
+    const result = await memory.listThreads({
+      perPage: limit,
+      filter: { resourceId: tenantId },
+    });
+
+    const items: RecentConversation[] = [];
+    for (const thread of result.threads) {
+      const meta = (thread.metadata || {}) as Record<string, unknown>;
+
+      // 获取 agent 名称
+      let agentName: string | undefined;
+      const agentId = meta.agent_id as string | undefined;
+      if (agentId) {
+        const db = getDb();
+        const agent = await db
+          .select({ name: agents.name })
+          .from(agents)
+          .where(eq(agents.id, agentId))
+          .get();
+        agentName = agent?.name;
+      }
+
+      // 获取最后一条消息预览
+      let lastMessage: string | undefined;
+      let messageCount = 0;
+      try {
+        const msgResult = await memory.recall({ threadId: thread.id, perPage: 1 });
+        messageCount = msgResult.total;
+        if (msgResult.messages.length > 0) {
+          const last = msgResult.messages[msgResult.messages.length - 1];
+          lastMessage = extractMessageText(last) || undefined;
+        }
+      } catch {
+        // 忽略获取消息失败
+      }
+
+      items.push({
+        id: thread.id,
+        title: thread.title || '',
+        agent_name: agentName,
+        message_count: messageCount,
+        last_message: lastMessage,
+        updated_at: new Date(thread.updatedAt).getTime(),
+      });
+    }
+
+    return items;
   }
 }
 

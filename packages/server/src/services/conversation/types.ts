@@ -28,3 +28,13 @@ export interface MessageItem {
 export interface ConversationDetail extends ConversationItem {
   messages: MessageItem[];
 }
+
+/** Dashboard 最近的对话项（含最后一条消息预览） */
+export interface RecentConversation {
+  id: string;
+  title: string;
+  agent_name?: string;
+  message_count: number;
+  last_message?: string;
+  updated_at: number;
+}
