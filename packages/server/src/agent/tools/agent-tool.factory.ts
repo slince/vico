@@ -14,7 +14,7 @@ import { getSkillToolsForMastraAgent } from '../tools/skill-tool-adapter.js';
 import { createRagSearchTool } from '../tools/rag-tool.js';
 import { agentManager } from '../../services/agent/agent-manager.js';
 import {AgentDetail, AgentRow} from '../../services/agent/types.js';
-import logger from '../../lib/logger.js';
+
 
 /**
  * 为单个用户定义的 Agent 创建 Mastra Tool。
@@ -53,27 +53,19 @@ export function createAgentTool(agent: AgentDetail, tenantId: string) {
 
       // 3. 构建 tools: Skill Tools + RAG Tool
       const tools: Record<string, any> = {};
-      try {
-        const skillTools = await getSkillToolsForMastraAgent(agent.id, {
-          tenantId,
-          agentId: agent.id,
-          userId: '',
-          skillConfig: {},
-        });
-        Object.assign(tools, skillTools);
-      } catch (err) {
-        logger.warn({ err, agentId: agent.id }, 'Failed to load skill tools');
-      }
+      const skillTools = await getSkillToolsForMastraAgent(agent.id, {
+        tenantId,
+        agentId: agent.id,
+        userId: '',
+        skillConfig: {},
+      });
+      Object.assign(tools, skillTools);
 
-      try {
-        if (agent.rag_mode !== 'disabled') {
-            const ragTool = await createRagSearchTool(agent);
-            if (ragTool) {
-              tools[ragTool.id] = ragTool;
-            }
+      if (agent.rag_mode !== 'disabled') {
+        const ragTool = await createRagSearchTool(agent);
+        if (ragTool) {
+          tools[ragTool.id] = ragTool;
         }
-      } catch (err) {
-        logger.warn({ err, agentId: agent.id }, 'Failed to create RAG tool');
       }
 
       // 4. 注入运行时配置到 requestContext，agentProxy 的 model/instructions 函数同步读取
