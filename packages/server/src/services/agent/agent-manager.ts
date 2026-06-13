@@ -13,7 +13,6 @@ import {
   type CreateAgentInput,
   type UpdateAgentInput,
   type AgentRow,
-  type AgentWithRelations,
   type AgentDetail,
   type AgentRuntimeConfig,
 } from './types.js';
@@ -55,14 +54,14 @@ class AgentManager {
    * 获取租户下所有 Agent 列表，附带关联的 skill_names 和 kb_ids。
    * 使用批量查询消除 N+1 问题。
    */
-  async list(tenantId: string): Promise<AgentWithRelations[]> {
+  async list(tenantId: string): Promise<AgentDetail[]> {
     const db = getDb();
     const rows = await db.select().from(agents)
       .where(eq(agents.tenant_id, tenantId))
       .orderBy(desc(agents.updated_at))
       .all();
 
-    if (rows.length === 0) return [] as AgentWithRelations[];
+    if (rows.length === 0) return [];
 
     const agentIds = rows.map((a) => a.id);
 
@@ -92,6 +91,8 @@ class AgentManager {
 
     return rows.map((a) => ({
       ...a,
+      skills: [],
+      knowledge_bases: [],
       skill_names: skillsMap.get(a.id) || [],
       kb_ids: kbsMap.get(a.id) || [],
     }));
@@ -119,7 +120,13 @@ class AgentManager {
       mode: agent_knowledge_bases.mode,
     }).from(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).all();
 
-    return { ...agent, skills, knowledge_bases: kbs };
+    return {
+      ...agent,
+      skills,
+      knowledge_bases: kbs,
+      skill_names: skills.map((s) => s.skill_name),
+      kb_ids: kbs.map((k) => k.kb_id),
+    };
   }
 
   /**

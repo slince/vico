@@ -32,16 +32,12 @@ export interface KnowledgeBinding {
 
 // ── 返回类型 ──
 
-/** 列表返回的 Agent（含关联的 skill_names 和 kb_ids） */
-export interface AgentWithRelations extends AgentRow {
-  skill_names: string[];
-  kb_ids: string[];
-}
-
-/** 详情返回的 Agent（含完整的 skills 和 knowledge_bases 数据） */
+/** Agent 详情/列表类型（含关联的 skills/knowledge_bases 及扁平化的 skill_names/kb_ids） */
 export interface AgentDetail extends AgentRow {
   skills: SkillBinding[];
   knowledge_bases: KnowledgeBinding[];
+  skill_names: string[];
+  kb_ids: string[];
 }
 
 // ── 运行时配置 ──
