@@ -6,6 +6,7 @@
  *  - toolId → Tool 的映射，供 vicoMainAgent 的子 Agent 路由使用
  *  - Agent 能力描述文本，注入到 MainAgent 的 instructions 中帮助 LLM 判断路由
  */
+import type { Tool } from '@mastra/core/tools';
 import { agentManager } from '../../services/agent/agent-manager.js';
 import { createAgentTool } from './agent-tool.factory.js';
 import logger from '../../lib/logger.js';
@@ -18,7 +19,7 @@ import logger from '../../lib/logger.js';
  */
 class AgentToolStore {
   /** tenantId → Map<toolId, Tool> */
-  private cache: Map<string, Map<string, any>> = new Map();
+  private cache: Map<string, Map<string, Tool>> = new Map();
 
   /** tenantId → Agent 能力描述文本 */
   private descCache: Map<string, string> = new Map();
@@ -29,11 +30,11 @@ class AgentToolStore {
    * @param tenantId - 租户 ID
    * @returns toolId 到 Tool 实例的映射对象
    */
-  async getToolsForTenant(tenantId: string): Promise<Record<string, any>> {
+  async getToolsForTenant(tenantId: string): Promise<Record<string, Tool>> {
     if (!this.cache.has(tenantId)) {
       await this.rebuildForTenant(tenantId);
     }
-    const tools: Record<string, any> = {};
+    const tools: Record<string, Tool> = {};
     const tenantTools = this.cache.get(tenantId)!;
     for (const [id, tool] of tenantTools) {
       tools[id] = tool;
@@ -68,7 +69,7 @@ class AgentToolStore {
   private async rebuildForTenant(tenantId: string): Promise<void> {
     const agentRows = await agentManager.list(tenantId);
 
-    const toolMap = new Map<string, any>();
+    const toolMap = new Map<string, Tool>();
     const descriptions: string[] = [];
 
     for (const row of agentRows) {
