@@ -6,10 +6,11 @@
  * 子 Agent 在进程内执行 streamText，收集文本结果后返回给 Supervisor 进行综合回复。
  *
  * SSE 事件类型：
- * - text_delta:   { type, content }
- * - delegation_end: { type, agentId, agentName, summary }
- * - done:         { type }
- * - error:        { type, message }
+ * - text_delta:       { type, content }
+ * - delegation_start: { type, agentId, agentName }
+ * - delegation_end:   { type, agentId, agentName, summary }
+ * - done:             { type }
+ * - error:            { type, message }
  */
 import { tool, streamText } from 'ai';
 import { z } from 'zod';
@@ -22,6 +23,8 @@ import { getSkillToolsForMastraAgent, getSkillPromptForAgent } from './mastra/br
 import { createRagTool, getRagContext } from './mastra/bridges/rag-bridge.js';
 import { shortTermMemory } from '../memory/short-term.js';
 import { longTermMemory } from '../memory/long-term.js';
+import { workingMemory } from './memory/working-memory.js';
+import { observationalMemory } from './memory/observational-memory.js';
 import type { PipelineContext } from './pipeline.js';
 
 const { agentTeams, agentTeamMembers, agents, conversations, messages } = schema;
@@ -264,12 +267,22 @@ export async function runTeamPipeline(
   }
 
   // 6. 记忆与 RAG 上下文
+  // WorkingMemory: 用户事实/偏好（Phase 3）
+  const workingContext = await workingMemory.retrieveAsPrompt(ctx.tenantId, ctx.userId);
+
+  // ObservationalMemory: 对话历史摘要（Phase 3）
+  let observationContext = '';
+  if (conversationId) {
+    const obsRows = await observationalMemory.retrieve(ctx.tenantId, conversationId);
+    observationContext = observationalMemory.retrieveAsPrompt(obsRows);
+  }
+
   const ltmFacts = await longTermMemory.retrieve(ctx.tenantId, ctx.userId, message, 3);
   const ltmContext = ltmFacts.length > 0
     ? '\n\n## 长期记忆\n' + ltmFacts.map((f: { content: string }) => `- ${f.content}`).join('\n')
     : '';
   const ragContext = await getRagContext(supervisorId, message);
-  const fullSystem = [supervisorSystemPrompt, ltmContext, ragContext].filter(Boolean).join('\n');
+  const fullSystem = [supervisorSystemPrompt, workingContext, observationContext, ltmContext, ragContext].filter(Boolean).join('\n');
 
   // 短期记忆上下文
   const pastMessages = shortTermMemory.getContext(conversationId);
@@ -308,6 +321,20 @@ export async function runTeamPipeline(
           temperature: supervisorRow.temperature ?? 0.7,
           maxTokens: supervisorRow.max_tokens ?? 4096,
           onStepFinish: async (event) => {
+            // 委派开始时发送 delegation_start 事件，通知前端子 Agent 开始工作
+            if (event.toolCalls) {
+              for (const tc of event.toolCalls) {
+                if (tc.toolName.startsWith('delegate_to_')) {
+                  const delegatedAgentId = tc.toolName.replace('delegate_to_', '');
+                  const member = members.find((m) => m.agent_id === delegatedAgentId);
+                  enqueue({
+                    type: 'delegation_start',
+                    agentId: delegatedAgentId,
+                    agentName: member?.agent_name || delegatedAgentId,
+                  });
+                }
+              }
+            }
             // 委派完成时发送 delegation_end 事件，通知前端子 Agent 的结果摘要
             if (event.toolResults) {
               for (const tr of event.toolResults) {
@@ -355,6 +382,15 @@ export async function runTeamPipeline(
             { role: 'assistant', content: finalText },
           ]).catch(() => {});
         }
+
+        // Phase 3: WorkingMemory 提取（异步，非阻塞）
+        workingMemory.extractAndStore(ctx.tenantId, ctx.userId, [
+          { role: 'user', content: message },
+          { role: 'assistant', content: finalText },
+        ]).catch(() => {});
+
+        // Phase 3: ObservationalMemory 压缩检查（异步，非阻塞）
+        observationalMemory.maybeCompress(ctx.tenantId, conversationId).catch(() => {});
 
         enqueue({ type: 'done' });
       } catch (err: any) {

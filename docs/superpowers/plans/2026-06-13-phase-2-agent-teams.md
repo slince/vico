@@ -1,60 +1,60 @@
-# Phase 2: Multi-Agent Collaboration (Agent Teams)
+# 第二阶段：多 Agent 协作（Agent 团队）
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **面向 agentic workers：** 必须使用子技能 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans` 逐任务执行本计划。步骤使用 checkbox（`- [ ]`）语法跟踪。
 
-**Goal:** Build Agent Teams where a supervisor agent delegates tasks to member agents via AI SDK v4 `streamText` tool calls, streamed as structured SSE events.
+**目标：** 构建 Agent 团队功能，supervisor agent 通过 AI SDK v4 的 `streamText` 工具调用，将任务委派给成员 agent，并以结构化 SSE 事件流式输出。
 
-**Architecture:** Supervisor agent pattern — supervisor has `delegate_to_<agentId>` tools, each invoking sub-agent `streamText` in-process, collecting results, and synthesizing a final response. All SSE events follow existing `data: {"type":"text_delta","content":"..."}\n\n` format.
+**架构：** Supervisor agent 模式 — supervisor 拥有 `delegate_to_<agentId>` 系列工具，每个工具在进程内调用子 agent 的 `streamText`，收集结果，综合生成最终回复。所有 SSE 事件遵循现有的 `data: {"type":"text_delta","content":"..."}\n\n` 格式。
 
-**Tech Stack:** TypeScript, Hono 4, AI SDK v4 (`streamText`, `tool()`), better-sqlite3 + Drizzle ORM, Zod, Vitest (new), React 19 + TanStack Query.
+**技术栈：** TypeScript、Hono 4、AI SDK v4（`streamText`、`tool()`）、better-sqlite3 + Drizzle ORM、Zod、Vitest（新增）、React 19 + TanStack Query。
 
-**Reference spec:** `docs/superpowers/specs/2026-06-13-mastra-agent-architecture-design.md`
+**参考规格：** `docs/superpowers/specs/2026-06-13-mastra-agent-architecture-design.md`
 
 ---
 
-## File Structure
+## 文件结构
 
-| File | Action | Responsibility |
+| 文件 | 操作 | 职责 |
 |------|--------|----------------|
-| `packages/server/package.json` | Modify | Add vitest + test script |
-| `packages/server/vitest.config.ts` | Create | Vitest configuration |
-| `packages/server/src/db/schema.ts` | Modify | Add `agentTeams` + `agentTeamMembers` Drizzle tables |
-| `packages/server/drizzle/0001_agent_teams.sql` | Create | Migration SQL for new tables |
-| `packages/server/src/api/teams.ts` | Create | Teams CRUD (list/create/get/update/delete/set-members) |
-| `packages/server/src/api/router.ts` | Modify | Register teams route |
-| `packages/server/src/agent/orchestrator.ts` | Create | Supervisor + delegation logic |
-| `packages/server/src/api/chat.ts` | Modify | Add `POST /api/v1/teams/:id/chat` |
-| `packages/web/src/api/client.ts` | Modify | Add `streamTeamChat()` |
-| `packages/web/src/pages-new/Teams.tsx` | Create | Team list page |
-| `packages/web/src/pages-new/teams/CreateTeamDialog.tsx` | Create | Create team dialog |
-| `packages/web/src/pages-new/TeamDetail.tsx` | Create | Team detail + chat |
-| `packages/web/src/router.tsx` | Modify | Add `/teams`, `/teams/:id` routes |
-| `packages/web/src/components/layout/Sidebar.tsx` | Modify | Add "Agent Teams" nav |
+| `packages/server/package.json` | 修改 | 添加 vitest + test 脚本 |
+| `packages/server/vitest.config.ts` | 新建 | Vitest 配置 |
+| `packages/server/src/db/schema.ts` | 修改 | 添加 `agentTeams` + `agentTeamMembers` Drizzle 表定义 |
+| `packages/server/drizzle/0001_agent_teams.sql` | 新建 | 新表的迁移 SQL |
+| `packages/server/src/api/teams.ts` | 新建 | 团队 CRUD（列表/创建/详情/更新/删除/设置成员） |
+| `packages/server/src/api/router.ts` | 修改 | 注册团队路由 |
+| `packages/server/src/agent/orchestrator.ts` | 新建 | Supervisor + 委派逻辑 |
+| `packages/server/src/api/chat.ts` | 修改 | 添加 `POST /api/v1/teams/:id/chat` |
+| `packages/web/src/api/client.ts` | 修改 | 添加 `streamTeamChat()` |
+| `packages/web/src/pages-new/Teams.tsx` | 新建 | 团队列表页 |
+| `packages/web/src/pages-new/teams/CreateTeamDialog.tsx` | 新建 | 创建团队对话框 |
+| `packages/web/src/pages-new/TeamDetail.tsx` | 新建 | 团队详情 + 聊天 |
+| `packages/web/src/router.tsx` | 修改 | 添加 `/teams`、`/teams/:id` 路由 |
+| `packages/web/src/components/layout/Sidebar.tsx` | 修改 | 添加"Agent 团队"导航项 |
 
 ---
 
-### Task 1: Set up Vitest
+### 任务 1：搭建 Vitest 测试环境
 
-**Files:**
-- Modify: `packages/server/package.json:7` (add vitest script and deps)
-- Create: `packages/server/vitest.config.ts`
+**文件：**
+- 修改：`packages/server/package.json:7`（添加 vitest 脚本和依赖）
+- 新建：`packages/server/vitest.config.ts`
 
-- [ ] **Step 1: Install vitest**
+- [ ] **步骤 1：安装 vitest**
 
-Run: `cd packages/server && pnpm add -D vitest @vitest/runner`
+运行：`cd packages/server && pnpm add -D vitest @vitest/runner`
 
-Expected: packages installed, package.json updated.
+预期：包安装成功，package.json 已更新。
 
-- [ ] **Step 2: Add test script to package.json**
+- [ ] **步骤 2：向 package.json 添加 test 脚本**
 
-Edit `packages/server/package.json`, add at line 9 after the `"dev"` script:
+编辑 `packages/server/package.json`，在 `"dev"` 脚本后（第 9 行）添加：
 
 ```json
     "test": "vitest run",
     "test:watch": "vitest",
 ```
 
-- [ ] **Step 3: Create vitest.config.ts**
+- [ ] **步骤 3：创建 vitest.config.ts**
 
 ```typescript
 import { defineConfig } from 'vitest/config';
@@ -67,30 +67,30 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 4: Verify vitest runs**
+- [ ] **步骤 4：验证 vitest 可运行**
 
-Run: `cd packages/server && pnpm test`
+运行：`cd packages/server && pnpm test`
 
-Expected: "No test files found" (not an error — test infra is ready, no tests yet).
+预期："No test files found"（不是错误 — 测试基础设施就绪，暂无测试文件）。
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add packages/server/package.json packages/server/pnpm-lock.yaml packages/server/vitest.config.ts
-git commit -m "chore: set up vitest for Phase 2 TDD"
+git commit -m "chore: 为第二阶段 TDD 搭建 vitest 测试环境"
 ```
 
 ---
 
-### Task 2: Define DB tables + write migration
+### 任务 2：定义数据库表 + 编写迁移
 
-**Files:**
-- Modify: `packages/server/src/db/schema.ts` (append after line 148, the token_usage_logs table)
-- Create: `packages/server/drizzle/0001_agent_teams.sql`
+**文件：**
+- 修改：`packages/server/src/db/schema.ts`（追加到第 148 行 token_usage_logs 表之后）
+- 新建：`packages/server/drizzle/0001_agent_teams.sql`
 
-- [ ] **Step 1: Add Drizzle table definitions to schema.ts**
+- [ ] **步骤 1：向 schema.ts 添加 Drizzle 表定义**
 
-Append after the `token_usage_logs` table definition at line 148:
+追加到第 148 行的 `token_usage_logs` 表定义之后：
 
 ```typescript
 /** Agent 团队定义表 */
@@ -117,13 +117,13 @@ export const agentTeamMembers = sqliteTable('agent_team_members', {
 }));
 ```
 
-- [ ] **Step 2: Verify schema compiles**
+- [ ] **步骤 2：验证 schema 编译通过**
 
-Run: `cd packages/server && pnpm tsc --noEmit 2>&1 | head -5`
+运行：`cd packages/server && pnpm tsc --noEmit 2>&1 | head -5`
 
-Expected: no new errors.
+预期：没有新错误。
 
-- [ ] **Step 3: Create migration SQL**
+- [ ] **步骤 3：创建迁移 SQL**
 
 ```sql
 CREATE TABLE agent_teams (
@@ -147,31 +147,31 @@ CREATE TABLE agent_team_members (
 );
 ```
 
-- [ ] **Step 4: Run migration**
+- [ ] **步骤 4：执行迁移**
 
-Run: `cd packages/server && pnpm db:migrate`
+运行：`cd packages/server && pnpm db:migrate`
 
-Expected: migration runs without errors. Tables `agent_teams`, `agent_team_members` exist in SQLite.
+预期：迁移无错误执行。SQLite 中存在 `agent_teams`、`agent_team_members` 表。
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add packages/server/src/db/schema.ts packages/server/drizzle/0001_agent_teams.sql
-git commit -m "feat: add agent_teams and agent_team_members tables with migration"
+git commit -m "feat: 添加 agent_teams 和 agent_team_members 表及迁移脚本"
 ```
 
 ---
 
-### Task 3: Teams CRUD API
+### 任务 3：团队 CRUD API
 
-**Files:**
-- Create: `packages/server/src/api/teams.ts`
-- Create: `packages/server/src/api/__tests__/teams.test.ts`
-- Modify: `packages/server/src/api/router.ts:7` (new import), `packages/server/src/api/router.ts:18` (register route)
+**文件：**
+- 新建：`packages/server/src/api/teams.ts`
+- 新建：`packages/server/src/api/__tests__/teams.test.ts`
+- 修改：`packages/server/src/api/router.ts:7`（新 import）、`packages/server/src/api/router.ts:18`（注册路由）
 
-- [ ] **Step 1: Write failing tests for teams API**
+- [ ] **步骤 1：为团队 API 编写失败的测试**
 
-Create `packages/server/src/api/__tests__/teams.test.ts`:
+创建 `packages/server/src/api/__tests__/teams.test.ts`：
 
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -209,30 +209,30 @@ vi.mock('../helpers.js', () => ({
 
 import { describe, it, expect } from 'vitest';
 
-describe('Teams CRUD', () => {
-  it('GET /api/v1/teams returns empty list when no teams exist', () => {
-    // This test validates the endpoint shape.
-    // Full integration test runs against actual Hono app in verification step.
-    expect(true).toBe(true); // placeholder — actual route testing requires Hono app setup
+describe('团队 CRUD', () => {
+  it('GET /api/v1/teams 在无团队时返回空列表', () => {
+    // 此测试验证端点返回格式。
+    // 完整集成测试在验证步骤中通过实际 Hono app 运行。
+    expect(true).toBe(true); // 占位 — 实际路由测试需要搭建 Hono app
   });
 
-  it('POST /api/v1/teams validates name is required', () => {
+  it('POST /api/v1/teams 校验 name 为必填项', () => {
     expect(true).toBe(true);
   });
 
-  it('PUT /api/v1/teams/:id/members replaces members atomically', () => {
+  it('PUT /api/v1/teams/:id/members 原子性替换成员', () => {
     expect(true).toBe(true);
   });
 });
 ```
 
-- [ ] **Step 2: Confirm tests fail**
+- [ ] **步骤 2：确认测试可运行**
 
-Run: `cd packages/server && pnpm test`
+运行：`cd packages/server && pnpm test`
 
-Expected: 3 passing (placeholder tests — real tests need Hono app setup).
+预期：3 个测试通过（占位测试 — 真实测试需要搭建 Hono app）。
 
-- [ ] **Step 3: Write teams.ts**
+- [ ] **步骤 3：编写 teams.ts**
 
 ```typescript
 import { Hono } from 'hono';
@@ -415,50 +415,50 @@ export function teamRoutes(app: Hono<{ Variables: Variables }>) {
 }
 ```
 
-- [ ] **Step 4: Register teams route in router.ts**
+- [ ] **步骤 4：在 router.ts 中注册团队路由**
 
-Add to imports after line 10 (`import { chatRoutes }`):
+在 import 区域（`import { chatRoutes }` 之后，第 10 行）添加：
 
 ```typescript
 import { teamRoutes } from './teams.js';
 ```
 
-Add to `registerRoutes` body after line 20 (`chatRoutes(app)`):
+在 `registerRoutes` 函数体中（`chatRoutes(app)` 之后，第 20 行）添加：
 
 ```typescript
   teamRoutes(app);
 ```
 
-- [ ] **Step 5: Verify build**
+- [ ] **步骤 5：验证构建**
 
-Run: `cd packages/server && pnpm tsc --noEmit 2>&1 | head -10`
+运行：`cd packages/server && pnpm tsc --noEmit 2>&1 | head -10`
 
-Expected: no errors from `teams.ts` or `router.ts`.
+预期：`teams.ts` 或 `router.ts` 无错误。
 
-- [ ] **Step 6: Commit**
+- [ ] **步骤 6：提交**
 
 ```bash
 git add packages/server/src/api/teams.ts packages/server/src/api/router.ts packages/server/src/api/__tests__/teams.test.ts
-git commit -m "feat: add Teams CRUD API with 6 endpoints and route registration"
+git commit -m "feat: 添加团队 CRUD API（6 个端点）并注册路由"
 ```
 
 ---
 
-### Task 4: Team Orchestrator (supervisor + delegation)
+### 任务 4：团队编排器（supervisor + 委派）
 
-**Files:**
-- Create: `packages/server/src/agent/orchestrator.ts`
-- Create: `packages/server/src/agent/__tests__/orchestrator.test.ts`
+**文件：**
+- 新建：`packages/server/src/agent/orchestrator.ts`
+- 新建：`packages/server/src/agent/__tests__/orchestrator.test.ts`
 
-- [ ] **Step 1: Write failing test for orchestrator**
+- [ ] **步骤 1：编写编排器失败测试**
 
-Create `packages/server/src/agent/__tests__/orchestrator.test.ts`:
+创建 `packages/server/src/agent/__tests__/orchestrator.test.ts`：
 
 ```typescript
 import { describe, it, expect } from 'vitest';
 
 describe('runTeamPipeline', () => {
-  it('throws when team is not found', async () => {
+  it('团队不存在时抛出异常', async () => {
     const { runTeamPipeline } = await import('../orchestrator.js');
     await expect(
       runTeamPipeline('nonexistent', 'hello', {
@@ -469,21 +469,21 @@ describe('runTeamPipeline', () => {
     ).rejects.toThrow('Team not found');
   });
 
-  it('builds delegation tools from team members', () => {
-    // buildDelegationTools should create one tool per member
-    // Tool names follow pattern: delegate_to_<agentId>
+  it('从团队成员构建委派工具', () => {
+    // buildDelegationTools 应为每个成员创建一个工具
+    // 工具命名遵循模式：delegate_to_<agentId>
     expect(true).toBe(true);
   });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **步骤 2：运行测试确认失败**
 
-Run: `cd packages/server && pnpm test`
+运行：`cd packages/server && pnpm test`
 
-Expected: FAIL — `Cannot find module '../orchestrator.js'`.
+预期：失败 — `Cannot find module '../orchestrator.js'`。
 
-- [ ] **Step 3: Write orchestrator.ts**
+- [ ] **步骤 3：编写 orchestrator.ts**
 
 ```typescript
 import { tool, streamText } from 'ai';
@@ -574,7 +574,7 @@ async function delegateToAgent(
 }
 
 /**
- * 构建 supervisor 的委托工具
+ * 构建 supervisor 的委派工具
  *
  * 每个团队成员注册为一个 delegate_to_<agentId> 工具，
  * 参数 task 描述要委派的内容。
@@ -605,7 +605,7 @@ function buildDelegationTools(
 /**
  * 团队对话管道
  *
- * 加载团队 → 构建 supervisor + 委托工具 → streamText → 包装 SSE。
+ * 加载团队 → 构建 supervisor + 委派工具 → streamText → 包装 SSE。
  *
  * SSE 事件类型：
  * - text_delta: { type, content }
@@ -810,35 +810,35 @@ export async function runTeamPipeline(
 }
 ```
 
-- [ ] **Step 4: Run test to verify module loads and error path works**
+- [ ] **步骤 4：运行测试确认模块加载和错误路径可用**
 
-Run: `cd packages/server && pnpm test`
+运行：`cd packages/server && pnpm test`
 
-Expected: 1 test passing (module loads), or FAIL with clear error about vitest config.
+预期：1 个测试通过（模块加载），或因 vitest 配置原因失败但报错明确。
 
-- [ ] **Step 5: Verify build**
+- [ ] **步骤 5：验证构建**
 
-Run: `cd packages/server && pnpm tsc --noEmit 2>&1 | grep -E "orchestrator" | head -10`
+运行：`cd packages/server && pnpm tsc --noEmit 2>&1 | grep -E "orchestrator" | head -10`
 
-Expected: no errors from orchestrator.ts.
+预期：orchestrator.ts 无错误。
 
-- [ ] **Step 6: Commit**
+- [ ] **步骤 6：提交**
 
 ```bash
 git add packages/server/src/agent/orchestrator.ts packages/server/src/agent/__tests__/orchestrator.test.ts
-git commit -m "feat: add team orchestrator with supervisor + delegate_to_agent pattern"
+git commit -m "feat: 添加团队编排器，实现 supervisor + delegate_to_agent 模式"
 ```
 
 ---
 
-### Task 5: Team chat SSE endpoint
+### 任务 5：团队聊天 SSE 端点
 
-**Files:**
-- Modify: `packages/server/src/api/chat.ts` (full file replacement)
+**文件：**
+- 修改：`packages/server/src/api/chat.ts`（完整文件替换）
 
-- [ ] **Step 1: Add team chat route to chat.ts**
+- [ ] **步骤 1：向 chat.ts 添加团队聊天路由**
 
-Replace the file content:
+替换文件内容：
 
 ```typescript
 import { Hono } from 'hono';
@@ -907,29 +907,29 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [ ] **步骤 2：验证构建**
 
-Run: `cd packages/server && pnpm tsc --noEmit 2>&1 | grep -E "chat\.ts" | head -5`
+运行：`cd packages/server && pnpm tsc --noEmit 2>&1 | grep -E "chat\.ts" | head -5`
 
-Expected: no errors.
+预期：无错误。
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add packages/server/src/api/chat.ts
-git commit -m "feat: add team chat SSE endpoint POST /api/v1/teams/:id/chat"
+git commit -m "feat: 添加团队聊天 SSE 端点 POST /api/v1/teams/:id/chat"
 ```
 
 ---
 
-### Task 6: Frontend API client — streamTeamChat
+### 任务 6：前端 API 客户端 — streamTeamChat
 
-**Files:**
-- Modify: `packages/web/src/api/client.ts` (append after line 95)
+**文件：**
+- 修改：`packages/web/src/api/client.ts`（追加到第 95 行之后）
 
-- [ ] **Step 1: Add streamTeamChat to client.ts**
+- [ ] **步骤 1：向 client.ts 添加 streamTeamChat**
 
-Append after the `streamChat` function closing brace (after line 95):
+追加到 `streamChat` 函数结束大括号之后（第 95 行后）：
 
 ```typescript
 /** SSE 团队聊天流 */
@@ -989,33 +989,33 @@ export function streamTeamChat(
 }
 ```
 
-- [ ] **Step 2: Verify frontend compiles**
+- [ ] **步骤 2：验证前端编译**
 
-Run: `cd packages/web && pnpm tsc --noEmit 2>&1 | head -10`
+运行：`cd packages/web && pnpm tsc --noEmit 2>&1 | head -10`
 
-Expected: no errors from client.ts.
+预期：client.ts 无错误。
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add packages/web/src/api/client.ts
-git commit -m "feat: add streamTeamChat for team delegation SSE events"
+git commit -m "feat: 添加 streamTeamChat 用于团队委派 SSE 事件"
 ```
 
 ---
 
-### Task 7: Frontend — Teams list page
+### 任务 7：前端 — 团队列表页
 
-**Files:**
-- Create: `packages/web/src/pages-new/Teams.tsx`
+**文件：**
+- 新建：`packages/web/src/pages-new/Teams.tsx`
 
-- [ ] **Step 1: Write Teams.tsx**
+- [ ] **步骤 1：编写 Teams.tsx**
 
 ```typescript
 // 1. React
 import { useState, useCallback } from 'react';
 
-// 2. Third-party
+// 2. 第三方
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, Edit3, Users } from 'lucide-react';
@@ -1023,7 +1023,7 @@ import { Plus, Trash2, Edit3, Users } from 'lucide-react';
 // 3. API
 import { api } from '@/api/client';
 
-// 4. UI components
+// 4. UI 组件
 import {
   Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter,
 } from '@/components/ui/card';
@@ -1040,7 +1040,7 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 
-// 5. Sub-components
+// 5. 子组件
 import CreateTeamDialog from './teams/CreateTeamDialog';
 
 interface Team {
@@ -1219,33 +1219,33 @@ export default function Teams() {
 }
 ```
 
-- [ ] **Step 2: Verify frontend compiles**
+- [ ] **步骤 2：验证前端编译**
 
-Run: `cd packages/web && pnpm tsc --noEmit 2>&1 | head -5`
+运行：`cd packages/web && pnpm tsc --noEmit 2>&1 | head -5`
 
-Expected: no errors from Teams.tsx (may have errors from CreateTeamDialog — that's created next).
+预期：Teams.tsx 无错误（CreateTeamDialog 可能报错 — 下一个任务创建）。
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add packages/web/src/pages-new/Teams.tsx
-git commit -m "feat: add Teams list page with card grid, loading skeleton, and empty state"
+git commit -m "feat: 添加团队列表页，含卡片网格、加载骨架屏和空状态"
 ```
 
 ---
 
-### Task 8: Frontend — CreateTeamDialog
+### 任务 8：前端 — CreateTeamDialog
 
-**Files:**
-- Create: `packages/web/src/pages-new/teams/CreateTeamDialog.tsx`
+**文件：**
+- 新建：`packages/web/src/pages-new/teams/CreateTeamDialog.tsx`
 
-- [ ] **Step 1: Verify the directory exists**
+- [ ] **步骤 1：确认目录存在**
 
-Run: `ls packages/web/src/pages-new/teams/ 2>/dev/null || echo "DIR_NOT_FOUND"`
+运行：`ls packages/web/src/pages-new/teams/ 2>/dev/null || echo "DIR_NOT_FOUND"`
 
-If DIR_NOT_FOUND, run: `mkdir -p packages/web/src/pages-new/teams`
+如果 DIR_NOT_FOUND，运行：`mkdir -p packages/web/src/pages-new/teams`
 
-- [ ] **Step 2: Write CreateTeamDialog.tsx**
+- [ ] **步骤 2：编写 CreateTeamDialog.tsx**
 
 ```typescript
 import {
@@ -1313,33 +1313,33 @@ export default function CreateTeamDialog(props: CreateTeamDialogProps) {
 }
 ```
 
-- [ ] **Step 3: Verify frontend compiles**
+- [ ] **步骤 3：验证前端编译**
 
-Run: `cd packages/web && pnpm tsc --noEmit 2>&1 | grep -E "CreateTeamDialog|Teams" | head -10`
+运行：`cd packages/web && pnpm tsc --noEmit 2>&1 | grep -E "CreateTeamDialog|Teams" | head -10`
 
-Expected: no errors from the new files.
+预期：新文件无错误。
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4：提交**
 
 ```bash
 git add packages/web/src/pages-new/teams/CreateTeamDialog.tsx
-git commit -m "feat: add CreateTeamDialog with name and description fields"
+git commit -m "feat: 添加 CreateTeamDialog（团队名称和描述输入）"
 ```
 
 ---
 
-### Task 9: Frontend — TeamDetail page
+### 任务 9：前端 — TeamDetail 页面
 
-**Files:**
-- Create: `packages/web/src/pages-new/TeamDetail.tsx`
+**文件：**
+- 新建：`packages/web/src/pages-new/TeamDetail.tsx`
 
-- [ ] **Step 1: Write TeamDetail.tsx**
+- [ ] **步骤 1：编写 TeamDetail.tsx**
 
 ```typescript
 // 1. React
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-// 2. Third-party
+// 2. 第三方
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -1349,7 +1349,7 @@ import {
 // 3. API
 import { api, streamTeamChat } from '@/api/client';
 
-// 4. UI components
+// 4. UI 组件
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1696,46 +1696,46 @@ export default function TeamDetailPage() {
 }
 ```
 
-- [ ] **Step 2: Verify frontend compiles**
+- [ ] **步骤 2：验证前端编译**
 
-Run: `cd packages/web && pnpm tsc --noEmit 2>&1 | head -10`
+运行：`cd packages/web && pnpm tsc --noEmit 2>&1 | head -10`
 
-Expected: no errors.
+预期：无错误。
 
-- [ ] **Step 3: Commit**
+- [ ] **步骤 3：提交**
 
 ```bash
 git add packages/web/src/pages-new/TeamDetail.tsx
-git commit -m "feat: add TeamDetail page with overview, member management, and team chat tabs"
+git commit -m "feat: 添加 TeamDetail 页面，含概览、成员管理和团队聊天 Tab"
 ```
 
 ---
 
-### Task 10: Router + Sidebar updates
+### 任务 10：路由 + 侧边栏更新
 
-**Files:**
-- Modify: `packages/web/src/router.tsx` (add imports + routes)
-- Modify: `packages/web/src/components/layout/Sidebar.tsx` (add nav item + icon import)
+**文件：**
+- 修改：`packages/web/src/router.tsx`（添加 import + 路由）
+- 修改：`packages/web/src/components/layout/Sidebar.tsx`（添加导航项 + 图标 import）
 
-- [ ] **Step 1: Add routes to router.tsx**
+- [ ] **步骤 1：向 router.tsx 添加路由**
 
-In `router.tsx`, add import after line 8 (`import Agents from '@/pages-new/Agents'`):
+在 `router.tsx` 中，`import Agents from '@/pages-new/Agents'`（第 8 行）之后添加 import：
 
 ```typescript
 import Teams from '@/pages-new/Teams';
 import TeamDetail from '@/pages-new/TeamDetail';
 ```
 
-Add routes after line 56 (`{ path: 'agents/:id', element: <AgentDetail /> },`):
+在 `{ path: 'agents/:id', element: <AgentDetail /> },`（第 56 行）之后添加路由：
 
 ```typescript
           { path: 'teams', element: <Teams /> },
           { path: 'teams/:id', element: <TeamDetail /> },
 ```
 
-- [ ] **Step 2: Add nav item to Sidebar.tsx**
+- [ ] **步骤 2：向 Sidebar.tsx 添加导航项**
 
-Add `Users` to the icon import on line 5:
+在第 5 行的图标 import 中添加 `Users`：
 
 ```typescript
 import {
@@ -1744,35 +1744,35 @@ import {
 } from 'lucide-react';
 ```
 
-Add nav item to `navItems` array, after `agents` entry:
+在 `navItems` 数组中，`agents` 条目之后添加：
 
 ```typescript
   { to: '/teams', label: 'Agent 团队', icon: Users },
 ```
 
-- [ ] **Step 3: Verify frontend compiles**
+- [ ] **步骤 3：验证前端编译**
 
-Run: `cd packages/web && pnpm tsc --noEmit 2>&1 | head -10`
+运行：`cd packages/web && pnpm tsc --noEmit 2>&1 | head -10`
 
-Expected: no errors.
+预期：无错误。
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4：提交**
 
 ```bash
 git add packages/web/src/router.tsx packages/web/src/components/layout/Sidebar.tsx
-git commit -m "feat: add team routes and sidebar nav item for Agent Teams"
+git commit -m "feat: 添加团队路由和侧边栏导航项"
 ```
 
 ---
 
-## Verification
+## 验证
 
-- [ ] `cd packages/server && pnpm test` — all tests pass
-- [ ] `cd packages/server && pnpm tsc --noEmit` — no type errors
-- [ ] `cd packages/web && pnpm tsc --noEmit` — no type errors
-- [ ] `pnpm dev` — server starts without errors
-- [ ] Create 2 agents via UI
-- [ ] Navigate to `/teams`, create a team with 2 members
-- [ ] Open team detail, add a supervisor, test chat
-- [ ] Verify delegation events appear in chat (delegation_end)
-- [ ] Verify CRUD: edit name/description, add/remove members, delete team
+- [ ] `cd packages/server && pnpm test` — 所有测试通过
+- [ ] `cd packages/server && pnpm tsc --noEmit` — 无类型错误
+- [ ] `cd packages/web && pnpm tsc --noEmit` — 无类型错误
+- [ ] `pnpm dev` — 服务启动无错误
+- [ ] 通过 UI 创建 2 个 Agent
+- [ ] 导航到 `/teams`，创建一个包含 2 个成员的团队
+- [ ] 打开团队详情，添加 supervisor，测试聊天
+- [ ] 验证委派事件出现在聊天中（delegation_end）
+- [ ] 验证 CRUD：编辑名称/描述、添加/移除成员、删除团队

@@ -222,6 +222,7 @@ export default function TeamDetail() {
    * 发送团队聊天消息并处理 SSE 流式响应
    *
    * 通过 streamTeamChat 建立 SSE 连接：
+   * - delegation_start 事件：展示"委派中"状态（蓝色气泡 + Agent 名称）
    * - text_delta 事件：实时拼接助手回复文本
    * - delegation_end 事件：展示委派结果（蓝色气泡 + Agent 名称）
    * - done 事件：结束流式状态
@@ -241,7 +242,17 @@ export default function TeamDetail() {
       { teamId: id, message: chatInput },
       // onEvent：处理 SSE 事件
       (event) => {
-        if (event.type === 'delegation_end') {
+        if (event.type === 'delegation_start') {
+          // 委派开始事件：插入"委派中"蓝色气泡
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: 'delegation',
+              content: `正在委派给 ${event.agentName || event.agentId}...`,
+              agentName: event.agentName,
+            },
+          ]);
+        } else if (event.type === 'delegation_end') {
           // 委派结束事件：插入蓝色委派气泡
           setChatMessages((prev) => [
             ...prev,
