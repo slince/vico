@@ -34,6 +34,9 @@ importers:
       '@mastra/evals':
         specifier: ^1.3.0
         version: 1.3.0(@mastra/core@1.42.0(express@5.2.1)(zod@4.4.3))
+      '@mastra/hono':
+        specifier: ^1.4.25
+        version: 1.4.25(@hono/node-server@2.0.4(hono@4.12.25))(@mastra/core@1.42.0(express@5.2.1)(zod@4.4.3))(hono@4.12.25)(zod@4.4.3)
       '@mastra/libsql':
         specifier: ^1.13.0
         version: 1.13.0(@mastra/core@1.42.0(express@5.2.1)(zod@4.4.3))
@@ -1123,6 +1126,13 @@ packages:
     peerDependencies:
       hono: ^4
 
+  '@hono/node-ws@1.3.1':
+    resolution: {integrity: sha512-vo/MwCnpJAVHBkGzWjCJ28wF45fYHAfbPZcH2rodZODHtch2GHA94KtMfusmVycTUtsLAsaNsHhtY6P8X3RQsA==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      '@hono/node-server': ^1.19.11
+      hono: ^4.6.0
+
   '@isaacs/ttlcache@2.1.5':
     resolution: {integrity: sha512-VwGZqqjAWPICTmxUZnbpEfO60LhPWzquik+bmyXGY7pYRn6diEvCI5i6Ca+J6o2y4vS73HrpuMTo2dOvUevH8w==}
     engines: {node: '>=12'}
@@ -1233,6 +1243,13 @@ packages:
     peerDependencies:
       '@mastra/core': '>=1.0.0-0 <2.0.0-0'
 
+  '@mastra/hono@1.4.25':
+    resolution: {integrity: sha512-3c+m9NTKygsNotspf6f0NKmoak0RfkX9Ed4cJ0/wMCnfVvzpd0UQBQnhVdNRAO4yBh5ucfowLp6UTG+PhsPcDg==}
+    engines: {node: '>=22.13.0'}
+    peerDependencies:
+      '@mastra/core': '>=1.34.0-0 <2.0.0-0'
+      hono: ^4.12.8
+
   '@mastra/libsql@1.13.0':
     resolution: {integrity: sha512-pmZND+vntUNVDJA4Vr47+QD96Bf+lMsjLOJUyyjIM7+xOYNIuarXJGiaOTkxbkhnRQpHUjlYPDm41O9oqScZjw==}
     engines: {node: '>=22.13.0'}
@@ -1262,6 +1279,13 @@ packages:
     resolution: {integrity: sha512-wN8eTy/g14Mg3kWukhoIjd5SpFtLQ8gOltbELe9nM2Ruzm4jK8tFr1ZZNZwvLYnpq7NJG5a8F0ZFCjXFOEwx0w==}
     engines: {node: '>=22.13.0'}
     peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+
+  '@mastra/server@1.42.0':
+    resolution: {integrity: sha512-3CXP5Mwh2OcFY8QdmPpqVWSJm4QcA9AD+Ln3PsLbBlcrlpzL2+w59SsbMau0sk9NjHyky6QRK29NzRhwG8hwug==}
+    engines: {node: '>=22.13.0'}
+    peerDependencies:
+      '@mastra/core': '>=1.34.0-0 <2.0.0-0'
       zod: ^3.25.0 || ^4.0.0
 
   '@modelcontextprotocol/sdk@1.29.0':
@@ -3186,6 +3210,9 @@ packages:
     resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
     engines: {node: ^12.20 || >= 14.13}
 
+  fetch-to-node@2.1.0:
+    resolution: {integrity: sha512-Wq05j6LE1GrWpT2t1YbCkyFY6xKRJq3hx/oRJdWEJpZlik3g25MmdJS6RFm49iiMJw6zpZuBOrgihOgy2jGyAA==}
+
   figures@6.1.0:
     resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
     engines: {node: '>=18'}
@@ -3555,7 +3582,6 @@ packages:
 
   libsql@0.5.29:
     resolution: {integrity: sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==}
-    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   lightningcss-android-arm64@1.32.0:
@@ -5530,6 +5556,15 @@ snapshots:
     dependencies:
       hono: 4.12.25
 
+  '@hono/node-ws@1.3.1(@hono/node-server@2.0.4(hono@4.12.25))(hono@4.12.25)':
+    dependencies:
+      '@hono/node-server': 2.0.4(hono@4.12.25)
+      hono: 4.12.25
+      ws: 8.21.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   '@isaacs/ttlcache@2.1.5': {}
 
   '@jridgewell/gen-mapping@0.3.13':
@@ -5675,6 +5710,20 @@ snapshots:
       sentiment: 5.0.2
       string-similarity: 4.0.4
 
+  '@mastra/hono@1.4.25(@hono/node-server@2.0.4(hono@4.12.25))(@mastra/core@1.42.0(express@5.2.1)(zod@4.4.3))(hono@4.12.25)(zod@4.4.3)':
+    dependencies:
+      '@hono/node-ws': 1.3.1(@hono/node-server@2.0.4(hono@4.12.25))(hono@4.12.25)
+      '@mastra/core': 1.42.0(express@5.2.1)(zod@4.4.3)
+      '@mastra/server': 1.42.0(@mastra/core@1.42.0(express@5.2.1)(zod@4.4.3))(zod@4.4.3)
+      fetch-to-node: 2.1.0
+      hono: 4.12.25
+      ws: 8.21.0
+    transitivePeerDependencies:
+      - '@hono/node-server'
+      - bufferutil
+      - utf-8-validate
+      - zod
+
   '@mastra/libsql@1.13.0(@mastra/core@1.42.0(express@5.2.1)(zod@4.4.3))':
     dependencies:
       '@libsql/client': 0.17.3
@@ -5717,6 +5766,12 @@ snapshots:
       zod-from-json-schema: 0.5.3
       zod-from-json-schema-v3: zod-from-json-schema@0.0.5
       zod-to-json-schema: 3.25.2(zod@4.4.3)
+
+  '@mastra/server@1.42.0(@mastra/core@1.42.0(express@5.2.1)(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      '@mastra/core': 1.42.0(express@5.2.1)(zod@4.4.3)
+      hono: 4.12.25
+      zod: 4.4.3
 
   '@modelcontextprotocol/sdk@1.29.0(zod@3.25.76)':
     dependencies:
@@ -7575,6 +7630,8 @@ snapshots:
     dependencies:
       node-domexception: 1.0.0
       web-streams-polyfill: 3.3.3
+
+  fetch-to-node@2.1.0: {}
 
   figures@6.1.0:
     dependencies:

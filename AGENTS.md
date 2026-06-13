@@ -6,7 +6,7 @@ Load the `mastra` skill BEFORE any Mastra work. Never rely on cached knowledge â
 
 ## Rules
 
-- Register all agents, tools, workflows, and scorers in `src/mastra/index.ts`
+- Register all agents, tools, workflows, and scorers in `server/src/mastra.ts`
 - Use the `dev` and `build` scripts from `package.json` instead of running `mastra dev` / `mastra build` directly
 
 ## Resources
