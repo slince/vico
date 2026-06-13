@@ -1,4 +1,5 @@
 import { Agent } from '@mastra/core/agent';
+import { createOpenAI } from '@ai-sdk/openai';
 import { getMemory } from '../../memory-setup.js';
 
 /**
@@ -9,15 +10,18 @@ import { getMemory } from '../../memory-setup.js';
  * "多 Agent" 效果。
  *
  * 此 Agent 的 instructions/model/tools 均在运行时由 agent-tool.factory.ts
- * 通过 agentProxy.run() 的 context 参数动态注入。
+ * 通过 agentProxy.generate() 的 clientTools/model/instructions 参数动态注入。
  * 每次调用是独立的对话，不共享上下文。
+ *
+ * model 使用占位 OpenAI 实例以满足 Mastra Agent 构造器要求，
+ * 实际模型在每次调用时由 agent-tool.factory.ts 动态覆盖。
  */
 export const agentProxy = new Agent({
   id: 'agent-proxy',
   name: 'Agent Proxy',
   description: '通用 Agent 代理，根据运行时上下文配置执行不同角色的任务',
   instructions: 'You are a helpful assistant.',
-  model: null as any,
+  model: createOpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-placeholder' }).chat('gpt-4o'),
   memory: getMemory(),
   defaultOptions: {
     maxSteps: 10,
