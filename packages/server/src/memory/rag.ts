@@ -32,7 +32,6 @@ class RAGManager {
 
     const chunks = this.splitText(text);
     const chunkIds = chunks.map(() => uuid());
-    const now = Date.now();
 
     // 批量向量化
     const embedResult = await memory.embedder.doEmbed({

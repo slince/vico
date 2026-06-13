@@ -4,17 +4,17 @@
  */
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { getDb, schema } from '../../db/db.js';
 import { getVector, getMemory } from '../memory-setup.js';
 import { config } from '../../config.js';
 
-const { agent_knowledge_bases } = schema;
+const { agent_knowledge_bases, agents } = schema;
 
 /**
  * 为指定 Agent 创建 RAG 知识库检索工具。
  *
- * 查询 agent_knowledge_bases 表获取 Agent 绑定的知识库列表，
+ * 查询 agent_knowledge_bases 表（JOIN agents 按 tenant_id 过滤）获取 Agent 绑定的知识库列表，
  * 使用 Mastra Memory embedder 将查询文本向量化，
  * 然后通过 LibSQLVector 在各知识库索引中进行语义搜索，
  * 返回拼接后的结果文本。
@@ -23,14 +23,19 @@ const { agent_knowledge_bases } = schema;
  * 若 embedder 未配置，execute 返回错误提示文本。
  *
  * @param agentId - Agent ID
+ * @param tenantId - 租户 ID，用于多租户数据隔离
  * @returns Mastra Tool 实例，或 null（无绑定知识库时）
  */
-export async function createRagSearchTool(agentId: string) {
+export async function createRagSearchTool(agentId: string, tenantId: string) {
   const db = getDb();
   const kbBindings = await db
     .select({ kb_id: agent_knowledge_bases.kb_id })
     .from(agent_knowledge_bases)
-    .where(eq(agent_knowledge_bases.agent_id, agentId));
+    .innerJoin(agents, eq(agent_knowledge_bases.agent_id, agents.id))
+    .where(and(
+      eq(agent_knowledge_bases.agent_id, agentId),
+      eq(agents.tenant_id, tenantId),
+    ));
 
   if (kbBindings.length === 0) return null;
 
