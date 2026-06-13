@@ -132,6 +132,26 @@ export default function ConfigPanel({
               {t('maxTokensDesc')}
             </p>
           </div>
+          <Separator />
+
+          <div className="space-y-2">
+            <Label>{t('ragMode')}</Label>
+            <Select
+              value={a.rag_mode || 'auto'}
+              onValueChange={(value) => onUpdate({ rag_mode: value })}
+            >
+              <SelectTrigger className="max-w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">{t('ragModeAuto')}</SelectItem>
+                <SelectItem value="disabled">{t('ragModeDisabled')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {t('ragModeDesc')}
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

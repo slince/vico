@@ -28,6 +28,7 @@ export interface Agent {
   model_id?: string;
   temperature?: number;
   max_tokens?: number;
+  rag_mode?: string;
   skills?: { skill_name: string }[];
   knowledge_bases?: { kb_id: string }[];
 }
