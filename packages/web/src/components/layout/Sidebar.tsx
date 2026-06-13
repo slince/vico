@@ -8,6 +8,7 @@ import {
   Bot,
   Puzzle,
   MessageSquare,
+  MessageCircle,
   Database,
   Settings,
   LogOut,
@@ -20,6 +21,7 @@ export function Sidebar() {
 
   const navItems = useMemo(() => [
     { to: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { to: '/chat', label: t('chat'), icon: MessageCircle },
     { to: '/agents', label: t('agents'), icon: Bot },
     { to: '/teams', label: t('teams'), icon: Users },
     { to: '/skills', label: t('skills'), icon: Puzzle },
