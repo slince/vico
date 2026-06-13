@@ -1,3 +1,4 @@
+import type { UseFormRegister } from 'react-hook-form';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -20,20 +21,20 @@ import {
 
 import type { Agent, Model } from './types';
 
+/** ConfigPanel 表单字段类型 */
+interface FormFields {
+  system_prompt: string;
+  max_tokens: number;
+}
+
 /** ConfigPanel 组件的 props */
 export interface ConfigPanelProps {
   /** 当前 Agent 数据 */
   agent: Agent;
   /** 可用模型列表 */
   modelsList: Model[];
-  /** 本地的 System Prompt 值（用于防抖） */
-  localSystemPrompt: string | undefined;
-  /** 更新本地 System Prompt（含标记用户已编辑） */
-  onSystemPromptChange: (value: string) => void;
-  /** 本地的 Max Tokens 值（用于防抖） */
-  localMaxTokens: number | undefined;
-  /** 更新本地 Max Tokens（含标记用户已编辑） */
-  onMaxTokensChange: (value: string) => void;
+  /** react-hook-form 注册函数 */
+  register: UseFormRegister<FormFields>;
   /** 通用更新 mutation */
   onUpdate: (data: Record<string, unknown>) => void;
 }
@@ -54,10 +55,7 @@ export interface ConfigPanelProps {
 export default function ConfigPanel({
   agent,
   modelsList,
-  localSystemPrompt,
-  onSystemPromptChange,
-  localMaxTokens,
-  onMaxTokensChange,
+  register,
   onUpdate,
 }: ConfigPanelProps) {
   const a = agent;
@@ -78,8 +76,7 @@ export default function ConfigPanel({
           </Label>
           <Textarea
             id="system-prompt"
-            value={localSystemPrompt ?? a.system_prompt ?? ''}
-            onChange={(e) => onSystemPromptChange(e.target.value)}
+            {...register('system_prompt')}
             className="min-h-40 font-mono text-sm"
             placeholder="输入 System Prompt，定义 Agent 的行为准则..."
           />
@@ -157,8 +154,7 @@ export default function ConfigPanel({
             <Input
               id="max-tokens"
               type="number"
-              value={localMaxTokens ?? a.max_tokens ?? 4096}
-              onChange={(e) => onMaxTokensChange(e.target.value)}
+              {...register('max_tokens', { valueAsNumber: true })}
               min={1}
               max={128000}
               className="max-w-48"

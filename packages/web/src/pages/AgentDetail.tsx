@@ -1,7 +1,8 @@
 // 1. React
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 // 2. 第三方
+import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -45,7 +46,7 @@ import KnowledgePanel from './agent-detail/KnowledgePanel';
 import ChatPanel from './agent-detail/ChatPanel';
 
 // 6. 类型
-import type { Agent, ChatMessage, Skill, KnowledgeBase, Model } from './agent-detail/types';
+import type { Agent, Skill, KnowledgeBase, Model } from './agent-detail/types';
 
 /**
  * Agent 详情 / 配置页面
@@ -65,23 +66,8 @@ export default function AgentDetail() {
 
   // 当前激活的 Tab
   const [activeTab, setActiveTab] = useState('config');
-  // 测试对话消息列表
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  // 输入框内容
-  const [input, setInput] = useState('');
-  // 是否正在流式响应中
-  const [streaming, setStreaming] = useState(false);
   // 删除确认 AlertDialog 开关
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  // 本地 System Prompt 状态（防抖提交用）
-  const [localSystemPrompt, setLocalSystemPrompt] = useState<string | undefined>();
-  // 本地 Max Tokens 状态（防抖提交用）
-  const [localMaxTokens, setLocalMaxTokens] = useState<number | undefined>();
-
-  // ---- 标记用户是否已编辑过对应字段（用于区分初始值 vs 用户输入） ----
-  const hasEditedPrompt = useRef(false);
-  const hasEditedMaxTokens = useRef(false);
 
   // ====================== 数据获取 ======================
 
@@ -90,6 +76,14 @@ export default function AgentDetail() {
     queryKey: ['agent', id],
     queryFn: () => api(`/agents/${id}`),
     enabled: !!id,
+  });
+
+  // react-hook-form：管理 System Prompt / Max Tokens 本地状态
+  const { register, watch, formState: { dirtyFields } } = useForm({
+    values: {
+      system_prompt: agent?.system_prompt ?? '',
+      max_tokens: agent?.max_tokens ?? 4096,
+    },
   });
 
   /** 获取全部 Skill 列表，用于绑定面板 */
@@ -148,44 +142,23 @@ export default function AgentDetail() {
     },
   });
 
-  // ---- 防抖提交：System Prompt（仅用户编辑后触发，300ms 防抖） ----
-  useEffect(() => {
-    if (!hasEditedPrompt.current || localSystemPrompt === undefined) return;
-    const timer = setTimeout(() => {
-      updateMutation.mutate({ system_prompt: localSystemPrompt });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [localSystemPrompt]);
+  // ---- 防抖提交：监听表单字段变化，仅用户编辑后触发（300ms 防抖） ----
+  const watchedPrompt = watch('system_prompt');
+  const watchedMaxTokens = watch('max_tokens');
 
-  // ---- 防抖提交：Max Tokens（仅用户编辑后触发，300ms 防抖） ----
   useEffect(() => {
-    if (!hasEditedMaxTokens.current || localMaxTokens === undefined) return;
+    const data: Record<string, unknown> = {};
+    if (dirtyFields.system_prompt) data.system_prompt = watchedPrompt;
+    if (dirtyFields.max_tokens) data.max_tokens = watchedMaxTokens;
+    if (Object.keys(data).length === 0) return;
+
     const timer = setTimeout(() => {
-      updateMutation.mutate({ max_tokens: localMaxTokens });
+      updateMutation.mutate(data);
     }, 300);
     return () => clearTimeout(timer);
-  }, [localMaxTokens]);
+  }, [watchedPrompt, watchedMaxTokens]);
 
   // ====================== 事件处理 ======================
-
-  /** 更新 System Prompt 并标记用户已编辑 */
-  const handleSystemPromptChange = useCallback((value: string) => {
-    hasEditedPrompt.current = true;
-    setLocalSystemPrompt(value);
-  }, []);
-
-  /** 更新 Max Tokens 并标记用户已编辑 */
-  const handleMaxTokensChange = useCallback((value: string) => {
-    hasEditedMaxTokens.current = true;
-    if (value === '') {
-      setLocalMaxTokens(undefined);
-      return;
-    }
-    const num = parseInt(value, 10);
-    if (!isNaN(num) && num >= 1 && num <= 128000) {
-      setLocalMaxTokens(num);
-    }
-  }, []);
 
   /**
    * 处理 Skill 复选框切换
@@ -369,10 +342,7 @@ export default function AgentDetail() {
           <ConfigPanel
             agent={a}
             modelsList={modelsList}
-            localSystemPrompt={localSystemPrompt}
-            onSystemPromptChange={handleSystemPromptChange}
-            localMaxTokens={localMaxTokens}
-            onMaxTokensChange={handleMaxTokensChange}
+            register={register}
             onUpdate={handleUpdate}
           />
         </TabsContent>
@@ -397,15 +367,7 @@ export default function AgentDetail() {
 
         {/* 测试对话 Tab */}
         <TabsContent value="chat">
-          <ChatPanel
-            agentId={id!}
-            messages={chatMessages}
-            onMessagesChange={setChatMessages}
-            input={input}
-            onInputChange={setInput}
-            streaming={streaming}
-            onStreamingChange={setStreaming}
-          />
+          <ChatPanel agentId={id!} />
         </TabsContent>
       </Tabs>
     </div>

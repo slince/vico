@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { Send, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,28 +18,12 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty';
-import { streamChat } from '@/api/client';
-
-import type { ChatMessage } from './types';
+import { useAgentChat } from '@/hooks/useAgentChat';
 
 /** ChatPanel 组件的 props */
 export interface ChatPanelProps {
   /** 当前 Agent ID，用于发起聊天请求 */
   agentId: string;
-  /** 聊天消息列表 */
-  messages: ChatMessage[];
-  /** 更新消息列表的 setter */
-  onMessagesChange: (
-    updater: (prev: ChatMessage[]) => ChatMessage[],
-  ) => void;
-  /** 当前输入框内容 */
-  input: string;
-  /** 更新输入框内容的 setter */
-  onInputChange: (value: string) => void;
-  /** 是否正在流式响应中 */
-  streaming: boolean;
-  /** 设置流式响应状态 */
-  onStreamingChange: (value: boolean) => void;
 }
 
 /**
@@ -55,73 +39,14 @@ export interface ChatPanelProps {
  * @param props - 组件属性
  * @returns 测试对话面板 JSX 元素
  */
-export default function ChatPanel({
-  agentId,
-  messages,
-  onMessagesChange,
-  input,
-  onInputChange,
-  streaming,
-  onStreamingChange,
-}: ChatPanelProps) {
-  // 聊天消息容器的 ref，用于自动滚动到底部
+export default function ChatPanel({ agentId }: ChatPanelProps) {
+  const { messages, input, handleInputChange, sendMessage, isLoading } = useAgentChat({ agentId });
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * 发送聊天消息并处理 SSE 流式响应
-   *
-   * 通过 streamChat 建立 SSE 连接，收到 text_delta 事件时
-   * 实时更新助手消息内容，完成后设置 streaming 状态为 false。
-   */
-  const sendMessage = useCallback(() => {
-    if (!input.trim() || streaming || !agentId) return;
-
-    // 追加用户消息到列表
-    onMessagesChange((prev) => [...prev, { role: 'user', content: input }]);
-    onStreamingChange(true);
-
-    // 累积流式响应的完整文本
-    let fullResponse = '';
-
-    streamChat(
-      { agentId, message: input },
-      // onEvent：处理 SSE 事件
-      (event) => {
-        if (event.type === 'text_delta') {
-          fullResponse += event.content;
-          // 使用函数式更新以获取最新消息列表，避免闭包陈旧问题
-          onMessagesChange((prev) => {
-            const last = prev[prev.length - 1];
-            if (last?.role === 'assistant') {
-              return [
-                ...prev.slice(0, -1),
-                { role: 'assistant', content: fullResponse },
-              ];
-            }
-            return [...prev, { role: 'assistant', content: fullResponse }];
-          });
-        }
-      },
-      // onError：处理错误
-      (err) => {
-        onMessagesChange((prev) => [
-          ...prev,
-          { role: 'assistant', content: `错误: ${err.message}` },
-        ]);
-        onStreamingChange(false);
-      },
-      // onDone：流结束
-      () => onStreamingChange(false),
-    );
-
-    // 清空输入框
-    onInputChange('');
-  }, [input, streaming, agentId, onMessagesChange, onStreamingChange, onInputChange]);
-
-  /** 聊天消息更新后自动滚动到底部 */
+  /** 自动滚动到底部 */
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streaming]);
+  }, [messages, isLoading]);
 
   return (
     <div className="mt-4">
@@ -138,7 +63,6 @@ export default function ChatPanel({
         {/* 消息列表区域 */}
         <CardContent className="flex-1 overflow-hidden p-0">
           <ScrollArea className="h-full px-4 py-3">
-            {/* 空消息提示 */}
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full py-20">
                 <Empty>
@@ -153,7 +77,6 @@ export default function ChatPanel({
               </div>
             )}
 
-            {/* 消息列表 */}
             {messages.map((msg, i) => (
               <div
                 key={i}
@@ -175,8 +98,7 @@ export default function ChatPanel({
               </div>
             ))}
 
-            {/* 流式响应指示器 */}
-            {streaming && (
+            {isLoading && (
               <div className="flex justify-start mb-3">
                 <div className="flex items-center gap-2 bg-accent rounded-lg px-3 py-2">
                   <Spinner className="size-3.5" />
@@ -187,7 +109,6 @@ export default function ChatPanel({
               </div>
             )}
 
-            {/* 滚动锚点：新消息自动滚动到此 */}
             <div ref={chatEndRef} />
           </ScrollArea>
         </CardContent>
@@ -199,8 +120,7 @@ export default function ChatPanel({
           <div className="flex gap-2">
             <Input
               value={input}
-              onChange={(e) => onInputChange(e.target.value)}
-              // 回车发送，Shift+Enter 换行
+              onChange={(e) => handleInputChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -208,15 +128,15 @@ export default function ChatPanel({
                 }
               }}
               placeholder="输入测试消息，Enter 发送..."
-              disabled={streaming}
+              disabled={isLoading}
               className="flex-1"
             />
             <Button
               onClick={sendMessage}
-              disabled={streaming || !input.trim()}
+              disabled={isLoading || !input.trim()}
               size="icon"
             >
-              {streaming ? (
+              {isLoading ? (
                 <Spinner className="size-4" />
               ) : (
                 <Send size={16} />
