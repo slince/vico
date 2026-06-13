@@ -88,17 +88,22 @@ function adaptTool(def: SkillToolDef, context: ToolContext) {
   // SkillToolDef.parameters 始终为 object 类型 JSON Schema
   const zodSchema = jsonSchemaToZod(def.parameters as Record<string, unknown>);
 
+  // Resolve handler once at construction time, not on every invocation
+  const tools = skillManager.getToolsForAgent(context.agentId);
+  const tool = tools.find((t) => t.definition.name === def.name);
+  if (!tool) throw new Error(`Tool ${def.name} handler not found`);
+
+  // Ensure skillConfig defaults to {} so downstream handlers don't break
+  const safeContext: ToolContext = { ...context, skillConfig: context.skillConfig || {} };
+
   return createTool({
     id: def.name,
     description: def.description,
     // Mastra execute 签名: (inputData, toolExecutionContext)
     // inputData 已是经 inputSchema 校验后的参数对象
     execute: async (args) => {
-      const tools = skillManager.getToolsForAgent(context.agentId);
-      const tool = tools.find((t) => t.definition.name === def.name);
-      if (!tool) throw new Error(`Tool ${def.name} handler not found`);
       // 将校验后的参数转发给 Vico Skill handler，保持与原有行为一致
-      return tool.handler(args, context);
+      return tool.handler(args, safeContext);
     },
     inputSchema: zodSchema,
   });
