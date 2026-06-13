@@ -46,10 +46,11 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
           'Connection': 'keep-alive',
         },
       });
-    } catch (error: any) {
-      console.error('Chat stream error:', error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'An internal error occurred';
+      console.error('Chat stream error:', message);
       return c.json(
-        { error: error?.message || 'An internal error occurred' },
+        { error: message },
         500,
       );
     }

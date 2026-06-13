@@ -77,7 +77,10 @@ export const agent_knowledge_bases = sqliteTable('agent_knowledge_bases', {
 
 // conversations 表已移除 — 被 Mastra thread 接管
 // messages 表已移除 — 被 Mastra message 接管
-// memory_entries 表已移除 — 被 Mastra Memory 的 semanticRecall + workingMemory 接管
+// memory_entries 表 Drizzle ORM 定义已移除 — 该表仍存在于数据库中（来自初始迁移），
+// 由 agent/memory/working-memory.ts 和 agent/memory/observational-memory.ts 通过原始 SQL 直接读写。
+// Mastra Memory（semanticRecall + workingMemory）接管了长期语义记忆和短期对话记忆，
+// 但 WorkingMemory 和 ObservationalMemory 仍直接操作 memory_entries 表做结构化事实提取和对话摘要。
 // tool_call_logs 表已移除 — 被 Processor 审计日志接管
 // token_usage_logs 表已移除 — 被 Processor Token 跟踪接管
 

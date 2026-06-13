@@ -12,6 +12,8 @@ import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { eq, and } from 'drizzle-orm';
+import type { MastraModelConfig } from '@mastra/core/llm';
+import type { InputProcessorOrWorkflow, OutputProcessorOrWorkflow } from '@mastra/core/processors';
 import { getDb, schema } from '../db/db.js';
 import { getDefaultModel, type ModelConfigRow } from './model-registry.js';
 import { skillManager } from '../skill/manager.js';
@@ -33,7 +35,7 @@ const { agents } = schema;
  * @param modelConfig - 来自 model_configs 表的模型配置行
  * @returns AI SDK LanguageModel 实例，可直接传入 Mastra Agent 的 model 配置
  */
-export function resolveModelProvider(modelConfig: ModelConfigRow): any {
+export function resolveModelProvider(modelConfig: ModelConfigRow): MastraModelConfig {
   const apiKey = modelConfig.api_key_encrypted;
   const baseURL = modelConfig.base_url || undefined;
 
@@ -120,8 +122,8 @@ export async function createAgent(ctx: AgentContext): Promise<Agent> {
   const memory = getMemory();
 
   // 6. Processors
-  const inputProcessors: any[] = [];
-  const outputProcessors: any[] = [
+  const inputProcessors: InputProcessorOrWorkflow[] = [];
+  const outputProcessors: OutputProcessorOrWorkflow[] = [
     createAuditLogger({
       tenantId: ctx.tenantId,
       agentId: ctx.agentId,

@@ -4,7 +4,7 @@
  * 每次 agentic loop 结束（processOutputResult）时，遍历所有 step 中的工具调用记录，
  * 输出结构化 JSON 日志。可用于后续接入 Mastra Observability 域做持久化。
  */
-import type { Processor, ProcessOutputResultArgs } from '@mastra/core/processors';
+import type { OutputProcessor, ProcessOutputResultArgs } from '@mastra/core/processors';
 
 /** 审计日志处理器配置 */
 interface AuditLoggerConfig {
@@ -22,7 +22,7 @@ interface AuditLoggerConfig {
  * 在 Agent 输出处理管道末尾运行，从 `result.steps` 中提取所有 tool-call 记录
  * 并输出为结构化日志。
  */
-export function createAuditLogger(config: AuditLoggerConfig): Processor<'audit-logger'> {
+export function createAuditLogger(config: AuditLoggerConfig): OutputProcessor {
   return {
     id: 'audit-logger',
     name: 'Tool Audit Logger',
@@ -57,5 +57,5 @@ export function createAuditLogger(config: AuditLoggerConfig): Processor<'audit-l
       // 返回原始 messages，不做修改
       return args.messages;
     },
-  };
+  } as OutputProcessor;
 }

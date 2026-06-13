@@ -4,7 +4,7 @@
  * 每次 LLM 响应完成（processOutputResult）时记录累积 Token 消耗，
  * 输出结构化 JSON 日志。可用于后续接入 Mastra Observability 域做持久化。
  */
-import type { Processor, ProcessOutputResultArgs } from '@mastra/core/processors';
+import type { OutputProcessor, ProcessOutputResultArgs } from '@mastra/core/processors';
 
 /** Token 用量跟踪处理器配置 */
 interface TokenTrackerConfig {
@@ -22,7 +22,7 @@ interface TokenTrackerConfig {
  * 在 Agent 输出处理管道末尾运行，从 `result.usage` 中读取累积 Token 用量
  * 并输出为结构化日志。
  */
-export function createTokenTracker(config: TokenTrackerConfig): Processor<'token-tracker'> {
+export function createTokenTracker(config: TokenTrackerConfig): OutputProcessor {
   return {
     id: 'token-tracker',
     name: 'Token Usage Tracker',
@@ -52,5 +52,5 @@ export function createTokenTracker(config: TokenTrackerConfig): Processor<'token
       // 返回原始 messages，不做修改
       return args.messages;
     },
-  };
+  } as OutputProcessor;
 }
