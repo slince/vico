@@ -9,11 +9,13 @@ import {
   Database,
   Settings,
   LogOut,
+  Users,
 } from 'lucide-react';
 
 const navItems = [
   { to: '/dashboard', label: '仪表盘', icon: LayoutDashboard },
   { to: '/agents', label: 'Agent 管理', icon: Bot },
+  { to: '/teams', label: 'Agent 团队', icon: Users },
   { to: '/skills', label: 'Skill 管理', icon: Puzzle },
   { to: '/knowledge', label: '知识库', icon: Database },
   { to: '/conversations', label: '对话记录', icon: MessageSquare },
