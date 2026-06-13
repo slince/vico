@@ -12,11 +12,14 @@ import { Agent } from '@mastra/core/agent';
 import type { MastraAgentNetworkStream } from '@mastra/core/stream';
 import { eq, and } from 'drizzle-orm';
 import { getDb, schema } from '../db/db.js';
-import { createAgent, resolveModelProvider } from './agent-factory.js';
+import { resolveModelProvider } from './mastra/bridges/model-bridge.js';
 import { getDefaultModel } from './model-registry.js';
+import { skillManager } from '../skill/manager.js';
+import { getSkillToolsForMastraAgent } from './tools/skill-tool-adapter.js';
+import { createRagSearchTool } from './tools/rag-tool.js';
 import logger from '../lib/logger.js';
 
-const { agentTeams, agentTeamMembers } = schema;
+const { agentTeams, agentTeamMembers, agents } = schema;
 
 interface TeamConfig {
   teamId: string;
@@ -56,6 +59,72 @@ async function loadTeamConfig(teamId: string, tenantId: string): Promise<TeamCon
 }
 
 /**
+ * 从数据库配置构建 Mastra Agent 实例（团队子代理）。
+ *
+ * 直接从 agents 表查询配置，加载模型、Skill 提示词/工具和 RAG 工具，
+ * 构建 Mastra Agent 对象。不使用 agent-factory 层的 createAgent。
+ *
+ * @param agentId - Agent ID
+ * @param tenantId - 租户 ID
+ * @param userId - 用户 ID
+ * @returns Mastra Agent 实例
+ */
+async function createMemberAgent(
+  agentId: string,
+  tenantId: string,
+  userId: string,
+): Promise<Agent> {
+  const db = getDb();
+  const agentRow = await db.select().from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.tenant_id, tenantId)))
+    .get();
+  if (!agentRow) throw new Error(`Agent ${agentId} not found`);
+
+  // 加载模型
+  let model: ReturnType<typeof resolveModelProvider> | null = null;
+  try {
+    const modelConfig = await getDefaultModel(tenantId);
+    if (modelConfig) {
+      model = resolveModelProvider(modelConfig);
+    }
+  } catch {}
+
+  // 构建 instructions：Agent prompt + Skill 提示词
+  let instructions = agentRow.system_prompt || '';
+  try {
+    const skillPrompts = await skillManager.getPromptForAgent(agentId);
+    if (skillPrompts) {
+      instructions += '\n\n## 技能指南\n' + skillPrompts;
+    }
+  } catch {}
+
+  // 构建 tools：Skill 工具 + RAG 工具
+  const tools: Record<string, any> = {};
+  try {
+    const skillTools = await getSkillToolsForMastraAgent(agentId, {
+      tenantId, agentId, userId, skillConfig: {},
+    });
+    Object.assign(tools, skillTools);
+  } catch {}
+  try {
+    if (agentRow.rag_mode !== 'disabled') {
+      const ragTool = await createRagSearchTool(agentId, tenantId);
+      if (ragTool) tools[ragTool.id] = ragTool;
+    }
+  } catch {}
+
+  return new Agent({
+    id: `team-member-${agentId}`,
+    name: agentRow.name,
+    instructions,
+    model: model as any,
+    tools,
+    maxRetries: 0,
+    defaultOptions: { maxSteps: agentRow.max_steps ?? 10 },
+  });
+}
+
+/**
  * 创建团队协作网络。
  *
  * @param teamId - 团队 ID
@@ -74,11 +143,11 @@ export async function createTeamNetwork(
   const memberAgents: Record<string, Agent> = {};
   for (const member of teamConfig.members) {
     try {
-      const agent = await createAgent({
-        tenantId: context.tenantId,
-        agentId: member.agentId,
-        userId: context.userId,
-      });
+      const agent = await createMemberAgent(
+        member.agentId,
+        context.tenantId,
+        context.userId,
+      );
       memberAgents[member.agentId] = agent;
       logger.info({ agentId: member.agentId, role: member.role }, 'Team member agent created');
     } catch (err) {
@@ -96,11 +165,11 @@ export async function createTeamNetwork(
 
   if (teamConfig.supervisorAgentId) {
     // 使用指定的 supervisor agent 的配置（model + instructions）
-    const supAgent = await createAgent({
-      tenantId: context.tenantId,
-      agentId: teamConfig.supervisorAgentId,
-      userId: context.userId,
-    });
+    const supAgent = await createMemberAgent(
+      teamConfig.supervisorAgentId,
+      context.tenantId,
+      context.userId,
+    );
     supervisorModel = await supAgent.getModel();
     supervisorInstructions = (await supAgent.getInstructions()) as string;
   } else {
