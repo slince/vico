@@ -1,9 +1,10 @@
 import { v4 as uuid } from 'uuid';
 import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
-import { getSqlite } from '../db/db.js';
-import { getEmbedder, float32ToBlob, blobToFloat32, cosineSimilarity } from './embedder.js';
 import { config } from '../config.js';
+import { getVector, getMemory } from '../agent/memory-setup.js';
+import { getDb, schema } from '../db/db.js';
+import { eq, sql } from 'drizzle-orm';
 
 export interface RetrievedChunk {
   id: string;
@@ -13,27 +14,48 @@ export interface RetrievedChunk {
 }
 
 class RAGManager {
+  /**
+   * 索引文本内容到指定知识库。
+   *
+   * 使用 Mastra Memory embedder 将文本分块向量化，
+   * 通过 LibSQLVector.upsert() 存储向量及元数据。
+   *
+   * @param kbId - 知识库 ID
+   * @param text - 待索引的原始文本
+   * @param metadata - 附加元数据
+   * @returns 索引的分块数量
+   */
   async indexText(kbId: string, text: string, metadata: Record<string, any> = {}): Promise<number> {
-    const db = getSqlite();
-    const embedder = await getEmbedder();
+    const vector = getVector();
+    const memory = getMemory();
+    if (!memory.embedder) throw new Error('Embedder not configured');
+
     const chunks = this.splitText(text);
-    const embeddings = await embedder.embedBatch(chunks);
+    const chunkIds = chunks.map(() => uuid());
     const now = Date.now();
-    let count = 0;
 
-    const insert = db.prepare('INSERT INTO chunks (id, kb_id, content, embedding, metadata, created_at) VALUES (?, ?, ?, ?, ?, ?)');
-
-    const tx = db.transaction(() => {
-      for (let i = 0; i < chunks.length; i++) {
-        insert.run(uuid(), kbId, chunks[i], float32ToBlob(embeddings[i]), JSON.stringify({ ...metadata, chunk_index: i }), now);
-        count++;
-      }
+    // 批量向量化
+    const embedResult = await memory.embedder.doEmbed({
+      values: chunks.map((c) => c),
     });
 
-    tx();
+    // 通过 LibSQLVector 存储，content 写入 metadata 以便检索时还原
+    await vector.upsert({
+      indexName: `kb_${kbId}`,
+      vectors: embedResult.embeddings,
+      ids: chunkIds,
+      metadata: chunks.map((c, i) => ({ content: c, chunk_index: i, ...metadata })),
+    });
 
-    db.prepare('UPDATE knowledge_bases SET chunk_count = chunk_count + ? WHERE id = ?').run(count, kbId);
-    return count;
+    // 更新知识库分块计数
+    const db = getDb();
+    const { knowledge_bases } = schema;
+    await db
+      .update(knowledge_bases)
+      .set({ chunk_count: sql`${knowledge_bases.chunk_count} + ${chunks.length}` })
+      .where(eq(knowledge_bases.id, kbId));
+
+    return chunks.length;
   }
 
   async indexFile(kbId: string, filePath: string): Promise<number> {
@@ -77,44 +99,108 @@ class RAGManager {
     return total;
   }
 
+  /**
+   * 语义搜索：使用 LibSQLVector 进行向量相似度检索。
+   *
+   * 将查询文本向量化后在指定知识库索引中搜索 topK 条最相似结果。
+   *
+   * @param query - 搜索查询文本
+   * @param kbIds - 知识库 ID 列表
+   * @param topK - 返回结果数量
+   * @returns 按相似度降序排列的检索结果
+   */
   async semanticSearch(query: string, kbIds: string[], topK: number): Promise<RetrievedChunk[]> {
-    const db = getSqlite();
-    const embedder = await getEmbedder();
-    const queryEmb = await embedder.embed(query);
+    const vector = getVector();
+    const memory = getMemory();
+    if (!memory.embedder) throw new Error('Embedder not configured');
 
-    const placeholders = kbIds.map(() => '?').join(',');
-    const rows = db.prepare(`SELECT * FROM chunks WHERE kb_id IN (${placeholders}) ORDER BY created_at DESC LIMIT 2000`).all(...kbIds) as any[];
+    const embedResult = await memory.embedder.doEmbed({ values: [query] });
+    const queryEmbedding = embedResult.embeddings[0];
 
-    return rows
-      .filter((r) => r.embedding)
-      .map((r) => ({
-        id: r.id,
-        content: r.content,
-        score: cosineSimilarity(queryEmb, blobToFloat32(r.embedding)),
-        metadata: JSON.parse(r.metadata || '{}'),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, topK);
+    const allResults: RetrievedChunk[] = [];
+
+    for (const kbId of kbIds) {
+      const indexName = `kb_${kbId}`;
+      try {
+        const results = await vector.query({
+          indexName,
+          queryVector: queryEmbedding,
+          topK,
+        });
+        for (const r of results) {
+          allResults.push({
+            id: r.id,
+            content: (r.metadata?.content as string) || '',
+            score: r.score,
+            metadata: (r.metadata || {}) as Record<string, any>,
+          });
+        }
+      } catch {
+        // 索引可能尚未创建，静默跳过
+        continue;
+      }
+    }
+
+    return allResults.sort((a, b) => b.score - a.score).slice(0, topK);
   }
 
+  /**
+   * 关键词搜索：基于内容文本的关键词匹配。
+   *
+   * 通过向量近似检索获取候选集，再按关键词匹配过滤和打分。
+   *
+   * @param query - 搜索查询文本
+   * @param kbIds - 知识库 ID 列表
+   * @param topK - 返回结果数量
+   * @returns 按关键词匹配度降序排列的检索结果
+   */
   async keywordSearch(query: string, kbIds: string[], topK: number): Promise<RetrievedChunk[]> {
-    const db = getSqlite();
     const keywords = query.toLowerCase().split(/\s+/).filter((k) => k.length > 1);
     if (keywords.length === 0) return [];
 
-    const placeholders = kbIds.map(() => '?').join(',');
-    const rows = db.prepare(`SELECT * FROM chunks WHERE kb_id IN (${placeholders})`).all(...kbIds) as any[];
+    const vector = getVector();
+    const memory = getMemory();
+    if (!memory.embedder) throw new Error('Embedder not configured');
 
-    return rows
-      .filter((r) => {
-        const content = r.content.toLowerCase();
-        return keywords.some((kw) => content.includes(kw));
+    // 使用查询向量获取更大候选集，再按关键词过滤
+    const embedResult = await memory.embedder.doEmbed({ values: [query] });
+    const queryEmbedding = embedResult.embeddings[0];
+
+    const candidates: { id: string; content: string; metadata: Record<string, any> }[] = [];
+
+    for (const kbId of kbIds) {
+      const indexName = `kb_${kbId}`;
+      try {
+        const results = await vector.query({
+          indexName,
+          queryVector: queryEmbedding,
+          topK: topK * 3,
+        });
+        for (const r of results) {
+          const content = (r.metadata?.content as string) || '';
+          if (content) {
+            candidates.push({
+              id: r.id,
+              content,
+              metadata: (r.metadata || {}) as Record<string, any>,
+            });
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    return candidates
+      .filter((c) => {
+        const lowerContent = c.content.toLowerCase();
+        return keywords.some((kw) => lowerContent.includes(kw));
       })
-      .map((r) => ({
-        id: r.id,
-        content: r.content,
-        score: keywords.filter((kw) => r.content.toLowerCase().includes(kw)).length / keywords.length,
-        metadata: JSON.parse(r.metadata || '{}'),
+      .map((c) => ({
+        id: c.id,
+        content: c.content,
+        score: keywords.filter((kw) => c.content.toLowerCase().includes(kw)).length / keywords.length,
+        metadata: c.metadata,
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
