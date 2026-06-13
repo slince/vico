@@ -49,6 +49,8 @@ const PROVIDER_PRESETS: Record<string, { label: string; baseURL: string; models:
 
 /** AddModelDialog 组件属性 */
 interface AddModelDialogProps {
+  /** 是否为编辑模式（否则为新增模式） */
+  isEdit: boolean;
   /** 当前选中的模型提供商 */
   provider: string;
   /** 提供商变更回调 */
@@ -93,6 +95,7 @@ interface AddModelDialogProps {
  */
 export default function AddModelDialog(props: AddModelDialogProps) {
   const {
+    isEdit,
     provider,
     onProviderChange,
     modelName,
@@ -116,9 +119,9 @@ export default function AddModelDialog(props: AddModelDialogProps) {
   return (
     <DialogContent className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>{t('llm.addDialogTitle')}</DialogTitle>
+        <DialogTitle>{isEdit ? t('llm.editDialogTitle') : t('llm.addDialogTitle')}</DialogTitle>
         <DialogDescription>
-          {t('llm.addDialogDesc')}
+          {isEdit ? t('llm.editDialogDesc') : t('llm.addDialogDesc')}
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
@@ -179,7 +182,7 @@ export default function AddModelDialog(props: AddModelDialogProps) {
             type="password"
             value={apiKey}
             onChange={(e) => onApiKeyChange(e.target.value)}
-            placeholder={t('llm.apiKeyPlaceholder')}
+            placeholder={isEdit ? t('llm.apiKeyKeepHint') : t('llm.apiKeyPlaceholder')}
           />
         </div>
 
@@ -212,9 +215,9 @@ export default function AddModelDialog(props: AddModelDialogProps) {
       <DialogFooter showCloseButton>
         <Button
           onClick={onSubmit}
-          disabled={!modelName.trim() || !apiKey.trim() || isPending}
+          disabled={!modelName.trim() || (!isEdit && !apiKey.trim()) || isPending}
         >
-          {isPending ? t('llm.adding') : t('llm.add')}
+          {isPending ? (isEdit ? t('llm.saving') : t('llm.adding')) : (isEdit ? t('llm.save') : t('llm.add'))}
         </Button>
       </DialogFooter>
     </DialogContent>

@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 // 2. Third-party
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Check, Settings as SettingsIcon } from 'lucide-react';
+import { Plus, Trash2, Check, Pencil, Settings as SettingsIcon } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -94,6 +94,7 @@ export default function Settings() {
 
   // ---------- LLM 对话框状态 ----------
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // ---------- LLM 表单状态 ----------
@@ -109,6 +110,11 @@ export default function Settings() {
     queryFn: () => api('/models'),
   });
 
+  // ---------- 派生数据 ----------
+  const modelsList = models || [];
+  const currentPresetModels = PROVIDER_PRESETS[provider]?.models || [];
+  const isBaseURLModified = !!(PROVIDER_PRESETS[provider]?.baseURL && baseURL !== PROVIDER_PRESETS[provider].baseURL);
+
   // ---------- 变更操作 ----------
 
   const addMutation = useMutation({
@@ -116,11 +122,16 @@ export default function Settings() {
       api('/models', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['models'] });
-      setAddDialogOpen(false);
-      setModelName('');
-      setApiKey('');
-      setProvider('openai');
-      setBaseURL(PROVIDER_PRESETS.openai.baseURL);
+      resetFormDialog();
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      api(`/models/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['models'] });
+      resetFormDialog();
     },
   });
 
@@ -140,6 +151,38 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ['models'] });
     },
   });
+
+  // ---------- 辅助函数 ----------
+
+  /** 重置表单状态并关闭对话框 */
+  const resetFormDialog = useCallback(() => {
+    setAddDialogOpen(false);
+    setEditingModelId(null);
+    setModelName('');
+    setApiKey('');
+    setProvider('openai');
+    setBaseURL(PROVIDER_PRESETS.openai.baseURL);
+  }, []);
+
+  /** 打开新增模型对话框 */
+  const openAddDialog = useCallback(() => {
+    setEditingModelId(null);
+    setModelName('');
+    setApiKey('');
+    setProvider('openai');
+    setBaseURL(PROVIDER_PRESETS.openai.baseURL);
+    setAddDialogOpen(true);
+  }, []);
+
+  /** 打开编辑模型对话框，预填已有数据 */
+  const openEditDialog = useCallback((model: ModelEntry) => {
+    setEditingModelId(model.id);
+    setProvider(model.provider);
+    setModelName(model.model_name);
+    setApiKey('');
+    setBaseURL(model.base_url || PROVIDER_PRESETS[model.provider]?.baseURL || '');
+    setAddDialogOpen(true);
+  }, []);
 
   // ---------- 事件处理 ----------
 
@@ -163,28 +206,39 @@ export default function Settings() {
     }
   }, [provider]);
 
-  const handleAddModel = useCallback(() => {
-    if (!modelName.trim() || !apiKey.trim()) return;
-    const isDefault = modelsList.length === 0 ? 1 : 0;
-    addMutation.mutate({
-      provider,
-      model_name: modelName.trim(),
-      api_key_encrypted: apiKey.trim(),
-      base_url: baseURL || null,
-      is_default: isDefault,
-    });
-  }, [modelName, apiKey, provider, baseURL, addMutation, models]);
+  const handleSubmit = useCallback(() => {
+    if (!modelName.trim()) return;
+    if (!editingModelId && !apiKey.trim()) return;
+
+    if (editingModelId) {
+      // 编辑模式：只发送变更的字段，apiKey 为空则不更新
+      const patchData: Record<string, unknown> = {
+        provider,
+        model_name: modelName.trim(),
+        base_url: baseURL || null,
+      };
+      if (apiKey.trim()) {
+        patchData.api_key_encrypted = apiKey.trim();
+      }
+      editMutation.mutate({ id: editingModelId, data: patchData });
+    } else {
+      // 新增模式
+      const isDefault = modelsList.length === 0 ? 1 : 0;
+      addMutation.mutate({
+        provider,
+        model_name: modelName.trim(),
+        api_key_encrypted: apiKey.trim(),
+        base_url: baseURL || null,
+        is_default: isDefault,
+      });
+    }
+  }, [editingModelId, modelName, apiKey, provider, baseURL, addMutation, editMutation, modelsList.length]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId) {
       deleteMutation.mutate(deleteTargetId);
     }
   }, [deleteTargetId, deleteMutation]);
-
-  // ---------- 派生数据 ----------
-  const modelsList = models || [];
-  const currentPresetModels = PROVIDER_PRESETS[provider]?.models || [];
-  const isBaseURLModified = !!(PROVIDER_PRESETS[provider]?.baseURL && baseURL !== PROVIDER_PRESETS[provider].baseURL);
 
   // ---------- 加载态 ----------
   if (isLoading) {
@@ -243,14 +297,15 @@ export default function Settings() {
                   {t('llm.description')}
                 </p>
               </div>
-              <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+              <Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open) resetFormDialog(); }}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button onClick={openAddDialog}>
                     <Plus className="size-4" />
                     {t('llm.addModel')}
                   </Button>
                 </DialogTrigger>
                 <AddModelDialog
+                  isEdit={!!editingModelId}
                   provider={provider}
                   onProviderChange={handleProviderChange}
                   modelName={modelName}
@@ -265,8 +320,8 @@ export default function Settings() {
                   isBaseURLModified={isBaseURLModified}
                   onResetBaseURL={handleResetBaseURL}
                   onModelSuggestionPick={handleModelSuggestionPick}
-                  onSubmit={handleAddModel}
-                  isPending={addMutation.isPending}
+                  onSubmit={handleSubmit}
+                  isPending={addMutation.isPending || editMutation.isPending}
                 />
               </Dialog>
             </div>
@@ -316,6 +371,15 @@ export default function Settings() {
                           {m.is_default === 1 && (
                             <Badge variant="default">{t('llm.defaultBadge')}</Badge>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => openEditDialog(m)}
+                          >
+                            <Pencil className="size-3.5" />
+                            <span className="sr-only">{t('llm.edit')}</span>
+                          </Button>
                           <AlertDialog
                             open={deleteTargetId === m.id}
                             onOpenChange={(open) => {

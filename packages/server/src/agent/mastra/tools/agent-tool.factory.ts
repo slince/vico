@@ -3,14 +3,15 @@
  *
  * 每个工具代表一个"委托给专业 Agent"的操作。当 Mastra vicoMain Agent
  * 调用该工具时，execute 内部通过 agentProxy.generate() 动态配置并执行
- * 目标 Agent，注入其模型、提示词、技能工具和知识库检索能力。
+ * 目标 Agent。模型配置通过 runtimeContext 注入，由 agentProxy 的 model
+ * 函数在运行时动态解析。
  */
 import { createTool } from '@mastra/core/tools';
+import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import { agentProxy } from '../agents/agent-proxy.agent.js';
 import { getSkillToolsForMastraAgent } from '../../tools/skill-tool-adapter.js';
 import { createRagSearchTool } from '../../tools/rag-tool.js';
-import { resolveModelProvider } from '../bridges/model-bridge.js';
 import { getDefaultModel } from '../../model-registry.js';
 import { skillManager } from '../../../skill/manager.js';
 import logger from '../../../lib/logger.js';
@@ -31,8 +32,8 @@ interface AgentRow {
  * 为单个用户定义的 Agent 创建 Mastra Tool。
  *
  * 返回的 Tool 可被 vicoMainAgent 作为子 Agent 工具调用。
- * execute 中按需加载目标 Agent 的完整配置（模型、提示词、技能工具、RAG），
- * 通过 agentProxy.generate() 注入这些运行时配置并执行委托任务。
+ * execute 中按需加载目标 Agent 的完整配置（模型配置、提示词、技能工具、RAG），
+ * 模型配置通过 RuntimeContext 注入 agentProxy，由其 model 函数动态解析。
  *
  * 每个调用使用独立的 memory thread，确保不同委托之间上下文隔离。
  *
@@ -49,13 +50,10 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
       context: z.string().optional().describe('附加上下文信息'),
     }),
     execute: async ({ task, context }) => {
-      // 1. 解析该 Agent 使用的模型
-      let model: ReturnType<typeof resolveModelProvider> | null = null;
+      // 1. 解析该 Agent 使用的模型配置（从 DB 获取）
+      let modelConfig: ModelConfigRow | null = null;
       try {
-        const modelConfig: ModelConfigRow | null = await getDefaultModel(tenantId);
-        if (modelConfig) {
-          model = resolveModelProvider(modelConfig);
-        }
+        modelConfig = await getDefaultModel(tenantId);
       } catch (err) {
         logger.warn({ err, agentId: agentRow.id }, 'Failed to resolve model for agent tool');
       }
@@ -100,12 +98,19 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
         logger.warn({ err, agentId: agentRow.id }, 'Failed to create RAG tool');
       }
 
-      // 4. 调用 agentProxy.generate()，通过运行时选项注入配置
+      // 4. 创建 requestContext 并注入模型配置
+      const requestContext = new RequestContext();
+      if (modelConfig) {
+        requestContext.set('modelConfig', modelConfig);
+      }
+
+      // 5. 调用 agentProxy.generate()，模型由 agentProxy 的 model 函数
+      //    从 requestContext 中动态解析，不再通过 options.model 注入
       const result = await agentProxy.generate(
         [{ role: 'user', content: task }],
         {
           instructions,
-          model: model ?? undefined,
+          requestContext,
           clientTools: Object.keys(tools).length > 0 ? tools : undefined,
           maxSteps: agentRow.max_steps ?? 10,
           memory: {
