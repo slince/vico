@@ -19,6 +19,8 @@ import { createTokenTracker } from './processors/token-tracker.js';
 import { createMessagePersister } from './processors/message-persister.js';
 import { longTermMemory } from '../../memory/long-term.js';
 import { shortTermMemory } from '../../memory/short-term.js';
+import { workingMemory } from '../memory/working-memory.js';
+import { observationalMemory } from '../memory/observational-memory.js';
 import { config } from '../../config.js';
 
 const { agents, conversations } = schema;
@@ -94,6 +96,21 @@ export async function createMastraAgent(
   }
   if (ragContext) {
     systemPrompt += ragContext;
+  }
+
+  // Working Memory: 用户事实/偏好
+  const workingFacts = await workingMemory.retrieve(ctx.tenantId, ctx.userId);
+  if (workingFacts.length > 0) {
+    systemPrompt += '\n\n## 用户信息\n' + workingFacts.map((f) => f.content).join('\n');
+  }
+
+  // Observational Memory: 对话历史摘要（仅当有 conversationId 时）
+  if (conversationId) {
+    const observations = await observationalMemory.retrieve(ctx.tenantId, conversationId);
+    const observationContext = observationalMemory.retrieveAsPrompt(observations);
+    if (observationContext) {
+      systemPrompt += '\n\n' + observationContext;
+    }
   }
 
   // 5. Bridge: 构建 tools（Skill tools + RAG tool）
@@ -226,6 +243,17 @@ export async function createMastraAgent(
             { role: 'user', content: message },
             { role: 'assistant', content: finalText },
           ]).catch(() => {});
+
+          // WorkingMemory: 用户事实/偏好提取
+          workingMemory.extractAndStore(ctx.tenantId, ctx.userId, [
+            { role: 'user', content: message },
+            { role: 'assistant', content: finalText },
+          ]).catch(() => {});
+        }
+
+        // ObservationalMemory: 长对话摘要压缩
+        if (conversationId) {
+          observationalMemory.maybeCompress(ctx.tenantId, conversationId).catch(() => {});
         }
 
         const doneEvent = JSON.stringify({ type: 'done', usage: {} });
