@@ -108,10 +108,12 @@ export async function createAgent(ctx: AgentContext): Promise<Agent> {
 
   const tools: Record<string, any> = { ...skillTools };
 
-  // createRagSearchTool 需要 agentId 和 tenantId 两个参数，且为 async
-  const ragTool = await createRagSearchTool(ctx.agentId, ctx.tenantId);
-  if (ragTool) {
-    tools[ragTool.id] = ragTool;
+  // RAG 知识库检索工具（如果启用）
+  if (agentRow.rag_mode !== 'disabled') {
+    const ragTool = await createRagSearchTool(ctx.agentId, ctx.tenantId);
+    if (ragTool) {
+      tools[ragTool.id] = ragTool;
+    }
   }
 
   // 5. 共享 Memory
