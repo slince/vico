@@ -13,7 +13,7 @@ import { agentProxy } from '../agents/agent-proxy.agent.js';
 import { getSkillToolsForMastraAgent } from '../tools/skill-tool-adapter.js';
 import { createRagSearchTool } from '../tools/rag-tool.js';
 import { agentManager } from '../../services/agent/agent-manager.js';
-import type { AgentRow } from '../../services/agent/types.js';
+import {AgentDetail, AgentRow} from '../../services/agent/types.js';
 import logger from '../../lib/logger.js';
 
 /**
@@ -25,21 +25,21 @@ import logger from '../../lib/logger.js';
  *
  * 每个调用使用独立的 memory thread，确保不同委托之间上下文隔离。
  *
- * @param agentRow - 来自 agents 表的 Agent 配置行
+ * @param agent - 来自 agents 表的 Agent 配置行
  * @param tenantId - 租户 ID，用于多租户数据隔离
  * @returns Mastra Tool 实例
  */
-export function createAgentTool(agentRow: AgentRow, tenantId: string) {
+export function createAgentTool(agent: AgentDetail, tenantId: string) {
   return createTool({
-    id: `agent_${agentRow.id}`,
-    description: `委托任务给「${agentRow.name}」Agent。当用户需要 ${agentRow.name} 相关能力时调用此工具`,
+    id: `agent_${agent.id}`,
+    description: `委托任务给「${agent.name}」Agent。当用户需要 ${agent.name} 相关能力时调用此工具`,
     inputSchema: z.object({
-      task: z.string().describe(`要委托给 ${agentRow.name} 的具体任务描述`),
+      task: z.string().describe(`要委托给 ${agent.name} 的具体任务描述`),
       context: z.string().optional().describe('附加上下文信息'),
     }),
     execute: async ({ task, context }) => {
       // 1. 一次性解析 Agent 运行时配置（模型 + 基础指令 + 选项）
-      const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentRow.id);
+      const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agent.id);
       if (!runtimeConfig) {
         return 'Agent runtime configuration not available.';
       }
@@ -54,26 +54,26 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
       // 3. 构建 tools: Skill Tools + RAG Tool
       const tools: Record<string, any> = {};
       try {
-        const skillTools = await getSkillToolsForMastraAgent(agentRow.id, {
+        const skillTools = await getSkillToolsForMastraAgent(agent.id, {
           tenantId,
-          agentId: agentRow.id,
+          agentId: agent.id,
           userId: '',
           skillConfig: {},
         });
         Object.assign(tools, skillTools);
       } catch (err) {
-        logger.warn({ err, agentId: agentRow.id }, 'Failed to load skill tools');
+        logger.warn({ err, agentId: agent.id }, 'Failed to load skill tools');
       }
 
       try {
-        if (agentRow.rag_mode !== 'disabled') {
-          const ragTool = await createRagSearchTool(agentRow.id, tenantId);
-          if (ragTool) {
-            tools[ragTool.id] = ragTool;
-          }
+        if (agent.rag_mode !== 'disabled') {
+            const ragTool = await createRagSearchTool(agent);
+            if (ragTool) {
+              tools[ragTool.id] = ragTool;
+            }
         }
       } catch (err) {
-        logger.warn({ err, agentId: agentRow.id }, 'Failed to create RAG tool');
+        logger.warn({ err, agentId: agent.id }, 'Failed to create RAG tool');
       }
 
       // 4. 注入运行时配置到 requestContext，agentProxy 的 model/instructions 函数同步读取
@@ -89,7 +89,7 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
           clientTools: Object.keys(tools).length > 0 ? tools : undefined,
           maxSteps: runtimeConfig.maxSteps,
           memory: {
-            thread: `proxy-${agentRow.id}-${Date.now()}`,
+            thread: `proxy-${agent.id}-${Date.now()}`,
             resource: tenantId,
           },
         } as any,

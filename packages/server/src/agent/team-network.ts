@@ -17,6 +17,7 @@ import { modelManager } from '../services/model/model-manager.js';
 import { skillManager } from '../skill/manager.js';
 import { getSkillToolsForMastraAgent } from './tools/skill-tool-adapter.js';
 import { createRagSearchTool } from './tools/rag-tool.js';
+import { agentManager } from '../services/agent/agent-manager.js';
 import logger from '../lib/logger.js';
 
 const { agentTeams, agentTeamMembers, agents } = schema;
@@ -74,10 +75,7 @@ async function createMemberAgent(
   tenantId: string,
   userId: string,
 ): Promise<Agent> {
-  const db = getDb();
-  const agentRow = await db.select().from(agents)
-    .where(and(eq(agents.id, agentId), eq(agents.tenant_id, tenantId)))
-    .get();
+  const agentRow = await agentManager.getById(tenantId, agentId);
   if (!agentRow) throw new Error(`Agent ${agentId} not found`);
 
   // 加载模型
@@ -108,7 +106,7 @@ async function createMemberAgent(
   } catch {}
   try {
     if (agentRow.rag_mode !== 'disabled') {
-      const ragTool = await createRagSearchTool(agentId, tenantId);
+      const ragTool = await createRagSearchTool(agentRow);
       if (ragTool) tools[ragTool.id] = ragTool;
     }
   } catch {}

@@ -5,27 +5,24 @@
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { getVector, getMemory } from '../memory-setup.js';
-import { agentManager } from '../../services/agent/agent-manager.js';
+import type { AgentDetail } from '../../services/agent/types.js';
 import { config } from '../../config.js';
 
 /**
  * 为指定 Agent 创建 RAG 知识库检索工具。
  *
- * 通过 agentManager 获取 Agent 绑定的知识库列表，
- * 使用 Mastra Memory embedder 将查询文本向量化，
+ * 接收 Agent 详情（含 knowledge_bases），使用 Mastra Memory embedder 将查询文本向量化，
  * 然后通过 LibSQLVector 在各知识库索引中进行语义搜索，
  * 返回拼接后的结果文本。执行带超时保护。
  *
  * 若 Agent 未绑定任何知识库，返回 null。
  * 若 embedder 未配置，execute 返回错误提示文本。
  *
- * @param agentId - Agent ID
- * @param tenantId - 租户 ID，用于多租户数据隔离
+ * @param agent - Agent 详情（调用方通过 agentManager 获取，负责 DB 查询）
  * @returns Mastra Tool 实例，或 null（无绑定知识库时）
  */
-export async function createRagSearchTool(agentId: string, tenantId: string) {
-  const agent = await agentManager.getById(tenantId, agentId);
-  if (!agent || agent.knowledge_bases.length === 0) return null;
+export async function createRagSearchTool(agent: AgentDetail) {
+  if (agent.knowledge_bases.length === 0) return null;
 
   const kbIds = agent.knowledge_bases.map((b) => b.kb_id);
 
