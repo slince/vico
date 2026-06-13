@@ -4,7 +4,7 @@ import { mastra } from '../mastra.js';
 import { createSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
 import { agentManager } from '../services/agent/agent-manager.js';
-import { agentToolCache } from '../agent/cache/agent-tool-cache.js';
+import { agentToolStore } from '../agent/tools/agent-tool-store.js';
 import { modelManager } from '../services/model/model-manager.js';
 import { resolveModelProvider } from '../agent/bridges/model-bridge.js';
 import { workingMemory } from '../agent/memory/working-memory.js';
@@ -67,8 +67,8 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       // 内置主 Agent — 通用调度器，注入租户 Agent 工具
       const vicoAgent = mastra.getAgent('mainAgent');
 
-      const agentTools = await agentToolCache.getToolsForTenant(tenantId);
-      const agentDescriptions = await agentToolCache.getAgentDescriptions(tenantId);
+      const agentTools = await agentToolStore.getToolsForTenant(tenantId);
+      const agentDescriptions = await agentToolStore.getAgentDescriptions(tenantId);
 
       instructions = `${await vicoAgent.getInstructions()}${agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : ''}`;
 

@@ -56,7 +56,7 @@ function jsonSchemaToZod(schema: Record<string, unknown>): ZodTypeAny {
     case 'object': {
       if (!schema.properties) {
         // 无 properties 的对象视为自由格式 record
-        return z.record(z.any());
+        return z.record(z.string(), z.any());
       }
       const shape: Record<string, ZodTypeAny> = {};
       const props = schema.properties as Record<string, Record<string, unknown>>;

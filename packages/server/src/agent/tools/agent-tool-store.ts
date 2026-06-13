@@ -1,25 +1,22 @@
 /**
- * AgentToolCache — 按租户缓存用户自定义 Agent 转换后的 Mastra Tool 映射表。
+ * AgentToolStore — 按租户缓存用户自定义 Agent 转换后的 Mastra Tool 映射表。
  *
- * 首次获取时从 DB 懒加载构建。Agent CRUD 后通过 invalidate() 清除对应租户缓存。
+ * 首次获取时通过 agentManager 懒加载构建。Agent CRUD 后通过 invalidate() 清除对应租户缓存。
  * 缓存的内容包括：
  *  - toolId → Tool 的映射，供 vicoMainAgent 的子 Agent 路由使用
  *  - Agent 能力描述文本，注入到 MainAgent 的 instructions 中帮助 LLM 判断路由
  */
-import { eq } from 'drizzle-orm';
-import { getDb, schema } from '../../db/db.js';
-import { createAgentTool } from '../tools/agent-tool.factory.js';
+import { agentManager } from '../../services/agent/agent-manager.js';
+import { createAgentTool } from './agent-tool.factory.js';
 import logger from '../../lib/logger.js';
-
-const { agents } = schema;
 
 /**
  * Agent Tool 缓存管理器。
  *
  * 按租户缓存用户自定义 Agent 转换后的 Mastra Tool 映射表。
- * 首次获取时懒加载从 DB 构建。Agent CRUD 后通过 invalidate() 清除。
+ * 首次获取时通过 agentManager 懒加载构建。Agent CRUD 后通过 invalidate() 清除。
  */
-class AgentToolCache {
+class AgentToolStore {
   /** tenantId → Map<toolId, Tool> */
   private cache: Map<string, Map<string, any>> = new Map();
 
@@ -61,7 +58,7 @@ class AgentToolCache {
   }
 
   /**
-   * 从 DB 重建租户的 Tool 列表和能力描述。
+   * 通过 agentManager 重建租户的 Tool 列表和能力描述。
    *
    * 查询租户所有 Agent 记录，为每个 Agent 调用 createAgentTool 创建 Tool，
    * 同时构建描述文本。失败的单个 Agent 不会阻塞整体构建。
@@ -69,12 +66,7 @@ class AgentToolCache {
    * @param tenantId - 租户 ID
    */
   private async rebuildForTenant(tenantId: string): Promise<void> {
-    const db = getDb();
-    const agentRows = await db
-      .select()
-      .from(agents)
-      .where(eq(agents.tenant_id, tenantId))
-      .all();
+    const agentRows = await agentManager.list(tenantId);
 
     const toolMap = new Map<string, any>();
     const descriptions: string[] = [];
@@ -124,4 +116,4 @@ class AgentToolCache {
   }
 }
 
-export const agentToolCache = new AgentToolCache();
+export const agentToolStore = new AgentToolStore();

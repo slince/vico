@@ -1,7 +1,7 @@
 import { eq, and, desc, inArray, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
-import { agentToolCache } from '../../agent/cache/agent-tool-cache.js';
+import { agentToolStore } from '../../agent/tools/agent-tool-store.js';
 import { modelManager } from '../model/model-manager.js';
 import { skillManager } from '../../skill/manager.js';
 import { resolveModelProvider } from '../../agent/bridges/model-bridge.js';
@@ -200,7 +200,7 @@ class AgentManager {
       updated_at: now,
     }).run();
 
-    agentToolCache.invalidate(tenantId);
+    agentToolStore.invalidate(tenantId);
     return (await this.getById(tenantId, id))!;
   }
 
@@ -231,7 +231,7 @@ class AgentManager {
       .where(and(eq(agents.tenant_id, tenantId), eq(agents.id, id)))
       .run();
 
-    agentToolCache.invalidate(tenantId);
+    agentToolStore.invalidate(tenantId);
   }
 
   /**
@@ -242,7 +242,7 @@ class AgentManager {
     await db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
     await db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).run();
     await db.delete(agents).where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId))).run();
-    agentToolCache.invalidate(tenantId);
+    agentToolStore.invalidate(tenantId);
   }
 
   /**
@@ -263,7 +263,7 @@ class AgentManager {
         set: { config: JSON.stringify(s.config || {}) },
       }).run();
     }
-    agentToolCache.invalidate(tenantId);
+    agentToolStore.invalidate(tenantId);
   }
 
   /**
@@ -284,7 +284,7 @@ class AgentManager {
         set: { mode: kb.mode || 'auto' },
       }).run();
     }
-    agentToolCache.invalidate(tenantId);
+    agentToolStore.invalidate(tenantId);
   }
 }
 
