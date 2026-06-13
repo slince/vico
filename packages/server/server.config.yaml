@@ -7,7 +7,7 @@ auth:
   session_expiry_days: 7
 
 database:
-  path: "./data/vico.db"
+  url: "file:./data/vico.db"
 
 skills:
   scan_paths:
