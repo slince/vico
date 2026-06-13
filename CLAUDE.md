@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # CLAUDE.md
 
 ## 项目概述
