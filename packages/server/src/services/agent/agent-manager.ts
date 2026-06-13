@@ -66,36 +66,48 @@ class AgentManager {
     const agentIds = rows.map((a) => a.id);
 
     // 批量查询关联数据（仅 2 次查询，替代 N+1）
-    const allSkills = await db.select({ agent_id: agent_skills.agent_id, skill_name: agent_skills.skill_name })
+    const allSkills = await db.select({
+      agent_id: agent_skills.agent_id,
+      skill_name: agent_skills.skill_name,
+      config: agent_skills.config,
+    })
       .from(agent_skills)
       .where(inArray(agent_skills.agent_id, agentIds))
       .all();
 
-    const allKbs = await db.select({ agent_id: agent_knowledge_bases.agent_id, kb_id: agent_knowledge_bases.kb_id })
+    const allKbs = await db.select({
+      agent_id: agent_knowledge_bases.agent_id,
+      kb_id: agent_knowledge_bases.kb_id,
+      mode: agent_knowledge_bases.mode,
+    })
       .from(agent_knowledge_bases)
       .where(inArray(agent_knowledge_bases.agent_id, agentIds))
       .all();
 
     // 建立 agentId → 关联数据 的映射
-    const skillsMap = new Map<string, string[]>();
+    const skillsMap = new Map<string, { skill_name: string; config: string }[]>();
     for (const s of allSkills) {
       if (!skillsMap.has(s.agent_id)) skillsMap.set(s.agent_id, []);
-      skillsMap.get(s.agent_id)!.push(s.skill_name);
+      skillsMap.get(s.agent_id)!.push({ skill_name: s.skill_name, config: s.config });
     }
 
-    const kbsMap = new Map<string, string[]>();
+    const kbsMap = new Map<string, { kb_id: string; mode: string }[]>();
     for (const k of allKbs) {
       if (!kbsMap.has(k.agent_id)) kbsMap.set(k.agent_id, []);
-      kbsMap.get(k.agent_id)!.push(k.kb_id);
+      kbsMap.get(k.agent_id)!.push({ kb_id: k.kb_id, mode: k.mode });
     }
 
-    return rows.map((a) => ({
-      ...a,
-      skills: [],
-      knowledge_bases: [],
-      skill_names: skillsMap.get(a.id) || [],
-      kb_ids: kbsMap.get(a.id) || [],
-    }));
+    return rows.map((a) => {
+      const skills = skillsMap.get(a.id) || [];
+      const knowledge_bases = kbsMap.get(a.id) || [];
+      return {
+        ...a,
+        skills,
+        knowledge_bases,
+        skill_names: skills.map((s) => s.skill_name),
+        kb_ids: knowledge_bases.map((k) => k.kb_id),
+      };
+    });
   }
 
   /**
