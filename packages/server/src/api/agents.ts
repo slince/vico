@@ -4,6 +4,7 @@ import { v4 as uuid } from 'uuid';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { getDb, schema } from '../db/db.js';
+import { agentToolCache } from '../agent/mastra/cache/agent-tool-cache.js';
 
 const { agents, agent_skills, agent_knowledge_bases } = schema;
 
@@ -49,6 +50,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
       max_steps: max_steps ?? 10, rag_mode: rag_mode || 'auto', enabled: 1,
       created_at: now, updated_at: now,
     }).run();
+    agentToolCache.invalidate(auth.tenantId);
     return c.json({ id, message: 'created' });
   });
 
@@ -100,6 +102,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
         .run();
     }
 
+    agentToolCache.invalidate(auth.tenantId);
     return c.json({ message: 'updated' });
   });
 
@@ -111,6 +114,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     await db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
     await db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).run();
     await db.delete(agents).where(and(eq(agents.id, id), eq(agents.tenant_id, auth.tenantId))).run();
+    agentToolCache.invalidate(auth.tenantId);
     return c.json({ message: 'deleted' });
   });
 
@@ -131,6 +135,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
         set: { config: JSON.stringify(s.config || {}) },
       }).run();
     }
+    agentToolCache.invalidate(auth.tenantId);
     return c.json({ message: 'updated' });
   });
 
@@ -150,6 +155,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
         set: { mode: kb.mode || 'auto' },
       }).run();
     }
+    agentToolCache.invalidate(auth.tenantId);
     return c.json({ message: 'updated' });
   });
 }
