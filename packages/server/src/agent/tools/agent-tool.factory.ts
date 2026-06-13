@@ -10,8 +10,8 @@ import { createTool } from '@mastra/core/tools';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import { agentProxy } from '../agents/agent-proxy.agent.js';
-import { getSkillToolsForMastraAgent } from '../tools/skill-tool-adapter.js';
-import { createRagSearchTool } from '../tools/rag-tool.js';
+import { getSkillToolsForMastraAgent } from './skill-tool-adapter';
+import { createRagSearchTool } from './rag-tool';
 import { agentManager } from '../../services/agent/agent-manager.js';
 import { AgentDetail } from '../../services/agent/types.js';
 
