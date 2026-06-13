@@ -9,6 +9,7 @@
  * - processors: 审计日志 + Token 跟踪
  */
 import { Agent } from '@mastra/core/agent';
+import type { LanguageModel } from '@ai-sdk/provider';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { eq, and } from 'drizzle-orm';
@@ -33,7 +34,7 @@ const { agents } = schema;
  * @param modelConfig - 来自 model_configs 表的模型配置行
  * @returns AI SDK LanguageModel 实例，可直接传入 Mastra Agent 的 model 配置
  */
-export function resolveModelProvider(modelConfig: ModelConfigRow) {
+export function resolveModelProvider(modelConfig: ModelConfigRow): LanguageModel {
   const apiKey = modelConfig.api_key_encrypted;
   const baseURL = modelConfig.base_url || undefined;
 
@@ -87,7 +88,7 @@ export async function createAgent(ctx: AgentContext): Promise<Agent> {
   if (!agentRow) throw new Error('Agent not found');
 
   // 2. 解析模型
-  const modelConfig = getDefaultModel(ctx.tenantId);
+  const modelConfig = await getDefaultModel(ctx.tenantId);
   if (!modelConfig) throw new Error('No LLM model configured');
   const model = resolveModelProvider(modelConfig);
 
