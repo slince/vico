@@ -9,6 +9,7 @@ import { getMemory } from '../agent/memory-setup.js';
 import { getDefaultModel } from '../agent/model-registry.js';
 import { resolveModelProvider } from '../agent/mastra/bridges/model-bridge.js';
 import { workingMemory } from '../agent/memory/working-memory.js';
+import type { LanguageModel } from 'ai';
 import logger from '../lib/logger.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
@@ -79,7 +80,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         onComplete: async (fullText: string) => {
           const modelConfig = await getDefaultModel(auth.tenantId);
           if (!modelConfig) return;
-          const model = resolveModelProvider(modelConfig);
+          const model = resolveModelProvider(modelConfig) as unknown as LanguageModel;
           await workingMemory.extractAndStore(model, auth.tenantId, auth.userId, [
             { role: 'user', content: userMessage },
             { role: 'assistant', content: fullText },

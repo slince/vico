@@ -1,69 +1,63 @@
 import { describe, it, expect, vi } from 'vitest';
 
-// Drizzle ORM mock — 返回链式查询接口
-const mockSelect = vi.fn().mockReturnThis();
-const mockFrom = vi.fn().mockReturnThis();
-const mockWhere = vi.fn().mockReturnThis();
-const mockOrderBy = vi.fn().mockReturnThis();
-const mockLimit = vi.fn().mockReturnThis();
-const mockAll = vi.fn().mockImplementation(() => {
-  return Promise.resolve([
-    {
-      id: 'mem-id-1',
-      tenant_id: 't1',
-      user_id: 'u1',
-      type: 'working',
-      content: '用户偏好简洁回复',
-      importance: 0.8,
-      created_at: Date.now(),
-    },
-  ]);
+// vi.mock 会被提升到文件顶部，因此 mock 变量必须通过 vi.hoisted 定义
+const { mockAll, mockDrizzleRun, dbMock, mockGenerateObject } = vi.hoisted(() => {
+  const mockAll = vi.fn().mockImplementation(() => {
+    return Promise.resolve([
+      {
+        id: 'mem-id-1',
+        tenant_id: 't1',
+        user_id: 'u1',
+        type: 'working',
+        content: '用户偏好简洁回复',
+        importance: 0.8,
+        created_at: Date.now(),
+      },
+    ]);
+  });
+
+  const mockDrizzleRun = vi.fn().mockReturnValue(Promise.resolve());
+
+  const dbMock = {
+    select: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    run: mockDrizzleRun,
+  };
+
+  return { mockAll, mockDrizzleRun, dbMock, mockGenerateObject: vi.fn() };
 });
 
-const mockDrizzleRun = vi.fn().mockReturnValue(Promise.resolve());
-
-const dbMock = {
-  select: mockSelect,
-  insert: vi.fn().mockReturnThis(),
-  update: vi.fn().mockReturnThis(),
-  values: vi.fn().mockReturnThis(),
-  set: vi.fn().mockReturnThis(),
-  run: mockDrizzleRun,
-};
-
-// 让 from() 返回可链式调用的对象
-mockSelect.mockReturnValue({
-  from: mockFrom,
+// set up chainable mock returns
+dbMock.select.mockReturnValue({
+  from: vi.fn().mockReturnValue({
+    where: vi.fn().mockReturnValue({
+      orderBy: vi.fn().mockReturnValue({
+        limit: vi.fn().mockReturnValue({
+          all: mockAll,
+          run: mockDrizzleRun,
+        }),
+      }),
+      limit: vi.fn().mockReturnValue({
+        all: mockAll,
+        run: mockDrizzleRun,
+      }),
+      run: mockDrizzleRun,
+      all: mockAll,
+    }),
+  }),
 });
 
-mockFrom.mockReturnValue({
-  where: mockWhere,
-});
-
-mockWhere.mockReturnValue({
-  orderBy: mockOrderBy,
-  limit: mockLimit,
-  run: mockDrizzleRun,
-  all: mockAll,
-});
-
-mockOrderBy.mockReturnValue({
-  limit: mockLimit,
-});
-
-mockLimit.mockReturnValue({
-  all: mockAll,
-  run: mockDrizzleRun,
-});
-
-// insert mock chain: insert() → { values } → values() → { run }
 dbMock.insert.mockReturnValue({
   values: vi.fn().mockReturnValue({ run: mockDrizzleRun }),
 });
 
-// update mock chain: update() → { set } → set() → { where } → where() → { run }
 dbMock.update.mockReturnValue({
-  set: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ run: mockDrizzleRun }) }),
+  set: vi.fn().mockReturnValue({
+    where: vi.fn().mockReturnValue({ run: mockDrizzleRun }),
+  }),
 });
 
 vi.mock('../../../db/db.js', () => ({
@@ -83,40 +77,63 @@ vi.mock('../../../db/db.js', () => ({
   },
 }));
 
+vi.mock('ai', () => ({
+  generateObject: mockGenerateObject,
+}));
+
 import { WorkingMemory } from '../working-memory.js';
 
-describe('WorkingMemory (Drizzle ORM)', () => {
-  it('extractAndStore matches preference patterns', async () => {
+/** 创建一个模拟的 LanguageModel（仅用于满足类型检查，generateObject 已被 mock） */
+function mockModel() {
+  return {} as unknown as import('ai').LanguageModel;
+}
+
+describe('WorkingMemory (LLM-based extraction)', () => {
+  it('extractAndStore calls generateObject and stores extracted facts', async () => {
+    mockGenerateObject.mockResolvedValueOnce({
+      object: {
+        facts: [
+          { content: '用户偏好简洁回复', importance: 0.9 },
+          { content: '用户在北京工作', importance: 0.5 },
+        ],
+      },
+    });
+
     // SELECT returns empty → INSERT path
     mockAll.mockReturnValueOnce(Promise.resolve([]));
     const wm = new WorkingMemory();
     const messages = [
-      { role: 'user', content: '我喜欢简洁的回复方式' },
+      { role: 'user', content: '我喜欢简洁的回复方式，我在北京工作' },
     ];
-    await wm.extractAndStore('t1', 'u1', messages);
-    expect(dbMock.insert).toHaveBeenCalled();
+    await wm.extractAndStore(mockModel(), 't1', 'u1', messages);
+
+    // 验证 generateObject 被调用
+    expect(mockGenerateObject).toHaveBeenCalledTimes(1);
+    expect(mockGenerateObject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        temperature: 0.3,
+        messages: [{ role: 'user', content: '我喜欢简洁的回复方式，我在北京工作' }],
+      }),
+    );
+
+    // 验证两个事实都被存储
+    expect(dbMock.insert).toHaveBeenCalledTimes(2);
   });
 
-  it('extractAndStore skips negated patterns', async () => {
+  it('extractAndStore skips storage when no facts extracted', async () => {
     vi.clearAllMocks();
+    mockGenerateObject.mockResolvedValueOnce({
+      object: { facts: [] },
+    });
+
     const wm = new WorkingMemory();
     const messages = [
-      { role: 'user', content: '我不喜欢太啰嗦的回复' },
+      { role: 'user', content: '今天天气怎么样？' },
     ];
-    await wm.extractAndStore('t1', 'u1', messages);
+    await wm.extractAndStore(mockModel(), 't1', 'u1', messages);
+
+    // 不应插入任何数据
     expect(dbMock.insert).not.toHaveBeenCalled();
-  });
-
-  it('extractAndStore handles English patterns', async () => {
-    // SELECT returns empty → INSERT path
-    mockAll.mockReturnValueOnce(Promise.resolve([]));
-    vi.clearAllMocks();
-    const wm = new WorkingMemory();
-    const messages = [
-      { role: 'user', content: 'I prefer short and concise answers' },
-    ];
-    await wm.extractAndStore('t1', 'u1', messages);
-    expect(dbMock.insert).toHaveBeenCalled();
   });
 
   it('extractAndStore skips non-user messages', async () => {
@@ -125,8 +142,10 @@ describe('WorkingMemory (Drizzle ORM)', () => {
     const messages = [
       { role: 'assistant', content: 'I noticed you like short responses' },
     ];
-    await wm.extractAndStore('t1', 'u1', messages);
-    expect(dbMock.insert).not.toHaveBeenCalled();
+    await wm.extractAndStore(mockModel(), 't1', 'u1', messages);
+
+    // 无用户消息 → 不调用 generateObject
+    expect(mockGenerateObject).not.toHaveBeenCalled();
   });
 
   it('retrieve returns working-type entries', async () => {

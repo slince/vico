@@ -14,6 +14,12 @@
  */
 import type { MastraModelOutput, MastraAgentNetworkStream, ChunkType } from '@mastra/core/stream';
 
+/** createSSEStream 的可选回调参数 */
+export interface SSEStreamCallbacks {
+  /** 流结束后调用，接收完整响应文本，可用于事实提取等异步后处理 */
+  onComplete?: (fullText: string) => void | Promise<void>;
+}
+
 /**
  * 将 MastraModelOutput 转换为符合 Vico 前端约定的 SSE ReadableStream。
  *
@@ -22,9 +28,13 @@ import type { MastraModelOutput, MastraAgentNetworkStream, ChunkType } from '@ma
  * Promise getter，文本流消费完毕后自动 resolve。
  *
  * @param output - Mastra agent.stream() 返回的 MastraModelOutput 实例
+ * @param callbacks - 可选回调（onComplete 在流结束后异步调用，不阻塞流关闭）
  * @returns 可直接作为 Hono SSE 响应体的 ReadableStream
  */
-export function createSSEStream(output: MastraModelOutput<unknown>): ReadableStream {
+export function createSSEStream(
+  output: MastraModelOutput<unknown>,
+  callbacks?: SSEStreamCallbacks,
+): ReadableStream {
   const encoder = new TextEncoder();
 
   return new ReadableStream({
@@ -36,7 +46,9 @@ export function createSSEStream(output: MastraModelOutput<unknown>): ReadableStr
 
       try {
         // 1. 流式文本增量 — textStream 是 ReadableStream<string>，逐块吐出文本
+        let fullText = '';
         for await (const chunk of output.textStream) {
+          fullText += chunk;
           enqueue({ type: 'text_delta', content: chunk });
         }
 
@@ -70,6 +82,11 @@ export function createSSEStream(output: MastraModelOutput<unknown>): ReadableStr
               }
             : {},
         });
+
+        // 6. 流结束后触发 onComplete 回调（fire-and-forget，不阻塞流关闭）
+        if (callbacks?.onComplete) {
+          Promise.resolve(callbacks.onComplete(fullText)).catch(() => {});
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         enqueue({ type: 'error', message });

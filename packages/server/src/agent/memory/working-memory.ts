@@ -1,79 +1,99 @@
 /**
  * Working Memory — 用户工作记忆
  *
- * 管理系统自动提取的用户事实、偏好、上下文信息。
- * 使用 Drizzle ORM 操作 memory_entries 表（type='working'）。
+ * 使用 LLM（generateObject + Zod schema）从对话中提取结构化事实和偏好。
+ * 替代了原有的正则匹配方案，具备：
+ * - 语义理解（否定、隐含偏好、多语言）
+ * - 结构化输出（content + importance）
+ * - 低温度提取（0.3），减少幻觉
  *
- * 不同于 LTM 的向量检索（语义匹配），WorkingMemory 做精确类型检索，
- * 适合存储结构化的事实数据（如 "用户偏好简洁回复"）。
+ * 使用 Drizzle ORM 操作 memory_entries 表（type='working'）。
  */
 import { v4 as uuid } from 'uuid';
 import { eq, and, sql, inArray, desc } from 'drizzle-orm';
+import { generateObject } from 'ai';
+import type { LanguageModel } from 'ai';
+import { z } from 'zod';
 import { getDb, schema } from '../../db/db.js';
 
 const { memory_entries } = schema;
 
+/** 提取结果类型（显式声明以兼容 zod@4 + ai@4 的类型推断） */
+interface ExtractionResult {
+  facts: { content: string; importance: number }[];
+}
+
+/** 提取事实的 Zod schema */
+const extractionSchema = z.object({
+  facts: z.array(
+    z.object({
+      content: z.string().describe('提取到的事实或偏好，使用用户原文语言'),
+      importance: z
+        .number()
+        .min(0)
+        .max(1)
+        .describe(
+          '重要性：1.0 = 强烈偏好（喜欢/讨厌/想要），0.7 = 明确陈述，0.4 = 一般信息',
+        ),
+    }),
+  ).describe('从用户消息中提取的结构化事实列表'),
+});
+
 export class WorkingMemory {
   /**
-   * 从对话中提取工作记忆事实
+   * 使用 LLM 从对话中提取工作记忆事实。
    *
-   * 使用正则匹配提取以下模式：
-   * - 偏好："我喜欢/偏好/习惯/想要/希望..."
-   * - 行为："以后/下次/将来..."
-   * - 身份："我是/叫/在/做..."
+   * 通过 generateObject + Zod schema 做结构化提取，支持：
+   * - 显式偏好和事实（"我喜欢简洁回复"）
+   * - 隐含偏好（"上次那个方案太复杂了" → 偏好简洁方案）
+   * - 否定语义理解（"我不喜欢太啰嗦" → 不喜欢啰嗦）
+   * - 多语言（中英文均可）
    *
-   * 提取后通过 upsertByContent 存储（去重更新），
-   * 类型标记为 'working'。
+   * 提取后通过 upsertByContent 去重存储。
    *
+   * @param model - AI SDK LanguageModel 实例
    * @param tenantId - 租户 ID
    * @param userId - 用户 ID
    * @param messages - 消息数组 [{role, content}]
    */
   async extractAndStore(
+    model: LanguageModel,
     tenantId: string,
     userId: string,
     messages: { role: string; content: string }[],
   ): Promise<void> {
-    // 否定标记 — 匹配到否定时跳过提取
-    const negationMarkers = [
-      /不(?:喜欢|偏好|习惯|想要|希望|太|想|会|要|能)/,
-      /(?:不要|不想|别|从不|再也不|别再)/,
-      /(?:don't|do not|never|won't|can't|cannot)\s/i,
-      /not\s(?:really|particularly|a\s*fan\s*of)/i,
-    ];
+    const userMessages = messages.filter((m) => m.role === 'user');
+    if (userMessages.length === 0) return;
 
-    function isNegated(text: string): boolean {
-      return negationMarkers.some((r) => r.test(text));
-    }
+    const result = await generateObject({
+      model,
+      schema: extractionSchema,
+      temperature: 0.3,
+      system:
+        '你是一个事实提取系统。从对话中提取用户明确陈述的关于自己的事实和偏好。\n\n' +
+        '规则：\n' +
+        '- 仅提取用户明确表达的信息，不推测\n' +
+        '- 使用用户原文语言返回事实\n' +
+        '- 忽略问题、闲聊、技术指令\n' +
+        '- 强烈偏好（喜欢/讨厌/想要）importance > 0.7\n' +
+        '- 事实性陈述（工作、地点、工具）importance 0.4-0.7\n' +
+        '- 模糊或不清晰的跳过',
+      messages: userMessages.map((m) => ({
+        role: 'user' as const,
+        content: m.content,
+      })),
+    });
 
-    const patterns: { regex: RegExp; type: 'working'; importance: number }[] = [
-      // 中文偏好
-      { regex: /我(?:喜欢|偏好|习惯|想要|希望|更倾向于)(.+)/, type: 'working', importance: 0.8 },
-      { regex: /(?:以后|下次|将来|每次)(.+)/, type: 'working', importance: 0.6 },
-      { regex: /我(?:是|叫|在|做|使用)(.+)/, type: 'working', importance: 0.5 },
-      // 英文偏好
-      { regex: /I\s(?:like|prefer|love|enjoy|want|hope|wish)\s+(.+)/i, type: 'working', importance: 0.8 },
-      { regex: /(?:in the future|going forward|from now on|next time)\s*,?\s*(.+)/i, type: 'working', importance: 0.6 },
-      { regex: /I\s(?:am|work\s*as|use|live\sin)\s+(.+)/i, type: 'working', importance: 0.5 },
-    ];
+    const data = result.object as unknown as ExtractionResult;
 
-    for (const msg of messages) {
-      if (msg.role !== 'user') continue;
-      for (const { regex, type, importance } of patterns) {
-        const match = msg.content.match(regex);
-        if (match && match[1] && match[1].trim().length > 1) {
-          const fact = match[1].trim();
-          // 跳过否定句式：检查完整的匹配文本而非仅捕获组
-          if (isNegated(match[0])) continue;
-          await this.upsertByContent({
-            tenant_id: tenantId,
-            user_id: userId,
-            type,
-            content: fact,
-            importance,
-          });
-        }
-      }
+    for (const fact of data.facts) {
+      await this.upsertByContent({
+        tenant_id: tenantId,
+        user_id: userId,
+        type: 'working',
+        content: fact.content,
+        importance: fact.importance,
+      });
     }
   }
 
