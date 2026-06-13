@@ -8,6 +8,7 @@ import { modelRoutes } from './models.js';
 import { dashboardRoutes } from './dashboard.js';
 import { chatRoutes } from './chat.js';
 import { teamRoutes } from './teams.js';
+import { conversationRoutes } from './conversations.js';
 
 export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   authRoutes(app);
@@ -18,4 +19,5 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   dashboardRoutes(app);
   chatRoutes(app);
   teamRoutes(app);
+  conversationRoutes(app);
 }

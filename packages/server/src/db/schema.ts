@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer, real, primaryKey, unique, index } from 'drizzle-orm/sqlite-core';
 // 引用 better-auth 管理的表（用于外键约束）
-import { organization } from './auth-schema.js';
+import { organization, user } from './auth-schema.js';
 
 /** 模型配置表 — 每个租户可配置多个 LLM 模型 */
 export const model_configs = sqliteTable('model_configs', {
@@ -76,10 +76,33 @@ export const agent_knowledge_bases = sqliteTable('agent_knowledge_bases', {
   pk: primaryKey({ columns: [table.agent_id, table.kb_id] }),
 }));
 
-// conversations 表已移除 — 被 Mastra thread 接管
-// messages 表已移除 — 被 Mastra message 接管
 // tool_call_logs 表已移除 — 被 Processor 审计日志接管
 // token_usage_logs 表已移除 — 被 Processor Token 跟踪接管
+
+/** 对话记录表 */
+export const conversations = sqliteTable('conversations', {
+  id: text('id').primaryKey(),
+  tenant_id: text('tenant_id').notNull().references(() => organization.id),
+  agent_id: text('agent_id').notNull().references(() => agents.id),
+  user_id: text('user_id').notNull().references(() => user.id),
+  title: text('title').notNull().default(''),
+  model_name: text('model_name').notNull(),
+  message_count: integer('message_count').notNull().default(0),
+  total_tokens: integer('total_tokens').notNull().default(0),
+  created_at: integer('created_at').notNull(),
+  updated_at: integer('updated_at').notNull(),
+});
+
+/** 消息表 */
+export const messages = sqliteTable('messages', {
+  id: text('id').primaryKey(),
+  conversation_id: text('conversation_id').notNull().references(() => conversations.id),
+  role: text('role').notNull(),
+  content: text('content').notNull(),
+  tool_calls: text('tool_calls'),
+  token_usage: integer('token_usage').notNull().default(0),
+  created_at: integer('created_at').notNull(),
+});
 
 /** 记忆表 — 工作记忆和观察记忆共享，通过 type 字段区分 */
 export const memory_entries = sqliteTable('memory_entries', {
