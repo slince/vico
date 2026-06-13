@@ -2,6 +2,9 @@ import { eq, and, desc, inArray, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
 import { agentToolCache } from '../../agent/mastra/cache/agent-tool-cache.js';
+import { modelManager } from '../model/model-manager.js';
+import { skillManager } from '../../skill/manager.js';
+import { resolveModelProvider } from '../../agent/mastra/bridges/model-bridge.js';
 import {
   createAgentSchema,
   updateAgentSchema,
@@ -12,6 +15,7 @@ import {
   type AgentRow,
   type AgentWithRelations,
   type AgentDetail,
+  type AgentRuntimeConfig,
 } from './types.js';
 
 const { agents, agent_skills, agent_knowledge_bases } = schema;
@@ -116,6 +120,57 @@ class AgentManager {
     }).from(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).all();
 
     return { ...agent, skills, knowledge_bases: kbs };
+  }
+
+  /**
+   * 获取 Agent 运行时配置。
+   *
+   * 一次性解析 Agent 执行所需的所有参数：已解析的模型实例、
+   * 编译后的基础系统指令（system_prompt + Skill 提示词）、执行选项。
+   * 调用方可将结果注入 requestContext，供 agentProxy 同步读取。
+   *
+   * @param tenantId - 租户 ID
+   * @param agentId - Agent ID
+   * @returns 运行时配置，Agent 不存在或模型解析失败时返回 null
+   */
+  async getAgentRuntimeConfig(tenantId: string, agentId: string): Promise<AgentRuntimeConfig | null> {
+    const db = getDb();
+    const agent = await db.select().from(agents)
+      .where(and(eq(agents.id, agentId), eq(agents.tenant_id, tenantId)))
+      .get();
+
+    if (!agent) return null;
+
+    // 解析模型
+    let model: AgentRuntimeConfig['model'] | null = null;
+    if (agent.model_id) {
+      model = await modelManager.resolveModelConfig(tenantId, agent.model_id);
+    }
+    if (!model) {
+      // 模型未配置或解析失败，回退到默认模型
+      const defaultConfig = await modelManager.getDefault(tenantId);
+      if (defaultConfig) {
+        model = resolveModelProvider(defaultConfig);
+      }
+    }
+    if (!model) return null;
+
+    // 编译基础 instructions（system_prompt + Skill 提示词）
+    let instructions = agent.system_prompt || 'You are a helpful assistant.';
+    try {
+      const skillPrompts = await skillManager.getPromptForAgent(agentId);
+      if (skillPrompts) {
+        instructions += '\n\n## 技能指南\n' + skillPrompts;
+      }
+    } catch {
+      // Skill 提示词加载失败时静默跳过
+    }
+
+    return {
+      model,
+      instructions,
+      maxSteps: agent.max_steps ?? 10,
+    };
   }
 
   // ── 变更 ──

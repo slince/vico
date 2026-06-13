@@ -44,6 +44,24 @@ export interface AgentDetail extends AgentRow {
   knowledge_bases: KnowledgeBinding[];
 }
 
+// ── 运行时配置 ──
+
+/**
+ * Agent 运行时配置。
+ *
+ * 一次性解析 Agent 运行所需的所有参数（模型、指令、选项），
+ * 供 agentProxy 通过 requestContext 直接同步读取，避免在执行路径中
+ * 反复查询 DB。
+ */
+export interface AgentRuntimeConfig {
+  /** 已解析为 Mastra 可用的模型实例 */
+  model: import('@mastra/core/llm').MastraModelConfig;
+  /** 编译后的基础系统指令（system_prompt + Skill 提示词），不含任务级动态内容 */
+  instructions: string;
+  /** 最大执行步数 */
+  maxSteps: number;
+}
+
 // ── Zod 输入校验 schema ──
 
 /** 创建 Agent 的输入校验 */
