@@ -16,7 +16,6 @@ interface AppConfig {
   server: {
     port: number;
     deploy_mode: 'private' | 'saas';
-    agent_engine?: 'mastra' | 'legacy';
   };
   auth: {
     session_expiry_days: number;
@@ -55,7 +54,7 @@ function resolveEnv(value: string): string {
 function loadConfig(): AppConfig {
   const configPath = process.env.CONFIG_PATH || resolve(__dirname, '../server.config.yaml');
   const defaultConfig: AppConfig = {
-    server: { port: 3001, deploy_mode: 'private', agent_engine: 'legacy' },
+    server: { port: 3001, deploy_mode: 'private' },
     auth: { session_expiry_days: 7 },
     database: { url: 'file:./data/vico.db' },
     skills: { scan_paths: [resolve(__dirname, '../../skills'), resolve(__dirname, '../db/custom-skills')] },
