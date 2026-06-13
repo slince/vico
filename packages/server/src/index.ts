@@ -4,7 +4,7 @@ import { skillManager } from './skill/manager.js';
 import { runMigrations } from './db/run-migrations.js';
 import { seedDefaultOrgAndAdmin } from './auth/seed.js';
 import { getStorage } from './agent/memory-setup.js';
-import { createApp } from './app.js';
+import { app } from './mastra.js';
 import { auth } from './auth/index.js';
 import logger from './lib/logger.js';
 
@@ -23,7 +23,7 @@ async function main() {
   await getStorage().init(); // 初始化 Mastra 存储表（mastra_threads/messages/resources）
   await seedDefaultOrgAndAdmin();
 
-  const app = createApp();
+  // app is imported from mastra.ts which already calls createApp() and configures MastraServer
 
   serve({ fetch: app.fetch, port: config.server.port, hostname: '0.0.0.0' }, (info) => {
     logger.info({ port: info.port, deployMode: config.server.deploy_mode }, 'Server started');
