@@ -1,98 +1,276 @@
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/api/client';
-import { Link } from 'react-router-dom';
-import { MessageSquare, Search } from 'lucide-react';
-import { useState } from 'react';
+// 1. React
+import { useState, useCallback } from 'react';
 
+// 2. Third-party
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { Search } from 'lucide-react';
+
+// 3. API
+import { api } from '@/api/client';
+
+// 4. UI components
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import {
+  Empty,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
+
+// 5. Sub-components
+import ConversationTableSkeleton from './conversations/ConversationTableSkeleton';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** Shape of a conversation row returned by GET /conversations */
+interface Conversation {
+  id: string;
+  user_id: string;
+  agent_id: string;
+  agent_name?: string;
+  message_count: number;
+  model_name: string;
+  updated_at: string;
+}
+
+/** Shape of an agent row returned by GET /agents */
+interface Agent {
+  id: string;
+  name: string;
+}
+
+
+// ---------------------------------------------------------------------------
+// Main page component
+// ---------------------------------------------------------------------------
+
+/**
+ * Conversations list page.
+ *
+ * Displays a searchable, filterable table of all user-Agent conversations
+ * across the current tenant. Each row links through to a conversation detail
+ * page (`/conversations/:id`).
+ *
+ * States handled:
+ * - **loading** – skeleton table rows
+ * - **empty**   – Empty component with descriptive text
+ * - **error**   – queried data is `undefined` and not loading (edge-case guard)
+ * - **data**    – fully populated table
+ */
 export default function Conversations() {
+  // ---- local filter state ------------------------------------------------
   const [search, setSearch] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
 
-  const { data: conversations, isLoading } = useQuery({
+  // ---- queries -----------------------------------------------------------
+
+  /** Fetch the filtered conversations list */
+  const {
+    data: conversations,
+    isLoading: conversationsLoading,
+  } = useQuery<Conversation[]>({
     queryKey: ['conversations', search, agentFilter],
     queryFn: () => {
       const params = new URLSearchParams();
-      if (search) params.set('search', search);
-      if (agentFilter) params.set('agent_id', agentFilter);
+      if (search) params.set('search', search); // full-text search term
+      if (agentFilter) params.set('agent_id', agentFilter); // filter by agent
       return api(`/conversations?${params.toString()}`);
     },
   });
 
-  const { data: agents } = useQuery({
+  /** Fetch the agents list (used to populate the filter dropdown) */
+  const { data: agents } = useQuery<Agent[]>({
     queryKey: ['agents'],
     queryFn: () => api('/agents'),
   });
 
-  if (isLoading) return <div className="flex items-center justify-center h-64 text-muted-foreground">加载中...</div>;
+  // ---- derived values ----------------------------------------------------
 
-  const convs = (conversations as any[]) || [];
-  const agentsList = (agents as any[]) || [];
+  /** Guard against undefined data – treat as empty array */
+  const convs: Conversation[] = conversations ?? [];
+  const agentsList: Agent[] = agents ?? [];
+
+  // ---- event handlers ---------------------------------------------------
+
+  /**
+   * Updates the search term state.
+   * Uses `useCallback` to keep a stable reference across renders.
+   */
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearch(e.target.value);
+    },
+    [],
+  );
+
+  /**
+   * Updates the agent filter state. An empty string means "all agents".
+   * Uses `useCallback` to keep a stable reference across renders.
+   */
+  const handleAgentFilterChange = useCallback((value: string) => {
+    // The Select component passes the raw value string; "all" resets the filter
+    setAgentFilter(value === 'all' ? '' : value);
+  }, []);
+
+  // ---- loading state -----------------------------------------------------
+  if (conversationsLoading) {
+    return <ConversationTableSkeleton />;
+  }
+
+  // ---- error / edge-case state -------------------------------------------
+  // If not loading but data is undefined (e.g. a 500 from the API), show a
+  // fallback message rather than a blank page.
+  if (!conversations) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        无法加载对话记录，请稍后重试
+      </div>
+    );
+  }
+
+  // ---- render ------------------------------------------------------------
 
   return (
     <div className="space-y-6">
+      {/* Page heading */}
       <h2 className="text-2xl font-bold tracking-tight">对话记录</h2>
 
-      <div className="flex gap-3">
+      {/* Search + filter toolbar */}
+      <div className="flex gap-3 items-center">
+        {/* Search input with leading icon */}
         <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+          />
+          <Input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={handleSearchChange}
             placeholder="搜索对话..."
-            className="w-full pl-9 pr-3 py-2 border rounded-md text-sm"
+            className="pl-9"
           />
         </div>
-        <select
-          value={agentFilter}
-          onChange={(e) => setAgentFilter(e.target.value)}
-          className="px-3 py-2 border rounded-md text-sm"
+
+        {/* Agent filter dropdown */}
+        <Select
+          value={agentFilter || 'all'}
+          onValueChange={handleAgentFilterChange}
         >
-          <option value="">全部 Agent</option>
-          {agentsList.map((a: any) => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
-        </select>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="全部 Agent" />
+          </SelectTrigger>
+          <SelectContent>
+            {/* Default "all agents" option */}
+            <SelectItem value="all">全部 Agent</SelectItem>
+            {agentsList.map((agent) => (
+              <SelectItem key={agent.id} value={agent.id}>
+                {agent.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
+      {/* Empty state – shown when the filtered list is empty */}
       {convs.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <MessageSquare size={48} className="mx-auto mb-3 opacity-30" />
-          <p>暂无对话记录</p>
-        </div>
+        <Empty>
+          <EmptyMedia variant="icon">
+            <Search size={24} className="text-muted-foreground" />
+          </EmptyMedia>
+          <EmptyTitle>暂无对话记录</EmptyTitle>
+          <EmptyDescription>
+            {search || agentFilter
+              ? '没有匹配的对话记录，试试调整筛选条件'
+              : '还没有任何对话记录'}
+          </EmptyDescription>
+        </Empty>
       ) : (
-        <div className="bg-card border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="text-left px-4 py-3 text-sm font-medium">用户</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">Agent</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">消息数</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">模型</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">时间</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {convs.map((c: any) => (
-                <tr key={c.id} className="border-b last:border-0 hover:bg-muted/30">
-                  <td className="px-4 py-3 text-sm">{c.user_id?.slice(0, 8)}</td>
-                  <td className="px-4 py-3 text-sm">{c.agent_name || c.agent_id?.slice(0, 8)}</td>
-                  <td className="px-4 py-3 text-sm">{c.message_count}</td>
-                  <td className="px-4 py-3 text-sm text-xs text-muted-foreground">{c.model_name}</td>
-                  <td className="px-4 py-3 text-sm text-xs text-muted-foreground">
-                    {new Date(c.updated_at).toLocaleString('zh-CN')}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link to={`/conversations/${c.id}`} className="text-sm text-primary hover:underline">
-                      查看
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        /* Data table wrapped in a Card */
+        <Card>
+          <CardHeader>
+            <CardTitle>对话记录</CardTitle>
+            <CardDescription>
+              共 {convs.length} 条对话记录
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>用户</TableHead>
+                  <TableHead>Agent</TableHead>
+                  <TableHead>消息数</TableHead>
+                  <TableHead>模型</TableHead>
+                  <TableHead>时间</TableHead>
+                  <TableHead>操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {convs.map((conversation) => (
+                  <TableRow key={conversation.id}>
+                    {/* Display truncated user ID as identifier */}
+                    <TableCell className="text-sm font-mono">
+                      {conversation.user_id?.slice(0, 8)}
+                    </TableCell>
+
+                    {/* Agent name falls back to truncated agent ID */}
+                    <TableCell className="text-sm">
+                      {conversation.agent_name ??
+                        conversation.agent_id?.slice(0, 8)}
+                    </TableCell>
+
+                    {/* Message count */}
+                    <TableCell className="text-sm">
+                      {conversation.message_count}
+                    </TableCell>
+
+                    {/* Model name */}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {conversation.model_name}
+                    </TableCell>
+
+                    {/* Formatted update timestamp (zh-CN locale) */}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {new Date(conversation.updated_at).toLocaleString(
+                        'zh-CN',
+                      )}
+                    </TableCell>
+
+                    {/* Link to conversation detail */}
+                    <TableCell>
+                      <Button variant="link" size="sm" asChild>
+                        <Link to={`/conversations/${conversation.id}`}>
+                          查看
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -1,175 +1,382 @@
+// 1. React
+import { useCallback, useState } from 'react';
+
+// 2. Third-party
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
-import { useState, useCallback } from 'react';
 import { Plus, Trash2, Check } from 'lucide-react';
 
-const PROVIDER_PRESETS: Record<string, { baseURL: string; models: string[] }> = {
-  openai: { baseURL: 'https://api.openai.com/v1', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3-mini'] },
-  anthropic: { baseURL: 'https://api.anthropic.com/v1', models: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5'] },
-  deepseek: { baseURL: 'https://api.deepseek.com/v1', models: ['deepseek-chat', 'deepseek-coder'] },
-  qwen: { baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1', models: ['qwen-plus', 'qwen-max', 'qwen-turbo'] },
-  custom: { baseURL: '', models: [] },
+// 3. API
+import { api } from '@/api/client';
+
+// 4. UI components
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from '@/components/ui/empty';
+import {
+  Dialog,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
+
+// 5. Sub-components
+import AddModelDialog from './settings/AddModelDialog';
+
+/** 提供商预设配置：包含默认的 baseURL 和推荐模型列表 */
+const PROVIDER_PRESETS: Record<string, { label: string; baseURL: string; models: string[] }> = {
+  openai: {
+    label: 'OpenAI',
+    baseURL: 'https://api.openai.com/v1',
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o3-mini'],
+  },
+  anthropic: {
+    label: 'Anthropic',
+    baseURL: 'https://api.anthropic.com/v1',
+    models: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5'],
+  },
+  deepseek: {
+    label: 'DeepSeek',
+    baseURL: 'https://api.deepseek.com/v1',
+    models: ['deepseek-chat', 'deepseek-coder'],
+  },
+  qwen: {
+    label: '通义千问',
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    models: ['qwen-plus', 'qwen-max', 'qwen-turbo'],
+  },
+  custom: {
+    label: '自定义',
+    baseURL: '',
+    models: [],
+  },
 };
 
+/** LLM 模型数据结构 */
+interface ModelEntry {
+  id: string;
+  provider: string;
+  model_name: string;
+  api_key_encrypted: string;
+  base_url: string | null;
+  is_default: number;
+}
+
+/**
+ * LLM 模型设置页面
+ * 管理 AI 模型提供商的 API Key 和模型配置，支持增删及设置默认模型
+ */
 export default function Settings() {
   const queryClient = useQueryClient();
-  const [showAdd, setShowAdd] = useState(false);
+
+  // ---------- 对话框状态 ----------
+  /** 控制添加模型对话框的开关 */
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  /** 待删除的模型 ID（为空表示未确认删除） */
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // ---------- 表单状态 ----------
+  /** 当前选中的模型提供商 */
   const [provider, setProvider] = useState('openai');
+  /** 用户输入的模型名称 */
   const [modelName, setModelName] = useState('');
+  /** 用户输入的 API Key */
   const [apiKey, setApiKey] = useState('');
+  /** 用户输入的 Base URL（默认跟随 provider 预设） */
   const [baseURL, setBaseURL] = useState(PROVIDER_PRESETS.openai.baseURL);
+  /** 是否显示模型名称建议下拉 */
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const handleProviderChange = useCallback((provider: string) => {
-    setProvider(provider);
-    const preset = PROVIDER_PRESETS[provider];
+  // ---------- 数据获取 ----------
+  const { data: models, isLoading } = useQuery<ModelEntry[]>({
+    queryKey: ['models'],
+    queryFn: () => api('/models'),
+  });
+
+  // ---------- 变更操作 ----------
+
+  /**
+   * 添加模型变更
+   * 成功后刷新列表并重置表单状态
+   */
+  const addMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) =>
+      api('/models', { method: 'POST', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['models'] });
+      // 重置对话框与表单状态
+      setAddDialogOpen(false);
+      setModelName('');
+      setApiKey('');
+      setProvider('openai');
+      setBaseURL(PROVIDER_PRESETS.openai.baseURL);
+    },
+  });
+
+  /**
+   * 删除模型变更
+   * 成功后刷新列表并清空待删除目标
+   */
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      api(`/models/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['models'] });
+      setDeleteTargetId(null);
+    },
+  });
+
+  /**
+   * 设为默认模型变更
+   * 成功后刷新列表
+   */
+  const setDefaultMutation = useMutation({
+    mutationFn: (id: string) =>
+      api(`/models/${id}`, { method: 'PATCH', body: JSON.stringify({ is_default: 1 }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['models'] });
+    },
+  });
+
+  // ---------- 事件处理 ----------
+
+  /**
+   * 切换提供商时同步更新 baseURL 为对应预设值
+   * @param newProvider - 新选中的提供商键名
+   */
+  const handleProviderChange = useCallback((newProvider: string) => {
+    setProvider(newProvider);
+    const preset = PROVIDER_PRESETS[newProvider];
     if (preset) {
       setBaseURL(preset.baseURL);
     }
   }, []);
 
-  const { data: models, isLoading } = useQuery({
-    queryKey: ['models'],
-    queryFn: () => api('/models'),
-  });
+  /**
+   * 选择模型名称建议
+   * @param name - 建议的模型名称
+   */
+  const handleModelSuggestionPick = useCallback((name: string) => {
+    setModelName(name);
+    setShowSuggestions(false);
+  }, []);
 
-  const addMutation = useMutation({
-    mutationFn: (data: any) => api('/models', { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['models'] }); setShowAdd(false); setModelName(''); setApiKey(''); setBaseURL(PROVIDER_PRESETS.openai.baseURL); setProvider('openai'); },
-  });
+  /**
+   * 将 baseURL 重置为当前提供商的默认值
+   */
+  const handleResetBaseURL = useCallback(() => {
+    const preset = PROVIDER_PRESETS[provider];
+    if (preset) {
+      setBaseURL(preset.baseURL);
+    }
+  }, [provider]);
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api(`/models/${id}`, { method: 'DELETE' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['models'] }),
-  });
+  /**
+   * 提交添加模型表单
+   */
+  const handleAddModel = useCallback(() => {
+    if (!modelName.trim() || !apiKey.trim()) return;
+    // 首个模型自动设为默认
+    const isDefault = modelsList.length === 0 ? 1 : 0;
+    addMutation.mutate({
+      provider,
+      model_name: modelName.trim(),
+      api_key_encrypted: apiKey.trim(),
+      base_url: baseURL || null,
+      is_default: isDefault,
+    });
+  }, [modelName, apiKey, provider, baseURL, addMutation, models]);
 
-  const setDefaultMutation = useMutation({
-    mutationFn: (id: string) => api(`/models/${id}`, { method: 'PATCH', body: JSON.stringify({ is_default: 1 }) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['models'] }),
-  });
+  /**
+   * 确认删除指定的模型
+   */
+  const handleDeleteConfirm = useCallback(() => {
+    if (deleteTargetId) {
+      deleteMutation.mutate(deleteTargetId);
+    }
+  }, [deleteTargetId, deleteMutation]);
 
-  if (isLoading) return <div className="flex items-center justify-center h-64 text-muted-foreground">加载中...</div>;
+  // ---------- 派生数据 ----------
+  const modelsList = models || [];
+  /** 当前选中提供商的预设模型列表 */
+  const currentPresetModels = PROVIDER_PRESETS[provider]?.models || [];
+  /** 当前 baseURL 与预设是否一致（用于判断是否显示重置按钮） */
+  const isBaseURLModified = !!(PROVIDER_PRESETS[provider]?.baseURL && baseURL !== PROVIDER_PRESETS[provider].baseURL);
 
-  const modelsList = (models as any[]) || [];
+  // ---------- 加载态 ----------
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-9 w-28" />
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="py-6">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-3 w-72 mt-2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
+  // ---------- 渲染 ----------
   return (
     <div className="space-y-6">
+      {/* 页面标题栏 */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">LLM 模型设置</h2>
-          <p className="text-sm text-muted-foreground mt-1">配置 AI 模型提供商的 API Key 和模型</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            配置 AI 模型提供商的 API Key 和模型，至少添加一个模型后即可使用
+          </p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium">
-          <Plus size={16} /> 添加模型
-        </button>
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="size-4" />
+              添加模型
+            </Button>
+          </DialogTrigger>
+          {/* 添加模型对话框 */}
+          <AddModelDialog
+            provider={provider}
+            onProviderChange={handleProviderChange}
+            modelName={modelName}
+            onModelNameChange={setModelName}
+            apiKey={apiKey}
+            onApiKeyChange={setApiKey}
+            baseURL={baseURL}
+            onBaseURLChange={setBaseURL}
+            showSuggestions={showSuggestions}
+            onShowSuggestionsChange={setShowSuggestions}
+            currentPresetModels={currentPresetModels}
+            isBaseURLModified={isBaseURLModified}
+            onResetBaseURL={handleResetBaseURL}
+            onModelSuggestionPick={handleModelSuggestionPick}
+            onSubmit={handleAddModel}
+            isPending={addMutation.isPending}
+          />
+        </Dialog>
       </div>
 
-      {showAdd && (
-        <div className="bg-card border rounded-lg p-4 space-y-3">
-          <h3 className="font-medium">添加 LLM 模型</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm">提供商</label>
-              <select value={provider} onChange={(e) => handleProviderChange(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-md text-sm">
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="deepseek">DeepSeek</option>
-                <option value="qwen">通义千问</option>
-                <option value="custom">自定义</option>
-              </select>
-            </div>
-            <div className="relative">
-              <label className="text-sm">模型名称</label>
-              <input
-                type="text" value={modelName} onChange={(e) => { setModelName(e.target.value); setShowSuggestions(true); }}
-                onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                placeholder="e.g. gpt-4o"
-                className="w-full mt-1 px-3 py-2 border rounded-md text-sm"
-              />
-              {showSuggestions && PROVIDER_PRESETS[provider]?.models.length > 0 && (
-                <div className="absolute z-10 top-full mt-0.5 w-full bg-popover border rounded-md shadow-lg py-1">
-                  {PROVIDER_PRESETS[provider].models.map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onMouseDown={() => { setModelName(m); setShowSuggestions(false); }}
-                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors"
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="text-sm">API Key</label>
-            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="sk-..." className="w-full mt-1 px-3 py-2 border rounded-md text-sm" />
-          </div>
-          <div>
-            <label className="text-sm">Base URL</label>
-            <div className="flex gap-1 mt-1">
-              <input
-                type="text" value={baseURL} onChange={(e) => setBaseURL(e.target.value)}
-                placeholder={PROVIDER_PRESETS[provider]?.baseURL || 'https://api.example.com/v1'}
-                className="flex-1 px-3 py-2 border rounded-md text-sm"
-              />
-              {PROVIDER_PRESETS[provider]?.baseURL && baseURL !== PROVIDER_PRESETS[provider].baseURL && (
-                <button
-                  type="button"
-                  onClick={() => setBaseURL(PROVIDER_PRESETS[provider].baseURL)}
-                  className="px-2 py-2 text-xs text-muted-foreground hover:text-foreground border rounded-md"
-                  title="重置为默认 URL"
-                >
-                  重置
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => addMutation.mutate({ provider, model_name: modelName, api_key_encrypted: apiKey, base_url: baseURL || null, is_default: modelsList.length === 0 ? 1 : 0 })}
-              disabled={!modelName || !apiKey}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm disabled:opacity-50"
-            >
-              添加
-            </button>
-            <button onClick={() => setShowAdd(false)} className="px-4 py-2 border rounded-md text-sm">取消</button>
-          </div>
-        </div>
-      )}
-
+      {/* 空状态 */}
       {modelsList.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <p>暂无模型配置，请添加至少一个 LLM 模型</p>
-        </div>
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>暂无模型配置</EmptyTitle>
+            <EmptyDescription>
+              请添加至少一个 LLM 模型以启用 AI 对话功能
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
+        /* 模型列表 */
         <div className="space-y-3">
-          {modelsList.map((m: any) => (
-            <div key={m.id} className="bg-card border rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {m.is_default === 1 && <Check size={16} className="text-green-500" />}
-                <div>
-                  <p className="font-medium">{m.provider} / {m.model_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    API Key: {m.api_key_encrypted.slice(0, 8)}...{m.base_url ? ` · ${m.base_url}` : ''}
-                  </p>
+          {modelsList.map((m) => (
+            <Card key={m.id}>
+              <CardContent className="py-0">
+                <div className="flex items-center justify-between py-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* 默认模型标识：绿色对勾图标 */}
+                    {m.is_default === 1 && (
+                      <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600">
+                        <Check className="size-3" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
+                        {m.provider} / {m.model_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        API Key: {m.api_key_encrypted.slice(0, 8)}...
+                        {m.base_url ? ` · ${m.base_url}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* 非默认模型：显示"设为默认"按钮 */}
+                    {m.is_default !== 1 && (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => setDefaultMutation.mutate(m.id)}
+                        disabled={setDefaultMutation.isPending}
+                      >
+                        设为默认
+                      </Button>
+                    )}
+                    {/* 默认标签：仅默认模型展示 Badge */}
+                    {m.is_default === 1 && (
+                      <Badge variant="default">默认</Badge>
+                    )}
+                    {/* 删除按钮 --- 使用 AlertDialog 确认 */}
+                    <AlertDialog
+                      open={deleteTargetId === m.id}
+                      onOpenChange={(open) => {
+                        if (!open) setDeleteTargetId(null);
+                      }}
+                    >
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => setDeleteTargetId(m.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>确认删除</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            确定要删除模型「{m.provider} / {m.model_name}」吗？此操作不可撤销。
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setDeleteTargetId(null)}
+                          >
+                            取消
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={handleDeleteConfirm}
+                            disabled={deleteMutation.isPending}
+                          >
+                            {deleteMutation.isPending ? '删除中...' : '确认删除'}
+                          </Button>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {m.is_default !== 1 && (
-                  <button onClick={() => setDefaultMutation.mutate(m.id)} className="text-xs px-3 py-1.5 border rounded-md hover:bg-accent">
-                    设为默认
-                  </button>
-                )}
-                <span className={`text-xs px-2 py-0.5 rounded-full ${m.is_default === 1 ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-500'}`}>
-                  {m.is_default === 1 ? '默认' : ''}
-                </span>
-                <button onClick={() => { if (confirm('确认删除？')) deleteMutation.mutate(m.id); }} className="p-1.5 text-muted-foreground hover:text-red-500">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
