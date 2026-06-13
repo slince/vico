@@ -84,7 +84,7 @@ class AgentToolCache {
         const tool = createAgentTool(row as any, tenantId);
         toolMap.set(`agent_${row.id}`, tool);
         descriptions.push(
-          `- **${row.name}** (agent_${row.id}): ${row.description || '无描述'}`,
+          `- **${row.name}** (agent_${row.id})`,
         );
       } catch (err) {
         logger.error(
