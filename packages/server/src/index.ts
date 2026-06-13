@@ -5,7 +5,7 @@ import { runMigrations } from './db/run-migrations.js';
 import { seedDefaultOrgAndAdmin } from './auth/seed.js';
 import { getStorage } from './agent/memory-setup.js';
 import { app } from './mastra.js';
-import { auth } from './auth/index.js';
+import { auth } from './auth';
 import logger from './lib/logger.js';
 
 /** better-auth session 扩展类型 — 包含 organization 插件注入的 activeOrganizationId */
