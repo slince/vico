@@ -1,16 +1,28 @@
 import { describe, it, expect, vi } from 'vitest';
-import { WorkingMemory } from '../working-memory.js';
 
-const getLtmMock = () => import('../../../memory/long-term.js').then((m) => m.longTermMemory);
+const mockExecute = vi.fn().mockImplementation(({ sql }: { sql: string }) => {
+  if (sql.includes('SELECT * FROM memory_entries') && sql.includes("type IN ('working')")) {
+    return Promise.resolve({
+      rows: [['mem-id-1', 't1', 'u1', 'working', '用户偏好简洁回复', 0.8, Date.now()]],
+      columns: ['id', 'tenant_id', 'user_id', 'type', 'content', 'importance', 'created_at'],
+    });
+  }
+  if (sql.includes('SELECT id FROM memory_entries') && sql.includes('substr')) {
+    // upsertByContent: no existing entry found -> insert path
+    return Promise.resolve({ rows: [], columns: ['id'] });
+  }
+  // INSERT statements
+  return Promise.resolve({ rows: [], columns: [] });
+});
 
-vi.mock('../../../memory/long-term.js', () => ({
-  longTermMemory: {
-    upsertByContent: vi.fn().mockResolvedValue(undefined),
-    searchByType: vi.fn().mockResolvedValue([
-      { content: '用户偏好简洁回复', importance: 0.8, type: 'working' },
-    ]),
-  },
+vi.mock('../../../db/db.js', () => ({
+  getClient: () => ({ execute: mockExecute }),
+  getDb: () => ({}),
+  getDatabaseUrl: () => '',
+  schema: {},
 }));
+
+import { WorkingMemory } from '../working-memory.js';
 
 describe('WorkingMemory', () => {
   it('extractAndStore matches preference patterns', async () => {
@@ -20,8 +32,8 @@ describe('WorkingMemory', () => {
       { role: 'user', content: '我喜欢简洁的回复方式' },
     ];
     await wm.extractAndStore('t1', 'u1', messages);
-    const ltm = await getLtmMock();
-    expect(ltm.upsertByContent).toHaveBeenCalled();
+    // Should have called execute for upsertByContent
+    expect(mockExecute).toHaveBeenCalled();
   });
 
   it('extractAndStore skips non-user messages', async () => {
@@ -31,14 +43,15 @@ describe('WorkingMemory', () => {
       { role: 'assistant', content: '我注意到你喜欢简洁回复' },
     ];
     await wm.extractAndStore('t1', 'u1', messages);
-    const ltm = await getLtmMock();
-    expect(ltm.upsertByContent).not.toHaveBeenCalled();
+    // No DB calls for non-user messages
+    expect(mockExecute).not.toHaveBeenCalled();
   });
 
   it('retrieve returns working-type entries', async () => {
     const wm = new WorkingMemory();
     const entries = await wm.retrieve('t1', 'u1');
     expect(entries).toHaveLength(1);
+    expect(entries[0].content).toBe('用户偏好简洁回复');
   });
 
   it('retrieveAsPrompt formats entries', async () => {
@@ -49,8 +62,10 @@ describe('WorkingMemory', () => {
   });
 
   it('retrieveAsPrompt returns empty string when no entries', async () => {
-    const ltm = await getLtmMock();
-    (ltm.searchByType as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
+    // Override mock to return empty for this test
+    mockExecute.mockImplementationOnce(() =>
+      Promise.resolve({ rows: [], columns: ['id', 'tenant_id', 'user_id', 'type', 'content', 'importance', 'created_at'] }),
+    );
     const wm2 = new WorkingMemory();
     const prompt = await wm2.retrieveAsPrompt('t1', 'u1');
     expect(prompt).toBe('');

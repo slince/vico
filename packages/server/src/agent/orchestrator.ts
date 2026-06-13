@@ -18,20 +18,63 @@ import { eq, and } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../db/db.js';
 import { config } from '../config.js';
-import { resolveAgentModel } from './mastra/bridges/model-bridge.js';
-import { getSkillToolsForMastraAgent, getSkillPromptForAgent } from './mastra/bridges/skill-bridge.js';
-import { createRagTool, getRagContext } from './mastra/bridges/rag-bridge.js';
-import { shortTermMemory } from '../memory/short-term.js';
-import { longTermMemory } from '../memory/long-term.js';
+import { ragManager } from '../memory/rag.js';
+import { skillManager } from '../skill/manager.js';
+import { getDefaultModel, getModelById } from './model-registry.js';
+import { resolveModelProvider } from './agent-factory.js';
+import { getSkillToolsForMastraAgent } from './tools/skill-tool-adapter.js';
+import { createRagSearchTool } from './tools/rag-tool.js';
 import { workingMemory } from './memory/working-memory.js';
 import { observationalMemory } from './memory/observational-memory.js';
-import type { PipelineContext } from './pipeline.js';
 
 const { agentTeams, agentTeamMembers, agents, conversations, messages } = schema;
 
+/** 管道运行时上下文 */
+interface PipelineContext {
+  tenantId: string;
+  agentId: string;
+  userId: string;
+  conversationId?: string;
+}
+
+/**
+ * 解析 Agent 使用的模型。
+ * 若 agent 指定了 model_id，使用该模型；否则使用租户默认模型。
+ */
+function resolveAgentModel(tenantId: string, modelId?: string) {
+  let modelConfig = modelId ? getModelById(tenantId, modelId) : getDefaultModel(tenantId);
+  if (!modelConfig) {
+    throw new Error('No LLM model configured. Please add a model in Settings first.');
+  }
+  return {
+    model: resolveModelProvider(modelConfig),
+    modelConfig,
+  };
+}
+
+/**
+ * 获取 Agent 绑定的 RAG 知识库上下文文本，直接注入 system prompt。
+ */
+async function getRagContext(agentId: string, query: string): Promise<string> {
+  const db = getDb();
+  const { agent_knowledge_bases: akb } = schema;
+  const bindings = db.select({ kb_id: akb.kb_id })
+    .from(akb)
+    .where(eq(akb.agent_id, agentId))
+    .all();
+
+  if (bindings.length === 0) return '';
+
+  const kbIds = bindings.map((b) => b.kb_id);
+  const chunks = await ragManager.hybridSearch(query, kbIds, config.rag.retrieval_top_k);
+
+  if (chunks.length === 0) return '';
+  return '\n\n## 相关知识库内容\n' + chunks.map((c) => c.content).join('\n\n');
+}
+
 /**
  * 执行子 Agent 并收集其完整文本响应。
- * 复用与单 Agent 管道相同的模型/Skills/RAG Bridge 层。
+ * 复用与单 Agent 管道相同的模型/Skills/RAG 层。
  *
  * @param agentId - 目标子 Agent 的 ID
  * @param task - 委派给子 Agent 的具体任务描述
@@ -54,17 +97,12 @@ async function delegateToAgent(
   // 解析模型
   const { model } = resolveAgentModel(ctx.tenantId, agentRow.model_id);
 
-  // 构建系统提示词：Agent prompt + Skill prompt + 长期记忆 + RAG
-  const skillPrompt = getSkillPromptForAgent(agentId);
-  const ltmFacts = await longTermMemory.retrieve(ctx.tenantId, ctx.userId, task, 3);
-  const ltmContext = ltmFacts.length > 0
-    ? '\n\n## 长期记忆\n' + ltmFacts.map((f: { content: string }) => `- ${f.content}`).join('\n')
-    : '';
+  // 构建系统提示词：Agent prompt + Skill prompt + RAG
+  const skillPrompt = skillManager.getPromptForAgent(agentId);
   const ragContext = await getRagContext(agentId, task);
   const systemPrompt = [
     agentRow.system_prompt,
     skillPrompt,
-    ltmContext,
     ragContext,
   ].filter(Boolean).join('\n');
 
@@ -73,29 +111,14 @@ async function delegateToAgent(
     tenantId: ctx.tenantId,
     agentId,
     userId: ctx.userId,
+    skillConfig: {},
   });
-  const ragTool = createRagTool(agentId);
 
-  const aiTools: Record<string, any> = {};
-  for (const [name, t] of Object.entries(skillTools)) {
-    aiTools[name] = tool({
-      description: t.description,
-      parameters: t.inputSchema,
-      execute: async (args: any) => {
-        const result = await t.execute({ context: { args } });
-        return result;
-      },
-    });
-  }
+  const aiTools: Record<string, any> = { ...skillTools };
+
+  const ragTool = await createRagSearchTool(agentId, ctx.tenantId);
   if (ragTool) {
-    aiTools[ragTool.id] = tool({
-      description: ragTool.description,
-      parameters: ragTool.inputSchema,
-      execute: async (args: any) => {
-        const result = await ragTool.execute({ context: { args } });
-        return result;
-      },
-    });
+    aiTools[ragTool.id] = ragTool;
   }
 
   // 执行 streamText 并收集完整文本
@@ -241,29 +264,14 @@ export async function runTeamPipeline(
     tenantId: ctx.tenantId,
     agentId: supervisorId,
     userId: ctx.userId,
+    skillConfig: {},
   });
-  const ragTool = createRagTool(supervisorId);
 
-  const aiTools: Record<string, any> = { ...delegationTools };
-  for (const [name, t] of Object.entries(skillTools)) {
-    aiTools[name] = tool({
-      description: t.description,
-      parameters: t.inputSchema,
-      execute: async (args: any) => {
-        const result = await t.execute({ context: { args } });
-        return result;
-      },
-    });
-  }
+  const aiTools: Record<string, any> = { ...delegationTools, ...skillTools };
+
+  const ragTool = await createRagSearchTool(supervisorId, ctx.tenantId);
   if (ragTool) {
-    aiTools[ragTool.id] = tool({
-      description: ragTool.description,
-      parameters: ragTool.inputSchema,
-      execute: async (args: any) => {
-        const result = await ragTool.execute({ context: { args } });
-        return result;
-      },
-    });
+    aiTools[ragTool.id] = ragTool;
   }
 
   // 6. 记忆与 RAG 上下文
@@ -277,17 +285,22 @@ export async function runTeamPipeline(
     observationContext = observationalMemory.retrieveAsPrompt(obsRows);
   }
 
-  const ltmFacts = await longTermMemory.retrieve(ctx.tenantId, ctx.userId, message, 3);
-  const ltmContext = ltmFacts.length > 0
-    ? '\n\n## 长期记忆\n' + ltmFacts.map((f: { content: string }) => `- ${f.content}`).join('\n')
-    : '';
   const ragContext = await getRagContext(supervisorId, message);
-  const fullSystem = [supervisorSystemPrompt, workingContext, observationContext, ltmContext, ragContext].filter(Boolean).join('\n');
+  const fullSystem = [supervisorSystemPrompt, workingContext, observationContext, ragContext].filter(Boolean).join('\n');
 
-  // 短期记忆上下文
-  const pastMessages = shortTermMemory.getContext(conversationId);
+  // 查询最近消息作为对话历史（替代已删除的 shortTermMemory）
+  const recentMessages = db.select({
+    role: messages.role,
+    content: messages.content,
+  })
+    .from(messages)
+    .where(eq(messages.conversation_id, conversationId))
+    .orderBy(messages.created_at)
+    .limit(20)
+    .all();
+
   const allMessages = [
-    ...pastMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    ...recentMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
     { role: 'user' as const, content: message },
   ];
 
@@ -370,18 +383,6 @@ export async function runTeamPipeline(
           token_usage: 0,
           created_at: Date.now(),
         }).run();
-
-        // 更新短期记忆
-        shortTermMemory.push(conversationId, { role: 'user', content: message, timestamp: Date.now() });
-        shortTermMemory.push(conversationId, { role: 'assistant', content: finalText, timestamp: Date.now() });
-
-        // 提取长期记忆（异步，非阻塞）
-        if (config.memory.ltm_auto_extract) {
-          longTermMemory.extractAndStore(ctx.tenantId, ctx.userId, [
-            { role: 'user', content: message },
-            { role: 'assistant', content: finalText },
-          ]).catch(() => {});
-        }
 
         // Phase 3: WorkingMemory 提取（异步，非阻塞）
         workingMemory.extractAndStore(ctx.tenantId, ctx.userId, [

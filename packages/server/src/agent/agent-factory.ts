@@ -33,7 +33,7 @@ const { agents } = schema;
  * @param modelConfig - 来自 model_configs 表的模型配置行
  * @returns AI SDK LanguageModel 实例，可直接传入 Mastra Agent 的 model 配置
  */
-function resolveModelProvider(modelConfig: ModelConfigRow) {
+export function resolveModelProvider(modelConfig: ModelConfigRow) {
   const apiKey = modelConfig.api_key_encrypted;
   const baseURL = modelConfig.base_url || undefined;
 
