@@ -24,7 +24,7 @@ import type { MastraModelOutput } from '@mastra/core/stream';
  * @param output - Mastra agent.stream() 返回的 MastraModelOutput 实例
  * @returns 可直接作为 Hono SSE 响应体的 ReadableStream
  */
-export function createSSEStream(output: MastraModelOutput<any>): ReadableStream {
+export function createSSEStream(output: MastraModelOutput<unknown>): ReadableStream {
   const encoder = new TextEncoder();
 
   return new ReadableStream({
@@ -70,8 +70,9 @@ export function createSSEStream(output: MastraModelOutput<any>): ReadableStream 
               }
             : {},
         });
-      } catch (err: any) {
-        enqueue({ type: 'error', message: err.message || 'Unknown error' });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        enqueue({ type: 'error', message });
       } finally {
         controller.close();
       }
