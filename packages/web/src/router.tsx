@@ -6,6 +6,8 @@ import Login from '@/pages-new/Login';
 import Dashboard from '@/pages-new/Dashboard';
 import Agents from '@/pages-new/Agents';
 import AgentDetail from '@/pages-new/AgentDetail';
+import Teams from '@/pages-new/Teams';
+import TeamDetail from '@/pages-new/TeamDetail';
 import Skills from '@/pages-new/Skills';
 import Conversations from '@/pages-new/Conversations';
 import ConversationDetail from '@/pages-new/ConversationDetail';
@@ -54,6 +56,8 @@ export const router = createBrowserRouter([
           { path: 'dashboard', element: <Dashboard /> },
           { path: 'agents', element: <Agents /> },
           { path: 'agents/:id', element: <AgentDetail /> },
+          { path: 'teams', element: <Teams /> },
+          { path: 'teams/:id', element: <TeamDetail /> },
           { path: 'skills', element: <Skills /> },
           { path: 'knowledge', element: <KnowledgeBases /> },
           { path: 'knowledge/:id', element: <KnowledgeDetail /> },
