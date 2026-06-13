@@ -767,3 +767,204 @@ export default tools;
 | 用自增 ID | 统一用 `uuid()` |
 | Schema 列名用 camelCase | 用 `snake_case` 与数据库一致 |
 | 忘记手动级联删除关联表 | SQLite 的 FK 行为在不同版本不一致，统一手动处理 |
+| 巨型方法/类不拆分 | 按职责提取子函数、子模块或委托类 |
+
+---
+
+## 十五、巨型方法与巨型类的拆分
+
+### 15.1 何时拆分
+
+| 信号 | 方法 | 类 |
+|------|------|-----|
+| 行数阈值 | 超过 60 行 | 超过 400 行 |
+| 职责数量 | 做 3 件以上不相关的事 | 管理 4 个以上独立概念 |
+| 注释分区 | 靠 `// ----` 分隔块来组织逻辑 | 靠 `// ----` 分隔不同职责域 |
+| 测试困难 | 需要 mock 大量依赖才能测 | 需要 mock 的对象超过 5 个 |
+| 复读成本 | 需要上下翻页才能理解全貌 | 打开文件需要 30 秒才能定位到目标代码 |
+
+**核心原则：一个函数只做一件事；一个类只管理一个概念。**
+
+### 15.2 拆分方法
+
+**手法：提取子函数（Extract Function）**
+
+从长方法中识别出独立的逻辑块，提取为模块级 `function`（不挂在类上，避免污染 this）。
+
+```typescript
+// ❌ 巨型方法 —— 60+ 行，混合多个步骤
+async chatHandler(agentId: string, message: string) {
+  // 加载 agent 配置
+  const agent = db.select().from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.tenant_id, this.tenantId)))
+    .get();
+  if (!agent) throw new Error('Agent not found');
+  if (!agent.enabled) throw new Error('Agent disabled');
+
+  // 解析模型
+  const modelEntry = modelRegistry.get(agent.model_id);
+  if (!modelEntry) throw new Error('Model not configured');
+  const model = modelEntry.create();
+
+  // 构建系统提示词
+  let systemPrompt = agent.system_prompt || '';
+  const skillPrompts = await skillManager.getPromptsForAgent(agentId);
+  systemPrompt += '\n' + skillPrompts.join('\n');
+  const memories = await longTermMemory.retrieve(this.tenantId, this.userId, message);
+  if (memories.length > 0) {
+    systemPrompt += '\n## 相关记忆\n' + memories.map(m => `- ${m.content}`).join('\n');
+  }
+
+  // 执行对话
+  const { textStream, usage } = await streamText({
+    model, system: systemPrompt, messages: [{ role: 'user', content: message }],
+  });
+  // ... 更多步骤
+}
+```
+
+```typescript
+// ✅ 拆分后 —— 每个函数单一职责，主方法变成编排层
+async chatHandler(agentId: string, message: string) {
+  const agent = loadAgent(agentId, this.tenantId);          // 加载 + 校验
+  const model = resolveModel(agent.model_id);                // 模型解析
+  const systemPrompt = await buildSystemPrompt(agent, message); // 提示词组装
+  return executeChat(model, systemPrompt, message);          // 执行对话
+}
+
+// 提取为模块级纯函数（不挂在类上）
+function loadAgent(agentId: string, tenantId: string) {
+  const agent = db.select().from(agents)
+    .where(and(eq(agents.id, agentId), eq(agents.tenant_id, tenantId)))
+    .get();
+  if (!agent) throw new Error('Agent not found');
+  if (!agent.enabled) throw new Error('Agent disabled');
+  return agent;
+}
+
+function resolveModel(modelId: string) {
+  const entry = modelRegistry.get(modelId);
+  if (!entry) throw new Error(`Model not configured: ${modelId}`);
+  return entry.create();
+}
+
+async function buildSystemPrompt(
+  agent: { system_prompt?: string },
+  message: string,
+) {
+  const parts: string[] = [];
+  if (agent.system_prompt) parts.push(agent.system_prompt);
+  const skillPrompts = await skillManager.getPromptsForAgent(agent.id);
+  if (skillPrompts.length > 0) parts.push(skillPrompts.join('\n'));
+  const memories = await longTermMemory.retrieve(this.tenantId, this.userId, message);
+  if (memories.length > 0) {
+    parts.push('## 相关记忆\n' + memories.map(m => `- ${m.content}`).join('\n'));
+  }
+  return parts.join('\n');
+}
+```
+
+**规则：**
+- 提取的函数放在同一个文件内，不在类/对象上挂不必要的方法
+- 优先提取纯函数（参数传入，返回值传出），最易测试
+- 保留一个有名字的主方法作为"目录"，让读者一眼看懂流程步骤
+
+### 15.3 拆分类
+
+**手法一：提取子管理器（首选）**
+
+当一个类管理多个独立概念时，将每个概念提取为独立的 Manager。
+
+```typescript
+// ❌ 巨型类 —— 400+ 行，管了 Skill、知识库、记忆三件事
+class AgentManager {
+  // Skill 相关方法
+  async bindSkill(agentId: string, skillName: string) { /* ... */ }
+  async unbindSkill(agentId: string, skillName: string) { /* ... */ }
+  async getAgentSkills(agentId: string) { /* ... */ }
+
+  // 知识库相关方法
+  async bindKnowledgeBase(agentId: string, kbId: string) { /* ... */ }
+  async unbindKnowledgeBase(agentId: string, kbId: string) { /* ... */ }
+
+  // 记忆相关方法
+  async storeMemory(agentId: string, content: string) { /* ... */ }
+  async retrieveMemories(agentId: string, query: string) { /* ... */ }
+
+  // Agent CRUD
+  async create(data: CreateAgentInput) { /* ... */ }
+  async update(id: string, data: UpdateInput) { /* ... */ }
+  async delete(id: string) { /* ... */ }
+}
+```
+
+```typescript
+// ✅ 拆分为三个独立 Manager，各管自己的概念
+class AgentSkillManager {
+  bind(agentId: string, skillName: string) { /* ... */ }
+  unbind(agentId: string, skillName: string) { /* ... */ }
+  list(agentId: string) { /* ... */ }
+}
+
+class AgentKnowledgeManager {
+  bind(agentId: string, kbId: string) { /* ... */ }
+  unbind(agentId: string, kbId: string) { /* ... */ }
+}
+
+class AgentMemoryManager {
+  store(agentId: string, content: string) { /* ... */ }
+  retrieve(agentId: string, query: string) { /* ... */ }
+}
+
+// 主 Manager 仅保留 CRUD + 委托
+class AgentManager {
+  skills = new AgentSkillManager();
+  knowledge = new AgentKnowledgeManager();
+  memory = new AgentMemoryManager();
+
+  create(data: CreateAgentInput) { /* ... */ }
+  update(id: string, data: UpdateInput) { /* ... */ }
+  delete(id: string) { /* ... */ }
+}
+```
+
+**手法二：提取策略对象**
+
+当单个方法内部有 switch/if-else 分支且每个分支逻辑很重时，用策略模式替换。
+
+```typescript
+// ❌ 分支臃肿的方法
+async executeTool(name: string, args: unknown) {
+  if (name === 'web_search') {
+    // 30 行搜索逻辑
+  } else if (name === 'file_read') {
+    // 25 行文件读取逻辑
+  } else if (name === 'database_query') {
+    // 35 行数据库查询逻辑
+  }
+}
+
+// ✅ 策略注册 + 分发
+const toolStrategies: Record<string, ToolHandler> = {
+  web_search: handleWebSearch,
+  file_read: handleFileRead,
+  database_query: handleDatabaseQuery,
+};
+
+async executeTool(name: string, args: unknown) {
+  const handler = toolStrategies[name];
+  if (!handler) return { success: false, error: `Unknown tool: ${name}` };
+  return handler(args);
+}
+```
+
+### 15.4 拆分检查清单
+
+| 检查项 | 说明 |
+|--------|------|
+| 方法 ≤ 60 行 | 超过则必须提取子函数 |
+| 类 ≤ 400 行 | 超过则考虑提取子 Manager 或策略对象 |
+| 无 3 层以上嵌套 | if/for/try 嵌套过深 → 提取子函数或用 early return 扁平化 |
+| 无幽灵注释分区 | 如果靠 `// ==== xxx ====` 分割方法内部，那就是提取信号 |
+| 提取的函数是纯函数 | 能不依赖 this 就不依赖，参数进、返回值出 |
+| 主方法可当目录读 | 顶层方法只包含一系列函数调用，像目录一样可快速扫读 |
