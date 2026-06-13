@@ -7,6 +7,8 @@ import { agentToolCache } from '../agent/mastra/cache/agent-tool-cache.js';
 import { createSSEStream, createNetworkSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
 import { getDefaultModel } from '../agent/model-registry.js';
+import { resolveModelProvider } from '../agent/mastra/bridges/model-bridge.js';
+import { workingMemory } from '../agent/memory/working-memory.js';
 import logger from '../lib/logger.js';
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
@@ -71,8 +73,19 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         maxSteps: 15,
       });
 
-      // 包装为 SSE 流
-      const stream = createSSEStream(output);
+      // 包装为 SSE 流，流结束后异步提取工作记忆
+      const userMessage = message as string;
+      const stream = createSSEStream(output, {
+        onComplete: async (fullText: string) => {
+          const modelConfig = await getDefaultModel(auth.tenantId);
+          if (!modelConfig) return;
+          const model = resolveModelProvider(modelConfig);
+          await workingMemory.extractAndStore(model, auth.tenantId, auth.userId, [
+            { role: 'user', content: userMessage },
+            { role: 'assistant', content: fullText },
+          ]);
+        },
+      });
 
       return new Response(stream, {
         headers: {
