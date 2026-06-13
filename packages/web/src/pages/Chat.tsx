@@ -3,7 +3,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 // 2. Third-party
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 
 // 3. API
 import { api, streamChat } from '@/api/client';
@@ -26,6 +26,9 @@ interface Agent {
   name: string;
 }
 
+/** 主 Agent — 内置通用调度器，非 DB 记录 */
+const MAIN_AGENT: Agent = { id: 'main', name: 'Vico' };
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -42,6 +45,7 @@ export interface ChatMessage {
  */
 export default function Chat() {
   const { conversationId } = useParams<{ conversationId?: string }>();
+  const navigate = useNavigate();
 
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [activeConversationId, setActiveConversationId] = useState<string>(conversationId || '');
@@ -171,8 +175,8 @@ export default function Chat() {
     setIsStreaming(false);
     setStreamingContent('');
     // 更新 URL 到 /chat
-    window.history.replaceState(null, '', '/chat');
-  }, []);
+    navigate('/chat', { replace: true });
+  }, [navigate]);
 
   /** 选择对话 */
   const handleSelectConversation = useCallback(
@@ -185,9 +189,9 @@ export default function Chat() {
       setIsStreaming(false);
       setStreamingContent('');
       setActiveConversationId(convId);
-      window.history.replaceState(null, '', `/chat/${convId}`);
+      navigate(`/chat/${convId}`, { replace: true });
     },
-    [activeConversationId]
+    [activeConversationId, navigate]
   );
 
   /** 选择 Agent */
@@ -206,7 +210,7 @@ export default function Chat() {
     return <ChatSkeleton />;
   }
 
-  const agentList: Agent[] = agents ?? [];
+  const agentList: Agent[] = [MAIN_AGENT, ...(agents ?? [])];
   const selectedAgent = agentList.find((a) => a.id === selectedAgentId);
 
   return (

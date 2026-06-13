@@ -4,6 +4,7 @@ import { mastra } from '../mastra.js';
 import { createSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
 import { agentManager } from '../services/agent/agent-manager.js';
+import { agentToolCache } from '../agent/cache/agent-tool-cache.js';
 import { modelManager } from '../services/model/model-manager.js';
 import { resolveModelProvider } from '../agent/bridges/model-bridge.js';
 import { workingMemory } from '../agent/memory/working-memory.js';
@@ -21,35 +22,20 @@ export interface ExecuteChatParams {
 /**
  * 执行单 Agent 对话。
  *
- * 根据 agentId 查找数据库中用户选择的 Agent 配置，
- * 使用 agentProxy 模板注入运行时配置（模型、instructions），
- * 通过 SSE 流式返回 AI 回复。
- *
- * @param params - 包含 agentId、message、conversationId、tenantId、userId
- * @returns SSE Response 对象，或错误时返回 JSON Response
+ * - agentId === 'main' 时使用内置 mainAgent（通用调度器，带租户 Agent 工具）
+ * - 其他 agentId 从 DB 查找配置，通过 agentProxy 模板注入运行时参数
+ * - 通过 SSE 流式返回 AI 回复
  */
 export async function executeAgentChat(params: ExecuteChatParams): Promise<Response> {
   const { agentId, message, conversationId, tenantId, userId } = params;
 
   try {
-    // 获取目标 Agent 的运行时配置（模型 + 编译后的 instructions）
-    const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
-    if (!agentConfig) {
-      return new Response(JSON.stringify({ error: 'Agent not found' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // 为每个对话生成唯一标识，实现对话隔离
     const cid = conversationId || uuidv4();
     const threadId = `${agentId}-${userId}-${cid}`;
 
-    // 获取租户默认模型配置（用于元信息记录）
     const modelConfig = await modelManager.getDefault(tenantId);
     const modelName = modelConfig?.model_name || '';
 
-    // 预先创建 Mastra thread，保存 Agent/用户/模型 等元信息
     const memory = getMemory();
     await memory.saveThread({
       thread: {
@@ -66,23 +52,54 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       },
     });
 
-    // 使用 agentProxy 模板 + requestContext 注入运行时配置
-    const agentProxy = mastra.getAgent('agentProxy');
-
+    // 构建 requestContext，注入租户默认模型
     const requestContext = new RequestContext();
-    requestContext.set('model', agentConfig.model);
-    requestContext.set('instructions', agentConfig.instructions);
+    if (modelConfig) {
+      const model = resolveModelProvider(modelConfig);
+      requestContext.set('model', model);
+    }
 
-    // 执行流式对话
-    const output = await agentProxy.stream([{ role: 'user', content: message }], {
-      instructions: agentConfig.instructions,
-      memory: {
-        thread: threadId,
-        resource: tenantId,
-      },
-      maxSteps: agentConfig.maxSteps,
-      requestContext,
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let output: any;
+    let instructions: string;
+
+    if (agentId === 'main') {
+      // 内置主 Agent — 通用调度器，注入租户 Agent 工具
+      const vicoAgent = mastra.getAgent('mainAgent');
+
+      const agentTools = await agentToolCache.getToolsForTenant(tenantId);
+      const agentDescriptions = await agentToolCache.getAgentDescriptions(tenantId);
+
+      instructions = `${await vicoAgent.getInstructions()}${agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : ''}`;
+
+      output = await vicoAgent.stream([{ role: 'user', content: message }], {
+        clientTools: agentTools,
+        instructions,
+        memory: { thread: threadId, resource: tenantId },
+        maxSteps: 15,
+        requestContext,
+      });
+    } else {
+      // 用户自定义 Agent — 从 DB 获取配置，通过 agentProxy 运行
+      const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
+      if (!agentConfig) {
+        return new Response(JSON.stringify({ error: 'Agent not found' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      requestContext.set('model', agentConfig.model);
+      instructions = agentConfig.instructions;
+
+      const agentProxy = mastra.getAgent('agentProxy');
+      output = await agentProxy.stream([{ role: 'user', content: message }], {
+        instructions,
+        memory: { thread: threadId, resource: tenantId },
+        maxSteps: agentConfig.maxSteps,
+        requestContext,
+      });
+    }
 
     // 包装为 SSE 流，流结束后异步提取工作记忆
     const userMessage = message as string;
