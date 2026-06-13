@@ -73,18 +73,17 @@ export function createAgentTool(agent: AgentDetail, tenantId: string) {
       requestContext.set('instructions', instructions);
 
       // 5. 调用 agentProxy.generate()
-      const result = await agentProxy.generate(
-        [{ role: 'user', content: task }],
-        {
-          requestContext,
-          clientTools: Object.keys(tools).length > 0 ? tools : undefined,
-          maxSteps: runtimeConfig.maxSteps,
-          memory: {
-            thread: `proxy-${agent.id}-${Date.now()}`,
-            resource: tenantId,
-          },
+      const threadId = `proxy-${agent.id}-${Date.now()}`;
+      const options = {
+        requestContext,
+        clientTools: Object.keys(tools).length > 0 ? tools : undefined,
+        maxSteps: runtimeConfig.maxSteps,
+        memory: {
+          thread: threadId,
+          resource: tenantId,
         },
-      );
+      };
+      const result = await agentProxy.generate([{ role: 'user', content: task }], options);
 
       return result.text;
     },
