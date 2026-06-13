@@ -12,10 +12,8 @@ import { z } from 'zod';
 import { agentProxy } from '../agents/agent-proxy.agent.js';
 import { getSkillToolsForMastraAgent } from '../../tools/skill-tool-adapter.js';
 import { createRagSearchTool } from '../../tools/rag-tool.js';
-import { modelManager } from '../../../services/model/model-manager.js';
 import { skillManager } from '../../../skill/manager.js';
 import logger from '../../../lib/logger.js';
-import type { ModelConfigRow } from '../../../services/model/types.js';
 
 /** Vico Agent 数据库行的最小类型 */
 interface AgentRow {
@@ -50,15 +48,7 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
       context: z.string().optional().describe('附加上下文信息'),
     }),
     execute: async ({ task, context }) => {
-      // 1. 解析该 Agent 使用的模型配置（从 DB 获取）
-      let modelConfig: ModelConfigRow | null = null;
-      try {
-        modelConfig = await modelManager.getDefault(tenantId);
-      } catch (err) {
-        logger.warn({ err, agentId: agentRow.id }, 'Failed to resolve model for agent tool');
-      }
-
-      // 2. 构建 instructions
+      // 1. 构建 instructions（系统提示词 + Skill 提示词）
       let instructions = agentRow.system_prompt || 'You are a helpful assistant.';
       try {
         const skillPrompts = await skillManager.getPromptForAgent(agentRow.id);
@@ -73,7 +63,7 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
         instructions += `\n\n## 附加上下文\n${context}`;
       }
 
-      // 3. 构建 tools: Skill Tools + RAG Tool
+      // 2. 构建 tools: Skill Tools + RAG Tool
       const tools: Record<string, any> = {};
       try {
         const skillTools = await getSkillToolsForMastraAgent(agentRow.id, {
@@ -98,14 +88,13 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
         logger.warn({ err, agentId: agentRow.id }, 'Failed to create RAG tool');
       }
 
-      // 4. 创建 requestContext 并注入模型配置
+      // 3. 创建 requestContext 并注入 agentId + tenantId，
+      //    agentProxy 的 model 函数会据此解析模型配置
       const requestContext = new RequestContext();
-      if (modelConfig) {
-        requestContext.set('modelConfig', modelConfig);
-      }
+      requestContext.set('agentId', agentRow.id);
+      requestContext.set('tenantId', tenantId);
 
-      // 5. 调用 agentProxy.generate()，模型由 agentProxy 的 model 函数
-      //    从 requestContext 中动态解析，不再通过 options.model 注入
+      // 4. 调用 agentProxy.generate()
       const result = await agentProxy.generate(
         [{ role: 'user', content: task }],
         {
