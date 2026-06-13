@@ -7,9 +7,9 @@
  *  - Agent 能力描述文本，注入到 MainAgent 的 instructions 中帮助 LLM 判断路由
  */
 import { eq } from 'drizzle-orm';
-import { getDb, schema } from '../../../db/db.js';
+import { getDb, schema } from '../../db/db.js';
 import { createAgentTool } from '../tools/agent-tool.factory.js';
-import logger from '../../../lib/logger.js';
+import logger from '../../lib/logger.js';
 
 const { agents } = schema;
 

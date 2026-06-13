@@ -12,7 +12,7 @@ import { Agent } from '@mastra/core/agent';
 import type { MastraAgentNetworkStream } from '@mastra/core/stream';
 import { eq, and } from 'drizzle-orm';
 import { getDb, schema } from '../db/db.js';
-import { resolveModelProvider } from './mastra/bridges/model-bridge.js';
+import { resolveModelProvider } from './bridges/model-bridge.js';
 import { modelManager } from '../services/model/model-manager.js';
 import { skillManager } from '../skill/manager.js';
 import { getSkillToolsForMastraAgent } from './tools/skill-tool-adapter.js';

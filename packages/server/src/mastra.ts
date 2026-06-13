@@ -1,7 +1,7 @@
 import { Mastra } from '@mastra/core';
 import { MastraServer } from '@mastra/hono';
-import { vicoMainAgent } from './agent/mastra/agents/vico-main.agent.js';
-import { agentProxy } from './agent/mastra/agents/agent-proxy.agent.js';
+import { vicoMainAgent } from './agent/agents/vico-main.agent.js';
+import { agentProxy } from './agent/agents/agent-proxy.agent.js';
 import { getStorage } from './agent/memory-setup.js';
 import { createApp } from './app.js';
 

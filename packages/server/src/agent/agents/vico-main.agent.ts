@@ -1,6 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
-import { getMemory } from '../../memory-setup.js';
+import { getMemory } from '../memory-setup.js';
 
 /**
  * Vico Main Agent — 通用任务路由调度器。

@@ -2,7 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
 import { encryptApiKey, decryptApiKey } from '../../lib/crypto.js';
-import { resolveModelProvider } from '../../agent/mastra/bridges/model-bridge.js';
+import { resolveModelProvider } from '../../agent/bridges/model-bridge.js';
 import type { ModelConfigRow } from './types.js';
 import type { MastraModelConfig } from '@mastra/core/llm';
 

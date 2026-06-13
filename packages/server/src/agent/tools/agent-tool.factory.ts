@@ -10,10 +10,10 @@ import { createTool } from '@mastra/core/tools';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import { agentProxy } from '../agents/agent-proxy.agent.js';
-import { getSkillToolsForMastraAgent } from '../../tools/skill-tool-adapter.js';
-import { createRagSearchTool } from '../../tools/rag-tool.js';
-import { agentManager } from '../../../services/agent/agent-manager.js';
-import logger from '../../../lib/logger.js';
+import { getSkillToolsForMastraAgent } from '../tools/skill-tool-adapter.js';
+import { createRagSearchTool } from '../tools/rag-tool.js';
+import { agentManager } from '../../services/agent/agent-manager.js';
+import logger from '../../lib/logger.js';
 
 /** Vico Agent 数据库行的最小类型 */
 interface AgentRow {

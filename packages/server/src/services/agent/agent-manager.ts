@@ -1,10 +1,10 @@
 import { eq, and, desc, inArray, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
-import { agentToolCache } from '../../agent/mastra/cache/agent-tool-cache.js';
+import { agentToolCache } from '../../agent/cache/agent-tool-cache.js';
 import { modelManager } from '../model/model-manager.js';
 import { skillManager } from '../../skill/manager.js';
-import { resolveModelProvider } from '../../agent/mastra/bridges/model-bridge.js';
+import { resolveModelProvider } from '../../agent/bridges/model-bridge.js';
 import {
   createAgentSchema,
   updateAgentSchema,
