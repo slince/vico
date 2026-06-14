@@ -40,6 +40,14 @@ interface AppConfig {
     max_size_bytes: number;
     allowed_mime_types: string[];
   };
+  /** Workspace 基础工具配置（文件读写、命令执行等） */
+  workspace: {
+    base_path: string;
+    contained: boolean;
+    allowed_paths: string[];
+    timeout_ms: number;
+    isolation: 'none' | 'seatbelt' | 'bwrap';
+  };
 }
 
 function loadConfig(): AppConfig {
@@ -53,6 +61,7 @@ function loadConfig(): AppConfig {
     rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'local', embedder_model: 'Xenova/all-MiniLM-L6-v2' },
     tool: { timeout_ms: 30000 },
     upload: { max_size_bytes: 50 * 1024 * 1024, allowed_mime_types: ['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'text/x-python', 'text/javascript', 'application/json'] },
+    workspace: { base_path: resolve(__dirname, '../../workspace'), contained: true, allowed_paths: [], timeout_ms: 30000, isolation: 'none' },
   };
 
   if (existsSync(configPath)) {
@@ -69,6 +78,7 @@ function loadConfig(): AppConfig {
       rag: { ...defaultConfig.rag, ...parsed.rag },
       tool: { ...defaultConfig.tool, ...parsed.tool },
       upload: { ...defaultConfig.upload, ...parsed.upload },
+      workspace: { ...defaultConfig.workspace, ...parsed.workspace },
     };
     return merged;
   }

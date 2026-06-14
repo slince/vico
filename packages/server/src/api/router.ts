@@ -9,6 +9,7 @@ import { dashboardRoutes } from './dashboard.js';
 import { chatRoutes } from './chat.js';
 import { teamRoutes } from './teams.js';
 import { conversationRoutes } from './conversations.js';
+import { execApprovalRoutes } from './exec-approvals.js';
 
 export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   authRoutes(app);
@@ -20,4 +21,5 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   chatRoutes(app);
   teamRoutes(app);
   conversationRoutes(app);
+  execApprovalRoutes(app);
 }

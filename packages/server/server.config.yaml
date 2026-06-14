@@ -27,3 +27,10 @@ rag:
 
 tool:
   timeout_ms: 30000
+
+workspace:
+  base_path: './workspace'
+  contained: true
+  allowed_paths: []
+  timeout_ms: 30000
+  isolation: 'none'
