@@ -9,9 +9,10 @@ import type { InValue } from '@libsql/client';
  *
  * 提供 trace 列表查询、单条 trace 详情、聚合统计三个端点。
  * 数据来源于 Mastra Storage Exporter 自动写入 mastra_ai_spans 的遥测数据。
- * 所有端点均按 tenantId（通过 requestContext JSON 字段）进行租户隔离过滤。
+ * 所有端点均按 tenantId（通过 requestContext 二进制字段 LIKE 匹配）进行租户隔离过滤。
  *
- * 注意：LibSQL 存储后端未实现 listTracesLight/getTrace 方法（会抛错误），
+ * 注意：requestContext 为 Mastra 序列化的二进制格式（非 JSON），因此用 instr 而非 json_extract 匹配 tenantId。
+ * LibSQL 存储后端未实现 listTracesLight/getTrace 方法（会抛错误），
  * 因此直接通过 libsql client 查询 mastra_ai_spans 表。
  */
 export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
@@ -44,7 +45,7 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
     const timeClause = timeConditions.length > 0 ? `AND ${timeConditions.join(' AND ')}` : '';
 
     // 总数查询
-    const countSql = `SELECT COUNT(DISTINCT traceId) as total FROM mastra_ai_spans WHERE json_extract(requestContext, '$.tenantId') = ? ${timeClause}`;
+    const countSql = `SELECT COUNT(DISTINCT traceId) as total FROM mastra_ai_spans WHERE instr(requestContext, ?) > 0 ${timeClause}`;
     const countResult = await client.execute({ sql: countSql, args: [tenantId, ...timeParams] });
     const total = (countResult.rows[0]?.total as number) ?? 0;
 
@@ -53,7 +54,7 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
       SELECT traceId, spanId, name, spanType, parentSpanId, startedAt, endedAt,
              entityId, entityName, error, createdAt
       FROM mastra_ai_spans
-      WHERE json_extract(requestContext, '$.tenantId') = ? ${timeClause}
+      WHERE instr(requestContext, ?) > 0 ${timeClause}
       ORDER BY startedAt DESC
       LIMIT ? OFFSET ?
     `;
@@ -89,7 +90,7 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
     // 租户验证
     const verifySql = `
       SELECT traceId FROM mastra_ai_spans
-      WHERE traceId = ? AND json_extract(requestContext, '$.tenantId') = ?
+      WHERE traceId = ? AND instr(requestContext, ?) > 0
       LIMIT 1
     `;
     const verifyResult = await client.execute({ sql: verifySql, args: [traceId, tenantId] });
@@ -174,7 +175,7 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
           END
         ) as latencies
       FROM mastra_ai_spans
-      WHERE json_extract(requestContext, '$.tenantId') = ?
+      WHERE instr(requestContext, ?) > 0
         AND parentSpanId IS NULL
         ${timeClause}
       GROUP BY entityId
