@@ -11,7 +11,6 @@ import {
 } from '@mastra/observability';
 import type { ObservabilityRegistryConfig } from '@mastra/observability';
 import { SpanType } from '@mastra/core/observability';
-import { getStorage } from '../../agent/memory-setup.js';
 
 let _config: ObservabilityRegistryConfig | undefined;
 
