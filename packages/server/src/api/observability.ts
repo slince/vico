@@ -8,8 +8,17 @@ import { getStorage } from '../agent/memory-setup.js';
  *
  * 提供 trace 列表查询、单条 trace 详情、聚合统计三个端点。
  * 数据来源于 Mastra Storage Exporter 自动写入 LibSQL 的遥测数据。
+ * 所有端点均按 tenantId 进行租户隔离过滤。
  */
 export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
+  /**
+   * 安全解析日期查询参数，返回 NaN 表示无效值。
+   */
+  function parseDateParam(value: string | undefined): number {
+    if (!value) return NaN;
+    return parseInt(value, 10);
+  }
+
   // ── Trace 列表（分页） ──
   app.get('/api/v1/observability/traces', async (c) => {
     const auth = await getAuthContext(c);
@@ -23,12 +32,17 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
     const fromDate = c.req.query('fromDate');
     const toDate = c.req.query('toDate');
 
-    // 构建时间范围过滤器
-    const filters: Record<string, unknown> = {};
-    if (fromDate || toDate) {
+    // 构建过滤器（含租户隔离和时间范围）
+    const filters: Record<string, unknown> = {
+      tenantId: auth.tenantId,
+    };
+
+    const fromParsed = parseDateParam(fromDate);
+    const toParsed = parseDateParam(toDate);
+    if (!isNaN(fromParsed) || !isNaN(toParsed)) {
       filters.startedAt = {
-        start: fromDate ? new Date(parseInt(fromDate, 10)) : undefined,
-        end: toDate ? new Date(parseInt(toDate, 10)) : undefined,
+        ...(!isNaN(fromParsed) ? { start: new Date(fromParsed) } : {}),
+        ...(!isNaN(toParsed) ? { end: new Date(toParsed) } : {}),
       };
     }
 
@@ -48,7 +62,18 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
     const obsStore = getStorage().stores?.observability;
     if (!obsStore) return c.json({ error: 'Observability not available' }, 500);
 
-    const trace = await obsStore.getTrace({ traceId: c.req.param('id') });
+    const traceId = c.req.param('id');
+
+    // 通过 listTracesLight 验证该 trace 属于当前租户，防止横向越权访问
+    const filtered = await obsStore.listTracesLight({
+      filters: { traceId, tenantId: auth.tenantId },
+      pagination: { page: 1, perPage: 1 },
+    });
+    if (!filtered.spans.length) {
+      return c.json({ error: 'Trace not found' }, 404);
+    }
+
+    const trace = await obsStore.getTrace({ traceId });
 
     if (!trace) {
       return c.json({ error: 'Trace not found' }, 404);
@@ -68,12 +93,17 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
     const fromDate = c.req.query('fromDate');
     const toDate = c.req.query('toDate');
 
-    // 构建时间范围过滤器
-    const filters: Record<string, unknown> = {};
-    if (fromDate || toDate) {
+    // 构建过滤器（含租户隔离和时间范围）
+    const filters: Record<string, unknown> = {
+      tenantId: auth.tenantId,
+    };
+
+    const fromParsed = parseDateParam(fromDate);
+    const toParsed = parseDateParam(toDate);
+    if (!isNaN(fromParsed) || !isNaN(toParsed)) {
       filters.startedAt = {
-        start: fromDate ? new Date(parseInt(fromDate, 10)) : undefined,
-        end: toDate ? new Date(parseInt(toDate, 10)) : undefined,
+        ...(!isNaN(fromParsed) ? { start: new Date(fromParsed) } : {}),
+        ...(!isNaN(toParsed) ? { end: new Date(toParsed) } : {}),
       };
     }
 
@@ -123,6 +153,6 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
       };
     });
 
-    return c.json({ stats });
+    return c.json({ stats, truncated: result.pagination.hasMore });
   });
 }
