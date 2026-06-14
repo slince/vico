@@ -7,6 +7,8 @@
   "skills": "Skill 管理",
   "knowledge": "知识库",
   "conversations": "对话记录",
+  "observability": "可观测性",
+  "evals": "评估",
   "settings": "设置",
   "logout": "退出登录"
 }

@@ -74,7 +74,7 @@ export async function deleteDataset(tenantId: string, datasetId: string): Promis
     .delete(eval_datasets)
     .where(and(eq(eval_datasets.id, datasetId), eq(eval_datasets.tenant_id, tenantId)))
     .run();
-  return result.changes > 0;
+  return result.rowsAffected > 0;
 }
 
 /** 向数据集添加测试用例 */
@@ -128,5 +128,5 @@ export async function deleteTestCase(testCaseId: string): Promise<boolean> {
     .delete(eval_test_cases)
     .where(eq(eval_test_cases.id, testCaseId))
     .run();
-  return result.changes > 0;
+  return result.rowsAffected > 0;
 }

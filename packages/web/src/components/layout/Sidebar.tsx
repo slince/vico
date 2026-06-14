@@ -13,6 +13,8 @@ import {
   Settings,
   LogOut,
   Users,
+  Activity,
+  ClipboardCheck,
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -27,6 +29,8 @@ export function Sidebar() {
     { to: '/skills', label: t('skills'), icon: Puzzle },
     { to: '/knowledge', label: t('knowledge'), icon: Database },
     { to: '/conversations', label: t('conversations'), icon: MessageSquare },
+    { to: '/observability/traces', label: t('observability'), icon: Activity },
+    { to: '/evals/datasets', label: t('evals'), icon: ClipboardCheck },
     { to: '/settings', label: t('settings'), icon: Settings },
   ], [t]);
 

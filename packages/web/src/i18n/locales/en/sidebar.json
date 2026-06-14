@@ -7,6 +7,8 @@
   "skills": "Skills",
   "knowledge": "Knowledge",
   "conversations": "Conversations",
+  "observability": "Observability",
+  "evals": "Evals",
   "settings": "Settings",
   "logout": "Logout"
 }
