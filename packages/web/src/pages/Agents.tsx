@@ -51,6 +51,7 @@ interface Agent {
   id: string;
   name: string;
   enabled: boolean;
+  is_default?: number;
   system_prompt?: string;
   skill_names?: string[];
   kb_ids?: string[];
@@ -232,47 +233,49 @@ export default function Agents() {
                   {t('tabConfig')}
                 </Link>
               </Button>
-              <AlertDialog
-                open={deleteTarget?.id === agent.id}
-                onOpenChange={(open) => {
-                  if (!open) setDeleteTarget(null);
-                }}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-destructive"
-                    onClick={() => setDeleteTarget(agent)}
-                  >
-                    <Trash2 size={14} className="mr-1.5" />
-                    {t('deleteButton')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t('confirmDeleteDesc', { name: agent.name })}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
+              {agent.is_default !== 1 && (
+                <AlertDialog
+                  open={deleteTarget?.id === agent.id}
+                  onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                  }}
+                >
+                  <AlertDialogTrigger asChild>
                     <Button
-                      variant="outline"
-                      onClick={() => setDeleteTarget(null)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteTarget(agent)}
                     >
-                      {t('common:cancel')}
+                      <Trash2 size={14} className="mr-1.5" />
+                      {t('deleteButton')}
                     </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={handleDeleteConfirm}
-                      disabled={deleteMutation.isPending}
-                    >
-                      {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
-                    </Button>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t('confirmDeleteDesc', { name: agent.name })}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setDeleteTarget(null)}
+                      >
+                        {t('common:cancel')}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDeleteConfirm}
+                        disabled={deleteMutation.isPending}
+                      >
+                        {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
+                      </Button>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </CardFooter>
           </Card>
         ))}

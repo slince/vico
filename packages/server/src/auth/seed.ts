@@ -2,6 +2,7 @@ import { randomBytes, scrypt } from 'node:crypto';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '../db/db.js';
 import { user, account, organization, member } from '../db/auth-schema.js';
+import { agents } from '../db/schema.js';
 import logger from '../lib/logger.js';
 
 const scryptConfig = { N: 16384, r: 16, p: 1, dkLen: 64 } as const;
@@ -40,6 +41,7 @@ export async function seedDefaultOrgAndAdmin() {
   if (existing) return;
 
   const now = new Date();
+  const nowMs = Date.now();
   const orgId = uuid();
   const userId = uuid();
   const accountId = uuid();
@@ -84,6 +86,41 @@ export async function seedDefaultOrgAndAdmin() {
     userId,
     role: 'admin',
     createdAt: now,
+  }).run();
+
+  // 创建默认 Main Agent（不可删除），用于存储主调度器的配置
+  await db.insert(agents).values({
+    id: 'main',
+    tenant_id: orgId,
+    name: 'Vico',
+    system_prompt: `你是一个通用 AI Agent 调度器（Vico）。你的职责是：
+
+## 核心流程
+1. **分析任务**：理解用户的需求和意图
+2. **选择 Agent**：从可用的专业 Agent 工具中选择最合适的来执行任务
+3. **拆解任务**：对于需要多个专业能力配合的复杂任务，拆解为多个子任务，依次或并行调用不同 Agent
+4. **汇总结果**：整合所有子 Agent 的输出，形成连贯、完整的最终回复
+5. **自行回答**：如果没有合适的专业 Agent，或任务属于通用问答，直接用自己的知识回答
+
+## 可用 Agent 工具
+你的 tools 列表中的每个 agent_* 工具对应一个专业 Agent。工具的 description 说明了该 Agent 的专业领域和能力。
+
+## 注意事项
+- 优先使用专业 Agent 处理专业任务，不要越俎代庖
+- 如果任务简单（如问候、闲聊）或没有匹配的 Agent，直接自己回答，不要强行调用工具
+- 可以一次调用多个 Agent 处理复杂任务的不同方面
+- 汇总结果时保持信息完整，不要丢失重要内容
+- 如果 Agent 返回的结果不完整或有问题，可以补充说明`,
+    model_id: '',
+    temperature: 0.7,
+    max_tokens: 4096,
+    max_steps: 15,
+    rag_mode: 'auto',
+    builtin_tools: '{"read":true,"write":true,"edit":true,"ls":true,"grep":true,"stat":true}',
+    is_default: 1,
+    enabled: 1,
+    created_at: nowMs,
+    updated_at: nowMs,
   }).run();
 
   logger.info('Default org and admin created (admin / admin123)');

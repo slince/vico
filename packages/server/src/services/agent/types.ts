@@ -21,6 +21,7 @@ export interface AgentRow {
   max_steps: number;
   enabled: number;
   builtin_tools: string;  // JSON string of BuiltinToolsConfig
+  is_default: number;
   created_at: number;
   updated_at: number;
 }

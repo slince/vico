@@ -225,34 +225,36 @@ export default function AgentDetail() {
             </Badge>
           </div>
         </div>
-        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Trash2 size={14} className="mr-1.5" />
-              {t('deleteButton')}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t('confirmDeleteDesc', { name: a.name })}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-                {t('common:cancel')}
+        {a.is_default !== 1 && (
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Trash2 size={14} className="mr-1.5" />
+                {t('deleteButton')}
               </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t('confirmDeleteTitle')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t('confirmDeleteDesc', { name: a.name })}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                  {t('common:cancel')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

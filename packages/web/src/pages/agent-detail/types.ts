@@ -24,6 +24,7 @@ export interface Agent {
   id: string;
   name: string;
   enabled: boolean;
+  is_default?: number;
   system_prompt?: string;
   model_id?: string;
   temperature?: number;

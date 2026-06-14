@@ -22,13 +22,11 @@ export interface ExecuteChatParams {
   userId: string;
 }
 
-/** mainAgent 默认开启的核心内置工具（read/write/edit/ls/grep/stat） */
-const MAIN_AGENT_DEFAULT_TOOLS = '{"read":true,"write":true,"edit":true,"ls":true,"grep":true,"stat":true}';
-
 /**
  * 执行单 Agent 对话。
  *
- * - agentId === 'main' 时使用内置 mainAgent（通用调度器，带租户 Agent 工具）
+ * - agentId === 'main' 时使用内置 mainAgent（通用调度器，带租户 Agent 工具），
+ *   其配置（模型、系统提示词、maxSteps）从 DB 中 is_default=1 的 Agent 记录加载
  * - 其他 agentId 从 DB 查找配置，通过 agentProxy 模板注入运行时参数
  * - 通过 SSE 流式返回 AI 回复
  */
@@ -56,11 +54,24 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
     let activeModel: MastraModelConfig | null = null;
 
     if (agentId === 'main') {
-      // 内置主 Agent — 通用调度器，注入租户 Agent 工具 + 基础工具
-      const defaultModelConfig = await modelManager.getDefault(tenantId);
-      if (defaultModelConfig) {
-        activeModel = resolveModelProvider(defaultModelConfig);
+      // 内置主 Agent — 通用调度器，配置从 DB 中 is_default=1 的记录加载
+      const mainAgentRecord = await agentManager.getDefault(tenantId);
+      const mainConfig = mainAgentRecord
+        ? await agentManager.getAgentRuntimeConfig(tenantId, mainAgentRecord.id)
+        : null;
+
+      if (mainConfig) {
+        activeModel = mainConfig.model;
         requestContext.set('model', activeModel);
+        instructions = mainConfig.instructions;
+      } else {
+        // 回退：使用租户默认模型
+        const defaultModelConfig = await modelManager.getDefault(tenantId);
+        if (defaultModelConfig) {
+          activeModel = resolveModelProvider(defaultModelConfig);
+          requestContext.set('model', activeModel);
+        }
+        instructions = await mastra.getAgent('mainAgent').getInstructions() as string;
       }
 
       const vicoAgent = mastra.getAgent('mainAgent');
@@ -68,8 +79,9 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       const agentTools = await agentToolStore.getToolsForTenant(tenantId);
       const agentDescriptions = await agentToolStore.getAgentDescriptions(tenantId);
 
+      // 内置工具从 DB 记录的 builtin_tools 配置加载（有记录则用记录，否则全开）
       const builtinTools = await builtinToolManager.getToolsForAgent(
-        { builtin_tools: MAIN_AGENT_DEFAULT_TOOLS },
+        mainAgentRecord || { builtin_tools: '{"read":true,"write":true,"edit":true,"ls":true,"grep":true,"stat":true}' },
         tenantId,
       );
 
@@ -78,19 +90,23 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
         requestContext.set('tools', allTools);
       }
 
-      instructions = `${await vicoAgent.getInstructions()}${agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : ''}`;
+      if (agentDescriptions) {
+        instructions += `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}`;
+      }
+
+      const maxSteps = mainConfig?.maxSteps ?? 15;
 
       // 验证通过后再创建 thread
       await saveThread(threadId, tenantId, {
         agent_id: agentId,
         user_id: userId,
-        model_name: defaultModelConfig?.model_name || '',
+        model_name: mainAgentRecord?.model_id || '',
       });
 
       output = await vicoAgent.stream([{ role: 'user', content: message }], {
         instructions,
         memory: { thread: threadId, resource: tenantId },
-        maxSteps: 15,
+        maxSteps,
         requestContext,
       });
     } else {

@@ -45,7 +45,14 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/agents/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    await agentManager.remove(auth.tenantId, c.req.param('id'));
+    try {
+      await agentManager.remove(auth.tenantId, c.req.param('id'));
+    } catch (e: any) {
+      if (e.message === 'Cannot delete the default agent') {
+        return c.json({ error: e.message }, 403);
+      }
+      throw e;
+    }
     return c.json({ message: 'deleted' });
   });
 

@@ -261,13 +261,33 @@ class AgentManager {
 
   /**
    * 删除 Agent，同时级联删除关联的 skills 和 knowledge_bases。
+   * 默认 Agent（is_default=1）不可删除。
    */
   async remove(tenantId: string, id: string): Promise<void> {
     const db = getDb();
+    const agent = await db.select({ is_default: agents.is_default }).from(agents)
+      .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
+      .get();
+    if (!agent) return;
+    if (agent.is_default === 1) {
+      throw new Error('Cannot delete the default agent');
+    }
     await db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
     await db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).run();
     await db.delete(agents).where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId))).run();
     agentToolStore.invalidate(tenantId);
+  }
+
+  /**
+   * 获取租户的默认 Agent（is_default=1），不存在时返回 null。
+   */
+  async getDefault(tenantId: string): Promise<AgentDetail | null> {
+    const db = getDb();
+    const agent = await db.select().from(agents)
+      .where(and(eq(agents.tenant_id, tenantId), eq(agents.is_default, 1)))
+      .get();
+    if (!agent) return null;
+    return this.getById(tenantId, agent.id);
   }
 
   /**
