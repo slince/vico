@@ -53,7 +53,7 @@ export interface StatsResponse {
 }
 
 /** 分页查询 trace 列表 */
-export function fetchTraces(params: {
+export function fetchTraces(params?: {
   page?: number;
   perPage?: number;
   fromDate?: number;
@@ -61,18 +61,18 @@ export function fetchTraces(params: {
   agentId?: string;
 }): Promise<TraceListResponse> {
   const searchParams = new URLSearchParams();
-  if (params.page) searchParams.set('page', String(params.page));
-  if (params.perPage) searchParams.set('perPage', String(params.perPage));
-  if (params.fromDate) searchParams.set('fromDate', String(params.fromDate));
-  if (params.toDate) searchParams.set('toDate', String(params.toDate));
-  if (params.agentId) searchParams.set('agentId', params.agentId);
+  if (params?.page != null) searchParams.set('page', String(params.page));
+  if (params?.perPage != null) searchParams.set('perPage', String(params.perPage));
+  if (params?.fromDate != null) searchParams.set('fromDate', String(params.fromDate));
+  if (params?.toDate != null) searchParams.set('toDate', String(params.toDate));
+  if (params?.agentId) searchParams.set('agentId', params.agentId);
 
-  return api(`/observability/traces?${searchParams.toString()}`);
+  return api<TraceListResponse>(`/observability/traces?${searchParams.toString()}`);
 }
 
 /** 获取单条 trace 详情 */
 export function fetchTraceDetail(traceId: string): Promise<TraceDetail> {
-  return api(`/observability/traces/${traceId}`);
+  return api<TraceDetail>(`/observability/traces/${traceId}`);
 }
 
 /** 获取聚合统计 */
@@ -81,8 +81,8 @@ export function fetchObservabilityStats(params?: {
   toDate?: number;
 }): Promise<StatsResponse> {
   const searchParams = new URLSearchParams();
-  if (params?.fromDate) searchParams.set('fromDate', String(params.fromDate));
-  if (params?.toDate) searchParams.set('toDate', String(params.toDate));
+  if (params?.fromDate != null) searchParams.set('fromDate', String(params.fromDate));
+  if (params?.toDate != null) searchParams.set('toDate', String(params.toDate));
 
-  return api(`/observability/stats?${searchParams.toString()}`);
+  return api<StatsResponse>(`/observability/stats?${searchParams.toString()}`);
 }
