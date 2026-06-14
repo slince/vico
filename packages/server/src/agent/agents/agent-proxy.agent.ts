@@ -2,7 +2,7 @@ import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
 import { getMemory } from '../memory-setup.js';
 import type { MastraModelConfig } from '@mastra/core/llm';
-import { buildAgentTools } from '../tools/agent-tools.factory.js';
+import { buildAgentTools } from '../agent-tools.factory.js';
 import type { AgentDetail } from '../../services/agent/types.js';
 
 /**

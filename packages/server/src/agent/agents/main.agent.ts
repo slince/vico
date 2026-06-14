@@ -4,7 +4,7 @@ import { getMemory } from '../memory-setup.js';
 import type { MastraModelConfig } from '@mastra/core/llm';
 import type { Tool } from '@mastra/core/tools';
 import type { AgentDetail } from '../../services/agent/types.js';
-import { buildAgentTools } from '../tools/agent-tools.factory.js';
+import { buildAgentTools } from '../agent-tools.factory.js';
 
 /**
  * Main Agent — 通用任务路由调度器。

@@ -4,10 +4,10 @@
  * 聚合 Skill 工具、RAG 搜索工具和 per-agent 内置工具，
  * 由调用方将结果注入 requestContext，供 agentProxy 的 tools 函数同步读取。
  */
-import { getSkillToolsForMastraAgent } from './skill-tool-adapter';
-import { createRagSearchTool } from './rag-tool';
-import { builtinToolManager } from './builtin';
-import { AgentDetail } from '../../services/agent/types.js';
+import {getSkillToolsForMastraAgent} from './tools/skill-tool-adapter';
+import {createRagSearchTool} from './tools/rag-tool';
+import {builtinToolManager} from './tools/builtin';
+import {AgentDetail} from '../services/agent/types.js';
 import {Tool} from "@mastra/core/tools";
 
 /**
