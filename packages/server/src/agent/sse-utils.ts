@@ -64,6 +64,20 @@ export function createSSEStream(
         for (const tc of toolCalls) {
           const p = tc.payload;
           enqueue({ type: 'tool_call', toolName: p.toolName, args: p.args });
+
+          // exec 命令调用时，额外发出 approval_required 事件供 Web 端展示审批卡片
+          if (p.toolName === 'mastra_workspace_execute_command' && p.args) {
+            const args = p.args as Record<string, unknown>;
+            const cmd = typeof args.command === 'string'
+              ? args.command
+              : JSON.stringify(p.args);
+            enqueue({
+              type: 'approval_required',
+              toolName: p.toolName,
+              command: cmd,
+              message: `Exec command requires approval: ${cmd}`,
+            });
+          }
         }
 
         // 4. 逐条发出工具结果事件
