@@ -214,6 +214,7 @@ class AgentManager {
       max_tokens: data.max_tokens,
       max_steps: data.max_steps,
       rag_mode: data.rag_mode,
+      builtin_tools: JSON.stringify(data.builtin_tools ?? {}),
       enabled: 1,
       created_at: now,
       updated_at: now,
@@ -244,6 +245,11 @@ class AgentManager {
     }
 
     if (Object.keys(updateData).length === 0) return;
+
+    // builtin_tools 对象序列化为 JSON 字符串存入 DB
+    if (updateData.builtin_tools !== undefined) {
+      updateData.builtin_tools = JSON.stringify(updateData.builtin_tools);
+    }
 
     updateData.updated_at = Date.now();
     await db.update(agents).set(updateData)
