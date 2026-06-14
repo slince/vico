@@ -4,7 +4,6 @@ import { mastra } from '../mastra.js';
 import { createSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
 import { prepareAgentContext, AgentNotFoundError } from '../agent/agent.factory.js';
-import { agentToolStore } from '../agent/tools/agent-tool-store.js';
 import { workingMemory } from '../agent/memory/working-memory.js';
 import type { AgentRuntimeConfig } from '../services/agent/types.js';
 import type { MastraModelOutput } from '@mastra/core/stream';
@@ -48,13 +47,11 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
     // 追踪实际使用的模型，供 onComplete 中 working memory 提取使用
     let activeModel: MastraModelConfig | null = null;
 
-    // 1. 统一加载配置（agentId === 'main' 自动解析为默认 Agent）
-    let instructions: string;
+    // 1. 统一加载配置（agentId === 'main' 时内部自动解析为默认 Agent 并追加租户工具/能力描述）
     let ctx: AgentRuntimeConfig;
     try {
       ctx = await prepareAgentContext(tenantId, agentId, requestContext);
       activeModel = ctx.model;
-      instructions = ctx.instructions;
     } catch (error: unknown) {
       if (error instanceof AgentNotFoundError) {
         return new Response(JSON.stringify({ error: error.message }), {
@@ -65,33 +62,19 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       throw error;
     }
 
-    // 2. Main 独有：租户 Agent 代理工具 + 能力描述
-    if (agentId === 'main') {
-      const [tenantTools, agentDescriptions] = await Promise.all([
-        agentToolStore.getToolsForTenant(tenantId),
-        agentToolStore.getAgentDescriptions(tenantId),
-      ]);
-      if (Object.keys(tenantTools).length > 0) {
-        requestContext.set('tools', tenantTools);
-      }
-      if (agentDescriptions) {
-        instructions += `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}`;
-      }
-    }
-
-    // 3. 统一保存 thread
+    // 2. 统一保存 thread
     await saveThread(threadId, tenantId, {
       agent_id: agentId,
       user_id: userId,
       model_name: ctx.agent.model_id || '',
     });
 
-    // 4. 统一 streaming
+    // 3. 统一 streaming
     const mastraAgentId = agentId === 'main' ? 'mainAgent' : 'agentProxy';
     const output: MastraModelOutput<unknown> = await mastra.getAgent(mastraAgentId).stream(
       [{ role: 'user', content: message }],
       {
-        instructions,
+        instructions: ctx.instructions,
         memory: { thread: threadId, resource: tenantId },
         maxSteps: ctx.agent.max_steps || 10,
         requestContext,

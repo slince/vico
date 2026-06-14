@@ -1,5 +1,6 @@
 import { RequestContext } from '@mastra/core/request-context';
 import { agentManager } from '../services/agent/agent-manager.js';
+import { agentToolStore } from './tools/agent-tool-store.js';
 import type { AgentRuntimeConfig } from '../services/agent/types.js';
 
 export class AgentNotFoundError extends Error {
@@ -13,7 +14,7 @@ export class AgentNotFoundError extends Error {
  * 为 Agent 加载运行时配置并注入 requestContext。
  *
  * 同时处理 main（解析为默认 Agent）和自定义 Agent：
- * - agentId === 'main' 时从 is_default=1 的记录解析实际 ID
+ * - agentId === 'main' 时从 is_default=1 的记录解析实际 ID，并追加租户 Agent 工具与能力描述
  * - 其他 agentId 直接使用
  *
  * 将 model 和 agentDetail 注入 requestContext 供 mastra Agent 读取。
@@ -25,8 +26,9 @@ export async function prepareAgentContext(
   requestContext: RequestContext,
 ): Promise<AgentRuntimeConfig> {
   // 解析实际的 Agent ID：main → 默认 Agent 的 ID
+  const isMain = agentId === 'main';
   let resolvedId: string;
-  if (agentId === 'main') {
+  if (isMain) {
     const defaultAgent = await agentManager.getDefault(tenantId);
     if (!defaultAgent) {
       throw new AgentNotFoundError('Default agent not configured');
@@ -44,5 +46,32 @@ export async function prepareAgentContext(
   requestContext.set('model', agentConfig.model);
   requestContext.set('agentDetail', agentConfig.agent);
 
+  // Main Agent 独有：加载租户 Agent 代理工具 + 能力描述
+  if (isMain) {
+    agentConfig.instructions += await prepareMainAgentContext(tenantId, requestContext);
+  }
+
   return agentConfig;
+}
+
+/**
+ * 为主 Agent 加载租户级上下文：Agent 代理工具 + 专业 Agent 能力描述。
+ *
+ * - 从 agentToolStore 获取租户下所有启用的 Agent 工具，注入 requestContext
+ * - 生成可用 Agent 的描述文本，拼接到系统提示词中
+ *
+ * @returns 要追加到 instructions 的能力描述文本
+ */
+async function prepareMainAgentContext(
+  tenantId: string,
+  requestContext: RequestContext,
+): Promise<string> {
+  const [tenantTools, agentDescriptions] = await Promise.all([
+    agentToolStore.getToolsForTenant(tenantId),
+    agentToolStore.getAgentDescriptions(tenantId),
+  ]);
+  if (Object.keys(tenantTools).length > 0) {
+    requestContext.set('tools', tenantTools);
+  }
+  return agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : '';
 }
