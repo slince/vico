@@ -10,7 +10,8 @@
     "build": "rm -rf dist && tsc",
     "start": "node dist/index.js",
     "db:migrate": "tsx src/db/migrate.ts",
-    "skill:install": "tsx src/skill/install.ts"
+    "skill:install": "tsx src/skill/install.ts",
+    "eval:ci": "tsx src/agent/evals/ci-smoke.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.84",
