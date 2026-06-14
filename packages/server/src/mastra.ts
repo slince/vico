@@ -3,6 +3,7 @@ import { MastraServer } from '@mastra/hono';
 import { mainAgent } from './agent/agents/main.agent.js';
 import { agentProxy } from './agent/agents/agent-proxy.agent.js';
 import { getStorage } from './agent/memory-setup.js';
+import { getObservabilityConfig } from './agent/observability/config.js';
 import { createApp } from './app.js';
 
 /**
@@ -13,6 +14,8 @@ import { createApp } from './app.js';
  * - agentProxy: 配置驱动的 Agent 代理模板，运行时通过 RunContext 动态注入配置
  *
  * 使用 LibSQLStore 作为持久化存储后端，为 Memory 的消息存储与召回提供支持。
+ * 同时启用 Observability 观测性配置，通过 MastraStorageExporter 将遥测数据
+ * 自动写入同一 LibSQL 存储后端。
  */
 export const mastra = new Mastra({
   agents: {
@@ -20,6 +23,7 @@ export const mastra = new Mastra({
     agentProxy,
   },
   storage: getStorage(),
+  observability: getObservabilityConfig(),
 });
 
 /** 创建 Hono app 实例，包含所有现有中间件和路由 */
