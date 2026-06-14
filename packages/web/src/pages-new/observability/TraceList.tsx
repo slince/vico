@@ -103,7 +103,7 @@ export default function TraceList() {
           <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
             Previous
           </Button>
-          <Button variant="outline" size="sm" disabled={traces.length < perPage} onClick={() => setPage(p => p + 1)}>
+          <Button variant="outline" size="sm" disabled={traces.length < perPage || page * perPage >= (data?.total ?? 0)} onClick={() => setPage(p => p + 1)}>
             Next
           </Button>
         </div>
