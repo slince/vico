@@ -33,6 +33,7 @@ export async function prepareAgentContext(
 
   requestContext.set('model', agentConfig.model);
   requestContext.set('agentDetail', agentConfig.agent);
+  requestContext.set('instructions', agentConfig.instructions);
 
   return agentConfig;
 }
@@ -53,7 +54,8 @@ export async function prepareMainAgentContext(
   const agentConfig = await prepareAgentContext(tenantId, 'main', requestContext)
 
   const agentDescriptions = await agentToolStore.getAgentDescriptions(tenantId);
-  agentConfig.instructions += agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : '';
+  const instructions = agentConfig.instructions + agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : '';
+  requestContext.set('instructions', instructions);
 
   return agentConfig;
 }
