@@ -6,11 +6,11 @@
  * - getStorage() — LibSQLStore 单例，用于 Memory 的消息持久化与召回
  * - getMemory() — Mastra Memory 单例，基于 LibSQLVector 和 OpenAI embedder
  */
-import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
-import { Memory } from '@mastra/memory';
-import { ModelRouterEmbeddingModel } from '@mastra/core/llm';
-import { getDatabaseUrl } from '../db/init-libsql.js';
-import { config } from '../config.js';
+import {LibSQLStore, LibSQLVector} from '@mastra/libsql';
+import {Memory} from '@mastra/memory';
+import {ModelRouterEmbeddingModel} from '@mastra/core/llm';
+import {getDatabaseUrl} from '../db/init-libsql.js';
+import {config} from '../config.js';
 import logger from '../lib/logger.js';
 
 let _vector: LibSQLVector;
@@ -79,10 +79,10 @@ export function getMemory(): Memory {
 - **重要事项**:
 `,
         },
-        semanticRecall: {
-          topK: 5,
-          messageRange: { before: 2, after: 2 },
-        },
+          // semanticRecall: {
+          //     topK: 5,
+          //     messageRange: { before: 2, after: 2 },
+          // },
         observationalMemory: {
           // Must explicitly specify OM model, default gemini-2.5-flash will fail without Google API key
           model: 'openai/gpt-4o-mini',
