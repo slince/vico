@@ -1,5 +1,6 @@
 import { randomBytes, scrypt } from 'node:crypto';
 import { v4 as uuid } from 'uuid';
+import { eq } from 'drizzle-orm';
 import { getDb } from '../db/db.js';
 import { user, account, organization, member } from '../db/auth-schema.js';
 import { agents } from '../db/schema.js';
@@ -88,10 +89,30 @@ export async function seedDefaultOrgAndAdmin() {
     createdAt: now,
   }).run();
 
-  // 创建默认 Main Agent（不可删除），用于存储主调度器的配置
+  logger.info('Default org and admin created (admin / admin123)');
+}
+
+/**
+ * 确保默认 Main Agent 存在。
+ * 独立于 org seed，每次启动都会检查，不存在则创建。
+ * 适用于已有 DB 但缺少 main agent 记录的场景。
+ */
+export async function seedMainAgent() {
+  const db = getDb();
+
+  const existing = await db.select({ id: agents.id }).from(agents)
+    .where(eq(agents.id, 'main')).get();
+  if (existing) return;
+
+  // 获取已有组织
+  const org = await db.select({ id: organization.id }).from(organization).limit(1).get();
+  if (!org) return; // 还未 seed 组织，等组织创建后下次启动再补
+
+  const nowMs = Date.now();
+
   await db.insert(agents).values({
     id: 'main',
-    tenant_id: orgId,
+    tenant_id: org.id,
     name: 'Vico',
     system_prompt: `你是一个通用 AI Agent 调度器（Vico）。你的职责是：
 
@@ -123,5 +144,5 @@ export async function seedDefaultOrgAndAdmin() {
     updated_at: nowMs,
   }).run();
 
-  logger.info('Default org and admin created (admin / admin123)');
+  logger.info('Default Main Agent seeded');
 }

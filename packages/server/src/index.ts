@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { config } from './config.js';
 import { skillManager } from './skill/manager.js';
 import { runMigrations } from './db/run-migrations.js';
-import { seedDefaultOrgAndAdmin } from './auth/seed.js';
+import { seedDefaultOrgAndAdmin, seedMainAgent } from './auth/seed.js';
 import { getStorage } from './agent/memory-setup.js';
 import { app } from './mastra.js';
 import { auth } from './auth';
@@ -22,6 +22,7 @@ async function main() {
   await skillManager.init();
   await getStorage().init(); // 初始化 Mastra 存储表（mastra_threads/messages/resources）
   await seedDefaultOrgAndAdmin();
+  await seedMainAgent();
 
   // app is imported from mastra.ts which already calls createApp() and configures MastraServer
 
