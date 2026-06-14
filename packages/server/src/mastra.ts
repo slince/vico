@@ -2,7 +2,7 @@ import { Mastra } from '@mastra/core';
 import { MastraServer } from '@mastra/hono';
 import { mainAgent } from './agent/agents/main.agent.js';
 import { agentProxy } from './agent/agents/agent-proxy.agent.js';
-import { getStorage } from './agent/memory-setup.js';
+import { getStorage, getMemory } from './agent/memory-setup.js';
 import { getObservabilityConfig } from './agent/observability/config.js';
 import { createApp } from './app.js';
 
@@ -23,6 +23,9 @@ export const mastra = new Mastra({
     agentProxy,
   },
   storage: getStorage(),
+  memory: {
+    memory: getMemory(),
+  },
   observability: getObservabilityConfig(),
 });
 
