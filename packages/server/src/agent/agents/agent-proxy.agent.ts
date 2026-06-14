@@ -1,4 +1,5 @@
 import {Agent} from '@mastra/core/agent';
+import {getMemory} from '../memory-setup.js';
 import {getWorkspace} from '../workspace-setup.js';
 import type {MastraModelConfig} from '@mastra/core/llm';
 import {buildAgentTools} from '../agent-tools.factory.js';
@@ -37,6 +38,7 @@ export const agentProxy = new Agent({
     return {};
   },
   workspace: getWorkspace(),
+  memory: getMemory(),
   defaultOptions: {
     maxSteps: 10,
   },

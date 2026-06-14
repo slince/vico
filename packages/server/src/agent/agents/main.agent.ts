@@ -1,4 +1,5 @@
 import {Agent} from '@mastra/core/agent';
+import {getMemory} from '../memory-setup.js';
 import {getWorkspace} from '../workspace-setup.js';
 import type {MastraModelConfig} from '@mastra/core/llm';
 import type {AgentDetail} from '../../services/agent/types.js';
@@ -37,6 +38,7 @@ export const mainAgent = new Agent({
     return {};
   },
   workspace: getWorkspace(),
+  memory: getMemory(),
   defaultOptions: {
     maxSteps: 15,
   },
