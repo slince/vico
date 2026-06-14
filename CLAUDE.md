@@ -30,12 +30,12 @@ packages/
 │       ├── index.ts     # Hono 启动、CORS、限流、认证中间件
 │       ├── config.ts    # YAML 配置加载器，支持环境变量插值
 │       ├── api/         # 路由处理（Hono 路由注册函数，按领域划分）
-│       │   ├── router.ts、auth.ts、agents.ts、skills.ts、chat.ts 等（Hono 路由注册函数）
-│       ├── agent/       # 聊天管道、工具执行器、模型注册中心
+│       │   ├── router.ts、auth.ts、agents.ts、skills.ts、chat.ts、observability.ts、evals.ts 等
+│       ├── agent/       # 聊天管道、工具执行器、模型注册、可观测性、Evals
 │       ├── skill/       # 插件系统：类型定义、加载器、管理器
 │       ├── memory/      # 短期记忆、长期记忆、RAG、嵌入器
 │       ├── auth/        # better-auth 实例配置、Seed 默认组织+管理员；/api/auth/* 由 auth.handler() 处理
-│       └── db/          # Drizzle ORM 连接、Schema、迁移（13 张表）
+│       └── db/          # Drizzle ORM 连接、Schema、迁移（17 张表）
 ├── web/                 # React 管理后台
 │   └── src/
 │       ├── main.tsx     # QueryClient + RouterProvider
@@ -43,8 +43,7 @@ packages/
 │       ├── api/client.ts  # REST 客户端 + SSE 流式请求工具
 │       ├── hooks/       # useAuth、use-mobile
 │       ├── lib/         # 工具函数（cn、utils）
-│       ├── pages-new/   # 新版页面（shadcn/ui 重写，当前使用中）
-│       ├── pages/       # 旧版页面（/old 路由下保留对照）
+│       ├── pages/       # 页面组件（按领域分目录：observability、evals 等）
 │       └── components/  # 布局（侧边栏+容器）+ shadcn/ui 基础组件
 └── skills/              # 预置 Skill 插件（基于文件系统）
     └── <skill-name>/
@@ -130,7 +129,7 @@ Drizzle ORM（`drizzle-orm/better-sqlite3`）→ `getDb()` 懒加载单例，WAL
 - **Hono 路由**：导出 `(app: Hono<{ Variables: Variables }>) => void`，通过 `c.get('user')`/`c.get('session')` 获取认证
 - **SSE**：`ReadableStream` + `text/event-stream`，事件类型 `text_delta` / `done` / `error`
 - **Drizzle 查询**：类型安全 API（`db.select().from().where(eq())` 等），替代原生 SQL
-- **暂无测试**：早期 MVP 阶段
+- **测试**：CI 冒烟测试（`pnpm eval:ci`），核心模块可补充单元测试
 
 ## shadcn/ui 备注
 
