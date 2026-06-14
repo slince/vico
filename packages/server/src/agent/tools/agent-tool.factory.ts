@@ -13,6 +13,7 @@ import { agentProxy } from '../agents/agent-proxy.agent.js';
 import { getSkillToolsForMastraAgent } from './skill-tool-adapter';
 import { createRagSearchTool } from './rag-tool';
 import { agentManager } from '../../services/agent/agent-manager.js';
+import { builtinToolManager } from './builtin/index.js';
 import { AgentDetail } from '../../services/agent/types.js';
 
 /**
@@ -66,6 +67,13 @@ export function createAgentTool(agent: AgentDetail, tenantId: string) {
           tools[ragTool.id] = ragTool;
         }
       }
+
+      // 追加 per-agent 配置的内置工具
+      const builtinTools = await builtinToolManager.getToolsForAgent(
+        { builtin_tools: agent.builtin_tools ?? '{}' },
+        tenantId,
+      );
+      Object.assign(tools, builtinTools);
 
       // 4. 注入运行时配置到 requestContext，agentProxy 的 model/instructions 函数同步读取
       const requestContext = new RequestContext();
