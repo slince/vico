@@ -42,15 +42,17 @@ packages/server/src/
 
 | 层 | 职责 | 禁止 |
 |----|------|------|
-| `api/` (路由) | 参数校验、鉴权、调用下层、返回响应 | 不要在路由中写业务逻辑 |
-| `agent/`, `skill/`, `memory/` (核心) | 业务逻辑、编排、算法 | 不要直接操作 Hono Context |
+| `api/` (路由) | 参数校验、鉴权、调用 service、返回响应 | 不要在路由中写业务逻辑、不要直接查询数据库 |
+| `service/` (服务) | 业务逻辑、编排、数据库操作 | 不要直接操作 Hono Context |
 | `data/` (数据) | 数据库连接、Schema、迁移 | 不要包含业务逻辑 |
+
+**关键规则：所有数据库查询必须封装在 `service/` 层，路由层和核心模块（`agent/`、`memory/` 等）不允许直接调用 `getDb()` 或执行查询，必须通过 service 访问数据。**
 
 ```
 请求 → 中间件链(CORS/限流/Session/Auth Guard)
      → 路由(api/)
        → getAuthContext(c) → 提取 { tenantId, userId }
-         → 核心模块(agent/skill/memory) → 执行业务
+         → service/ → 业务逻辑 + 数据库查询
            → 数据层(data/) → Drizzle ORM → SQLite
      → Response(json / SSE stream)
 ```
@@ -98,10 +100,8 @@ app.get('/api/v1/agents', (c) => {
   const auth = getAuthContext(c);
   if (auth instanceof Response) return auth;  // 未认证，直接返回 401
 
-  // auth.tenantId, auth.userId 可直接使用
-  const rows = db.select().from(agents)
-    .where(eq(agents.tenant_id, auth.tenantId))
-    .all();
+  // auth.tenantId, auth.userId 可直接传递给 service
+  const rows = agentService.list(auth.tenantId);
   return c.json(rows);
 });
 ```
@@ -125,36 +125,29 @@ return c.json({ error: 'agentId and message are required' }, 400);
 
 ### 2.4 路由处理函数模式
 
+路由层只做参数提取和鉴权，所有数据库操作委托给 service 层：
+
 ```typescript
-// ✅ GET 列表：查询 + 富化 + 返回
+// ✅ GET 列表：调用 service，直接返回
 app.get('/api/v1/agents', (c) => {
   const auth = getAuthContext(c);
   if (auth instanceof Response) return auth;
-  const db = getDb();
-  const rows = db.select().from(agents)
-    .where(eq(agents.tenant_id, auth.tenantId))
-    .orderBy(desc(agents.updated_at))
-    .all();
-  // 可在此富化关联数据
+  const rows = agentService.list(auth.tenantId);
   return c.json(rows);
 });
 
-// ✅ GET 详情：查询 + 关联 + 404 守卫
+// ✅ GET 详情：调用 service + 404 守卫
 app.get('/api/v1/agents/:id', (c) => {
   const auth = getAuthContext(c);
   if (auth instanceof Response) return auth;
   const id = c.req.param('id');
-  const db = getDb();
 
-  const agent = db.select().from(agents)
-    .where(and(eq(agents.id, id), eq(agents.tenant_id, auth.tenantId)))
-    .get();
-
+  const agent = agentService.getById(id, auth.tenantId);
   if (!agent) return c.json({ error: 'Agent not found' }, 404);
   return c.json(agent);
 });
 
-// ✅ POST 创建：校验 → 生成 ID → 插入 → 返回
+// ✅ POST 创建：校验 → 调用 service → 返回
 app.post('/api/v1/agents', async (c) => {
   const auth = getAuthContext(c);
   if (auth instanceof Response) return auth;
@@ -165,68 +158,37 @@ app.post('/api/v1/agents', async (c) => {
     return c.json({ error: 'name is required' }, 400);
   }
 
-  const db = getDb();
-  const id = uuid();
-  const now = Date.now();
-  db.insert(agents).values({
-    id, tenant_id: auth.tenantId, name,
-    created_at: now, updated_at: now,
-  }).run();
+  const id = agentService.create({ name, tenantId: auth.tenantId });
   return c.json({ id, message: 'created' });
 });
 
-// ✅ PATCH 更新：查询 → 白名单校验 → 更新
+// ✅ PATCH 更新：调用 service + 404 守卫
 app.patch('/api/v1/agents/:id', async (c) => {
   const auth = getAuthContext(c);
   if (auth instanceof Response) return auth;
   const id = c.req.param('id');
   const body = await c.req.json();
-  const db = getDb();
 
-  const agent = db.select().from(agents)
-    .where(and(eq(agents.id, id), eq(agents.tenant_id, auth.tenantId)))
-    .get();
-  if (!agent) return c.json({ error: 'Agent not found' }, 404);
-
-  // 白名单控制可更新字段
-  const allowed = ['name', 'system_prompt', 'model_id', 'temperature', 'max_tokens', 'rag_mode', 'enabled'];
-  const updateData: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body)) {
-    if (allowed.includes(k) && v !== undefined) {
-      updateData[k] = v;
-    }
-  }
-
-  if (Object.keys(updateData).length > 0) {
-    updateData.updated_at = Date.now();
-    db.update(agents).set(updateData)
-      .where(and(eq(agents.tenant_id, auth.tenantId), eq(agents.id, id)))
-      .run();
-  }
+  const result = agentService.update(id, auth.tenantId, body);
+  if (!result) return c.json({ error: 'Agent not found' }, 404);
   return c.json({ message: 'updated' });
 });
 
-// ✅ DELETE 删除：查询存在 → 级联清理关联 → 删除
+// ✅ DELETE 删除：调用 service → 返回
 app.delete('/api/v1/agents/:id', (c) => {
   const auth = getAuthContext(c);
   if (auth instanceof Response) return auth;
   const id = c.req.param('id');
-  const db = getDb();
 
-  // 先清关联表
-  db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
-  db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).run();
-  // 再删主记录（带租户校验）
-  db.delete(agents)
-    .where(and(eq(agents.id, id), eq(agents.tenant_id, auth.tenantId)))
-    .run();
+  agentService.delete(id, auth.tenantId);
   return c.json({ message: 'deleted' });
 });
 ```
 
 ### 2.5 路由层禁止事项
 
-- **不要在路由中写复杂业务逻辑** —— 提取到 `agent/`、`skill/` 等核心模块
+- **不要在路由中写复杂业务逻辑** —— 提取到 `service/` 层
+- **不要直接在路由中查询数据库** —— 所有 DB 操作必须通过 service，路由只能调用 service
 - **不要裸写复杂 SQL** —— 用 Drizzle ORM 查询 API
 - **不要重复 `getAuthContext` 之后的鉴权逻辑** —— auth guard 中间件已校验 session
 - **不要吞掉错误** —— 让异常自然冒泡，Hono 会返回 500
