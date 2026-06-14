@@ -4,15 +4,14 @@
  * 每个工具代表一个"委托给专业 Agent"的操作。当 Mastra vicoMain Agent
  * 调用该工具时，execute 内部通过 agentManager.getAgentRuntimeConfig()
  * 一次性解析所有运行时配置，注入 requestContext，再由 agentProxy
- * 同步读取。
+ * 自行读取（model、instructions、tools 均由 agentProxy 内部解析）。
  */
 import { createTool } from '@mastra/core/tools';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import { agentProxy } from '../agents/agent-proxy.agent.js';
 import { agentManager } from '../../services/agent/agent-manager.js';
-import { buildAgentTools } from './agent-tools.factory.js';
-import { AgentDetail } from '../../services/agent/types.js';
+import type { AgentDetail } from '../../services/agent/types.js';
 
 /**
  * 为单个用户定义的 Agent 创建 Mastra Tool。
@@ -50,18 +49,13 @@ export function createAgentTool(agent: AgentDetail) {
         instructions += `\n\n## 附加上下文\n${context}`;
       }
 
-      // 3. 构建 tools 并注入到 requestContext，agentProxy 的 tools 函数同步读取
-      const tools = await buildAgentTools(agent);
-
-      // 4. 注入运行时配置到 requestContext，agentProxy 的 model/instructions/tools 函数同步读取
+      // 3. 注入运行时配置到 requestContext，agentProxy 自行读取 model/instructions/tools
       const requestContext = new RequestContext();
       requestContext.set('model', runtimeConfig.model);
       requestContext.set('instructions', instructions);
-      if (Object.keys(tools).length > 0) {
-        requestContext.set('tools', tools);
-      }
+      requestContext.set('agentDetail', agent);
 
-      // 5. 调用 agentProxy.generate()
+      // 4. 调用 agentProxy.generate()
       const threadId = `proxy-${id}-${Date.now()}`;
       const options = {
         requestContext,

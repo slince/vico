@@ -114,11 +114,8 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       activeModel = agentConfig.model;
       requestContext.set('model', activeModel);
       instructions = agentConfig.instructions;
-
-      const builtinTools = await builtinToolManager.getToolsForAgent(agentDetail, tenantId);
-      if (Object.keys(builtinTools).length > 0) {
-        requestContext.set('tools', builtinTools);
-      }
+      // agentProxy.tools 会从此读取 AgentDetail 自行构建工具集
+      requestContext.set('agentDetail', agentDetail);
 
       // 验证通过后再创建 thread
       await saveThread(threadId, tenantId, {
