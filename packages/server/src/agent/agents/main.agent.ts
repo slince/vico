@@ -2,6 +2,8 @@ import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
 import { getMemory } from '../memory-setup.js';
 import type { MastraModelConfig } from '@mastra/core/llm';
+import type {AgentDetail} from "../../services/agent/types";
+import {buildAgentTools} from "../tools/agent-tools.factory";
 
 /**
  * Main Agent — 通用任务路由调度器。
@@ -47,7 +49,11 @@ export const mainAgent = new Agent({
     return createOpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-placeholder' }).chat('gpt-4o');
   },
   tools: ({ requestContext }) => {
-    return (requestContext?.get('tools') as Record<string, any>) || {};
+    const agentDetail = requestContext?.get('agentDetail') as AgentDetail | undefined;
+    if (agentDetail) {
+      return buildAgentTools(agentDetail);
+    }
+    return {};
   },
   memory: getMemory(),
   defaultOptions: {

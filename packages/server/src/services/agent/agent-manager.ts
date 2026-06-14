@@ -153,11 +153,7 @@ class AgentManager {
    * @returns 运行时配置，Agent 不存在或模型解析失败时返回 null
    */
   async getAgentRuntimeConfig(tenantId: string, agentId: string): Promise<AgentRuntimeConfig | null> {
-    const db = getDb();
-    const agent = await db.select().from(agents)
-      .where(and(eq(agents.id, agentId), eq(agents.tenant_id, tenantId)))
-      .get();
-
+    const agent = await this.getById(tenantId, agentId);
     if (!agent) return null;
 
     // 解析模型
@@ -185,11 +181,7 @@ class AgentManager {
       // Skill 提示词加载失败时静默跳过
     }
 
-    return {
-      model,
-      instructions,
-      maxSteps: agent.max_steps ?? 10,
-    };
+    return { model, instructions, agent };
   }
 
   // ── 变更 ──

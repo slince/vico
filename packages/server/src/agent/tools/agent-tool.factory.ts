@@ -59,7 +59,7 @@ export function createAgentTool(agent: AgentDetail) {
       const threadId = `proxy-${id}-${Date.now()}`;
       const options = {
         requestContext,
-        maxSteps: runtimeConfig.maxSteps,
+        maxSteps: runtimeConfig.agent.max_steps ?? 10,
         memory: {
           thread: threadId,
           resource: tenant_id,

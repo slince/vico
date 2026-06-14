@@ -4,6 +4,7 @@ import { mastra } from '../mastra.js';
 import { createSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
 import { agentManager } from '../services/agent/agent-manager.js';
+import { prepareAgentContext, AgentNotFoundError } from '../agent/agent.factory.js';
 import { agentToolStore } from '../agent/tools/agent-tool-store.js';
 import { builtinToolManager } from '../agent/tools/builtin/index.js';
 import { modelManager } from '../services/model/model-manager.js';
@@ -94,7 +95,7 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
         instructions += `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}`;
       }
 
-      const maxSteps = mainConfig?.maxSteps ?? 15;
+      const maxSteps = mainConfig?.agent.max_steps ?? 15;
 
       // 验证通过后再创建 thread
       await saveThread(threadId, tenantId, {
@@ -110,41 +111,36 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
         requestContext,
       });
     } else {
-      // 用户自定义 Agent — 先验证存在性，再获取配置
-      const agentDetail = await agentManager.getById(tenantId, agentId);
-      if (!agentDetail) {
-        return new Response(JSON.stringify({ error: 'Agent not found' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
+      // 用户自定义 Agent — 加载运行时配置并注入 requestContext
+      let maxSteps: number;
+      let model_id: string;
+      try {
+        const ctx = await prepareAgentContext(tenantId, agentId, requestContext);
+        activeModel = ctx.model;
+        instructions = ctx.instructions;
+        model_id = ctx.agent.model_id;
+        maxSteps = ctx.agent.max_steps ?? 10;
+      } catch (error: unknown) {
+        if (error instanceof AgentNotFoundError) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        throw error;
       }
 
-      const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
-      if (!agentConfig) {
-        return new Response(JSON.stringify({ error: 'Agent model configuration not found' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      activeModel = agentConfig.model;
-      requestContext.set('model', activeModel);
-      instructions = agentConfig.instructions;
-      // agentProxy.tools 会从此读取 AgentDetail 自行构建工具集
-      requestContext.set('agentDetail', agentDetail);
-
-      // 验证通过后再创建 thread
       await saveThread(threadId, tenantId, {
         agent_id: agentId,
         user_id: userId,
-        model_name: agentDetail.model_id,
+        model_name: model_id,
       });
 
       const agentProxy = mastra.getAgent('agentProxy');
       output = await agentProxy.stream([{ role: 'user', content: message }], {
         instructions,
         memory: { thread: threadId, resource: tenantId },
-        maxSteps: agentConfig.maxSteps,
+        maxSteps,
         requestContext,
       });
     }
