@@ -3,13 +3,10 @@ import { RequestContext } from '@mastra/core/request-context';
 import { mastra } from '../mastra.js';
 import { createSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
-import { agentManager } from '../services/agent/agent-manager.js';
 import { prepareAgentContext, AgentNotFoundError } from '../agent/agent.factory.js';
 import { agentToolStore } from '../agent/tools/agent-tool-store.js';
-import { builtinToolManager } from '../agent/tools/builtin/index.js';
-import { modelManager } from '../services/model/model-manager.js';
-import { resolveModelProvider } from '../agent/bridges/model-bridge.js';
 import { workingMemory } from '../agent/memory/working-memory.js';
+import type { AgentRuntimeConfig } from '../services/agent/types.js';
 import type { MastraModelOutput } from '@mastra/core/stream';
 import type { MastraModelConfig } from '@mastra/core/llm';
 import type { LanguageModel } from 'ai';
@@ -26,10 +23,9 @@ export interface ExecuteChatParams {
 /**
  * 执行单 Agent 对话。
  *
- * - agentId === 'main' 时使用内置 mainAgent（通用调度器，带租户 Agent 工具），
- *   其配置（模型、系统提示词、maxSteps）从 DB 中 is_default=1 的 Agent 记录加载
- * - 其他 agentId 从 DB 查找配置，通过 agentProxy 模板注入运行时参数
- * - 通过 SSE 流式返回 AI 回复
+ * agentId === 'main' 时自动解析为默认 Agent（is_default=1），使用 mainAgent 调度器；
+ * 其他 agentId 直接查找对应记录，通过 agentProxy 模板注入运行时参数。
+ * 通过 SSE 流式返回 AI 回复。
  */
 export async function executeAgentChat(params: ExecuteChatParams): Promise<Response> {
   const { agentId, message, conversationId, tenantId, userId } = params;
@@ -49,101 +45,58 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
 
     const requestContext = new RequestContext();
 
-    let output: MastraModelOutput<unknown>;
-    let instructions: string;
     // 追踪实际使用的模型，供 onComplete 中 working memory 提取使用
     let activeModel: MastraModelConfig | null = null;
 
+    // 1. 统一加载配置（agentId === 'main' 自动解析为默认 Agent）
+    let instructions: string;
+    let ctx: AgentRuntimeConfig;
+    try {
+      ctx = await prepareAgentContext(tenantId, agentId, requestContext);
+      activeModel = ctx.model;
+      instructions = ctx.instructions;
+    } catch (error: unknown) {
+      if (error instanceof AgentNotFoundError) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw error;
+    }
+
+    // 2. Main 独有：租户 Agent 代理工具 + 能力描述
     if (agentId === 'main') {
-      // 内置主 Agent — 通用调度器，配置从 DB 中 is_default=1 的记录加载
-      const mainAgentRecord = await agentManager.getDefault(tenantId);
-      const mainConfig = mainAgentRecord
-        ? await agentManager.getAgentRuntimeConfig(tenantId, mainAgentRecord.id)
-        : null;
-
-      if (mainConfig) {
-        activeModel = mainConfig.model;
-        requestContext.set('model', activeModel);
-        instructions = mainConfig.instructions;
-      } else {
-        // 回退：使用租户默认模型
-        const defaultModelConfig = await modelManager.getDefault(tenantId);
-        if (defaultModelConfig) {
-          activeModel = resolveModelProvider(defaultModelConfig);
-          requestContext.set('model', activeModel);
-        }
-        instructions = await mastra.getAgent('mainAgent').getInstructions() as string;
+      const [tenantTools, agentDescriptions] = await Promise.all([
+        agentToolStore.getToolsForTenant(tenantId),
+        agentToolStore.getAgentDescriptions(tenantId),
+      ]);
+      if (Object.keys(tenantTools).length > 0) {
+        requestContext.set('tools', tenantTools);
       }
-
-      const vicoAgent = mastra.getAgent('mainAgent');
-
-      const agentTools = await agentToolStore.getToolsForTenant(tenantId);
-      const agentDescriptions = await agentToolStore.getAgentDescriptions(tenantId);
-
-      // 内置工具从 DB 记录的 builtin_tools 配置加载（有记录则用记录，否则全开）
-      const builtinTools = await builtinToolManager.getToolsForAgent(
-        mainAgentRecord || { builtin_tools: '{"read":true,"write":true,"edit":true,"ls":true,"grep":true,"stat":true}' },
-        tenantId,
-      );
-
-      const allTools = { ...builtinTools, ...agentTools };
-      if (Object.keys(allTools).length > 0) {
-        requestContext.set('tools', allTools);
-      }
-
       if (agentDescriptions) {
         instructions += `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}`;
       }
-
-      const maxSteps = mainConfig?.agent.max_steps ?? 15;
-
-      // 验证通过后再创建 thread
-      await saveThread(threadId, tenantId, {
-        agent_id: agentId,
-        user_id: userId,
-        model_name: mainAgentRecord?.model_id || '',
-      });
-
-      output = await vicoAgent.stream([{ role: 'user', content: message }], {
-        instructions,
-        memory: { thread: threadId, resource: tenantId },
-        maxSteps,
-        requestContext,
-      });
-    } else {
-      // 用户自定义 Agent — 加载运行时配置并注入 requestContext
-      let maxSteps: number;
-      let model_id: string;
-      try {
-        const ctx = await prepareAgentContext(tenantId, agentId, requestContext);
-        activeModel = ctx.model;
-        instructions = ctx.instructions;
-        model_id = ctx.agent.model_id;
-        maxSteps = ctx.agent.max_steps ?? 10;
-      } catch (error: unknown) {
-        if (error instanceof AgentNotFoundError) {
-          return new Response(JSON.stringify({ error: error.message }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-        throw error;
-      }
-
-      await saveThread(threadId, tenantId, {
-        agent_id: agentId,
-        user_id: userId,
-        model_name: model_id,
-      });
-
-      const agentProxy = mastra.getAgent('agentProxy');
-      output = await agentProxy.stream([{ role: 'user', content: message }], {
-        instructions,
-        memory: { thread: threadId, resource: tenantId },
-        maxSteps,
-        requestContext,
-      });
     }
+
+    // 3. 统一保存 thread
+    await saveThread(threadId, tenantId, {
+      agent_id: agentId,
+      user_id: userId,
+      model_name: ctx.agent.model_id || '',
+    });
+
+    // 4. 统一 streaming
+    const mastraAgentId = agentId === 'main' ? 'mainAgent' : 'agentProxy';
+    const output: MastraModelOutput<unknown> = await mastra.getAgent(mastraAgentId).stream(
+      [{ role: 'user', content: message }],
+      {
+        instructions,
+        memory: { thread: threadId, resource: tenantId },
+        maxSteps: ctx.agent.max_steps || 10,
+        requestContext,
+      },
+    );
 
     // 包装为 SSE 流，流结束后异步提取工作记忆
     const stream = createSSEStream(output, {
