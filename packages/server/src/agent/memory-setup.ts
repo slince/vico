@@ -85,13 +85,8 @@ export function getMemory(): Memory {
           // },
         observationalMemory: {
           // Must explicitly specify OM model, default gemini-2.5-flash will fail without Google API key
+          // Setting `model` alone sets both observation and reflection models
           model: 'openai/gpt-4o-mini',
-          observation: {
-            model: 'openai/gpt-4o-mini',
-          },
-          reflection: {
-            model: 'openai/gpt-4o-mini',
-          },
         },
       },
     });
