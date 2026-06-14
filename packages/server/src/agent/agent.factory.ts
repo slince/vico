@@ -1,7 +1,7 @@
-import { RequestContext } from '@mastra/core/request-context';
-import { agentManager } from '../services/agent/agent-manager.js';
-import { agentToolStore } from './tools/agent-tool-store.js';
-import type { AgentRuntimeConfig } from '../services/agent/types.js';
+import {RequestContext} from '@mastra/core/request-context';
+import {agentManager} from '../services/agent/agent-manager.js';
+import {agentToolStore} from './tools/agent-tool-store.js';
+import type {AgentRuntimeConfig} from '../services/agent/types.js';
 
 export class AgentNotFoundError extends Error {
   constructor(message: string) {
@@ -45,7 +45,7 @@ export async function prepareAgentContext(
  *
  * @returns 要追加到 instructions 的能力描述文本
  */
-async function prepareMainAgentContext(
+export async function prepareMainAgentContext(
   tenantId: string,
   requestContext: RequestContext,
 ): Promise<AgentRuntimeConfig> {

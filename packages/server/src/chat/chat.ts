@@ -1,14 +1,13 @@
-import { v4 as uuidv4 } from 'uuid';
-import { RequestContext } from '@mastra/core/request-context';
-import { mastra } from '../mastra.js';
-import { createSSEStream } from '../agent/sse-utils.js';
-import { getMemory } from '../agent/memory-setup.js';
-import { prepareAgentContext, AgentNotFoundError } from '../agent/agent.factory.js';
-import { workingMemory } from '../agent/memory/working-memory.js';
-import type { AgentRuntimeConfig } from '../services/agent/types.js';
-import type { MastraModelOutput } from '@mastra/core/stream';
-import type { MastraModelConfig } from '@mastra/core/llm';
-import type { LanguageModel } from 'ai';
+import {v4 as uuidv4} from 'uuid';
+import {RequestContext} from '@mastra/core/request-context';
+import {mastra} from '../mastra.js';
+import {createSSEStream} from '../agent/sse-utils.js';
+import {getMemory} from '../agent/memory-setup.js';
+import {prepareAgentContext, prepareMainAgentContext} from '../agent/agent.factory.js';
+import {workingMemory} from '../agent/memory/working-memory.js';
+import type {MastraModelOutput} from '@mastra/core/stream';
+import type {MastraModelConfig} from '@mastra/core/llm';
+import type {LanguageModel} from 'ai';
 import logger from '../lib/logger.js';
 
 export interface ExecuteChatParams {
@@ -47,14 +46,14 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
 
     // 1. 统一加载配置（agentId === 'main' 时内部自动解析为默认 Agent 并追加租户工具/能力描述）
     const ctx = agentId === 'main'
-        ? await prepareMainAgentContext(tenantId, agentId, requestContext)
+        ? await prepareMainAgentContext(tenantId, requestContext)
         : await prepareAgentContext(tenantId, agentId, requestContext);
 
     // 2. 统一保存 thread
     await saveThread(threadId, tenantId, {
       agent_id: agentId,
       user_id: userId,
-      model_name: ctx.agent.model_id || '',
+      model_name: ctx.agent.model_id,
     });
 
     // 3. 统一 streaming
