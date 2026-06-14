@@ -37,6 +37,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     } catch (e: any) {
       if (e.message === 'Agent not found') return c.json({ error: 'Agent not found' }, 404);
       if (e.message === 'Cannot modify system prompt of the default agent') return c.json({ error: e.message }, 403);
+      if (e.message === 'Cannot disable the default agent') return c.json({ error: e.message }, 403);
       throw e;
     }
     return c.json({ message: 'updated' });

@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Empty,
   EmptyMedia,
@@ -88,6 +89,15 @@ export default function Agents() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api(`/agents/${id}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      api(`/agents/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled: enabled ? 1 : 0 }),
+      }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
   });
 
@@ -212,9 +222,19 @@ export default function Agents() {
                     {t('knowledgeCount', { count: agent.kb_ids?.length || 0 })}
                   </CardDescription>
                 </div>
-                <Badge variant={agent.enabled ? 'default' : 'secondary'}>
-                  {agent.enabled ? t('statusEnabled') : t('statusDisabled')}
-                </Badge>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Switch
+                    size="sm"
+                    checked={agent.enabled}
+                    disabled={agent.is_default === 1}
+                    onCheckedChange={() =>
+                      toggleMutation.mutate({ id: agent.id, enabled: !agent.enabled })
+                    }
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {agent.enabled ? t('statusEnabled') : t('statusDisabled')}
+                  </span>
+                </div>
               </div>
             </CardHeader>
 

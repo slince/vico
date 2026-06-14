@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Empty, EmptyMedia, EmptyTitle, EmptyDescription,
 } from '@/components/ui/empty';
@@ -98,6 +99,15 @@ export default function AgentDetail() {
       api(`/agents/${id}/knowledge`, {
         method: 'PUT',
         body: JSON.stringify({ knowledge_bases: kbs }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', id] }),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (enabled: boolean) =>
+      api(`/agents/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled: enabled ? 1 : 0 }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', id] }),
   });
@@ -220,6 +230,12 @@ export default function AgentDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold tracking-tight">{a.name}</h2>
+            <Switch
+              size="sm"
+              checked={a.enabled}
+              disabled={a.is_default === 1}
+              onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+            />
             <Badge variant={a.enabled ? 'default' : 'secondary'}>
               {a.enabled ? t('statusEnabledDetail') : t('statusDisabledDetail')}
             </Badge>

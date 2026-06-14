@@ -241,6 +241,11 @@ class AgentManager {
       throw new Error('Cannot modify system prompt of the default agent');
     }
 
+    // 默认 Agent 不允许禁用
+    if (existing.is_default === 1 && updateData.enabled === 0) {
+      throw new Error('Cannot disable the default agent');
+    }
+
     if (Object.keys(updateData).length === 0) return;
 
     // builtin_tools 对象序列化为 JSON 字符串存入 DB
