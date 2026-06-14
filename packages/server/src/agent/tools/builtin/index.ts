@@ -7,6 +7,7 @@
  */
 import { eq } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
+import { Workspace, LocalFilesystem, LocalSandbox, createWorkspaceTools } from '@mastra/core/workspace';
 import { config } from '../../../config.js';
 import type { Tool } from '@mastra/core/tools';
 import type { BuiltinToolsConfig } from '../../../services/agent/types.js';
@@ -56,10 +57,6 @@ class BuiltinToolManager {
     if (this.cachedTools) return this.cachedTools;
 
     try {
-      const [{ Workspace, LocalFilesystem, LocalSandbox, createWorkspaceTools }] = await Promise.all([
-        import('@mastra/core/workspace'),
-      ]);
-
       const { base_path, contained, allowed_paths, timeout_ms, isolation } = config.workspace;
 
       const filesystem = new LocalFilesystem({
