@@ -8,6 +8,7 @@ import { getSkillToolsForMastraAgent } from './skill-tool-adapter';
 import { createRagSearchTool } from './rag-tool';
 import { builtinToolManager } from './builtin';
 import { AgentDetail } from '../../services/agent/types.js';
+import {Tool} from "@mastra/core/tools";
 
 /**
  * 为指定 Agent 构建完整的运行时工具集。
@@ -22,9 +23,9 @@ import { AgentDetail } from '../../services/agent/types.js';
  */
 export async function buildAgentTools(
   agent: AgentDetail,
-): Promise<Record<string, any>> {
+): Promise<Record<string, Tool>> {
   const { id, tenant_id, rag_mode, builtin_tools } = agent;
-  const tools: Record<string, any> = {};
+  const tools: Record<string, Tool> = {};
 
   // 1. Skill 工具
   const skillTools = await getSkillToolsForMastraAgent(id, {
