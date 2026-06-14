@@ -22,8 +22,8 @@ rag:
   chunk_size: 512
   chunk_overlap: 64
   retrieval_top_k: 5
-  embedder: local
-  embedder_model: "Xenova/all-MiniLM-L6-v2"
+  embedder: api
+  embedder_model: "openai/text-embedding-3-small"
 
 tool:
   timeout_ms: 30000

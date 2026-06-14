@@ -58,7 +58,7 @@ function loadConfig(): AppConfig {
     database: { url: 'file:./data/vico.db' },
     skills: { scan_paths: [resolve(__dirname, '../../skills'), resolve(__dirname, '../db/custom-skills')] },
     memory: { stm_window: 20, ltm_auto_extract: true, ltm_max_entries: 10000 },
-    rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'local', embedder_model: 'Xenova/all-MiniLM-L6-v2' },
+    rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'api', embedder_model: 'openai/text-embedding-3-small' },
     tool: { timeout_ms: 30000 },
     upload: { max_size_bytes: 50 * 1024 * 1024, allowed_mime_types: ['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'text/x-python', 'text/javascript', 'application/json'] },
     workspace: { base_path: resolve(__dirname, '../../workspace'), contained: true, allowed_paths: [], timeout_ms: 30000, isolation: 'none' },

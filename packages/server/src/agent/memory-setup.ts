@@ -8,7 +8,10 @@
  */
 import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
 import { Memory } from '@mastra/memory';
+import { ModelRouterEmbeddingModel } from '@mastra/core/llm';
 import { getDatabaseUrl } from '../db/init-libsql.js';
+import { config } from '../config.js';
+import logger from '../lib/logger.js';
 
 let _vector: LibSQLVector;
 let _storage: LibSQLStore;
@@ -49,7 +52,7 @@ export function getStorage(): LibSQLStore {
  * Configures:
  * - LibSQLStore-backed storage for message persistence and recall
  * - LibSQL-backed vector store for semantic recall
- * - OpenAI text-embedding-3-small embedder for text embeddings
+ * - Embedder based on config.rag settings (api mode via ModelRouterEmbeddingModel)
  * - Last 10 messages for working memory context
  * - Semantic recall enabled with topK=5 and surrounding message context
  */
@@ -61,6 +64,19 @@ export function getMemory(): Memory {
         lastMessages: 10,
       },
     });
+
+    // 根据配置注入 embedder
+    const { embedder, embedder_model } = config.rag;
+    if (embedder === 'api') {
+      try {
+        _memory.setEmbedder(new ModelRouterEmbeddingModel(embedder_model));
+        logger.info({ model: embedder_model }, 'Embedder configured (api)');
+      } catch (err) {
+        logger.error({ err, model: embedder_model }, 'Failed to create embedder');
+      }
+    } else {
+      logger.warn({ model: embedder_model }, 'Local embedder not yet supported, RAG features will fail');
+    }
   }
   return _memory;
 }
