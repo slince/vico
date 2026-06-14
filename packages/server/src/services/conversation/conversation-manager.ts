@@ -163,7 +163,7 @@ class ConversationManager {
 
       messages = msgResult.messages.map((msg: any) => ({
         id: msg.id,
-        conversation_id: msg.thread_id || id,
+        thread_id: msg.thread_id || id,
         role: ['user', 'assistant', 'system'].includes(msg.role) ? msg.role : 'system',
         content: extractMessageText(msg),
         tool_calls: extractToolCalls(msg),

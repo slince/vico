@@ -44,7 +44,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <Dashboard /> },
           { path: 'chat', element: <Chat /> },
-          { path: 'chat/:conversationId', element: <Chat /> },
+          { path: 'chat/:threadId', element: <Chat /> },
           { path: 'agents', element: <Agents /> },
           { path: 'agents/:id', element: <AgentDetail /> },
           { path: 'teams', element: <Teams /> },

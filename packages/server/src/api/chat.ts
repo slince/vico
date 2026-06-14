@@ -12,7 +12,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const body = await c.req.json();
-    const { agentId, message, conversationId } = body;
+    const { agentId, message, threadId } = body;
     if (!agentId || !message) {
       return c.json({ error: 'agentId and message are required' }, 400);
     }
@@ -20,7 +20,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     return executeAgentChat({
       agentId,
       message,
-      conversationId,
+      threadId,
       tenantId: auth.tenantId,
       userId: auth.userId,
     });

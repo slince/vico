@@ -8,8 +8,8 @@
  * 设计要点：
  * - 不引入 LLM 调用做摘要（Phase 3 MVP 级别），采用规则拼接
  * - 阈值：config.memory.stm_window * 2 条消息后触发
- * - 摘要存储为 memory_entries（type='observation'），conversation_id 嵌入 content 中
- * - 检索时按 conversation_id 前缀匹配
+ * - 摘要存储为 memory_entries（type='observation'），thread_id 嵌入 content 中
+ * - 检索时按 thread_id 前缀匹配
  * - memory_entries 使用 Drizzle ORM 操作；messages 表已移交 Mastra Storage，
  *   但压缩逻辑仍需直接查询 messages 表（通过 raw SQL）
  */
@@ -34,15 +34,15 @@ export class ObservationalMemory {
    * messages 表已移交 Mastra Storage 管理，但物理表仍存在，通过 raw SQL 查询。
    *
    * @param tenantId - 租户 ID
-   * @param conversationId - 对话 ID
+   * @param threadId - 对话 thread ID
    * @returns 是否执行了压缩
    */
-  async maybeCompress(tenantId: string, conversationId: string): Promise<boolean> {
+  async maybeCompress(tenantId: string, threadId: string): Promise<boolean> {
     const client = getClient();
 
     const countRs = await client.execute({
       sql: `SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?`,
-      args: [conversationId],
+      args: [threadId],
     });
     const countRow = countRs.rows[0];
     const count = Number(countRow[countRs.columns.indexOf('count')]);
@@ -54,7 +54,7 @@ export class ObservationalMemory {
        WHERE conversation_id = ?
        ORDER BY created_at DESC
        LIMIT ?`,
-      args: [conversationId, this.compressThreshold],
+      args: [threadId, this.compressThreshold],
     });
 
     const roleIdx = recentRs.columns.indexOf('role');
@@ -76,7 +76,7 @@ export class ObservationalMemory {
       tenant_id: tenantId,
       user_id: '',
       type: 'observation',
-      content: `[Conversation ${conversationId}]\n${summary}`,
+      content: `[Thread ${threadId}]\n${summary}`,
       importance: 0.3,
       created_at: Date.now(),
     }).run();
@@ -87,13 +87,13 @@ export class ObservationalMemory {
   /**
    * 检索对话的观察记忆摘要
    */
-  async retrieve(tenantId: string, conversationId: string, limit: number = 3) {
+  async retrieve(tenantId: string, threadId: string, limit: number = 3) {
     const db = getDb();
     return db.select().from(memory_entries)
       .where(and(
         eq(memory_entries.tenant_id, tenantId),
         eq(memory_entries.type, 'observation'),
-        like(memory_entries.content, `%[Conversation ${conversationId}]%`),
+        like(memory_entries.content, `%[Thread ${threadId}]%`),
       ))
       .orderBy(desc(memory_entries.created_at))
       .limit(limit)
@@ -103,12 +103,12 @@ export class ObservationalMemory {
   /**
    * 将观察记忆格式化为 prompt 片段
    *
-   * 移除内部标签前缀 [Conversation ...]，只保留摘要内容。
+   * 移除内部标签前缀 [Thread ...]，只保留摘要内容。
    */
   retrieveAsPrompt(rows: { content: string }[]): string {
     if (rows.length === 0) return '';
     const summaries = rows.map((r) => {
-      const content = r.content.replace(/^\[Conversation .+\]\n?/, '');
+      const content = r.content.replace(/^\[Thread .+\]\n?/, '');
       return content;
     });
     return '## 对话历史摘要\n' + summaries.join('\n---\n');

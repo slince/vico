@@ -13,7 +13,7 @@ import logger from '../lib/logger.js';
 export interface ExecuteChatParams {
   agentId: string;
   message: string;
-  conversationId?: string;
+  threadId?: string;
   tenantId: string;
   userId: string;
 }
@@ -26,7 +26,7 @@ export interface ExecuteChatParams {
  * 通过 SSE 流式返回 AI 回复。
  */
 export async function executeAgentChat(params: ExecuteChatParams): Promise<Response> {
-  const { agentId, message, conversationId, tenantId, userId } = params;
+  const { agentId, message, threadId, tenantId, userId } = params;
 
   // 输入校验
   if (!message?.trim()) {
@@ -37,9 +37,7 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
   }
 
   try {
-    const cid = conversationId || uuidv4();
-    // 使用 :: 分隔符避免 UUID 中的 - 造成 thread ID 歧义
-    const threadId = `${agentId}::${userId}::${cid}`;
+    const thread = threadId || `${agentId}::${userId}::${uuidv4()}`;
 
     const requestContext = new RequestContext();
 
@@ -50,7 +48,7 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
         : await prepareAgentContext(tenantId, agentId, requestContext);
 
     // 2. 统一保存 thread
-    await saveThread(threadId, tenantId, {
+    await saveThread(thread, tenantId, {
       agent_id: agentId,
       user_id: userId,
       model_name: ctx.agent.model_id,
@@ -62,7 +60,7 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       [{ role: 'user', content: message }],
       {
         instructions: ctx.instructions,
-        memory: { thread: threadId, resource: tenantId },
+        memory: { thread, resource: tenantId },
         maxSteps: ctx.agent.max_steps || 10,
         requestContext,
       },

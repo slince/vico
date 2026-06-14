@@ -39,8 +39,8 @@ interface ChatSidebarProps {
   agents: Agent[];
   selectedAgentId: string;
   onSelectAgent: (agentId: string) => void;
-  activeConversationId: string;
-  onSelectConversation: (conversationId: string) => void;
+  activeThreadId: string;
+  onSelectThread: (threadId: string) => void;
   onNewChat: () => void;
 }
 
@@ -51,8 +51,8 @@ export function ChatSidebar({
   agents,
   selectedAgentId,
   onSelectAgent,
-  activeConversationId,
-  onSelectConversation,
+  activeThreadId,
+  onSelectThread,
   onNewChat,
 }: ChatSidebarProps) {
   // 获取对话列表
@@ -120,10 +120,10 @@ export function ChatSidebar({
             {convs.map((conv) => (
               <button
                 key={conv.id}
-                onClick={() => onSelectConversation(conv.id)}
+                onClick={() => onSelectThread(conv.id)}
                 className={cn(
                   'w-full text-left p-3 rounded-md transition-colors',
-                  activeConversationId === conv.id
+                  activeThreadId === conv.id
                     ? 'bg-accent text-accent-foreground'
                     : 'hover:bg-accent/50'
                 )}

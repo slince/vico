@@ -41,14 +41,14 @@ export interface ChatMessage {
  *
  * 左侧显示 Agent 选择器和对话列表，右侧为聊天窗口。
  * 支持 SSE 流式响应、对话切换、新建对话。
- * URL 路由：/chat 或 /chat/:conversationId
+ * URL 路由：/chat 或 /chat/:threadId
  */
 export default function Chat() {
-  const { conversationId } = useParams<{ conversationId?: string }>();
+  const { threadId } = useParams<{ threadId?: string }>();
   const navigate = useNavigate();
 
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
-  const [activeConversationId, setActiveConversationId] = useState<string>(conversationId || '');
+  const [activeThreadId, setActiveThreadId] = useState<string>(threadId || '');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -64,18 +64,18 @@ export default function Chat() {
 
   // 加载历史对话的消息
   useEffect(() => {
-    if (!conversationId) {
+    if (!threadId) {
       // 新对话，清空消息
-      if (!activeConversationId) {
+      if (!activeThreadId) {
         setMessages([]);
       }
       return;
     }
 
-    setActiveConversationId(conversationId);
+    setActiveThreadId(threadId);
     setLoadingMessages(true);
 
-    api<{ messages: ChatMessage[]; agent_id: string }>(`/conversations/${conversationId}`)
+    api<{ messages: ChatMessage[]; agent_id: string }>(`/conversations/${threadId}`)
       .then((data) => {
         setMessages(data.messages || []);
         if (data.agent_id) setSelectedAgentId(data.agent_id);
@@ -86,14 +86,14 @@ export default function Chat() {
       .finally(() => {
         setLoadingMessages(false);
       });
-  }, [conversationId]);
+  }, [threadId]);
 
   // 确保 agent 选择与 URL 参数同步
   useEffect(() => {
-    if (conversationId) {
-      setActiveConversationId(conversationId);
+    if (threadId) {
+      setActiveThreadId(threadId);
     }
-  }, [conversationId]);
+  }, [threadId]);
 
   /** 发送消息 */
   const handleSend = useCallback(
@@ -105,7 +105,7 @@ export default function Chat() {
         abortRef.current.abort();
       }
 
-      const convId = activeConversationId || '';
+      const tid = activeThreadId || '';
       const userMsg: ChatMessage = {
         id: `user-${Date.now()}`,
         role: 'user',
@@ -121,7 +121,7 @@ export default function Chat() {
       let pendingApprovalRef: { command: string } | null = null;
 
       abortRef.current = streamChat(
-        { agentId: selectedAgentId, conversationId: convId, message: text },
+        { agentId: selectedAgentId, threadId: tid, message: text },
         (event) => {
           if (event.type === 'text_delta') {
             assistantContent += event.content || '';
@@ -152,15 +152,14 @@ export default function Chat() {
           setMessages((prev) => [...prev, newMsg]);
           setStreamingContent('');
 
-          // 首次对话后，更新 URL 以保持对话
-          if (!convId) {
-            // 对话 ID 由服务端返回，这里用 threadId 不便获取
+          // 首次对话完成后刷新对话列表，后续由服务端返回的 threadId 标识
+          if (!tid) {
             // 新对话完成后刷新对话列表
           }
         }
       );
     },
-    [selectedAgentId, activeConversationId]
+    [selectedAgentId, activeThreadId]
   );
 
   /** 停止生成 */
@@ -178,7 +177,7 @@ export default function Chat() {
     if (abortRef.current) {
       abortRef.current.abort();
     }
-    setActiveConversationId('');
+    setActiveThreadId('');
     setMessages([]);
     setIsStreaming(false);
     setStreamingContent('');
@@ -187,19 +186,19 @@ export default function Chat() {
   }, [navigate]);
 
   /** 选择对话 */
-  const handleSelectConversation = useCallback(
-    (convId: string) => {
-      if (convId === activeConversationId) return;
+  const handleSelectThread = useCallback(
+    (tid: string) => {
+      if (tid === activeThreadId) return;
       // 如果有流在进行，先中止
       if (abortRef.current) {
         abortRef.current.abort();
       }
       setIsStreaming(false);
       setStreamingContent('');
-      setActiveConversationId(convId);
-      navigate(`/chat/${convId}`, { replace: true });
+      setActiveThreadId(tid);
+      navigate(`/chat/${tid}`, { replace: true });
     },
-    [activeConversationId, navigate]
+    [activeThreadId, navigate]
   );
 
   /** 选择 Agent */
@@ -228,8 +227,8 @@ export default function Chat() {
         agents={agentList}
         selectedAgentId={selectedAgentId}
         onSelectAgent={handleSelectAgent}
-        activeConversationId={activeConversationId}
-        onSelectConversation={handleSelectConversation}
+        activeThreadId={activeThreadId}
+        onSelectThread={handleSelectThread}
         onNewChat={handleNewChat}
       />
 

@@ -30,7 +30,7 @@ export async function api<T = any>(
 
 /** SSE 聊天流 — 通过 session cookie 自动携带凭据 */
 export function streamChat(
-  body: { agentId: string; conversationId?: string; message: string },
+  body: { agentId: string; threadId?: string; message: string },
   onEvent: (event: any) => void,
   onError: (err: Error) => void,
   onDone: () => void
@@ -96,7 +96,7 @@ export function streamChat(
 
 /** SSE 团队聊天流 */
 export function streamTeamChat(
-  body: { teamId: string; conversationId?: string; message: string },
+  body: { teamId: string; threadId?: string; message: string },
   onEvent: (event: any) => void,
   onError: (err: Error) => void,
   onDone: () => void

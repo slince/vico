@@ -16,7 +16,7 @@ export interface ConversationItem {
 /** 消息项 */
 export interface MessageItem {
   id: string;
-  conversation_id: string;
+  thread_id: string;
   role: string;
   content: string;
   tool_calls?: string;

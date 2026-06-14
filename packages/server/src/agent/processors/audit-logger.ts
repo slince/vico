@@ -16,7 +16,7 @@ interface AuditLoggerConfig {
   /** Agent ID */
   agentId: string;
   /** 会话 ID（可选） */
-  conversationId?: string;
+  threadId?: string;
 }
 
 export function createAuditLogger(config: AuditLoggerConfig): OutputProcessor {
@@ -39,7 +39,7 @@ export function createAuditLogger(config: AuditLoggerConfig): OutputProcessor {
           log.info({
             tenantId: config.tenantId,
             agentId: config.agentId,
-            conversationId: config.conversationId,
+            threadId: config.threadId,
             toolName: tc.payload.toolName,
             toolCallId: tc.payload.toolCallId,
             status: 'completed',
