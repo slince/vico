@@ -26,8 +26,6 @@ interface Agent {
   name: string;
 }
 
-/** 主 Agent — 内置通用调度器，非 DB 记录 */
-const MAIN_AGENT: Agent = { id: 'main', name: 'Vico' };
 
 export interface ChatMessage {
   id: string;
@@ -220,7 +218,7 @@ export default function Chat() {
     return <ChatSkeleton />;
   }
 
-  const agentList: Agent[] = [MAIN_AGENT, ...(agents ?? [])];
+  const agentList: Agent[] = agents ?? [];
   const selectedAgent = agentList.find((a) => a.id === selectedAgentId);
 
   return (

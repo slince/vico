@@ -1,6 +1,8 @@
 // 1. React
 
 // 2. Third-party
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // 3. API
 
@@ -19,6 +21,7 @@ interface MessageBubbleProps {
  * 聊天消息气泡。
  *
  * 用户消息右对齐（primary 色），AI 消息左对齐（accent 色）。
+ * AI 消息内容以 Markdown 渲染（支持 GFM 扩展）。
  * isStreaming 时在 AI 回复末尾显示闪烁光标。
  */
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
@@ -34,8 +37,12 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
             : 'bg-accent text-accent-foreground'
         )}
       >
-        <div className="text-sm whitespace-pre-wrap break-words">
-          {message.content}
+        <div className={cn('text-sm break-words', !isUser && 'prose prose-sm dark:prose-invert max-w-none')}>
+          {isUser ? (
+            <div className="whitespace-pre-wrap">{message.content}</div>
+          ) : (
+            <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
+          )}
           {isStreaming && (
             <span className="inline-block w-1 h-4 ml-0.5 bg-current animate-pulse align-middle" />
           )}

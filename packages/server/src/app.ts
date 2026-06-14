@@ -126,6 +126,21 @@ export function createApp(): Hono<{ Variables: Variables }> {
     return next();
   });
 
+  /** Auth 守卫中间件 — 保护 Mastra /api/* 路由（不含 /api/v1/*，因其已有独立守卫） */
+  app.use('/api/*', async (c, next) => {
+    const path = c.req.path;
+    // 跳过 /api/v1/*（已有独立守卫）和 /api/auth/*（better-auth 自己处理）
+    if (path.startsWith('/api/v1/') || path.startsWith('/api/auth/')) {
+      return next();
+    }
+    const session = c.get('session');
+    const user = c.get('user');
+    if (!session || !user) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    return next();
+  });
+
   /** 挂载 better-auth 路由处理器 */
   app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
