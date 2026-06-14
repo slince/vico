@@ -78,11 +78,13 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       );
 
       const allTools = { ...builtinTools, ...agentTools };
+      if (Object.keys(allTools).length > 0) {
+        requestContext.set('tools', allTools);
+      }
 
       instructions = `${await vicoAgent.getInstructions()}${agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : ''}`;
 
       output = await vicoAgent.stream([{ role: 'user', content: message }], {
-        clientTools: allTools,
         instructions,
         memory: { thread: threadId, resource: tenantId },
         maxSteps: 15,
@@ -108,9 +110,11 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
         : {};
 
       const agentProxy = mastra.getAgent('agentProxy');
+      if (Object.keys(builtinTools).length > 0) {
+        requestContext.set('tools', builtinTools);
+      }
       output = await agentProxy.stream([{ role: 'user', content: message }], {
         instructions,
-        clientTools: builtinTools,
         memory: { thread: threadId, resource: tenantId },
         maxSteps: agentConfig.maxSteps,
         requestContext,

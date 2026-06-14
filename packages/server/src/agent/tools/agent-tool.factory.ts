@@ -10,10 +10,8 @@ import { createTool } from '@mastra/core/tools';
 import { RequestContext } from '@mastra/core/request-context';
 import { z } from 'zod';
 import { agentProxy } from '../agents/agent-proxy.agent.js';
-import { getSkillToolsForMastraAgent } from './skill-tool-adapter';
-import { createRagSearchTool } from './rag-tool';
 import { agentManager } from '../../services/agent/agent-manager.js';
-import { builtinToolManager } from './builtin/index.js';
+import { buildAgentTools } from './agent-tools.factory.js';
 import { AgentDetail } from '../../services/agent/types.js';
 
 /**
@@ -51,40 +49,21 @@ export function createAgentTool(agent: AgentDetail, tenantId: string) {
         instructions += `\n\n## 附加上下文\n${context}`;
       }
 
-      // 3. 构建 tools: Skill Tools + RAG Tool
-      const tools: Record<string, any> = {};
-      const skillTools = await getSkillToolsForMastraAgent(agent.id, {
-        tenantId,
-        agentId: agent.id,
-        userId: '',
-        skillConfig: {},
-      });
-      Object.assign(tools, skillTools);
+      // 3. 构建 tools 并注入到 requestContext，agentProxy 的 tools 函数同步读取
+      const tools = await buildAgentTools(agent, tenantId);
 
-      if (agent.rag_mode !== 'disabled') {
-        const ragTool = await createRagSearchTool(agent);
-        if (ragTool) {
-          tools[ragTool.id] = ragTool;
-        }
-      }
-
-      // 追加 per-agent 配置的内置工具
-      const builtinTools = await builtinToolManager.getToolsForAgent(
-        { builtin_tools: agent.builtin_tools ?? '{}' },
-        tenantId,
-      );
-      Object.assign(tools, builtinTools);
-
-      // 4. 注入运行时配置到 requestContext，agentProxy 的 model/instructions 函数同步读取
+      // 4. 注入运行时配置到 requestContext，agentProxy 的 model/instructions/tools 函数同步读取
       const requestContext = new RequestContext();
       requestContext.set('model', runtimeConfig.model);
       requestContext.set('instructions', instructions);
+      if (Object.keys(tools).length > 0) {
+        requestContext.set('tools', tools);
+      }
 
       // 5. 调用 agentProxy.generate()
       const threadId = `proxy-${agent.id}-${Date.now()}`;
       const options = {
         requestContext,
-        clientTools: Object.keys(tools).length > 0 ? tools : undefined,
         maxSteps: runtimeConfig.maxSteps,
         memory: {
           thread: threadId,

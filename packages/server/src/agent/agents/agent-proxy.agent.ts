@@ -12,7 +12,7 @@ import type { MastraModelConfig } from '@mastra/core/llm';
  *
  * 每次调用是独立的对话，不共享上下文。
  *
- * model 和 instructions 均为同步函数，直接从 runtimeContext 中读取
+ * model、instructions、tools 均为同步函数，直接从 requestContext 中读取
  * 由调用方预先解析好的配置。调用方应在调用 generate() 前通过
  * agentManager.getAgentRuntimeConfig() 获取配置并注入 requestContext。
  */
@@ -28,6 +28,9 @@ export const agentProxy = new Agent({
     if (model) return model;
     // 回退：仅在未传入 runtimeContext 或未配置模型时使用
     return createOpenAI({ apiKey: 'sk-placeholder' }).chat('gpt-4o');
+  },
+  tools: ({ requestContext }) => {
+    return (requestContext?.get('tools') as Record<string, any>) || {};
   },
   memory: getMemory(),
   defaultOptions: {

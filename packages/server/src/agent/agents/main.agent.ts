@@ -13,7 +13,7 @@ import type { MastraModelConfig } from '@mastra/core/llm';
  * 4. 汇总子 Agent 结果，返回整合后的最终回复
  * 5. 没有合适 Agent 时自行回答
  *
- * 模型通过 requestContext 动态注入，使用当前租户的默认模型配置。
+ * 模型和工具通过 requestContext 动态注入，使用当前租户的默认模型配置。
  * 未传入 requestContext 时回退为占位模型。
  */
 export const mainAgent = new Agent({
@@ -45,6 +45,9 @@ export const mainAgent = new Agent({
     if (model) return model;
     // 回退：仅在未传入 requestContext 或未配置模型时使用
     return createOpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-placeholder' }).chat('gpt-4o');
+  },
+  tools: ({ requestContext }) => {
+    return (requestContext?.get('tools') as Record<string, any>) || {};
   },
   memory: getMemory(),
   defaultOptions: {
