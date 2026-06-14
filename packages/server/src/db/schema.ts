@@ -25,6 +25,7 @@ export const agents = sqliteTable('agents', {
   max_tokens: integer('max_tokens').notNull().default(4096),
   rag_mode: text('rag_mode').notNull().default('auto'),
   max_steps: integer('max_steps').notNull().default(10),
+  builtin_tools: text('builtin_tools').notNull().default('{}'),
   enabled: integer('enabled').notNull().default(1),
   created_at: integer('created_at').notNull(),
   updated_at: integer('updated_at').notNull(),
@@ -139,3 +140,14 @@ export const agentTeamMembers = sqliteTable('agent_team_members', {
 }, (table) => ({
   unq: unique().on(table.team_id, table.agent_id),
 }));
+
+/** 命令执行审批表 */
+export const exec_approvals = sqliteTable('exec_approvals', {
+  id: text('id').primaryKey(),
+  tenant_id: text('tenant_id').notNull().references(() => organization.id),
+  agent_id: text('agent_id').notNull(),
+  command: text('command').notNull(),
+  status: text('status').notNull().default('pending'),
+  created_at: integer('created_at').notNull(),
+  resolved_at: integer('resolved_at'),
+});
