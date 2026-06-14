@@ -10,6 +10,7 @@ import { chatRoutes } from './chat.js';
 import { teamRoutes } from './teams.js';
 import { conversationRoutes } from './conversations.js';
 import { execApprovalRoutes } from './exec-approvals.js';
+import { observabilityRoutes } from './observability.js';
 
 export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   authRoutes(app);
@@ -22,4 +23,5 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   teamRoutes(app);
   conversationRoutes(app);
   execApprovalRoutes(app);
+  observabilityRoutes(app);
 }
