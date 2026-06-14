@@ -29,7 +29,7 @@ tool:
   timeout_ms: 30000
 
 workspace:
-  base_path: './workspace'
+  base_path: '~/vico'
   contained: true
   allowed_paths: []
   timeout_ms: 30000

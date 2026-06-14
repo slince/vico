@@ -1,5 +1,6 @@
 import {LocalFilesystem, Workspace} from '@mastra/core/workspace';
 import {resolve} from 'node:path';
+import {homedir} from 'node:os';
 import {config} from '../config.js';
 
 let _workspace: Workspace;
@@ -13,7 +14,8 @@ let _workspace: Workspace;
  */
 export function getWorkspace(): Workspace {
   if (!_workspace) {
-    const basePath = resolve(config.workspace.base_path);
+    const rawPath = config.workspace.base_path;
+    const basePath = resolve(rawPath.startsWith('~') ? rawPath.replace('~', homedir()) : rawPath);
     _workspace = new Workspace({
 
       filesystem: new LocalFilesystem({
