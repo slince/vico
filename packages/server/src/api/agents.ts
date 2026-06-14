@@ -1,7 +1,7 @@
-import { Hono } from 'hono';
-import type { Variables } from '../index.js';
-import { getAuthContext } from './helpers.js';
-import { agentManager } from '../services/agent/agent-manager.js';
+import {Hono} from 'hono';
+import type {Variables} from '../index.js';
+import {getAuthContext} from './helpers.js';
+import {agentManager} from '../services/agent/agent-manager.js';
 
 export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   // ── 列表 ──
@@ -36,6 +36,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
       await agentManager.update(auth.tenantId, c.req.param('id'), await c.req.json());
     } catch (e: any) {
       if (e.message === 'Agent not found') return c.json({ error: 'Agent not found' }, 404);
+      if (e.message === 'Cannot modify system prompt of the default agent') return c.json({ error: e.message }, 403);
       throw e;
     }
     return c.json({ message: 'updated' });

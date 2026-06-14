@@ -115,7 +115,7 @@ export default function AgentDetail() {
 
   useEffect(() => {
     const data: Record<string, unknown> = {};
-    if (dirtyFields.system_prompt) data.system_prompt = watchedPrompt;
+    if (dirtyFields.system_prompt && agent?.is_default !== 1) data.system_prompt = watchedPrompt;
     if (dirtyFields.max_tokens) data.max_tokens = watchedMaxTokens;
     if (Object.keys(data).length === 0) return;
 
@@ -123,7 +123,7 @@ export default function AgentDetail() {
       updateMutation.mutate(data);
     }, 300);
     return () => clearTimeout(timer);
-  }, [watchedPrompt, watchedMaxTokens]);
+  }, [watchedPrompt, watchedMaxTokens, agent?.is_default]);
 
   const toggleSkill = useCallback(
     (skillName: string, boundSkills: string[]) => {

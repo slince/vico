@@ -57,7 +57,13 @@ export default function ConfigPanel({
             {...register('system_prompt')}
             className="min-h-40 font-mono text-sm"
             placeholder={t('systemPromptPlaceholder')}
+            disabled={a.is_default === 1}
           />
+          {a.is_default === 1 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {t('defaultAgentPromptLocked')}
+            </p>
+          )}
         </CardContent>
       </Card>
 

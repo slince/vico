@@ -30,6 +30,7 @@
   "tabChat": "Test Chat",
   "systemPrompt": "System Prompt",
   "systemPromptDesc": "Define the agent's role, behavior guidelines, and response style. Changes are saved instantly.",
+  "defaultAgentPromptLocked": "The system prompt of the default agent is managed by the system and cannot be modified.",
   "systemPromptPlaceholder": "Enter system prompt to define the agent's behavior...",
   "modelSelect": "Model Selection",
   "modelSelectDesc": "Choose the LLM model for this agent. Different models vary in capability, speed, and cost.",

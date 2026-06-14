@@ -224,7 +224,7 @@ class AgentManager {
     const db = getDb();
 
     // 存在性检查
-    const existing = await db.select({ id: agents.id }).from(agents)
+    const existing = await db.select({ id: agents.id, is_default: agents.is_default }).from(agents)
       .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
       .get();
     if (!existing) throw new Error('Agent not found');
@@ -234,6 +234,11 @@ class AgentManager {
     const updateData: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(parsed)) {
       if (v !== undefined) updateData[k] = v;
+    }
+
+    // 默认 Agent 不允许修改 system_prompt
+    if (existing.is_default === 1 && 'system_prompt' in updateData) {
+      throw new Error('Cannot modify system prompt of the default agent');
     }
 
     if (Object.keys(updateData).length === 0) return;

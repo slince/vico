@@ -30,6 +30,7 @@
   "tabChat": "測試對話",
   "systemPrompt": "System Prompt",
   "systemPromptDesc": "定義 Agent 的角色、行為規範和回覆風格。修改即時儲存。",
+  "defaultAgentPromptLocked": "預設 Agent 的 System Prompt 由系統管理，不允許使用者修改。",
   "systemPromptPlaceholder": "輸入 System Prompt，定義 Agent 的行為準則...",
   "modelSelect": "模型選擇",
   "modelSelectDesc": "選擇 Agent 使用的大型語言模型。不同模型在能力、速度和成本上有所差異。",
