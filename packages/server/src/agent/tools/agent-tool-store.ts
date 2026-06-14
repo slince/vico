@@ -73,6 +73,7 @@ class AgentToolStore {
     const descriptions: string[] = [];
 
     for (const row of agentRows) {
+      if (row.is_default === 1) continue; // 主 Agent 不作为子 Agent 路由工具
       try {
         const tool = createAgentTool(row);
         toolMap.set(`agent_${row.id}`, tool);
