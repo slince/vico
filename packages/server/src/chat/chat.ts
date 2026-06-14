@@ -9,6 +9,8 @@ import { builtinToolManager } from '../agent/tools/builtin/index.js';
 import { modelManager } from '../services/model/model-manager.js';
 import { resolveModelProvider } from '../agent/bridges/model-bridge.js';
 import { workingMemory } from '../agent/memory/working-memory.js';
+import type { MastraModelOutput } from '@mastra/core/stream';
+import type { MastraModelConfig } from '@mastra/core/llm';
 import type { LanguageModel } from 'ai';
 import logger from '../lib/logger.js';
 
@@ -20,6 +22,9 @@ export interface ExecuteChatParams {
   userId: string;
 }
 
+/** mainAgent 默认开启的核心内置工具（read/write/edit/ls/grep/stat） */
+const MAIN_AGENT_DEFAULT_TOOLS = '{"read":true,"write":true,"edit":true,"ls":true,"grep":true,"stat":true}';
+
 /**
  * 执行单 Agent 对话。
  *
@@ -30,50 +35,41 @@ export interface ExecuteChatParams {
 export async function executeAgentChat(params: ExecuteChatParams): Promise<Response> {
   const { agentId, message, conversationId, tenantId, userId } = params;
 
+  // 输入校验
+  if (!message?.trim()) {
+    return new Response(JSON.stringify({ error: 'Message is required' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const cid = conversationId || uuidv4();
-    const threadId = `${agentId}-${userId}-${cid}`;
+    // 使用 :: 分隔符避免 UUID 中的 - 造成 thread ID 歧义
+    const threadId = `${agentId}::${userId}::${cid}`;
 
-    const modelConfig = await modelManager.getDefault(tenantId);
-    const modelName = modelConfig?.model_name || '';
-
-    const memory = getMemory();
-    await memory.saveThread({
-      thread: {
-        id: threadId,
-        resourceId: tenantId,
-        title: '',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        metadata: {
-          agent_id: agentId,
-          user_id: userId,
-          model_name: modelName,
-        },
-      },
-    });
-
-    // 构建 requestContext，注入租户默认模型
     const requestContext = new RequestContext();
-    if (modelConfig) {
-      const model = resolveModelProvider(modelConfig);
-      requestContext.set('model', model);
-    }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let output: any;
+    let output: MastraModelOutput<unknown>;
     let instructions: string;
+    // 追踪实际使用的模型，供 onComplete 中 working memory 提取使用
+    let activeModel: MastraModelConfig | null = null;
 
     if (agentId === 'main') {
       // 内置主 Agent — 通用调度器，注入租户 Agent 工具 + 基础工具
+      const defaultModelConfig = await modelManager.getDefault(tenantId);
+      if (defaultModelConfig) {
+        activeModel = resolveModelProvider(defaultModelConfig);
+        requestContext.set('model', activeModel);
+      }
+
       const vicoAgent = mastra.getAgent('mainAgent');
 
       const agentTools = await agentToolStore.getToolsForTenant(tenantId);
       const agentDescriptions = await agentToolStore.getAgentDescriptions(tenantId);
 
-      // mainAgent 默认开启核心内置工具（read/write/edit/ls/grep/stat）
       const builtinTools = await builtinToolManager.getToolsForAgent(
-        { builtin_tools: '{"read":true,"write":true,"edit":true,"ls":true,"grep":true,"stat":true}' },
+        { builtin_tools: MAIN_AGENT_DEFAULT_TOOLS },
         tenantId,
       );
 
@@ -84,6 +80,13 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
 
       instructions = `${await vicoAgent.getInstructions()}${agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : ''}`;
 
+      // 验证通过后再创建 thread
+      await saveThread(threadId, tenantId, {
+        agent_id: agentId,
+        user_id: userId,
+        model_name: defaultModelConfig?.model_name || '',
+      });
+
       output = await vicoAgent.stream([{ role: 'user', content: message }], {
         instructions,
         memory: { thread: threadId, resource: tenantId },
@@ -91,28 +94,40 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
         requestContext,
       });
     } else {
-      // 用户自定义 Agent — 从 DB 获取配置，通过 agentProxy 运行
-      const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
-      if (!agentConfig) {
+      // 用户自定义 Agent — 先验证存在性，再获取配置
+      const agentDetail = await agentManager.getById(tenantId, agentId);
+      if (!agentDetail) {
         return new Response(JSON.stringify({ error: 'Agent not found' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
         });
       }
 
-      requestContext.set('model', agentConfig.model);
+      const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
+      if (!agentConfig) {
+        return new Response(JSON.stringify({ error: 'Agent model configuration not found' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      activeModel = agentConfig.model;
+      requestContext.set('model', activeModel);
       instructions = agentConfig.instructions;
 
-      // 获取 Agent 详情以读取 builtin_tools 配置
-      const agentDetail = await agentManager.getById(tenantId, agentId);
-      const builtinTools = agentDetail
-        ? await builtinToolManager.getToolsForAgent(agentDetail, tenantId)
-        : {};
-
-      const agentProxy = mastra.getAgent('agentProxy');
+      const builtinTools = await builtinToolManager.getToolsForAgent(agentDetail, tenantId);
       if (Object.keys(builtinTools).length > 0) {
         requestContext.set('tools', builtinTools);
       }
+
+      // 验证通过后再创建 thread
+      await saveThread(threadId, tenantId, {
+        agent_id: agentId,
+        user_id: userId,
+        model_name: agentDetail.model_id,
+      });
+
+      const agentProxy = mastra.getAgent('agentProxy');
       output = await agentProxy.stream([{ role: 'user', content: message }], {
         instructions,
         memory: { thread: threadId, resource: tenantId },
@@ -122,16 +137,19 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
     }
 
     // 包装为 SSE 流，流结束后异步提取工作记忆
-    const userMessage = message as string;
     const stream = createSSEStream(output, {
       onComplete: async (fullText: string) => {
-        const modelConfig = await modelManager.getDefault(tenantId);
-        if (!modelConfig) return;
-        const model = resolveModelProvider(modelConfig) as unknown as LanguageModel;
-        await workingMemory.extractAndStore(model, tenantId, userId, [
-          { role: 'user', content: userMessage },
-          { role: 'assistant', content: fullText },
-        ]);
+        if (!activeModel) return;
+        // MastraModelConfig 兼容 AI SDK LanguageModel（LanguageModelV1/V2/V3 联合类型）
+        await workingMemory.extractAndStore(
+          activeModel as unknown as LanguageModel,
+          tenantId,
+          userId,
+          [
+            { role: 'user', content: message },
+            { role: 'assistant', content: fullText },
+          ],
+        );
       },
     });
 
@@ -150,4 +168,23 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       headers: { 'Content-Type': 'application/json' },
     });
   }
+}
+
+/** 写入 thread 到 memory，避免重复的 saveThread 样板代码 */
+async function saveThread(
+  threadId: string,
+  tenantId: string,
+  metadata: Record<string, string>,
+): Promise<void> {
+  const memory = getMemory();
+  await memory.saveThread({
+    thread: {
+      id: threadId,
+      resourceId: tenantId,
+      title: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      metadata,
+    },
+  });
 }
