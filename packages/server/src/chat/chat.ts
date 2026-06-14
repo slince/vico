@@ -44,23 +44,9 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
 
     const requestContext = new RequestContext();
 
-    // 追踪实际使用的模型，供 onComplete 中 working memory 提取使用
-    let activeModel: MastraModelConfig | null = null;
 
     // 1. 统一加载配置（agentId === 'main' 时内部自动解析为默认 Agent 并追加租户工具/能力描述）
-    let ctx: AgentRuntimeConfig;
-    try {
-      ctx = await prepareAgentContext(tenantId, agentId, requestContext);
-      activeModel = ctx.model;
-    } catch (error: unknown) {
-      if (error instanceof AgentNotFoundError) {
-        return new Response(JSON.stringify({ error: error.message }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      throw error;
-    }
+    const ctx = await prepareAgentContext(tenantId, agentId, requestContext);
 
     // 2. 统一保存 thread
     await saveThread(threadId, tenantId, {
@@ -81,15 +67,14 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       },
     );
 
+    // 追踪实际使用的模型，供 onComplete 中 working memory 提取使用
+    const activeModel: MastraModelConfig = ctx.model;
+
     // 包装为 SSE 流，流结束后异步提取工作记忆
     const stream = createSSEStream(output, {
       onComplete: async (fullText: string) => {
-        if (!activeModel) return;
         // MastraModelConfig 兼容 AI SDK LanguageModel（LanguageModelV1/V2/V3 联合类型）
-        await workingMemory.extractAndStore(
-          activeModel as unknown as LanguageModel,
-          tenantId,
-          userId,
+        await workingMemory.extractAndStore(activeModel as unknown as LanguageModel, tenantId, userId,
           [
             { role: 'user', content: message },
             { role: 'assistant', content: fullText },
@@ -105,6 +90,7 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
         'Connection': 'keep-alive',
       },
     });
+
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'An internal error occurred';
     logger.error({ err: error, agentId, tenantId }, 'Chat stream error');
