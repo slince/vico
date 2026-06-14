@@ -145,9 +145,11 @@ export const agentTeamMembers = sqliteTable('agent_team_members', {
 export const exec_approvals = sqliteTable('exec_approvals', {
   id: text('id').primaryKey(),
   tenant_id: text('tenant_id').notNull().references(() => organization.id),
-  agent_id: text('agent_id').notNull(),
+  agent_id: text('agent_id').notNull().references(() => agents.id),
   command: text('command').notNull(),
   status: text('status').notNull().default('pending'),
   created_at: integer('created_at').notNull(),
   resolved_at: integer('resolved_at'),
-});
+}, (table) => ({
+  tenantStatusIdx: index('idx_ea_tenant_status').on(table.tenant_id, table.status),
+}));
