@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Empty, EmptyMedia, EmptyTitle, EmptyDescription,
 } from '@/components/ui/empty';
@@ -230,12 +231,22 @@ export default function AgentDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold tracking-tight">{a.name}</h2>
-            <Switch
-              size="sm"
-              checked={a.enabled}
-              disabled={a.is_default === 1}
-              onCheckedChange={(checked) => toggleMutation.mutate(checked)}
-            />
+            {a.is_default === 1 ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Switch size="sm" checked={a.enabled} disabled />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{t('defaultAgentCannotDisable')}</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Switch
+                size="sm"
+                checked={a.enabled}
+                onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+              />
+            )}
             <Badge variant={a.enabled ? 'default' : 'secondary'}>
               {a.enabled ? t('statusEnabledDetail') : t('statusDisabledDetail')}
             </Badge>

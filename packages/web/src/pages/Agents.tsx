@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Empty,
   EmptyMedia,
@@ -223,14 +224,24 @@ export default function Agents() {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Switch
-                    size="sm"
-                    checked={agent.enabled}
-                    disabled={agent.is_default === 1}
-                    onCheckedChange={() =>
-                      toggleMutation.mutate({ id: agent.id, enabled: !agent.enabled })
-                    }
-                  />
+                  {agent.is_default === 1 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <Switch size="sm" checked={agent.enabled} disabled />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('defaultAgentCannotDisable')}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Switch
+                      size="sm"
+                      checked={agent.enabled}
+                      onCheckedChange={() =>
+                        toggleMutation.mutate({ id: agent.id, enabled: !agent.enabled })
+                      }
+                    />
+                  )}
                   <span className="text-xs text-muted-foreground">
                     {agent.enabled ? t('statusEnabled') : t('statusDisabled')}
                   </span>
