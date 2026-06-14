@@ -23,21 +23,22 @@ import { AgentDetail } from '../../services/agent/types.js';
  *
  * 每个调用使用独立的 memory thread，确保不同委托之间上下文隔离。
  *
- * @param agent - 来自 agents 表的 Agent 配置行
- * @param tenantId - 租户 ID，用于多租户数据隔离
+ * @param agent - 来自 agents 表的 Agent 配置行，tenant_id 由此提取
  * @returns Mastra Tool 实例
  */
-export function createAgentTool(agent: AgentDetail, tenantId: string) {
+export function createAgentTool(agent: AgentDetail) {
+  const { id, name, tenant_id } = agent;
+
   return createTool({
-    id: `agent_${agent.id}`,
-    description: `委托任务给「${agent.name}」Agent。当用户需要 ${agent.name} 相关能力时调用此工具`,
+    id: `agent_${id}`,
+    description: `委托任务给「${name}」Agent。当用户需要 ${name} 相关能力时调用此工具`,
     inputSchema: z.object({
-      task: z.string().describe(`要委托给 ${agent.name} 的具体任务描述`),
+      task: z.string().describe(`要委托给 ${name} 的具体任务描述`),
       context: z.string().optional().describe('附加上下文信息'),
     }),
     execute: async ({ task, context }) => {
       // 1. 一次性解析 Agent 运行时配置（模型 + 基础指令 + 选项）
-      const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agent.id);
+      const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenant_id, id);
       if (!runtimeConfig) {
         return 'Agent runtime configuration not available.';
       }
@@ -50,7 +51,7 @@ export function createAgentTool(agent: AgentDetail, tenantId: string) {
       }
 
       // 3. 构建 tools 并注入到 requestContext，agentProxy 的 tools 函数同步读取
-      const tools = await buildAgentTools(agent, tenantId);
+      const tools = await buildAgentTools(agent);
 
       // 4. 注入运行时配置到 requestContext，agentProxy 的 model/instructions/tools 函数同步读取
       const requestContext = new RequestContext();
@@ -61,13 +62,13 @@ export function createAgentTool(agent: AgentDetail, tenantId: string) {
       }
 
       // 5. 调用 agentProxy.generate()
-      const threadId = `proxy-${agent.id}-${Date.now()}`;
+      const threadId = `proxy-${id}-${Date.now()}`;
       const options = {
         requestContext,
         maxSteps: runtimeConfig.maxSteps,
         memory: {
           thread: threadId,
-          resource: tenantId,
+          resource: tenant_id,
         },
       };
       const result = await agentProxy.generate([{ role: 'user', content: task }], options);

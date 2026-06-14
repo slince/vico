@@ -74,7 +74,7 @@ class AgentToolStore {
 
     for (const row of agentRows) {
       try {
-        const tool = createAgentTool(row, tenantId);
+        const tool = createAgentTool(row);
         toolMap.set(`agent_${row.id}`, tool);
         descriptions.push(
           `- **${row.name}** (agent_${row.id})`,
