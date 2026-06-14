@@ -5,6 +5,7 @@ import { createSSEStream } from '../agent/sse-utils.js';
 import { getMemory } from '../agent/memory-setup.js';
 import { agentManager } from '../services/agent/agent-manager.js';
 import { agentToolStore } from '../agent/tools/agent-tool-store.js';
+import { builtinToolManager } from '../agent/tools/builtin/index.js';
 import { modelManager } from '../services/model/model-manager.js';
 import { resolveModelProvider } from '../agent/bridges/model-bridge.js';
 import { workingMemory } from '../agent/memory/working-memory.js';
@@ -64,16 +65,24 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
     let instructions: string;
 
     if (agentId === 'main') {
-      // 内置主 Agent — 通用调度器，注入租户 Agent 工具
+      // 内置主 Agent — 通用调度器，注入租户 Agent 工具 + 基础工具
       const vicoAgent = mastra.getAgent('mainAgent');
 
       const agentTools = await agentToolStore.getToolsForTenant(tenantId);
       const agentDescriptions = await agentToolStore.getAgentDescriptions(tenantId);
 
+      // mainAgent 默认开启核心内置工具（read/write/edit/ls/grep/stat）
+      const builtinTools = await builtinToolManager.getToolsForAgent(
+        { builtin_tools: '{"read":true,"write":true,"edit":true,"ls":true,"grep":true,"stat":true}' },
+        tenantId,
+      );
+
+      const allTools = { ...builtinTools, ...agentTools };
+
       instructions = `${await vicoAgent.getInstructions()}${agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : ''}`;
 
       output = await vicoAgent.stream([{ role: 'user', content: message }], {
-        clientTools: agentTools,
+        clientTools: allTools,
         instructions,
         memory: { thread: threadId, resource: tenantId },
         maxSteps: 15,
@@ -92,9 +101,16 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       requestContext.set('model', agentConfig.model);
       instructions = agentConfig.instructions;
 
+      // 获取 Agent 详情以读取 builtin_tools 配置
+      const agentDetail = await agentManager.getById(tenantId, agentId);
+      const builtinTools = agentDetail
+        ? await builtinToolManager.getToolsForAgent(agentDetail, tenantId)
+        : {};
+
       const agentProxy = mastra.getAgent('agentProxy');
       output = await agentProxy.stream([{ role: 'user', content: message }], {
         instructions,
+        clientTools: builtinTools,
         memory: { thread: threadId, resource: tenantId },
         maxSteps: agentConfig.maxSteps,
         requestContext,
