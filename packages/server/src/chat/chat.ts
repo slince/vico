@@ -71,6 +71,7 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
 
     // 包装为 SSE 流，流结束后异步提取工作记忆
     const stream = createSSEStream(output, {
+      doneMetadata: { threadId: thread },
       onComplete: async (fullText: string) => {
         // MastraModelConfig 兼容 AI SDK LanguageModel（LanguageModelV1/V2/V3 联合类型）
         await workingMemory.extractAndStore(activeModel as unknown as LanguageModel, tenantId, userId,

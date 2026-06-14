@@ -18,6 +18,8 @@ import type { MastraModelOutput, MastraAgentNetworkStream, ChunkType } from '@ma
 export interface SSEStreamCallbacks {
   /** 流结束后调用，接收完整响应文本，可用于事实提取等异步后处理 */
   onComplete?: (fullText: string) => void | Promise<void>;
+  /** 合并到 done 事件中的额外字段（如 threadId） */
+  doneMetadata?: Record<string, unknown>;
 }
 
 /**
@@ -95,6 +97,7 @@ export function createSSEStream(
                 completionTokens: usage.outputTokens ?? 0,
               }
             : {},
+          ...callbacks?.doneMetadata,
         });
 
         // 6. 流结束后触发 onComplete 回调（fire-and-forget，不阻塞流关闭）

@@ -2,7 +2,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 // 2. Third-party
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 
 // 3. API
@@ -55,6 +55,7 @@ export default function Chat() {
   const [loadingMessages, setLoadingMessages] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const queryClient = useQueryClient();
 
   // 获取 Agent 列表
   const { data: agents, isLoading: agentsLoading } = useQuery<Agent[]>({
@@ -119,6 +120,7 @@ export default function Chat() {
 
       let assistantContent = '';
       let pendingApprovalRef: { command: string } | null = null;
+      let serverThreadId: string | null = null;
 
       abortRef.current = streamChat(
         { agentId: selectedAgentId, threadId: tid, message: text },
@@ -126,6 +128,10 @@ export default function Chat() {
           if (event.type === 'text_delta') {
             assistantContent += event.content || '';
             setStreamingContent(assistantContent);
+          } else if (event.type === 'done') {
+            if (event.threadId && typeof event.threadId === 'string') {
+              serverThreadId = event.threadId;
+            }
           } else if (event.type === 'approval_required') {
             // 记录审批请求，在 onDone 中附加到最终消息
             pendingApprovalRef = { command: event.command };
@@ -152,9 +158,11 @@ export default function Chat() {
           setMessages((prev) => [...prev, newMsg]);
           setStreamingContent('');
 
-          // 首次对话完成后刷新对话列表，后续由服务端返回的 threadId 标识
-          if (!tid) {
-            // 新对话完成后刷新对话列表
+          // 首次对话完成后，用服务端返回的 threadId 更新 URL 并刷新对话列表
+          if (!tid && serverThreadId) {
+            setActiveThreadId(serverThreadId);
+            navigate(`/chat/${serverThreadId}`, { replace: true });
+            queryClient.invalidateQueries({ queryKey: ['conversations', selectedAgentId] });
           }
         }
       );
