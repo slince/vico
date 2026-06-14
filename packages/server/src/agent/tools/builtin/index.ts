@@ -55,33 +55,38 @@ class BuiltinToolManager {
   private async getAllTools(): Promise<Record<string, Tool>> {
     if (this.cachedTools) return this.cachedTools;
 
-    const [{ Workspace, LocalFilesystem, LocalSandbox, createWorkspaceTools }] = await Promise.all([
-      import('@mastra/core/workspace'),
-    ]);
+    try {
+      const [{ Workspace, LocalFilesystem, LocalSandbox, createWorkspaceTools }] = await Promise.all([
+        import('@mastra/core/workspace'),
+      ]);
 
-    const { base_path, contained, allowed_paths, timeout_ms, isolation } = config.workspace;
+      const { base_path, contained, allowed_paths, timeout_ms, isolation } = config.workspace;
 
-    const filesystem = new LocalFilesystem({
-      basePath: base_path,
-      contained,
-      allowedPaths: allowed_paths.length > 0 ? allowed_paths : undefined,
-    });
+      const filesystem = new LocalFilesystem({
+        basePath: base_path,
+        contained,
+        allowedPaths: allowed_paths.length > 0 ? allowed_paths : undefined,
+      });
 
-    const sandbox = new LocalSandbox({
-      workingDirectory: base_path,
-      timeout: timeout_ms,
-      isolation: isolation as 'none' | 'seatbelt' | 'bwrap',
-    });
+      const sandbox = new LocalSandbox({
+        workingDirectory: base_path,
+        timeout: timeout_ms,
+        isolation: isolation as 'none' | 'seatbelt' | 'bwrap',
+      });
 
-    const workspace = new Workspace({
-      filesystem,
-      sandbox,
-      tools: { requireApproval: false },
-    });
+      const workspace = new Workspace({
+        filesystem,
+        sandbox,
+        tools: { requireApproval: false },
+      });
 
-    await workspace.init();
-    this.cachedTools = await createWorkspaceTools(workspace);
-    return this.cachedTools;
+      await workspace.init();
+      this.cachedTools = await createWorkspaceTools(workspace);
+      return this.cachedTools;
+    } catch (err) {
+      console.error('Failed to initialize builtin tools:', err);
+      return {};
+    }
   }
 
   /**
@@ -123,6 +128,7 @@ class BuiltinToolManager {
    * 3. approved → 执行原工具逻辑；rejected → 返回拒绝消息
    */
   private wrapExecWithApproval(tool: Tool, tenantId: string): Tool {
+    const originalExecute = tool.execute!.bind(tool) as (input: any, context: any) => Promise<any>;
     const wrappedTool = { ...tool };
 
     wrappedTool.execute = async (args: any) => {
@@ -139,7 +145,7 @@ class BuiltinToolManager {
         status: 'pending',
         created_at: Date.now(),
         resolved_at: null,
-      });
+      }).run();
 
       // 轮询等待审批（最长 2 分钟）
       const startTime = Date.now();
@@ -153,10 +159,7 @@ class BuiltinToolManager {
 
         if (!record) break;
         if (record.status === 'approved') {
-          if (tool.execute) {
-            return (tool.execute as (input: any, context: any) => Promise<any>)(args, undefined);
-          }
-          return 'Command execution failed: tool has no execute method.';
+          return originalExecute(args, undefined);
         }
         if (record.status === 'rejected') {
           return 'Command execution was rejected by the user.';
