@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 // ── DB 行类型 ──
 
+/** 单个内置工具的配置：简单工具为 boolean，exec 支持 need_approval */
+export type BuiltinToolEntry = boolean | { enabled: boolean; need_approval?: boolean };
+
+/** Agent 内置工具配置 */
+export type BuiltinToolsConfig = Record<string, BuiltinToolEntry>;
+
 /** agents 表行类型，与 Drizzle schema 对齐 */
 export interface AgentRow {
   id: string;
@@ -14,6 +20,7 @@ export interface AgentRow {
   rag_mode: string;
   max_steps: number;
   enabled: number;
+  builtin_tools: string;  // JSON string of BuiltinToolsConfig
   created_at: number;
   updated_at: number;
 }
@@ -60,6 +67,15 @@ export interface AgentRuntimeConfig {
 
 // ── Zod 输入校验 schema ──
 
+/** 内置工具 entry 的 Zod 校验 */
+const builtinToolEntrySchema = z.union([
+  z.boolean(),
+  z.object({
+    enabled: z.boolean(),
+    need_approval: z.boolean().optional(),
+  }),
+]);
+
 /** 创建 Agent 的输入校验 */
 export const createAgentSchema = z.object({
   name: z.string().min(1, 'Agent 名称不能为空'),
@@ -69,6 +85,7 @@ export const createAgentSchema = z.object({
   max_tokens: z.number().int().positive().optional().default(4096),
   max_steps: z.number().int().positive().optional().default(10),
   rag_mode: z.string().optional().default('auto'),
+  builtin_tools: z.record(z.string(), builtinToolEntrySchema).optional().default({}),
 });
 
 export type CreateAgentInput = z.infer<typeof createAgentSchema>;
@@ -83,6 +100,7 @@ export const updateAgentSchema = z.object({
   max_steps: z.number().int().positive().optional(),
   rag_mode: z.string().optional(),
   enabled: z.number().min(0).max(1).optional(),
+  builtin_tools: z.record(z.string(), builtinToolEntrySchema).optional(),
 });
 
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
