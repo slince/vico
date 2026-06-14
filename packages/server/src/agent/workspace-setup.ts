@@ -1,6 +1,6 @@
-import { Workspace, LocalFilesystem } from '@mastra/core/workspace';
-import { resolve } from 'node:path';
-import { config } from '../config.js';
+import {LocalFilesystem, Workspace} from '@mastra/core/workspace';
+import {resolve} from 'node:path';
+import {config} from '../config.js';
 
 let _workspace: Workspace;
 
@@ -15,6 +15,7 @@ export function getWorkspace(): Workspace {
   if (!_workspace) {
     const basePath = resolve(config.workspace.base_path);
     _workspace = new Workspace({
+
       filesystem: new LocalFilesystem({
         basePath,
         contained: config.workspace.contained,
