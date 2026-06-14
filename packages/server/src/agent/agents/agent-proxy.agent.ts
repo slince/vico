@@ -1,9 +1,8 @@
-import { Agent } from '@mastra/core/agent';
-import { createOpenAI } from '@ai-sdk/openai';
-import { getMemory } from '../memory-setup.js';
-import type { MastraModelConfig } from '@mastra/core/llm';
-import { buildAgentTools } from '../agent-tools.factory.js';
-import type { AgentDetail } from '../../services/agent/types.js';
+import {Agent} from '@mastra/core/agent';
+import {getMemory} from '../memory-setup.js';
+import type {MastraModelConfig} from '@mastra/core/llm';
+import {buildAgentTools} from '../agent-tools.factory.js';
+import type {AgentDetail} from '../../services/agent/types.js';
 
 /**
  * Agent 代理模板 — 通用 Agent 代理。
@@ -23,16 +22,15 @@ export const agentProxy = new Agent({
   name: 'Agent Proxy',
   description: '通用 Agent 代理，根据运行时上下文配置执行不同角色的任务',
   instructions: ({ requestContext }) => {
-    return requestContext?.get('instructions') as string || 'You are a helpful assistant.';
+    return requestContext.get('instructions');
   },
   model: ({ requestContext }) => {
-    const model = requestContext?.get('model') as MastraModelConfig | undefined;
-    if (model) return model;
-    // 回退：仅在未传入 requestContext 或未配置模型时使用
-    return createOpenAI({ apiKey: 'sk-placeholder' }).chat('gpt-4o');
+    const model = requestContext.get('model') as MastraModelConfig | undefined;
+    if (!model) throw new Error('Model not configured for agent proxy');
+    return model;
   },
   tools: async ({ requestContext }) => {
-    const agentDetail = requestContext?.get('agentDetail') as AgentDetail | undefined;
+    const agentDetail = requestContext.get('agentDetail') as AgentDetail | undefined;
     if (agentDetail) {
       return buildAgentTools(agentDetail);
     }

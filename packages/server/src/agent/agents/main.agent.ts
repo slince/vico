@@ -1,9 +1,8 @@
-import { Agent } from '@mastra/core/agent';
-import { createOpenAI } from '@ai-sdk/openai';
-import { getMemory } from '../memory-setup.js';
-import type { MastraModelConfig } from '@mastra/core/llm';
-import type { AgentDetail } from '../../services/agent/types.js';
-import { buildMainAgentTools } from '../agent-tools.factory.js';
+import {Agent} from '@mastra/core/agent';
+import {getMemory} from '../memory-setup.js';
+import type {MastraModelConfig} from '@mastra/core/llm';
+import type {AgentDetail} from '../../services/agent/types.js';
+import {buildMainAgentTools} from '../agent-tools.factory.js';
 
 /**
  * Main Agent — 通用任务路由调度器。
@@ -23,13 +22,12 @@ export const mainAgent = new Agent({
   name: 'Vico',
   description: '通用 AI 助手，能够理解任务、分派给专业 Agent、汇总结果',
   instructions: ({ requestContext }) => {
-    return requestContext?.get('instructions') as string || 'You are a helpful assistant.';
+    return requestContext.get('instructions');
   },
   model: ({ requestContext }) => {
-    const model = requestContext?.get('model') as MastraModelConfig | undefined;
-    if (model) return model;
-    // 回退：仅在未传入 requestContext 或未配置模型时使用
-    return createOpenAI({ apiKey: process.env.OPENAI_API_KEY || 'sk-placeholder' }).chat('gpt-4o');
+    const model = requestContext.get('model') as MastraModelConfig;
+    if (!model) throw new Error('Model not configured for main agent');
+    return model;
   },
   tools: async ({ requestContext }) => {
     const agentDetail = requestContext?.get('agentDetail') as AgentDetail | undefined;
