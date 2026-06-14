@@ -63,6 +63,7 @@ export function getMemory(): Memory {
   if (!_memory) {
     _memory = new Memory({
       storage: getStorage(),
+      vector: getVector(),
       options: {
         lastMessages: 20,
         workingMemory: {
