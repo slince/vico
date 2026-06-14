@@ -60,7 +60,7 @@ export async function prepareMainAgentContext(
     requestContext.set('tenantTools', tenantTools);
   }
 
-  agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : '';
+  agentConfig.instructions += agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : '';
 
   return agentConfig;
 }
