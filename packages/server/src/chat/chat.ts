@@ -4,10 +4,7 @@ import {mastra} from '../mastra.js';
 import {createSSEStream} from '../agent/sse-utils.js';
 import {getMemory} from '../agent/memory-setup.js';
 import {prepareAgentContext, prepareMainAgentContext} from '../agent/agent.factory.js';
-import {workingMemory} from '../agent/memory/working-memory.js';
 import type {MastraModelOutput} from '@mastra/core/stream';
-import type {MastraModelConfig} from '@mastra/core/llm';
-import type {LanguageModel} from 'ai';
 import logger from '../lib/logger.js';
 
 export interface ExecuteChatParams {
@@ -66,20 +63,11 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       },
     );
 
-    // 追踪实际使用的模型，供 onComplete 中 working memory 提取使用
-    const activeModel: MastraModelConfig = ctx.model;
-
-    // 包装为 SSE 流，流结束后异步提取工作记忆
+    // 包装为 SSE 流，WorkingMemory + ObservationalMemory 由 Mastra processor pipeline 自动管理
     const stream = createSSEStream(output, {
       doneMetadata: { threadId: thread },
-      onComplete: async (fullText: string) => {
-        // MastraModelConfig 兼容 AI SDK LanguageModel（LanguageModelV1/V2/V3 联合类型）
-        await workingMemory.extractAndStore(activeModel as unknown as LanguageModel, tenantId, userId,
-          [
-            { role: 'user', content: message },
-            { role: 'assistant', content: fullText },
-          ],
-        );
+      onComplete: async () => {
+        /* WorkingMemory + ObservationalMemory auto-managed by Mastra processor pipeline */
       },
     });
 
