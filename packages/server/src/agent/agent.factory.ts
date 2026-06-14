@@ -38,12 +38,12 @@ export async function prepareAgentContext(
 }
 
 /**
- * 为主 Agent 加载租户级上下文：Agent 代理工具 + 专业 Agent 能力描述。
+ * 为主 Agent 加载租户级上下文：注入 model/agentDetail + 拼接专业 Agent 能力描述。
  *
- * - 从 agentToolStore 获取租户下所有启用的 Agent 工具，注入 requestContext
- * - 生成可用 Agent 的描述文本，拼接到系统提示词中
+ * 租户工具（子 Agent 路由用）改由 buildMainAgentTools 在运行时按需构建，
+ * 不再通过 requestContext 传递。
  *
- * @returns 要追加到 instructions 的能力描述文本
+ * @returns 含 instructions 的 AgentRuntimeConfig
  */
 export async function prepareMainAgentContext(
   tenantId: string,
@@ -52,14 +52,7 @@ export async function prepareMainAgentContext(
 
   const agentConfig = await prepareAgentContext(tenantId, 'main', requestContext)
 
-  const [tenantTools, agentDescriptions] = await Promise.all([
-    agentToolStore.getToolsForTenant(tenantId),
-    agentToolStore.getAgentDescriptions(tenantId),
-  ]);
-  if (Object.keys(tenantTools).length > 0) {
-    requestContext.set('tenantTools', tenantTools);
-  }
-
+  const agentDescriptions = await agentToolStore.getAgentDescriptions(tenantId);
   agentConfig.instructions += agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : '';
 
   return agentConfig;

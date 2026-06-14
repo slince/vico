@@ -2,9 +2,8 @@ import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
 import { getMemory } from '../memory-setup.js';
 import type { MastraModelConfig } from '@mastra/core/llm';
-import type { Tool } from '@mastra/core/tools';
 import type { AgentDetail } from '../../services/agent/types.js';
-import { buildAgentTools } from '../agent-tools.factory.js';
+import { buildMainAgentTools } from '../agent-tools.factory.js';
 
 /**
  * Main Agent — 通用任务路由调度器。
@@ -34,12 +33,10 @@ export const mainAgent = new Agent({
   },
   tools: async ({ requestContext }) => {
     const agentDetail = requestContext?.get('agentDetail') as AgentDetail | undefined;
-    const tenantTools = (requestContext?.get('tenantTools') as Record<string, Tool> | undefined) || {};
-    const tools: Record<string, Tool> = { ...tenantTools };
     if (agentDetail) {
-      Object.assign(tools, await buildAgentTools(agentDetail));
+      return buildMainAgentTools(agentDetail);
     }
-    return tools;
+    return {};
   },
   memory: getMemory(),
   defaultOptions: {

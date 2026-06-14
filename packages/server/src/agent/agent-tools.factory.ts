@@ -6,6 +6,7 @@
  */
 import {getSkillToolsForMastraAgent} from './tools/skill-tool-adapter';
 import {createRagSearchTool} from './tools/rag-tool';
+import {agentToolStore} from './tools/agent-tool-store.js';
 import {AgentDetail} from '../services/agent/types.js';
 import {Tool} from "@mastra/core/tools";
 
@@ -43,4 +44,24 @@ export async function buildAgentTools(
   }
 
   return tools;
+}
+
+/**
+ * 为主 Agent 构建运行时工具集。
+ *
+ * 聚合两类工具：
+ * 1. Agent 工具 — 来自该 Agent 绑定的 Skill、RAG 等
+ * 2. 租户工具 — 来自该租户下其他 Agent 注册的工具（用于子 Agent 路由）
+ *
+ * @param agent - Agent 详情（含 tenant_id）
+ * @returns 工具集，key 为工具 ID
+ */
+export async function buildMainAgentTools(
+  agent: AgentDetail,
+): Promise<Record<string, Tool>> {
+  const [agentTools, tenantTools] = await Promise.all([
+    buildAgentTools(agent),
+    agentToolStore.getToolsForTenant(agent.tenant_id),
+  ]);
+  return { ...tenantTools, ...agentTools };
 }
