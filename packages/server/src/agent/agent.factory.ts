@@ -25,31 +25,14 @@ export async function prepareAgentContext(
   agentId: string,
   requestContext: RequestContext,
 ): Promise<AgentRuntimeConfig> {
-  // 解析实际的 Agent ID：main → 默认 Agent 的 ID
-  const isMain = agentId === 'main';
-  let resolvedId: string;
-  if (isMain) {
-    const defaultAgent = await agentManager.getDefault(tenantId);
-    if (!defaultAgent) {
-      throw new AgentNotFoundError('Default agent not configured');
-    }
-    resolvedId = defaultAgent.id;
-  } else {
-    resolvedId = agentId;
-  }
 
-  const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, resolvedId);
+  const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
   if (!agentConfig) {
     throw new AgentNotFoundError('Agent not found');
   }
 
   requestContext.set('model', agentConfig.model);
   requestContext.set('agentDetail', agentConfig.agent);
-
-  // Main Agent 独有：加载租户 Agent 代理工具 + 能力描述
-  if (isMain) {
-    agentConfig.instructions += await prepareMainAgentContext(tenantId, requestContext);
-  }
 
   return agentConfig;
 }
@@ -65,13 +48,19 @@ export async function prepareAgentContext(
 async function prepareMainAgentContext(
   tenantId: string,
   requestContext: RequestContext,
-): Promise<string> {
+): Promise<AgentRuntimeConfig> {
+
+  const agentConfig = await prepareAgentContext(tenantId, 'main', requestContext)
+
   const [tenantTools, agentDescriptions] = await Promise.all([
     agentToolStore.getToolsForTenant(tenantId),
     agentToolStore.getAgentDescriptions(tenantId),
   ]);
   if (Object.keys(tenantTools).length > 0) {
-    requestContext.set('tools', tenantTools);
+    requestContext.set('tenantTools', tenantTools);
   }
-  return agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : '';
+
+  agentDescriptions ? `\n\n## 当前可用的专业 Agent\n\n${agentDescriptions}` : '';
+
+  return agentConfig;
 }

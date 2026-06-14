@@ -46,7 +46,9 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
 
 
     // 1. 统一加载配置（agentId === 'main' 时内部自动解析为默认 Agent 并追加租户工具/能力描述）
-    const ctx = await prepareAgentContext(tenantId, agentId, requestContext);
+    const ctx = agentId === 'main'
+        ? await prepareMainAgentContext(tenantId, agentId, requestContext)
+        : await prepareAgentContext(tenantId, agentId, requestContext);
 
     // 2. 统一保存 thread
     await saveThread(threadId, tenantId, {
