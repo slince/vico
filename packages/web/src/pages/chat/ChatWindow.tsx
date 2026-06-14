@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 // 5. Sub-components
 import { ChatInput } from './ChatInput';
 import { MessageBubble } from './MessageBubble';
+import { ExecApprovalCard } from '@/components/ExecApprovalCard';
 
 // 6. Types
 import type { ChatMessage } from '../Chat';
@@ -71,7 +72,16 @@ export function ChatWindow({
         ) : (
           <div className="max-w-3xl mx-auto space-y-4 p-6">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <div key={msg.id}>
+                <MessageBubble message={msg} />
+                {msg.pendingApproval && (
+                  <div className="flex justify-start max-w-3xl mx-auto">
+                    <div className="max-w-[85%]">
+                      <ExecApprovalCard command={msg.pendingApproval.command} />
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
 
             {/* 流式输出中的 AI 回复 */}

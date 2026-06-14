@@ -61,6 +61,29 @@ export function useAgentChat({ agentId, initialMessages = [] }: UseAgentChatOpti
             }
             return [...prev, { role: 'assistant', content: fullResponse }];
           });
+        } else if (event.type === 'approval_required') {
+          // 追加审批请求到当前助手消息末尾，方便 ChatPanel 渲染审批卡片
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant') {
+              return [
+                ...prev.slice(0, -1),
+                {
+                  ...last,
+                  content: last.content + `\n\n[Exec Approval Required: ${event.command}]\n`,
+                  pendingApproval: { command: event.command },
+                },
+              ];
+            }
+            return [
+              ...prev,
+              {
+                role: 'assistant' as const,
+                content: `[Exec Approval Required: ${event.command}]\n`,
+                pendingApproval: { command: event.command },
+              },
+            ];
+          });
         }
       },
       (err) => {

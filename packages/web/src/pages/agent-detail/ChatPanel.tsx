@@ -13,6 +13,7 @@ import {
   Empty, EmptyMedia, EmptyTitle, EmptyDescription,
 } from '@/components/ui/empty';
 import { useAgentChat } from '@/hooks/useAgentChat';
+import { ExecApprovalCard } from '@/components/ExecApprovalCard';
 
 export interface ChatPanelProps {
   agentId: string;
@@ -57,23 +58,31 @@ export default function ChatPanel({ agentId }: ChatPanelProps) {
             )}
 
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex mb-3 ${
-                  msg.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
+              <div key={i}>
                 <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-accent'
+                  className={`flex mb-3 ${
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap break-words">
-                    {msg.content || '...'}
-                  </p>
+                  <div
+                    className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-accent'
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap break-words">
+                      {msg.content || '...'}
+                    </p>
+                  </div>
                 </div>
+                {msg.pendingApproval && (
+                  <div className="flex justify-start mb-3">
+                    <div className="max-w-[80%]">
+                      <ExecApprovalCard command={msg.pendingApproval.command} />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
 

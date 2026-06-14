@@ -34,6 +34,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   created_at: string;
+  /** 待处理的执行审批（来自 approval_required SSE 事件） */
+  pendingApproval?: { command: string };
 }
 
 /**
@@ -118,6 +120,7 @@ export default function Chat() {
       setStreamingContent('');
 
       let assistantContent = '';
+      let pendingApprovalRef: { command: string } | null = null;
 
       abortRef.current = streamChat(
         { agentId: selectedAgentId, conversationId: convId, message: text },
@@ -125,6 +128,12 @@ export default function Chat() {
           if (event.type === 'text_delta') {
             assistantContent += event.content || '';
             setStreamingContent(assistantContent);
+          } else if (event.type === 'approval_required') {
+            // 记录审批请求，在 onDone 中附加到最终消息
+            pendingApprovalRef = { command: event.command };
+            setStreamingContent(
+              assistantContent + `\n\n[Exec Approval Required]\nCommand: ${event.command}\n`
+            );
           }
         },
         () => {
@@ -140,6 +149,7 @@ export default function Chat() {
             role: 'assistant',
             content: assistantContent,
             created_at: new Date().toISOString(),
+            pendingApproval: pendingApprovalRef || undefined,
           };
           setMessages((prev) => [...prev, newMsg]);
           setStreamingContent('');

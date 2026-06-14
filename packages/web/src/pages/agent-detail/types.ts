@@ -37,4 +37,6 @@ export interface Agent {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  /** 待处理的执行审批（来自 approval_required SSE 事件） */
+  pendingApproval?: { command: string };
 }
