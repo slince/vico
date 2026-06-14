@@ -49,23 +49,53 @@ export function getStorage(): LibSQLStore {
 /**
  * Get or create the Mastra Memory singleton.
  *
- * Configures:
- * - LibSQLStore-backed storage for message persistence and recall
- * - LibSQL-backed vector store for semantic recall
- * - Embedder based on config.rag settings (api mode via ModelRouterEmbeddingModel)
- * - Last 10 messages for working memory context
- * - Semantic recall enabled with topK=5 and surrounding message context
+ * Configures 4-layer memory architecture:
+ * 1. MessageHistory — auto-injected via lastMessages (Mastra built-in)
+ * 2. WorkingMemory — Markdown template, scope=resource (user-level)
+ * 3. SemanticRecall — vector-based cross-thread recall, topK=5
+ * 4. ObservationalMemory — LLM-based conversation observation + reflection
+ *
+ * All processors are auto-managed by Mastra's memory pipeline:
+ * - Pre-request: WorkingMemory + SemanticRecall context auto-injected
+ * - Post-request: Messages persisted, OM triggered when threshold crossed
  */
 export function getMemory(): Memory {
   if (!_memory) {
     _memory = new Memory({
       storage: getStorage(),
       options: {
-        lastMessages: 10,
+        lastMessages: 20,
+        workingMemory: {
+          enabled: true,
+          template: `
+# 用户信息
+- **称呼**:
+- **位置**:
+- **职业**:
+- **兴趣**:
+- **目标**:
+- **偏好**:
+- **重要事项**:
+`,
+        },
+        semanticRecall: {
+          topK: 5,
+          messageRange: { before: 2, after: 2 },
+        },
+        observationalMemory: {
+          // Must explicitly specify OM model, default gemini-2.5-flash will fail without Google API key
+          model: 'openai/gpt-4o-mini',
+          observation: {
+            model: 'openai/gpt-4o-mini',
+          },
+          reflection: {
+            model: 'openai/gpt-4o-mini',
+          },
+        },
       },
     });
 
-    // 根据配置注入 embedder
+    // Inject embedder based on config
     const { embedder, embedder_model } = config.rag;
     if (embedder === 'api') {
       try {
@@ -75,7 +105,7 @@ export function getMemory(): Memory {
         logger.error({ err, model: embedder_model }, 'Failed to create embedder');
       }
     } else {
-      logger.warn({ model: embedder_model }, 'Local embedder not yet supported, RAG features will fail');
+      logger.warn({ model: embedder_model }, 'Local embedder not yet supported');
     }
   }
   return _memory;
