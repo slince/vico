@@ -44,7 +44,7 @@ export default function ChatPanel({ agentId }: ChatPanelProps) {
         <Separator />
 
         <CardContent className="flex-1 overflow-hidden p-0">
-          <ScrollArea className="h-full px-4 py-3">
+          <ScrollArea className="h-full min-h-0 px-4 py-3">
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full py-20">
                 <Empty>

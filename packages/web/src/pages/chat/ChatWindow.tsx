@@ -56,7 +56,7 @@ export function ChatWindow({
       </div>
 
       {/* 消息列表 */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {loadingMessages ? (
           <div className="max-w-3xl mx-auto space-y-4 p-6">
             {[1, 2, 3].map((i) => (
