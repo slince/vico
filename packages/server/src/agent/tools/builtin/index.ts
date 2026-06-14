@@ -5,13 +5,11 @@
  * 支持按 Agent 的 builtin_tools 配置过滤启用的工具。
  * exec 工具可选包装审批流程。
  */
-import { eq } from 'drizzle-orm';
-import { v4 as uuid } from 'uuid';
 import { Workspace, LocalFilesystem, LocalSandbox, createWorkspaceTools } from '@mastra/core/workspace';
 import { config } from '../../../config.js';
 import type { Tool } from '@mastra/core/tools';
 import type { BuiltinToolsConfig } from '../../../services/agent/types.js';
-import { getDb, schema } from '../../../db/db.js';
+import { approvalService } from '../../../services/approval/approval-service.js';
 
 /** Mastra workspace 工具名 → 配置 key 的映射 */
 const TOOL_NAME_MAP: Record<string, string> = {
@@ -130,39 +128,14 @@ class BuiltinToolManager {
 
     wrappedTool.execute = async (args: any) => {
       const command = args?.command ?? args?.params?.command ?? '';
-      const db = getDb();
-      const approvalId = uuid();
+      const { status } = await approvalService.requestAndWait(tenantId, String(command));
 
-      // 写入审批记录
-      await db.insert(schema.exec_approvals).values({
-        id: approvalId,
-        tenant_id: tenantId,
-        agent_id: '',
-        command: String(command),
-        status: 'pending',
-        created_at: Date.now(),
-        resolved_at: null,
-      }).run();
-
-      // 轮询等待审批（最长 2 分钟）
-      const startTime = Date.now();
-      const maxWaitMs = 2 * 60 * 1000;
-      while (Date.now() - startTime < maxWaitMs) {
-        await new Promise((r) => setTimeout(r, 500));
-        const record = await db.select({ status: schema.exec_approvals.status })
-          .from(schema.exec_approvals)
-          .where(eq(schema.exec_approvals.id, approvalId))
-          .get();
-
-        if (!record) break;
-        if (record.status === 'approved') {
-          return originalExecute(args, undefined);
-        }
-        if (record.status === 'rejected') {
-          return 'Command execution was rejected by the user.';
-        }
+      if (status === 'approved') {
+        return originalExecute(args, undefined);
       }
-
+      if (status === 'rejected') {
+        return 'Command execution was rejected by the user.';
+      }
       return 'Command execution approval timed out. Please try again.';
     };
 
