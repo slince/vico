@@ -1,11 +1,11 @@
 // 1. React
-import { Fragment, useCallback } from 'react';
+import { Fragment, useCallback, useState } from 'react';
 
 // 2. Third-party
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Trash2 } from 'lucide-react';
 
 // 3. API / Utils
 import { api } from '@/api/client';
@@ -15,6 +15,10 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import {
+  AlertDialog, AlertDialogContent,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 
 // 5. Sub-components
 import { MessageBubble } from './conversation-detail/MessageBubble';
@@ -31,7 +35,9 @@ import type { Message, ConversationDetail } from './conversation-detail/types';
 export default function ConversationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { t } = useTranslation('conversations');
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const {
     data: conversation,
@@ -40,6 +46,14 @@ export default function ConversationDetail() {
     queryKey: ['conversation', id],
     queryFn: () => api(`/conversations/${id}`),
     enabled: !!id,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api(`/conversations/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      navigate('/conversations');
+    },
   });
 
   const handleBack = useCallback(() => {
@@ -77,7 +91,7 @@ export default function ConversationDetail() {
           <ArrowLeft size={20} />
         </Button>
 
-        <div>
+        <div className="flex-1">
           <h2 className="text-2xl font-bold tracking-tight">{t('detailTitle')}</h2>
 
           <p className="text-sm text-muted-foreground">
@@ -94,6 +108,16 @@ export default function ConversationDetail() {
             {t('totalRecords', { count: conversation.message_count })}
           </p>
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:bg-destructive/10"
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 size={14} className="mr-1.5" />
+          {t('deleteButton')}
+        </Button>
       </div>
 
       <ScrollArea className="h-[calc(100vh-200px)] rounded-lg border">
@@ -111,6 +135,29 @@ export default function ConversationDetail() {
           )}
         </div>
       </ScrollArea>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteConfirmDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              {t('deleteCancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+            >
+              {t('deleteConfirm')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

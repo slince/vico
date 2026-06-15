@@ -32,5 +32,11 @@
   "backToList": "返回列表",
   "roleSystem": "系统",
   "toolCall": "工具调用",
-  "toolResult": "工具结果"
+  "toolResult": "工具结果",
+  "deleteButton": "删除",
+  "deleteConfirmTitle": "确认删除",
+  "deleteConfirmDescription": "确定要删除这条对话记录吗？删除后不可恢复。",
+  "deleteCancel": "取消",
+  "deleteConfirm": "确认删除",
+  "deleteSuccess": "对话已删除"
 }

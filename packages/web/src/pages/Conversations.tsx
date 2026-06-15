@@ -3,9 +3,9 @@ import { useState, useCallback } from 'react';
 
 // 2. Third-party
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, Trash2 } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -35,6 +35,10 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty';
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 import { formatDateTime } from '@/lib/date-format';
 
 // 5. Sub-components
@@ -74,9 +78,12 @@ interface Agent {
  */
 export default function Conversations() {
   const { t } = useTranslation('conversations');
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
 
   const {
     data: conversations,
@@ -94,6 +101,14 @@ export default function Conversations() {
   const { data: agents } = useQuery<Agent[]>({
     queryKey: ['agents'],
     queryFn: () => api('/agents'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api(`/conversations/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      setDeleteTarget(null);
+    },
   });
 
   const convs: Conversation[] = conversations ?? [];
@@ -216,11 +231,21 @@ export default function Conversations() {
                     </TableCell>
 
                     <TableCell>
-                      <Button variant="link" size="sm" asChild>
-                        <Link to={`/conversations/${conversation.id}`}>
-                          {t('viewButton')}
-                        </Link>
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button variant="link" size="sm" asChild>
+                          <Link to={`/conversations/${conversation.id}`}>
+                            {t('viewButton')}
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => setDeleteTarget(conversation)}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -229,6 +254,29 @@ export default function Conversations() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteConfirmDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              {t('deleteCancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {t('deleteConfirm')}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

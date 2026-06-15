@@ -133,6 +133,10 @@ export function createApp(): Hono<{ Variables: Variables }> {
     if (path.startsWith('/api/v1/') || path.startsWith('/api/auth/')) {
       return next();
     }
+    // Mastra Studio dev playground — 允许无认证通过，MastraServer 路由层自行鉴权
+    if (c.req.header('x-mastra-dev-playground') === 'true') {
+      return next();
+    }
     const session = c.get('session');
     const user = c.get('user');
     if (!session || !user) {

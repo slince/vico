@@ -244,6 +244,18 @@ class ConversationManager {
 
     return items;
   }
+  /**
+   * 删除对话。
+   * 校验 thread 归属（resourceId 匹配 tenantId）后调用 Mastra Memory deleteThread。
+   * 返回 true 表示删除成功，false 表示对话不存在或无权访问。
+   */
+  async delete(tenantId: string, id: string): Promise<boolean> {
+    const memory = await getMemory();
+    const thread = await memory.getThreadById({ threadId: id });
+    if (!thread || thread.resourceId !== tenantId) return false;
+    await memory.deleteThread(id);
+    return true;
+  }
 }
 
 /** 对话业务管理器单例 */

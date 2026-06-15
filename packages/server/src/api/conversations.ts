@@ -23,4 +23,13 @@ export function conversationRoutes(app: Hono<{ Variables: Variables }>) {
     if (!conv) return c.json({ error: 'Conversation not found' }, 404);
     return c.json(conv);
   });
+
+  /** DELETE /api/v1/conversations/:id — 删除对话 */
+  app.delete('/api/v1/conversations/:id', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const deleted = await conversationManager.delete(auth.tenantId, c.req.param('id'));
+    if (!deleted) return c.json({ error: 'Conversation not found' }, 404);
+    return c.json({ success: true });
+  });
 }

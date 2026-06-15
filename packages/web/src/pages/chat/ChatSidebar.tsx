@@ -1,9 +1,9 @@
 // 1. React
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 // 2. Third-party
-import { useQuery } from '@tanstack/react-query';
-import { Plus, MessageSquare } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, MessageSquare, Trash2 } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -19,6 +19,10 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog, AlertDialogContent,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/date-format';
 
@@ -55,6 +59,9 @@ export function ChatSidebar({
   onSelectThread,
   onNewChat,
 }: ChatSidebarProps) {
+  const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = useState<ConversationItem | null>(null);
+
   // 获取对话列表
   const { data: conversations, isLoading: convsLoading } = useQuery<ConversationItem[]>({
     queryKey: ['conversations', selectedAgentId],
@@ -64,6 +71,17 @@ export function ChatSidebar({
       return api(`/conversations?${params.toString()}`);
     },
     enabled: !!selectedAgentId,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api(`/conversations/${id}`, { method: 'DELETE' }),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      if (activeThreadId === id) {
+        onNewChat();
+      }
+      setDeleteTarget(null);
+    },
   });
 
   const convs: ConversationItem[] = conversations ?? [];
@@ -118,35 +136,68 @@ export function ChatSidebar({
         ) : (
           <div className="p-2 space-y-1">
             {convs.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => onSelectThread(conv.id)}
-                className={cn(
-                  'w-full text-left p-3 rounded-md transition-colors',
-                  activeThreadId === conv.id
-                    ? 'bg-accent text-accent-foreground'
-                    : 'hover:bg-accent/50'
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <MessageSquare size={14} className="text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium truncate">
-                    {conv.agent_name || conv.agent_id.slice(0, 8)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-xs text-muted-foreground">
-                    {conv.message_count} 条消息
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDateTime(conv.updated_at)}
-                  </span>
-                </div>
-              </button>
+              <div key={conv.id} className="group relative">
+                <button
+                  onClick={() => onSelectThread(conv.id)}
+                  className={cn(
+                    'w-full text-left p-3 rounded-md transition-colors',
+                    activeThreadId === conv.id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'hover:bg-accent/50'
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <MessageSquare size={14} className="text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium truncate">
+                      {conv.agent_name || conv.agent_id.slice(0, 8)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-muted-foreground">
+                      {conv.message_count} 条消息
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDateTime(conv.updated_at)}
+                    </span>
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(conv);
+                  }}
+                  className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             ))}
           </div>
         )}
       </ScrollArea>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除这条对话记录吗？删除后不可恢复。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              disabled={deleteMutation.isPending}
+            >
+              确认删除
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </aside>
   );
 }
