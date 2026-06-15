@@ -7,7 +7,7 @@ auth:
 
 database:
   url: "file:./data/vico.db"
-  duckdb_url: "file:./data/vico.duckdb"
+  duckdb_url: "./data/vico.duckdb"
 
 
 skills:
