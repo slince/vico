@@ -1,5 +1,8 @@
 import { useTranslation } from 'react-i18next';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { formatTimeOnly } from '@/lib/date-format';
 
 import { ToolCallSection } from './ToolCallSection';
@@ -60,7 +63,13 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </span>
         </div>
 
-        <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+        <div className={cn('text-sm break-words', message.role === 'assistant' && 'prose prose-sm dark:prose-invert max-w-none')}>
+          {message.role === 'assistant' ? (
+            <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
+          ) : (
+            <div className="whitespace-pre-wrap">{message.content}</div>
+          )}
+        </div>
 
         {message.tool_calls && <ToolCallSection toolCallsRaw={message.tool_calls} />}
       </div>
