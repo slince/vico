@@ -1,10 +1,11 @@
-import { Mastra } from '@mastra/core';
-import { MastraServer } from '@mastra/hono';
-import { mainAgent } from './agent/agents/main.agent.js';
-import { agentProxy } from './agent/agents/agent-proxy.agent.js';
-import { getStorage, getMemory } from './agent/memory-setup.js';
-import { getObservabilityConfig } from './agent/observability/config.js';
-import { createApp } from './app.js';
+import {Mastra} from '@mastra/core';
+import {PinoLogger} from '@mastra/loggers';
+import {MastraServer} from '@mastra/hono';
+import {mainAgent} from './agent/agents/main.agent.js';
+import {agentProxy} from './agent/agents/agent-proxy.agent.js';
+import {getMemory, getStorage} from './agent/memory-setup.js';
+import {getObservabilityConfig} from './agent/observability/config.js';
+import {createApp} from './app.js';
 
 /**
  * Mastra 实例 — 全局单例。
@@ -23,6 +24,10 @@ export const mastra = new Mastra({
     agentProxy,
   },
   storage: getStorage(),
+  logger: new PinoLogger({
+    name: 'Vico',
+    level: 'info',
+  }),
   memory: {
     memory: getMemory(),
   },
