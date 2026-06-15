@@ -2,6 +2,7 @@
 import { useCallback, useState } from 'react';
 
 // 2. Third-party
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, MessageSquare, Trash2 } from 'lucide-react';
 
@@ -59,6 +60,7 @@ export function ChatSidebar({
   onSelectThread,
   onNewChat,
 }: ChatSidebarProps) {
+  const { t } = useTranslation('conversations');
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<ConversationItem | null>(null);
 
@@ -99,7 +101,7 @@ export function ChatSidebar({
       <div className="p-3 space-y-2 border-b">
         <Select value={selectedAgentId || ''} onValueChange={handleAgentChange}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="选择 Agent" />
+            <SelectValue placeholder={t('selectAgent')} />
           </SelectTrigger>
           <SelectContent>
             {agents.map((agent) => (
@@ -117,7 +119,7 @@ export function ChatSidebar({
           disabled={!selectedAgentId}
         >
           <Plus size={16} />
-          新建对话
+          {t('newChat')}
         </Button>
       </div>
 
@@ -131,7 +133,7 @@ export function ChatSidebar({
           </div>
         ) : convs.length === 0 ? (
           <div className="p-6 text-center text-sm text-muted-foreground">
-            暂无对话
+            {t('noConversations')}
           </div>
         ) : (
           <div className="p-2 space-y-1">
@@ -154,7 +156,7 @@ export function ChatSidebar({
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-xs text-muted-foreground">
-                      {conv.message_count} 条消息
+                      {t('messageCount', { count: conv.message_count })}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {formatDateTime(conv.updated_at)}
@@ -179,21 +181,21 @@ export function ChatSidebar({
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除这条对话记录吗？删除后不可恢复。
+              {t('deleteConfirmDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              取消
+              {t('deleteCancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
               disabled={deleteMutation.isPending}
             >
-              确认删除
+              {t('deleteConfirm')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
