@@ -95,11 +95,6 @@ export async function getMemory(): Promise<Memory> {
           //     topK: 5,
           //     messageRange: { before: 2, after: 2 },
           // },
-        observationalMemory: {
-          // Must explicitly specify OM model, default gemini-2.5-flash will fail without Google API key
-          // Setting `model` alone sets both observation and reflection models
-          model: 'openai/gpt-4o-mini',
-        },
       },
     });
 
