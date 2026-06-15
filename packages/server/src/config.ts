@@ -15,6 +15,7 @@ interface AppConfig {
   };
   database: {
     url: string;
+    duckdb_url: string;
   };
   skills: {
     scan_paths: string[];
@@ -55,7 +56,7 @@ function loadConfig(): AppConfig {
   const defaultConfig: AppConfig = {
     server: { port: 3001, deploy_mode: 'private' },
     auth: { session_expiry_days: 7 },
-    database: { url: 'file:./data/vico.db' },
+    database: { url: 'file:./data/vico.db', duckdb_url: './data/mastra.duckdb' },
     skills: { scan_paths: [resolve(__dirname, '../../skills'), resolve(__dirname, '../db/custom-skills')] },
     memory: { stm_window: 20, ltm_auto_extract: true, ltm_max_entries: 10000 },
     rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'api', embedder_model: 'openai/text-embedding-3-small' },

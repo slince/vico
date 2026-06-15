@@ -7,6 +7,8 @@ auth:
 
 database:
   url: "file:./data/vico.db"
+  duckdb_url: "file:./data/vico.duckdb"
+
 
 skills:
   scan_paths:

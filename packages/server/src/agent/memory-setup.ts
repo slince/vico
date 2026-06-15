@@ -51,7 +51,7 @@ export async function getStorage(): Promise<MastraCompositeStore> {
         url: getDatabaseUrl(),
       }),
       domains: {
-        observability: await new DuckDBStore().getStore('observability'),
+        observability: await new DuckDBStore({ path: config.database.duckdb_url }).getStore('observability'),
       },
     });
   }
