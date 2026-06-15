@@ -28,7 +28,7 @@ class RAGManager {
    */
   async indexText(kbId: string, text: string, metadata: Record<string, any> = {}): Promise<number> {
     const vector = getVector();
-    const memory = getMemory();
+    const memory = await getMemory();
     if (!memory.embedder) throw new Error('Embedder not configured');
 
     const chunks = this.splitText(text);
@@ -111,7 +111,7 @@ class RAGManager {
    */
   async semanticSearch(query: string, kbIds: string[], topK: number): Promise<RetrievedChunk[]> {
     const vector = getVector();
-    const memory = getMemory();
+    const memory = await getMemory();
     if (!memory.embedder) throw new Error('Embedder not configured');
 
     const embedResult = await memory.embedder.doEmbed({ values: [query] });
@@ -159,7 +159,7 @@ class RAGManager {
     if (keywords.length === 0) return [];
 
     const vector = getVector();
-    const memory = getMemory();
+    const memory = await getMemory();
     if (!memory.embedder) throw new Error('Embedder not configured');
 
     // 使用查询向量获取更大候选集，再按关键词过滤

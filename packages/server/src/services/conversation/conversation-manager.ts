@@ -110,7 +110,7 @@ class ConversationManager {
   ): Promise<ConversationItem[]> {
     const search = filters?.search?.toLowerCase();
     const agentIdFilter = filters?.agent_id;
-    const memory = getMemory();
+    const memory = await getMemory();
 
     const result = await memory.listThreads({
       perPage: false,
@@ -149,7 +149,7 @@ class ConversationManager {
    * 校验 thread 归属（resourceId 匹配 tenantId）。
    */
   async getById(tenantId: string, id: string): Promise<ConversationDetail | null> {
-    const memory = getMemory();
+    const memory = await getMemory();
 
     const thread = await memory.getThreadById({ threadId: id });
     if (!thread || thread.resourceId !== tenantId) return null;
@@ -181,7 +181,7 @@ class ConversationManager {
    * 获取租户下对话总数。
    */
   async count(tenantId: string): Promise<number> {
-    const memory = getMemory();
+    const memory = await getMemory();
     const result = await memory.listThreads({
       perPage: false,
       filter: { resourceId: tenantId },
@@ -194,7 +194,7 @@ class ConversationManager {
    * Mastra listThreads 按 updatedAt 降序返回。
    */
   async recent(tenantId: string, limit = 5): Promise<RecentConversation[]> {
-    const memory = getMemory();
+    const memory = await getMemory();
 
     const result = await memory.listThreads({
       perPage: limit,

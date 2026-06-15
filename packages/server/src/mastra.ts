@@ -23,13 +23,13 @@ export const mastra = new Mastra({
     mainAgent,
     agentProxy,
   },
-  storage: getStorage(),
+  storage: await getStorage(),
   logger: new PinoLogger({
     name: 'Vico',
     level: 'info',
   }),
   memory: {
-    memory: getMemory(),
+    memory: await getMemory(),
   },
   observability: getObservabilityConfig(),
 });

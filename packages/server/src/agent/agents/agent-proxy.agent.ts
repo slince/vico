@@ -38,7 +38,7 @@ export const agentProxy = new Agent({
     return {};
   },
   workspace: getWorkspace(),
-  memory: getMemory(),
+  memory: await getMemory(),
   defaultOptions: {
     maxSteps: 10,
   },

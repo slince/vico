@@ -95,7 +95,7 @@ async function saveThread(
   tenantId: string,
   metadata: Record<string, string>,
 ): Promise<void> {
-  const memory = getMemory();
+  const memory = await getMemory();
   await memory.saveThread({
     thread: {
       id: threadId,

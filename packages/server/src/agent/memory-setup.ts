@@ -3,10 +3,12 @@
  *
  * 提供三个单例 getter：
  * - getVector() — LibSQLVector 单例，连接 libsql 数据库
- * - getStorage() — LibSQLStore 单例，用于 Memory 的消息持久化与召回
+ * - getStorage() — MastraCompositeStore 单例，LibSQLStore 作为默认存储后端
  * - getMemory() — Mastra Memory 单例，基于 LibSQLVector 和 OpenAI embedder
  */
 import {LibSQLStore, LibSQLVector} from '@mastra/libsql';
+import {DuckDBStore} from '@mastra/duckdb';
+import {MastraCompositeStore} from '@mastra/core/storage';
 import {Memory} from '@mastra/memory';
 import {ModelRouterEmbeddingModel} from '@mastra/core/llm';
 import {getDatabaseUrl} from '../db/init-libsql.js';
@@ -14,7 +16,7 @@ import {config} from '../config.js';
 import logger from '../lib/logger.js';
 
 let _vector: LibSQLVector;
-let _storage: LibSQLStore;
+let _storage: MastraCompositeStore;
 let _memory: Memory;
 
 /**
@@ -32,15 +34,25 @@ export function getVector(): LibSQLVector {
 }
 
 /**
- * Get or create the LibSQLStore singleton used as Memory's storage backend.
- * Provides persistence for conversation threads, messages, and working memory.
- * Uses the same libsql database URL as the main Drizzle connection.
+ * Get or create the MastraCompositeStore singleton.
+ *
+ * 使用 MastraCompositeStore 包装 LibSQLStore 作为默认存储后端。
+ * 支持按 domain 将不同领域的数据路由到不同存储适配器，
+ * 与 Mastra 框架推荐的存储组合模式保持一致。
+ *
+ * LibSQLStore 负责所有域的持久化：对话线程、消息、工作记忆、工作流状态等。
  */
-export function getStorage(): LibSQLStore {
+export async function getStorage(): Promise<MastraCompositeStore> {
   if (!_storage) {
-    _storage = new LibSQLStore({
-      url: getDatabaseUrl(),
-      id: 'vico-storage',
+    _storage = new MastraCompositeStore({
+      id: 'vico-composite-storage',
+      default: new LibSQLStore({
+        id: 'vico-storage',
+        url: getDatabaseUrl(),
+      }),
+      domains: {
+        observability: await new DuckDBStore().getStore('observability'),
+      },
     });
   }
   return _storage;
@@ -59,10 +71,10 @@ export function getStorage(): LibSQLStore {
  * - Pre-request: WorkingMemory + SemanticRecall context auto-injected
  * - Post-request: Messages persisted, OM triggered when threshold crossed
  */
-export function getMemory(): Memory {
+export async function getMemory(): Promise<Memory> {
   if (!_memory) {
     _memory = new Memory({
-      storage: getStorage(),
+      storage: await getStorage(),
       vector: getVector(),
       options: {
         lastMessages: 20,

@@ -36,7 +36,7 @@ export async function createRagSearchTool(agent: AgentDetail) {
     execute: async ({ query }) => {
       if (!query || !query.trim()) return '未提供搜索查询';
 
-      const memory = getMemory();
+      const memory = await getMemory();
       if (!memory.embedder) return '嵌入模型未配置';
 
       const timeoutMs = config.tool.timeout_ms;
