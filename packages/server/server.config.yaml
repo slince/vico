@@ -24,8 +24,7 @@ rag:
   chunk_size: 512
   chunk_overlap: 64
   retrieval_top_k: 5
-  embedder: api
-  embedder_model: "openai/text-embedding-3-small"
+  embedder: "fastembed"
 
 tool:
   timeout_ms: 30000

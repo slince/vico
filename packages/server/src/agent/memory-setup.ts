@@ -62,17 +62,19 @@ export async function getStorage(): Promise<MastraCompositeStore> {
 /**
  * 根据配置解析 embedder。
  *
- * embedder=api → ModelRouterEmbeddingModel（OpenAI 兼容 API）
- * embedder=local → fastembed（本地 ONNX Runtime）
+ * embedder='fastembed' → fastembed（本地 ONNX Runtime）
+ * embedder=string → ModelRouterEmbeddingModel（模型路由 ID）
+ * embedder=OpenAICompatibleConfig → ModelRouterEmbeddingModel（自定义 OpenAI 兼容端点）
  */
 function resolveEmbedder() {
-  const { embedder, embedder_model } = config.rag;
-  if (embedder === 'api') {
-    logger.info({ model: embedder_model }, 'Embedder configured (api)');
-    return new ModelRouterEmbeddingModel(embedder_model);
+  const { embedder } = config.rag;
+  if (embedder === 'fastembed') {
+    logger.info('Embedder configured (local fastembed)');
+    return fastembed;
   }
-  logger.info('Embedder configured (local fastembed)');
-  return fastembed;
+  // string or OpenAICompatibleConfig — both accepted by ModelRouterEmbeddingModel
+  logger.info({ embedder }, 'Embedder configured');
+  return new ModelRouterEmbeddingModel(embedder);
 }
 
 /**
