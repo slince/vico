@@ -1,7 +1,8 @@
-import { readFileSync, existsSync } from 'node:fs';
-import { parse } from 'yaml';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {existsSync, readFileSync} from 'node:fs';
+import {parse} from 'yaml';
+import {dirname, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {OpenAICompatibleConfig} from "@mastra/core/llm";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -30,7 +31,7 @@ interface AppConfig {
     chunk_overlap: number;
     retrieval_top_k: number;
     embedder: 'local' | 'api';
-    embedder_model: string;
+    embedder_model: string | OpenAICompatibleConfig;
   };
   /** 工具执行超时配置 */
   tool: {

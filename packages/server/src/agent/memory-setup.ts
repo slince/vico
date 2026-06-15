@@ -10,6 +10,7 @@ import {LibSQLStore, LibSQLVector} from '@mastra/libsql';
 import {DuckDBStore} from '@mastra/duckdb';
 import {MastraCompositeStore} from '@mastra/core/storage';
 import {Memory} from '@mastra/memory';
+import {fastembed} from '@mastra/fastembed';
 import {ModelRouterEmbeddingModel} from '@mastra/core/llm';
 import {getDatabaseUrl} from '../db/init-libsql.js';
 import {config} from '../config.js';
@@ -59,21 +60,38 @@ export async function getStorage(): Promise<MastraCompositeStore> {
 }
 
 /**
- * Get or create the Mastra Memory singleton.
+ * 根据配置解析 embedder。
  *
- * Configures 4-layer memory architecture:
- * 1. MessageHistory — auto-injected via lastMessages (Mastra built-in)
- * 2. WorkingMemory — Markdown template, scope=resource (user-level)
- * 3. SemanticRecall — vector-based cross-thread recall, topK=5
- * 4. ObservationalMemory — LLM-based conversation observation + reflection
+ * embedder=api → ModelRouterEmbeddingModel（OpenAI 兼容 API）
+ * embedder=local → fastembed（本地 ONNX Runtime）
+ */
+function resolveEmbedder() {
+  const { embedder, embedder_model } = config.rag;
+  if (embedder === 'api') {
+    logger.info({ model: embedder_model }, 'Embedder configured (api)');
+    return new ModelRouterEmbeddingModel(embedder_model);
+  }
+  logger.info('Embedder configured (local fastembed)');
+  return fastembed;
+}
+
+/**
+ * 获取或创建 Mastra Memory 单例。
  *
- * All processors are auto-managed by Mastra's memory pipeline:
- * - Pre-request: WorkingMemory + SemanticRecall context auto-injected
- * - Post-request: Messages persisted, OM triggered when threshold crossed
+ * 配置 4 层记忆架构：
+ * 1. MessageHistory — 通过 lastMessages 自动注入（Mastra 内置）
+ * 2. WorkingMemory — Markdown 模板，scope=resource（用户级）
+ * 3. SemanticRecall — 基于向量的跨线程召回，topK=5
+ * 4. ObservationalMemory — 基于 LLM 的对话观察与反思
+ *
+ * 所有处理器由 Mastra 记忆管道自动管理：
+ * - 请求前：自动注入 WorkingMemory + SemanticRecall 上下文
+ * - 请求后：持久化消息，达到阈值时触发 OM
  */
 export async function getMemory(): Promise<Memory> {
   if (!_memory) {
     _memory = new Memory({
+      embedder: resolveEmbedder(),
       storage: await getStorage(),
       vector: getVector(),
       options: {
@@ -91,25 +109,12 @@ export async function getMemory(): Promise<Memory> {
 - **重要事项**:
 `,
         },
-          // semanticRecall: {
-          //     topK: 5,
-          //     messageRange: { before: 2, after: 2 },
-          // },
+        semanticRecall: {
+          topK: 5,
+          messageRange: { before: 2, after: 2 },
+        },
       },
     });
-
-    // Inject embedder based on config
-    const { embedder, embedder_model } = config.rag;
-    if (embedder === 'api') {
-      try {
-        _memory.setEmbedder(new ModelRouterEmbeddingModel(embedder_model));
-        logger.info({ model: embedder_model }, 'Embedder configured (api)');
-      } catch (err) {
-        logger.error({ err, model: embedder_model }, 'Failed to create embedder');
-      }
-    } else {
-      logger.warn({ model: embedder_model }, 'Local embedder not yet supported');
-    }
   }
   return _memory;
 }

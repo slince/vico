@@ -22,6 +22,7 @@
     "@mastra/core": "^1.42.0",
     "@mastra/duckdb": "^1.4.2",
     "@mastra/evals": "^1.3.0",
+    "@mastra/fastembed": "^1.1.2",
     "@mastra/hono": "^1.4.25",
     "@mastra/libsql": "^1.13.0",
     "@mastra/loggers": "^1.1.2",
