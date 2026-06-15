@@ -112,6 +112,7 @@ export async function getMemory(): Promise<Memory> {
         semanticRecall: {
           topK: 5,
           messageRange: { before: 2, after: 2 },
+          scope: "resource"
         },
       },
     });
