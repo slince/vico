@@ -8,6 +8,11 @@ import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
 
+/** 将知识库 ID 转换为合法的 LibSQLVector 索引名（替换连字符、限制长度） */
+export function kbIndexName(kbId: string): string {
+  return `kb_${kbId.replace(/-/g, '_')}`;
+}
+
 class RAGManager {
   /**
    * 索引文本内容到指定知识库。
@@ -41,9 +46,22 @@ class RAGManager {
       values: chunkTexts,
     });
 
+    const indexName = kbIndexName(kbId);
+
+    // 确保向量索引存在（幂等：已存在则跳过）
+    try {
+      await vector.createIndex({
+        indexName,
+        dimension: embedResult.embeddings[0].length,
+        metric: 'cosine',
+      });
+    } catch (err: any) {
+      if (!err?.message?.includes('already exists')) throw err;
+    }
+
     // 通过 LibSQLVector 存储，content 写入 metadata 以便检索时还原
     await vector.upsert({
-      indexName: `kb_${kbId}`,
+      indexName,
       vectors: embedResult.embeddings,
       ids: chunkIds,
       metadata: chunkTexts.map((c, i) => ({ content: c, chunk_index: i, ...metadata })),

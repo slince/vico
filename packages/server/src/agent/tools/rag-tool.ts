@@ -5,6 +5,7 @@
  */
 import { createVectorQueryTool } from '@mastra/rag';
 import { getVector, getMemory } from '../memory-setup.js';
+import { kbIndexName } from '../../memory/rag.js';
 import type { AgentDetail } from '../../services/agent/types.js';
 
 /**
@@ -27,7 +28,7 @@ export async function createRagSearchTool(agent: AgentDetail): Promise<any> {
     description:
       '搜索知识库获取相关文档内容。当需要查找特定信息、参考文档或获取领域知识时使用。',
     vectorStore: getVector(),
-    indexName: `kb_${kbId}`,
+    indexName: kbIndexName(kbId),
     model: memory.embedder,
   });
 }

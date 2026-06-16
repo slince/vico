@@ -43,6 +43,13 @@
       "when": 1782000000000,
       "tag": "0005_eval_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1782864000000,
+      "tag": "0006_add_kb_id",
+      "breakpoints": true
     }
   ]
 }
