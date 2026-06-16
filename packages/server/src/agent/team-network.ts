@@ -18,6 +18,7 @@ import { skillManager } from '../skill/manager.js';
 import { getSkillToolsForMastraAgent } from './tools/skill-tool-adapter.js';
 import { createRagSearchTool } from './tools/rag-tool.js';
 import { agentManager } from '../services/agent/agent-manager.js';
+import { resourceId } from '../lib/resource.js';
 import logger from '../lib/logger.js';
 
 const { agentTeams, agentTeamMembers, agents } = schema;
@@ -193,7 +194,7 @@ export async function createTeamNetwork(
   const stream = await supervisor.network([{ role: 'user', content: message }], {
     memory: {
       thread: `team-${teamId}-${context.userId}`,
-      resource: context.tenantId,
+      resource: resourceId(context.tenantId, context.userId),
     },
     maxSteps: 15,
   });
