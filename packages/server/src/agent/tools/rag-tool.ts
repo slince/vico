@@ -5,7 +5,7 @@
  */
 import { createVectorQueryTool } from '@mastra/rag';
 import { getVector, getMemory } from '../memory-setup.js';
-import { kbIndexName } from '../../memory/rag.js';
+import { kbIndexName } from '../../lib/resource.js';
 import type { AgentDetail } from '../../services/agent/types.js';
 
 /**

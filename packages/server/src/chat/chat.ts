@@ -6,6 +6,7 @@ import {getMemory} from '../agent/memory-setup.js';
 import {prepareAgentContext, prepareMainAgentContext} from '../agent/agent.factory.js';
 import type {MastraModelOutput} from '@mastra/core/stream';
 import logger from '../lib/logger.js';
+import { resourceId } from '../lib/resource.js';
 
 export interface ExecuteChatParams {
   agentId: string;
@@ -45,7 +46,7 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
         : await prepareAgentContext(tenantId, agentId, requestContext);
 
     // 2. 统一保存 thread
-    await saveThread(thread, tenantId, {
+    await saveThread(thread, tenantId, userId, {
       agent_id: agentId,
       user_id: userId,
       model_name: ctx.agent.model_id,
@@ -57,7 +58,7 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
       [{ role: 'user', content: message }],
       {
         instructions: ctx.instructions,
-        memory: { thread, resource: tenantId },
+        memory: { thread, resource: resourceId(tenantId, userId) },
         maxSteps: ctx.agent.max_steps || 10,
         requestContext,
       },
@@ -89,17 +90,18 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
   }
 }
 
-/** 写入 thread 到 memory，避免重复的 saveThread 样板代码 */
+/** 写入 thread 到 memory，resourceId = tenantId:userId 实现用户级隔离 */
 async function saveThread(
   threadId: string,
   tenantId: string,
+  userId: string,
   metadata: Record<string, string>,
 ): Promise<void> {
   const memory = await getMemory();
   await memory.saveThread({
     thread: {
       id: threadId,
-      resourceId: tenantId,
+      resourceId: resourceId(tenantId, userId),
       title: '',
       createdAt: new Date(),
       updatedAt: new Date(),

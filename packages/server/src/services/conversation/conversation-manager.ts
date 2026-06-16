@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '../../db/db.js';
 import { getMemory } from '../../agent/memory-setup.js';
+import { resourceId as buildResourceId } from '../../lib/resource.js';
 import type { ConversationItem, ConversationDetail, MessageItem, RecentConversation } from './types.js';
 
 const { agents } = schema;
@@ -87,7 +88,7 @@ class ConversationManager {
 
     return {
       id: thread.id,
-      tenant_id: thread.resourceId,
+      tenant_id: (thread.resourceId as string).split(':')[0],
       agent_id: agentId || '',
       user_id: (meta.user_id as string) || '',
       title: thread.title || '',
@@ -106,15 +107,17 @@ class ConversationManager {
    */
   async list(
     tenantId: string,
+    userId: string,
     filters?: { search?: string; agent_id?: string },
   ): Promise<ConversationItem[]> {
     const search = filters?.search?.toLowerCase();
     const agentIdFilter = filters?.agent_id;
     const memory = await getMemory();
+    const resourceId = buildResourceId(tenantId, userId);
 
     const result = await memory.listThreads({
       perPage: false,
-      filter: { resourceId: tenantId },
+      filter: { resourceId },
     });
 
     let convs: ConversationItem[] = [];
@@ -148,11 +151,12 @@ class ConversationManager {
    * 获取对话详情，含完整消息列表。
    * 校验 thread 归属（resourceId 匹配 tenantId）。
    */
-  async getById(tenantId: string, id: string): Promise<ConversationDetail | null> {
+  async getById(tenantId: string, userId: string, id: string): Promise<ConversationDetail | null> {
     const memory = await getMemory();
+    const resourceId = buildResourceId(tenantId, userId);
 
     const thread = await memory.getThreadById({ threadId: id });
-    if (!thread || thread.resourceId !== tenantId) return null;
+    if (!thread || thread.resourceId !== resourceId) return null;
 
     const conv = await this.threadToConversation(thread);
 
@@ -180,11 +184,11 @@ class ConversationManager {
   /**
    * 获取租户下对话总数。
    */
-  async count(tenantId: string): Promise<number> {
+  async count(tenantId: string, userId: string): Promise<number> {
     const memory = await getMemory();
     const result = await memory.listThreads({
       perPage: false,
-      filter: { resourceId: tenantId },
+      filter: { resourceId: buildResourceId(tenantId, userId) },
     });
     return result.threads.length;
   }
@@ -193,12 +197,12 @@ class ConversationManager {
    * 获取最近 N 条对话，含最后一条消息预览。
    * Mastra listThreads 按 updatedAt 降序返回。
    */
-  async recent(tenantId: string, limit = 5): Promise<RecentConversation[]> {
+  async recent(tenantId: string, userId: string, limit = 5): Promise<RecentConversation[]> {
     const memory = await getMemory();
 
     const result = await memory.listThreads({
       perPage: limit,
-      filter: { resourceId: tenantId },
+      filter: { resourceId: buildResourceId(tenantId, userId) },
     });
 
     const items: RecentConversation[] = [];
@@ -249,10 +253,11 @@ class ConversationManager {
    * 校验 thread 归属（resourceId 匹配 tenantId）后调用 Mastra Memory deleteThread。
    * 返回 true 表示删除成功，false 表示对话不存在或无权访问。
    */
-  async delete(tenantId: string, id: string): Promise<boolean> {
+  async delete(tenantId: string, userId: string, id: string): Promise<boolean> {
     const memory = await getMemory();
+    const resourceId = buildResourceId(tenantId, userId);
     const thread = await memory.getThreadById({ threadId: id });
-    if (!thread || thread.resourceId !== tenantId) return false;
+    if (!thread || thread.resourceId !== resourceId) return false;
     await memory.deleteThread(id);
     return true;
   }

@@ -25,8 +25,8 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
       agentManager.count(auth.tenantId),
       skillManager.countEnabled(auth.tenantId),
       knowledgeManager.count(auth.tenantId),
-      conversationManager.count(auth.tenantId),
-      conversationManager.recent(auth.tenantId, 5),
+      conversationManager.count(auth.tenantId, auth.userId),
+      conversationManager.recent(auth.tenantId, auth.userId, 5),
     ]);
 
     return c.json({

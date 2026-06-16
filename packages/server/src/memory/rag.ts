@@ -7,11 +7,7 @@ import { getVector, getMemory } from '../agent/memory-setup.js';
 import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
-
-/** 将知识库 ID 转换为合法的 LibSQLVector 索引名（替换连字符、限制长度） */
-export function kbIndexName(kbId: string): string {
-  return `kb_${kbId.replace(/-/g, '_')}`;
-}
+import { kbIndexName } from '../lib/resource.js';
 
 class RAGManager {
   /**
