@@ -21,6 +21,7 @@ export interface AgentRow {
   max_steps: number;
   enabled: number;
   builtin_tools: string;  // JSON string of BuiltinToolsConfig
+  kb_id: string | null;
   is_default: number;
   created_at: number;
   updated_at: number;
@@ -32,20 +33,12 @@ export interface SkillBinding {
   config: string;
 }
 
-/** agent_knowledge_bases 关联表行类型 */
-export interface KnowledgeBinding {
-  kb_id: string;
-  mode: string;
-}
-
 // ── 返回类型 ──
 
-/** Agent 详情/列表类型（含关联的 skills/knowledge_bases 及扁平化的 skill_names/kb_ids） */
+/** Agent 详情/列表类型（含关联的 skills 及扁平化的 skill_names） */
 export interface AgentDetail extends AgentRow {
   skills: SkillBinding[];
-  knowledge_bases: KnowledgeBinding[];
   skill_names: string[];
-  kb_ids: string[];
 }
 
 // ── 运行时配置 ──
@@ -100,6 +93,7 @@ export const updateAgentSchema = z.object({
   max_tokens: z.number().int().positive().optional(),
   max_steps: z.number().int().positive().optional(),
   rag_mode: z.string().optional(),
+  kb_id: z.string().nullable().optional(),
   enabled: z.number().min(0).max(1).optional(),
   builtin_tools: z.record(z.string(), builtinToolEntrySchema).optional(),
 });
@@ -116,12 +110,10 @@ export const replaceSkillsSchema = z.object({
 
 export type ReplaceSkillsInput = z.infer<typeof replaceSkillsSchema>;
 
-/** 替换 Knowledge bases 的输入校验 */
+/** 设置/替换 Agent 绑定的知识库（单 KB） */
 export const replaceKnowledgeSchema = z.object({
-  knowledge_bases: z.array(z.object({
-    kb_id: z.string().min(1),
-    mode: z.string().optional().default('auto'),
-  })).optional().default([]),
+  kb_id: z.string().nullable().optional(),
+  mode: z.string().optional().default('auto'),
 });
 
 export type ReplaceKnowledgeInput = z.infer<typeof replaceKnowledgeSchema>;

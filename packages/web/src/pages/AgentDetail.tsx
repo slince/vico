@@ -96,10 +96,10 @@ export default function AgentDetail() {
   });
 
   const kbMutation = useMutation({
-    mutationFn: (kbs: { kb_id: string }[]) =>
+    mutationFn: (data: { kb_id: string | null; mode: string }) =>
       api(`/agents/${id}/knowledge`, {
         method: 'PUT',
-        body: JSON.stringify({ knowledge_bases: kbs }),
+        body: JSON.stringify(data),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agent', id] }),
   });
@@ -147,13 +147,9 @@ export default function AgentDetail() {
     [skillsMutation],
   );
 
-  const toggleKb = useCallback(
-    (kbId: string, boundKbs: string[]) => {
-      const isBound = boundKbs.includes(kbId);
-      const next = isBound
-        ? boundKbs.filter((n) => n !== kbId)
-        : [...boundKbs, kbId];
-      kbMutation.mutate(next.map((n) => ({ kb_id: n })));
+  const selectKb = useCallback(
+    (kbId: string | null) => {
+      kbMutation.mutate({ kb_id: kbId, mode: 'auto' });
     },
     [kbMutation],
   );
@@ -208,9 +204,6 @@ export default function AgentDetail() {
 
   const boundSkills: string[] = (a.skills || []).map(
     (s: { skill_name: string }) => s.skill_name,
-  );
-  const boundKbs: string[] = (a.knowledge_bases || []).map(
-    (k: { kb_id: string }) => k.kb_id,
   );
 
   const skillsList = allSkills || [];
@@ -324,8 +317,8 @@ export default function AgentDetail() {
         <TabsContent value="knowledge">
           <KnowledgePanel
             kbsList={kbsList}
-            boundKbs={boundKbs}
-            onToggleKb={toggleKb}
+            selectedKbId={a.kb_id ?? null}
+            onSelectKb={selectKb}
           />
         </TabsContent>
 

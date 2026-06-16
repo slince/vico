@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Database } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import {
   Card, CardHeader, CardTitle, CardDescription, CardContent,
 } from '@/components/ui/card';
@@ -12,19 +13,19 @@ import type { KnowledgeBase } from './types';
 
 export interface KnowledgePanelProps {
   kbsList: KnowledgeBase[];
-  boundKbs: string[];
-  onToggleKb: (kbId: string, boundKbs: string[]) => void;
+  selectedKbId: string | null;
+  onSelectKb: (kbId: string | null) => void;
 }
 
 /**
  * 知识库绑定面板
  *
- * 展示所有可用知识库的复选框列表，勾选即关联到当前 Agent。
+ * 展示所有可用知识库的单选列表，选中即关联到当前 Agent。
  */
 export default function KnowledgePanel({
   kbsList,
-  boundKbs,
-  onToggleKb,
+  selectedKbId,
+  onSelectKb,
 }: KnowledgePanelProps) {
   const { t } = useTranslation('agents');
 
@@ -45,18 +46,25 @@ export default function KnowledgePanel({
               <EmptyDescription>{t('knowledgeEmptyDesc')}</EmptyDescription>
             </Empty>
           ) : (
-            <div className="space-y-1">
-              {kbsList.map((kb) => {
-                const isBound = boundKbs.includes(kb.id);
-                return (
+            <RadioGroup
+              value={selectedKbId ?? '__none__'}
+              onValueChange={(v) => onSelectKb(v === '__none__' ? null : v)}
+            >
+              <div className="space-y-1">
+                <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors">
+                  <RadioGroupItem value="__none__" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-none text-muted-foreground">
+                      {t('noKb')}
+                    </p>
+                  </div>
+                </label>
+                {kbsList.map((kb) => (
                   <label
                     key={kb.id}
-                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors has-checked:bg-accent/50"
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer transition-colors"
                   >
-                    <Checkbox
-                      checked={isBound}
-                      onCheckedChange={() => onToggleKb(kb.id, boundKbs)}
-                    />
+                    <RadioGroupItem value={kb.id} />
                     <div className="min-w-0">
                       <p className="text-sm font-medium leading-none">
                         {kb.name}
@@ -66,9 +74,9 @@ export default function KnowledgePanel({
                       </p>
                     </div>
                   </label>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            </RadioGroup>
           )}
         </CardContent>
       </Card>

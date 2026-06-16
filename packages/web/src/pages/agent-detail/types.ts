@@ -31,7 +31,7 @@ export interface Agent {
   max_tokens?: number;
   rag_mode?: string;
   skills?: { skill_name: string }[];
-  knowledge_bases?: { kb_id: string }[];
+  kb_id?: string | null;
 }
 
 /** 聊天消息 */

@@ -34,7 +34,7 @@ const EXT_TO_MIME: Record<string, string> = {
   '.json': 'application/json',
 };
 
-const { knowledge_bases, agent_knowledge_bases } = schema;
+const { knowledge_bases, agents } = schema;
 
 /**
  * 知识库业务管理器。
@@ -88,7 +88,8 @@ class KnowledgeManager {
   /** 删除知识库，级联解除 Agent 绑定 */
   async remove(tenantId: string, id: string): Promise<void> {
     const db = getDb();
-    await db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.kb_id, id)).run();
+    // 清除绑定此 KB 的 Agent 的 kb_id
+    await db.update(agents).set({ kb_id: null }).where(eq(agents.kb_id, id)).run();
     await db.delete(knowledge_bases)
       .where(and(eq(knowledge_bases.id, id), eq(knowledge_bases.tenant_id, tenantId)))
       .run();

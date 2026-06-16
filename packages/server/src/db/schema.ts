@@ -26,6 +26,7 @@ export const agents = sqliteTable('agents', {
   rag_mode: text('rag_mode').notNull().default('auto'),
   max_steps: integer('max_steps').notNull().default(10),
   builtin_tools: text('builtin_tools').notNull().default('{}'),
+  kb_id: text('kb_id'),
   is_default: integer('is_default').notNull().default(0),
   enabled: integer('enabled').notNull().default(1),
   created_at: integer('created_at').notNull(),

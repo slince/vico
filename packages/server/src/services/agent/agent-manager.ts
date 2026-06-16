@@ -17,7 +17,7 @@ import {
   type AgentRuntimeConfig,
 } from './types.js';
 
-const { agents, agent_skills, agent_knowledge_bases } = schema;
+const { agents, agent_skills } = schema;
 
 /**
  * Agent 业务管理器。
@@ -65,7 +65,7 @@ class AgentManager {
 
     const agentIds = rows.map((a) => a.id);
 
-    // 批量查询关联数据（仅 2 次查询，替代 N+1）
+    // 批量查询关联数据（仅 1 次查询，替代 N+1）
     const allSkills = await db.select({
       agent_id: agent_skills.agent_id,
       skill_name: agent_skills.skill_name,
@@ -75,15 +75,6 @@ class AgentManager {
       .where(inArray(agent_skills.agent_id, agentIds))
       .all();
 
-    const allKbs = await db.select({
-      agent_id: agent_knowledge_bases.agent_id,
-      kb_id: agent_knowledge_bases.kb_id,
-      mode: agent_knowledge_bases.mode,
-    })
-      .from(agent_knowledge_bases)
-      .where(inArray(agent_knowledge_bases.agent_id, agentIds))
-      .all();
-
     // 建立 agentId → 关联数据 的映射
     const skillsMap = new Map<string, { skill_name: string; config: string }[]>();
     for (const s of allSkills) {
@@ -91,27 +82,18 @@ class AgentManager {
       skillsMap.get(s.agent_id)!.push({ skill_name: s.skill_name, config: s.config });
     }
 
-    const kbsMap = new Map<string, { kb_id: string; mode: string }[]>();
-    for (const k of allKbs) {
-      if (!kbsMap.has(k.agent_id)) kbsMap.set(k.agent_id, []);
-      kbsMap.get(k.agent_id)!.push({ kb_id: k.kb_id, mode: k.mode });
-    }
-
     return rows.map((a) => {
       const skills = skillsMap.get(a.id) || [];
-      const knowledge_bases = kbsMap.get(a.id) || [];
       return {
         ...a,
         skills,
-        knowledge_bases,
         skill_names: skills.map((s) => s.skill_name),
-        kb_ids: knowledge_bases.map((k) => k.kb_id),
       };
     });
   }
 
   /**
-   * 按 ID 获取单个 Agent 详情，含完整的 skills 和 knowledge_bases 数据。
+   * 按 ID 获取单个 Agent 详情，含关联的 skills 数据。
    * 不存在时返回 null。
    */
   async getById(tenantId: string, id: string): Promise<AgentDetail | null> {
@@ -127,17 +109,10 @@ class AgentManager {
       config: agent_skills.config,
     }).from(agent_skills).where(eq(agent_skills.agent_id, id)).all();
 
-    const kbs = await db.select({
-      kb_id: agent_knowledge_bases.kb_id,
-      mode: agent_knowledge_bases.mode,
-    }).from(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).all();
-
     return {
       ...agent,
       skills,
-      knowledge_bases: kbs,
       skill_names: skills.map((s) => s.skill_name),
-      kb_ids: kbs.map((k) => k.kb_id),
     };
   }
 
@@ -262,7 +237,7 @@ class AgentManager {
   }
 
   /**
-   * 删除 Agent，同时级联删除关联的 skills 和 knowledge_bases。
+   * 删除 Agent，同时级联删除关联的 skills。
    * 默认 Agent（is_default=1）不可删除。
    */
   async remove(tenantId: string, id: string): Promise<void> {
@@ -275,7 +250,6 @@ class AgentManager {
       throw new Error('Cannot delete the default agent');
     }
     await db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
-    await db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).run();
     await db.delete(agents).where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId))).run();
     agentToolStore.invalidate(tenantId);
   }
@@ -314,23 +288,18 @@ class AgentManager {
   }
 
   /**
-   * 替换 Agent 绑定的知识库（全量替换策略）。
+   * 设置 Agent 绑定的知识库（单 KB）。
+   * kb_id 为 null 时解绑。
    */
   async replaceKnowledge(tenantId: string, id: string, input: unknown): Promise<void> {
-    const { knowledge_bases } = replaceKnowledgeSchema.parse(input);
+    const { kb_id, mode } = replaceKnowledgeSchema.parse(input);
     const db = getDb();
 
-    await db.delete(agent_knowledge_bases).where(eq(agent_knowledge_bases.agent_id, id)).run();
-    for (const kb of knowledge_bases) {
-      await db.insert(agent_knowledge_bases).values({
-        agent_id: id,
-        kb_id: kb.kb_id,
-        mode: kb.mode || 'auto',
-      }).onConflictDoUpdate({
-        target: [agent_knowledge_bases.agent_id, agent_knowledge_bases.kb_id],
-        set: { mode: kb.mode || 'auto' },
-      }).run();
-    }
+    await db.update(agents)
+      .set({ kb_id: kb_id ?? null, updated_at: Date.now() })
+      .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
+      .run();
+
     agentToolStore.invalidate(tenantId);
   }
 }
