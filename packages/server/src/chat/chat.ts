@@ -16,6 +16,54 @@ export interface ExecuteChatParams {
   userId: string;
 }
 
+/** executeAgentChatRaw 的返回值 */
+export interface ExecuteChatRawResult {
+  thread: string;
+  output: MastraModelOutput<unknown>;
+}
+
+/**
+ * 执行单 Agent 对话的公共逻辑。
+ *
+ * 加载 Agent 配置、保存 thread、调用 Mastra agent.stream()，
+ * 返回 raw MastraModelOutput + threadId，由调用方决定如何格式化（SSE 或 AI SDK）。
+ */
+export async function executeAgentChatRaw(
+  params: ExecuteChatParams,
+): Promise<ExecuteChatRawResult> {
+  const { agentId, message, threadId, tenantId, userId } = params;
+
+  if (!message?.trim()) {
+    throw new Error('Message is required');
+  }
+
+  const thread = threadId || `${agentId}::${userId}::${uuidv4()}`;
+  const requestContext = new RequestContext();
+
+  const ctx = agentId === 'main'
+    ? await prepareMainAgentContext(tenantId, requestContext)
+    : await prepareAgentContext(tenantId, agentId, requestContext);
+
+  await saveThread(thread, tenantId, userId, {
+    agent_id: agentId,
+    user_id: userId,
+    model_name: ctx.agent.model_id,
+  });
+
+  const mastraAgentId = agentId === 'main' ? 'mainAgent' : 'agentProxy';
+  const output: MastraModelOutput<unknown> = await mastra.getAgent(mastraAgentId).stream(
+    [{ role: 'user', content: message }],
+    {
+      instructions: ctx.instructions,
+      memory: { thread, resource: resourceId(tenantId, userId) },
+      maxSteps: ctx.agent.max_steps || 10,
+      requestContext,
+    },
+  );
+
+  return { thread, output };
+}
+
 /**
  * 执行单 Agent 对话。
  *
@@ -24,10 +72,10 @@ export interface ExecuteChatParams {
  * 通过 SSE 流式返回 AI 回复。
  */
 export async function executeAgentChat(params: ExecuteChatParams): Promise<Response> {
-  const { agentId, message, threadId, tenantId, userId } = params;
+  const { agentId, tenantId } = params;
 
   // 输入校验
-  if (!message?.trim()) {
+  if (!params.message?.trim()) {
     return new Response(JSON.stringify({ error: 'Message is required' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
@@ -35,36 +83,8 @@ export async function executeAgentChat(params: ExecuteChatParams): Promise<Respo
   }
 
   try {
-    const thread = threadId || `${agentId}::${userId}::${uuidv4()}`;
+    const { thread, output } = await executeAgentChatRaw(params);
 
-    const requestContext = new RequestContext();
-
-
-    // 1. 统一加载配置（agentId === 'main' 时内部自动解析为默认 Agent 并追加租户工具/能力描述）
-    const ctx = agentId === 'main'
-        ? await prepareMainAgentContext(tenantId, requestContext)
-        : await prepareAgentContext(tenantId, agentId, requestContext);
-
-    // 2. 统一保存 thread
-    await saveThread(thread, tenantId, userId, {
-      agent_id: agentId,
-      user_id: userId,
-      model_name: ctx.agent.model_id,
-    });
-
-    // 3. 统一 streaming
-    const mastraAgentId = agentId === 'main' ? 'mainAgent' : 'agentProxy';
-    const output: MastraModelOutput<unknown> = await mastra.getAgent(mastraAgentId).stream(
-      [{ role: 'user', content: message }],
-      {
-        instructions: ctx.instructions,
-        memory: { thread, resource: resourceId(tenantId, userId) },
-        maxSteps: ctx.agent.max_steps || 10,
-        requestContext,
-      },
-    );
-
-    // 包装为 SSE 流，WorkingMemory + ObservationalMemory 由 Mastra processor pipeline 自动管理
     const stream = createSSEStream(output, {
       doneMetadata: { threadId: thread },
       onComplete: async () => {
