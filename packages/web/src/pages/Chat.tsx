@@ -135,7 +135,30 @@ export default function Chat() {
                     <EmptyDescription>发送消息开始与 Agent 对话</EmptyDescription>
                   </Empty>
                 </ThreadPrimitive.Empty>
-                <ThreadPrimitive.Messages />
+                <ThreadPrimitive.Messages>
+                  {({ message }) => {
+                    if (message.role === 'user') {
+                      return (
+                        <div className="flex justify-end mb-4">
+                          <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-primary text-primary-foreground">
+                            {message.parts.map((part: any) =>
+                              part.type === 'text' ? <span key={part.id}>{part.text}</span> : null,
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="flex justify-start mb-4">
+                        <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-accent">
+                          {message.parts.map((part: any) =>
+                            part.type === 'text' ? <span key={part.id}>{part.text}</span> : null,
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }}
+                </ThreadPrimitive.Messages>
                 <ThreadPrimitive.ScrollToBottom />
               </ThreadPrimitive.Viewport>
 
