@@ -24,12 +24,17 @@ export interface UseTeamChatReturn {
   isLoading: boolean;
 }
 
+/** AI SDK v6 流 chunk 类型 */
+interface AISDKChunk {
+  type: string;
+  textDelta?: string;
+  agentName?: string;
+  agentId?: string;
+  summary?: string;
+}
+
 /**
- * 团队聊天 hook — 封装 SSE 流式请求和消息状态管理
- *
- * 处理单 Agent 聊天和团队协作聊天的区别：
- * - delegation_start / delegation_end 事件展示委派状态
- * - text_delta 事件实时拼接助手回复
+ * 团队聊天 hook — 通过 AI SDK UIMessageStream 流式请求。
  *
  * @param options - 配置选项
  * @returns 聊天状态和方法
@@ -49,27 +54,9 @@ export function useTeamChat({ teamId, initialMessages = [] }: UseTeamChatOptions
 
     streamTeamChat(
       { teamId, message: input },
-      (event) => {
-        if (event.type === 'delegation_start') {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'delegation',
-              content: `正在委派给 ${event.agentName || event.agentId}...`,
-              agentName: event.agentName,
-            },
-          ]);
-        } else if (event.type === 'delegation_end') {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'delegation',
-              content: `委派结果: ${event.summary || ''}`,
-              agentName: event.agentName,
-            },
-          ]);
-        } else if (event.type === 'text_delta') {
-          fullResponse += event.content;
+      (chunk: AISDKChunk) => {
+        if (chunk.type === 'text-delta' && chunk.textDelta) {
+          fullResponse += chunk.textDelta;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last?.role === 'assistant') {

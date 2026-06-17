@@ -24,11 +24,18 @@ export interface UseAgentChatReturn {
   isLoading: boolean;
 }
 
+/** AI SDK v6 流 chunk 类型 */
+interface AISDKChunk {
+  type: string;
+  textDelta?: string;
+  toolCallId?: string;
+  toolName?: string;
+  input?: Record<string, unknown>;
+  messageMetadata?: Record<string, unknown>;
+}
+
 /**
- * Agent 聊天 hook — 封装 SSE 流式请求和消息状态管理
- *
- * 替代手动调用 streamChat + 管理 SSE 事件的模式，
- * 提供与组件解耦的聊天状态管理。
+ * Agent 聊天 hook — 通过 AI SDK UIMessageStream 流式请求。
  *
  * @param options - 配置选项
  * @returns 聊天状态和方法
@@ -48,9 +55,9 @@ export function useAgentChat({ agentId, initialMessages = [] }: UseAgentChatOpti
 
     streamChat(
       { agentId, message: input },
-      (event) => {
-        if (event.type === 'text_delta') {
-          fullResponse += event.content;
+      (chunk: AISDKChunk) => {
+        if (chunk.type === 'text-delta' && chunk.textDelta) {
+          fullResponse += chunk.textDelta;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last?.role === 'assistant') {
@@ -61,8 +68,13 @@ export function useAgentChat({ agentId, initialMessages = [] }: UseAgentChatOpti
             }
             return [...prev, { role: 'assistant', content: fullResponse }];
           });
-        } else if (event.type === 'approval_required') {
-          // 追加审批请求到当前助手消息末尾，方便 ChatPanel 渲染审批卡片
+        } else if (
+          chunk.type === 'tool-input-available' &&
+          chunk.toolName === 'mastra_workspace_execute_command' &&
+          chunk.input?.command
+        ) {
+          // 追加审批请求
+          const cmd = String(chunk.input.command);
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last && last.role === 'assistant') {
@@ -70,8 +82,8 @@ export function useAgentChat({ agentId, initialMessages = [] }: UseAgentChatOpti
                 ...prev.slice(0, -1),
                 {
                   ...last,
-                  content: last.content + `\n\n[Exec Approval Required: ${event.command}]\n`,
-                  pendingApproval: { command: event.command },
+                  content: last.content + `\n\n[Exec Approval Required: ${cmd}]\n`,
+                  pendingApproval: { command: cmd },
                 },
               ];
             }
@@ -79,8 +91,8 @@ export function useAgentChat({ agentId, initialMessages = [] }: UseAgentChatOpti
               ...prev,
               {
                 role: 'assistant' as const,
-                content: `[Exec Approval Required: ${event.command}]\n`,
-                pendingApproval: { command: event.command },
+                content: `[Exec Approval Required: ${cmd}]\n`,
+                pendingApproval: { command: cmd },
               },
             ];
           });

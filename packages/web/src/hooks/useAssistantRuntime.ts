@@ -2,7 +2,7 @@
  * Assistant UI Runtime hook — 封装 useChatRuntime 连接 AI SDK 端点。
  *
  * 使用 @assistant-ui/react-ai-sdk 的 useChatRuntime 创建 AssistantRuntime，
- * 通过 ai 的 DefaultChatTransport 连接 /api/v1/chat/ai-sdk 端点。
+ * 通过 ai 的 DefaultChatTransport 连接 /api/v1/chat 端点。
  * 支持历史消息加载和 threadId 回写。
  */
 import {useMemo} from 'react';
@@ -51,7 +51,7 @@ export function useAssistantRuntime({
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: '/api/v1/chat/ai-sdk',
+        api: '/api/v1/chat',
         credentials: 'include',
         body: () => ({ agentId }),
       }),
