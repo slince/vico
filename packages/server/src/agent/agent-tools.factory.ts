@@ -7,14 +7,16 @@
 import {getSkillToolsForMastraAgent} from './tools/skill-tool-adapter';
 import {createRagSearchTool} from './tools/rag-tool';
 import {agentToolStore} from './tools/agent-tool-store.js';
+import {weatherTool} from './tools/weather-tool.js';
 import {AgentDetail} from '../services/agent/types.js';
 
 /**
  * 为指定 Agent 构建完整的运行时工具集。
  *
- * 按顺序聚合两类工具：
- * 1. Skill 工具 — 来自 Agent 绑定的 Skill 插件的工具导出
- * 2. RAG 工具 — 仅当 agent.rag_mode !== 'disabled' 时启用
+ * 按顺序聚合三类工具：
+ * 1. 内置工具 — 平台预置的通用工具（如天气查询）
+ * 2. Skill 工具 — 来自 Agent 绑定的 Skill 插件的工具导出
+ * 3. RAG 工具 — 仅当 agent.rag_mode !== 'disabled' 时启用
  *
  * @param agent - Agent 详情（含 skills、rag_mode 及 tenant_id）
  * @returns 工具集，key 为工具 ID
@@ -25,7 +27,10 @@ export async function buildAgentTools(
   const { id, tenant_id, rag_mode } = agent;
   const tools: Record<string, any> = {};
 
-  // 1. Skill 工具
+  // 1. 内置工具
+  tools[weatherTool.id!] = weatherTool;
+
+  // 2. Skill 工具
   const skillTools = await getSkillToolsForMastraAgent(id, {
     tenantId: tenant_id,
     agentId: id,
@@ -34,7 +39,7 @@ export async function buildAgentTools(
   });
   Object.assign(tools, skillTools);
 
-  // 2. RAG 搜索工具
+  // 3. RAG 搜索工具
   if (rag_mode !== 'disabled') {
     const ragTool = await createRagSearchTool(agent);
     if (ragTool) {
