@@ -1,5 +1,5 @@
 // 1. React
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 // 2. Third-party
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import {
   AssistantRuntimeProvider,
   ThreadPrimitive,
   ComposerPrimitive,
+  useAui,
 } from '@assistant-ui/react';
 
 // 3. API
@@ -22,8 +23,31 @@ import { Button } from '@/components/ui/button';
 import { ChatSidebar } from './chat/ChatSidebar';
 import { ChatSkeleton } from './chat/ChatSkeleton';
 import { useAssistantRuntime } from '@/hooks/useAssistantRuntime';
-import { WeatherToolUI } from './chat/ToolUIs/weather-ui';
-import { ExecToolUI } from './chat/ToolUIs/exec-ui';
+import { WeatherToolRenderer } from './chat/ToolUIs/weather-ui';
+import { ExecToolRenderer } from './chat/ToolUIs/exec-ui';
+
+/** 使用非 deprecated 的 useAui().tools().setToolUI() 注册工具渲染器 */
+function ToolRegistrations() {
+  const aui = useAui();
+
+  useEffect(() => {
+    const unsubWeather = aui.tools().setToolUI('get-weather', WeatherToolRenderer, {
+      standalone: true,
+    });
+    const unsubExec = aui.tools().setToolUI(
+      'mastra_workspace_execute_command',
+      ExecToolRenderer,
+      { standalone: true },
+    );
+    // 组件卸载时清理
+    return () => {
+      unsubWeather();
+      unsubExec();
+    };
+  }, [aui]);
+
+  return null;
+}
 
 // 6. Types
 interface Agent {
@@ -113,8 +137,7 @@ export default function Chat() {
       {/* 右侧聊天区 */}
       {selectedAgentId ? (
         <AssistantRuntimeProvider runtime={runtime}>
-          <WeatherToolUI />
-          <ExecToolUI />
+          <ToolRegistrations />
           <div className="flex-1 flex flex-col bg-background min-w-0">
             {/* 顶部标题栏 */}
             <div className="h-12 flex items-center px-4 border-b shrink-0">
