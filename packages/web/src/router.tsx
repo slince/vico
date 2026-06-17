@@ -9,11 +9,6 @@ import AgentDetail from '@/pages/AgentDetail';
 import Teams from '@/pages/Teams';
 import TeamDetail from '@/pages/TeamDetail';
 import Skills from '@/pages/Skills';
-import TraceList from '@/pages/observability/TraceList';
-import TraceDetail from '@/pages/observability/TraceDetail';
-import DatasetList from '@/pages/evals/DatasetList';
-import DatasetDetail from '@/pages/evals/DatasetDetail';
-import EvalRun from '@/pages/evals/EvalRun';
 import Conversations from '@/pages/Conversations';
 import ConversationDetail from '@/pages/ConversationDetail';
 import KnowledgeBases from '@/pages/KnowledgeBases';
@@ -60,11 +55,6 @@ export const router = createBrowserRouter([
           { path: 'conversations', element: <Conversations /> },
           { path: 'conversations/:id', element: <ConversationDetail /> },
           { path: 'settings', element: <Settings /> },
-          { path: 'observability/traces', element: <TraceList /> },
-          { path: 'observability/traces/:traceId', element: <TraceDetail /> },
-          { path: 'evals/datasets', element: <DatasetList /> },
-          { path: 'evals/datasets/:id', element: <DatasetDetail /> },
-          { path: 'evals/runs/:id', element: <EvalRun /> },
         ],
       },
     ],

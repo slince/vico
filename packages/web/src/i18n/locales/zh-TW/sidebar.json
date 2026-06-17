@@ -7,8 +7,6 @@
   "skills": "Skill 管理",
   "knowledge": "知識庫",
   "conversations": "對話記錄",
-  "observability": "可觀測性",
-  "evals": "評估",
   "settings": "設定",
   "logout": "登出"
 }
