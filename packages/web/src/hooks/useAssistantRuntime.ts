@@ -53,9 +53,9 @@ export function useAssistantRuntime({
       new DefaultChatTransport({
         api: '/api/v1/chat',
         credentials: 'include',
-        body: () => ({ agentId }),
+        body: () => ({ agentId, threadId }),
       }),
-    [agentId],
+    [agentId, threadId],
   );
 
   // 加载历史消息
@@ -76,11 +76,11 @@ export function useAssistantRuntime({
     [history],
   );
 
-  const runtime = useChatRuntime({
+  return useChatRuntime({
     transport,
     id: threadId,
     messages: initialMessages,
-    onFinish: ({ message }) => {
+    onFinish: ({message}) => {
       // 从 finish 事件的 messageMetadata 中提取 threadId
       const meta = (message as any)?.metadata;
       if (!threadId && meta?.threadId && typeof meta.threadId === 'string') {
@@ -94,6 +94,4 @@ export function useAssistantRuntime({
       onError?.(err);
     },
   });
-
-  return runtime;
 }

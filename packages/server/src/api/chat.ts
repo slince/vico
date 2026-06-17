@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { executeAgentChatRaw } from '../chat/chat.js';
+import { executeAgentChat } from '../chat/chat.js';
 import logger from '../lib/logger.js';
 
 /** AI SDK transport 发送的 message part 类型 */
@@ -46,7 +46,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     }
 
     try {
-      const { thread, output } = await executeAgentChatRaw({
+      const { thread, output } = await executeAgentChat({
         agentId,
         message,
         threadId,
