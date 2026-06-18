@@ -1,19 +1,19 @@
 // 1. React
-import { useState, useCallback } from 'react';
+import {useCallback, useState} from 'react';
 
 // 2. Third-party
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useNavigate, useParams} from 'react-router-dom';
 
 // 3. API
-import { api } from '@/api/client';
+import {api} from '@/api/client';
 
 // 4. Sub-components
-import { ChatSidebar } from './chat/ChatSidebar';
-import { AgentChatPanel } from './chat/AgentChatPanel';
-import { AgentChatEmpty } from './chat/AgentChatEmpty';
-import { ChatSkeleton } from './chat/ChatSkeleton';
-import { useAssistantRuntime } from '@/hooks/useAssistantRuntime';
+import {ChatSidebar} from './chat/ChatSidebar';
+import {ChatPanel} from './chat/ChatPanel';
+import {ChatEmpty} from './chat/ChatEmpty';
+import {ChatSkeleton} from './chat/ChatSkeleton';
+import {useAssistantRuntime} from '@/hooks/useAssistantRuntime';
 
 // 5. Types
 interface Agent {
@@ -25,7 +25,7 @@ interface Agent {
  * Chat — 聊天页面。
  *
  * 左侧 ChatSidebar（Agent 选择 + 对话列表），
- * 右侧选中时渲染 AgentChatPanel，未选中时渲染 AgentChatEmpty。
+ * 右侧选中时渲染 ChatPanel，未选中时渲染 ChatEmpty。
  * URL 路由：/chat 或 /chat/:threadId
  */
 export default function Chat() {
@@ -100,12 +100,12 @@ export default function Chat() {
       />
 
       {selectedAgentId && runtime ? (
-        <AgentChatPanel
+        <ChatPanel
           runtime={runtime}
           agentName={selectedAgent?.name || selectedAgentId}
         />
       ) : (
-        <AgentChatEmpty
+        <ChatEmpty
           hasAgents={agentList.length > 0}
           onSelectFirstAgent={() => setSelectedAgentId(agentList[0].id)}
         />

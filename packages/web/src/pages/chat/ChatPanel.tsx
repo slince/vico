@@ -1,5 +1,5 @@
 // 1. React
-import {useEffect, type FC} from 'react';
+import {type FC, useEffect} from 'react';
 
 // 2. Third-party
 import type {AssistantRuntime} from '@assistant-ui/react';
@@ -54,7 +54,7 @@ const Welcome: FC<{ agentName: string }> = ({ agentName }) => (
  *
  * 使用 assistant-ui 的 Thread 组件替代手动组装的 ThreadPrimitive + ComposerPrimitive。
  */
-export function AgentChatPanel({ runtime, agentName }: AgentChatPanelProps) {
+export function ChatPanel({ runtime, agentName }: AgentChatPanelProps) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ToolRegistrations />

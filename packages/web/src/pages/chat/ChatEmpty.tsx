@@ -1,11 +1,11 @@
 // 1. React
 
 // 2. Third-party
-import { MessageCircle } from 'lucide-react';
+import {MessageCircle} from 'lucide-react';
 
 // 3. UI components
-import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
-import { Button } from '@/components/ui/button';
+import {Empty, EmptyDescription, EmptyMedia, EmptyTitle} from '@/components/ui/empty';
+import {Button} from '@/components/ui/button';
 
 interface AgentChatEmptyProps {
   hasAgents: boolean;
@@ -15,7 +15,7 @@ interface AgentChatEmptyProps {
 /**
  * Agent 对话空态 — 未选中 Agent 时显示。
  */
-export function AgentChatEmpty({ hasAgents, onSelectFirstAgent }: AgentChatEmptyProps) {
+export function ChatEmpty({ hasAgents, onSelectFirstAgent }: AgentChatEmptyProps) {
   return (
     <div className="flex-1 flex items-center justify-center bg-background">
       <Empty>
