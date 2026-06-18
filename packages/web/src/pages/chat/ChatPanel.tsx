@@ -2,16 +2,14 @@
 import {type FC, useEffect} from 'react';
 
 // 2. Third-party
-import type {AssistantRuntime} from '@assistant-ui/react';
-import {AssistantRuntimeProvider, useAui} from '@assistant-ui/react';
+import {useAui} from '@assistant-ui/react';
 
 // 3. Sub-components
 import {Thread} from '@/components/assistant-ui/thread';
 import {WeatherToolRenderer} from './ToolUIs/weather-ui';
 import {ExecToolRenderer} from './ToolUIs/exec-ui';
 
-interface AgentChatPanelProps {
-  runtime: AssistantRuntime;
+interface ChatPanelProps {
   agentName: string;
 }
 
@@ -53,10 +51,11 @@ const Welcome: FC<{ agentName: string }> = ({ agentName }) => (
  * Agent 对话面板 — 已选中 Agent 时的聊天区域。
  *
  * 使用 assistant-ui 的 Thread 组件替代手动组装的 ThreadPrimitive + ComposerPrimitive。
+ * AssistantRuntimeProvider 由父组件 Chat 提供，此组件仅注册工具并渲染 Thread。
  */
-export function ChatPanel({ runtime, agentName }: AgentChatPanelProps) {
+export function ChatPanel({ agentName }: ChatPanelProps) {
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <>
       <ToolRegistrations />
       <div className="flex-1 flex flex-col bg-background min-w-0">
         {/* 顶部标题栏 */}
@@ -73,6 +72,6 @@ export function ChatPanel({ runtime, agentName }: AgentChatPanelProps) {
           />
         </div>
       </div>
-    </AssistantRuntimeProvider>
+    </>
   );
 }

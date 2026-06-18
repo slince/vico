@@ -4,6 +4,7 @@ import {useCallback, useState} from 'react';
 // 2. Third-party
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useNavigate, useParams} from 'react-router-dom';
+import {AssistantRuntimeProvider} from '@assistant-ui/react';
 
 // 3. API
 import {api} from '@/api/client';
@@ -14,6 +15,7 @@ import {ChatPanel} from './chat/ChatPanel';
 import {ChatEmpty} from './chat/ChatEmpty';
 import {ChatSkeleton} from './chat/ChatSkeleton';
 import {useAssistantRuntime} from '@/hooks/useAssistantRuntime';
+import {SidebarProvider} from '@/components/ui/sidebar';
 
 // 5. Types
 interface Agent {
@@ -24,8 +26,9 @@ interface Agent {
 /**
  * Chat — 聊天页面。
  *
- * 左侧 ChatSidebar（Agent 选择 + 对话列表），
- * 右侧选中时渲染 ChatPanel，未选中时渲染 ChatEmpty。
+ * AssistantRuntimeProvider 包裹左侧 Sidebar（ThreadListSidebar 风格）和右侧 ChatPanel，
+ * 两者共享同一个 AssistantRuntime，ThreadList 和 Thread 通过上下文通信。
+ *
  * URL 路由：/chat 或 /chat/:threadId
  */
 export default function Chat() {
@@ -36,7 +39,7 @@ export default function Chat() {
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [activeThreadId, setActiveThreadId] = useState<string>(threadId || '');
 
-  // 首次对话创建 thread 后回写 URL 并刷新对话列表
+  // 首次对话创建 thread 后回写 URL
   const handleThreadCreated = useCallback(
     (newThreadId: string) => {
       setActiveThreadId(newThreadId);
@@ -58,8 +61,8 @@ export default function Chat() {
     queryFn: () => api('/agents'),
   });
 
-  /** 选择对话 */
-  const handleSelectThread = useCallback(
+  /** ThreadList 选中线程时同步 URL */
+  const handleThreadChange = useCallback(
     (tid: string) => {
       if (tid === activeThreadId) return;
       setActiveThreadId(tid);
@@ -68,19 +71,14 @@ export default function Chat() {
     [activeThreadId, navigate],
   );
 
-  /** 新建对话 */
-  const handleNewChat = useCallback(() => {
-    setActiveThreadId('');
-    navigate('/chat', { replace: true });
-  }, [navigate]);
-
-  /** 选择 Agent */
+  /** 选择 Agent — 清除线程并回到 /chat */
   const handleSelectAgent = useCallback(
     (agentId: string) => {
       setSelectedAgentId(agentId);
-      handleNewChat();
+      setActiveThreadId('');
+      navigate('/chat', { replace: true });
     },
-    [handleNewChat],
+    [navigate],
   );
 
   if (agentsLoading) return <ChatSkeleton />;
@@ -89,27 +87,35 @@ export default function Chat() {
   const selectedAgent = agentList.find((a) => a.id === selectedAgentId);
 
   return (
-    <div className="flex h-[calc(100vh-0px)] -m-6">
-      <ChatSidebar
-        agents={agentList}
-        selectedAgentId={selectedAgentId}
-        onSelectAgent={handleSelectAgent}
-        activeThreadId={activeThreadId}
-        onSelectThread={handleSelectThread}
-        onNewChat={handleNewChat}
-      />
+    <SidebarProvider>
+      <div className="flex h-[calc(100vh-0px)] -m-6">
+        {selectedAgentId && runtime ? (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <ChatSidebar
+              agents={agentList}
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={handleSelectAgent}
+              onThreadChange={handleThreadChange}
+            />
 
-      {selectedAgentId && runtime ? (
-        <ChatPanel
-          runtime={runtime}
-          agentName={selectedAgent?.name || selectedAgentId}
-        />
-      ) : (
-        <ChatEmpty
-          hasAgents={agentList.length > 0}
-          onSelectFirstAgent={() => setSelectedAgentId(agentList[0].id)}
-        />
-      )}
-    </div>
+            <ChatPanel
+              agentName={selectedAgent?.name || selectedAgentId}
+            />
+          </AssistantRuntimeProvider>
+        ) : (
+          <>
+            <ChatSidebar
+              agents={agentList}
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={handleSelectAgent}
+            />
+            <ChatEmpty
+              hasAgents={agentList.length > 0}
+              onSelectFirstAgent={() => setSelectedAgentId(agentList[0].id)}
+            />
+          </>
+        )}
+      </div>
+    </SidebarProvider>
   );
 }
