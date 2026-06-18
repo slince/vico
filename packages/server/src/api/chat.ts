@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { executeAgentChat } from '../chat/chat.js';
+import { createAISDKStream, createNetworkAISDKStream } from '../agent/ai-sdk-stream.js';
 import logger from '../lib/logger.js';
 
 /** AI SDK transport 发送的 message part 类型 */
@@ -54,7 +55,6 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         userId: auth.userId,
       });
 
-      const { createAISDKStream } = await import('../agent/ai-sdk-stream.js');
       return createAISDKStream(output, {
         doneMetadata: { threadId: thread },
       });
@@ -81,7 +81,6 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         userId: auth.userId,
       });
 
-      const { createNetworkAISDKStream } = await import('../agent/ai-sdk-stream.js');
       return createNetworkAISDKStream(stream);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'An internal error occurred';

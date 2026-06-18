@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 // 2. Third-party
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, MessageSquare, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -142,19 +142,16 @@ export function ChatSidebar({
                 <button
                   onClick={() => onSelectThread(conv.id)}
                   className={cn(
-                    'w-full text-left p-3 rounded-md transition-colors',
+                    'w-full text-left p-2.5 rounded-md transition-colors',
                     activeThreadId === conv.id
                       ? 'bg-accent text-accent-foreground'
-                      : 'hover:bg-accent/50'
+                      : 'hover:bg-accent/50',
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <MessageSquare size={14} className="text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium truncate">
-                      {conv.agent_name || conv.agent_id.slice(0, 8)}
-                    </span>
+                  <div className="text-sm font-medium truncate">
+                    {conv.agent_name || conv.agent_id.slice(0, 8)}
                   </div>
-                  <div className="flex items-center justify-between mt-1">
+                  <div className="flex items-center justify-between mt-0.5">
                     <span className="text-xs text-muted-foreground">
                       {t('messageCount', { count: conv.message_count })}
                     </span>

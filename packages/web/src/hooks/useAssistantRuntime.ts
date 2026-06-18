@@ -54,6 +54,17 @@ export function useAssistantRuntime({
         api: '/api/v1/chat',
         credentials: 'include',
         body: () => ({ agentId, threadId }),
+        prepareSendMessagesRequest: ({ messages, body, id }) => {
+          // 只发送最后一条 user message，历史由 Mastra memory 管理
+          const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+          return {
+            body: {
+              ...body,
+              id,
+              messages: lastUserMsg ? [lastUserMsg] : [],
+            },
+          };
+        },
       }),
     [agentId, threadId],
   );
