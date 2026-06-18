@@ -21,10 +21,3 @@ export interface AgentOption {
   id: string;
   name: string;
 }
-
-/** 聊天消息 */
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'delegation';
-  content: string;
-  agentName?: string;
-}
