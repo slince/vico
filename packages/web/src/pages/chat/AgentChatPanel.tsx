@@ -1,24 +1,24 @@
 // 1. React
-import { useEffect } from 'react';
+import {useEffect} from 'react';
 
 // 2. Third-party
-import { MessageCircle } from 'lucide-react';
+import {ArrowUp, MessageCircle} from 'lucide-react';
+import type {AssistantRuntime} from '@assistant-ui/react';
 import {
   AssistantRuntimeProvider,
-  ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
+  ThreadPrimitive,
   useAui,
 } from '@assistant-ui/react';
-import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
+import {MarkdownTextPrimitive} from '@assistant-ui/react-markdown';
 
 // 3. UI components
-import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
+import {Empty, EmptyDescription, EmptyMedia, EmptyTitle} from '@/components/ui/empty';
 
 // 4. Sub-components
-import { WeatherToolRenderer } from './ToolUIs/weather-ui';
-import { ExecToolRenderer } from './ToolUIs/exec-ui';
-import type { AssistantRuntime } from '@assistant-ui/react';
+import {WeatherToolRenderer} from './ToolUIs/weather-ui';
+import {ExecToolRenderer} from './ToolUIs/exec-ui';
 
 interface AgentChatPanelProps {
   runtime: AssistantRuntime;
@@ -104,10 +104,9 @@ export function AgentChatPanel({ runtime, agentName }: AgentChatPanelProps) {
                 placeholder="输入消息..."
                 autoFocus
               />
-              <ComposerPrimitive.Send
-                className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
-                disabled={!runtime}
-              />
+              <ComposerPrimitive.Send className="inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50">
+                <ArrowUp size={16} />
+              </ComposerPrimitive.Send>
             </ComposerPrimitive.Root>
           </div>
         </ThreadPrimitive.Root>

@@ -100,7 +100,10 @@ export default function Chat() {
       />
 
       {selectedAgentId && runtime ? (
-        <AgentChatPanel runtime={runtime} agentName={selectedAgent?.name || selectedAgentId} />
+        <AgentChatPanel
+          runtime={runtime}
+          agentName={selectedAgent?.name || selectedAgentId}
+        />
       ) : (
         <AgentChatEmpty
           hasAgents={agentList.length > 0}
