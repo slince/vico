@@ -137,3 +137,8 @@ Drizzle ORM（`drizzle-orm/better-sqlite3`）→ `getDb()` 懒加载单例，WAL
 - 组件别名：通过 `components.json` 配置（`@/components/ui`）
 - 使用 `@/lib/utils` 中的 `cn()` 进行类名合并（clsx + tailwind-merge）
 - 完整组件清单及用法详见 [docs/ui-components.md](docs/ui-components.md)（共 56 个组件组，200+ 导出）
+
+## assistant-ui 备注
+
+- 所有聊天 UI 组件位于 `packages/web/src/components/assistant-ui/`，是对 `@assistant-ui/react` 和 `@assistant-ui/react-markdown` 的高层封装
+- 完整组件清单及用法详见 [docs/assistant-ui-components.md](docs/assistant-ui-components.md)（共 30 个文件，涵盖核心聊天、消息渲染、可视化、配置选择等模块）
