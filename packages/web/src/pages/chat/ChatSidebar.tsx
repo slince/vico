@@ -104,12 +104,19 @@ export function ChatSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
 
-        {/* 线程切换时同步 URL */}
-        <ThreadUrlSync onThreadChange={onThreadChange} />
+        {/* 线程切换时同步 URL（仅在 AssistantRuntimeProvider 内可用） */}
+        {onThreadChange && <ThreadUrlSync onThreadChange={onThreadChange} />}
       </SidebarHeader>
 
       <SidebarContent className="px-2">
-        <ThreadList />
+        {/* ThreadList 需要 AuiProvider — 仅在 onThreadChange 传入时（即 Provider 内）渲染 */}
+        {onThreadChange ? (
+          <ThreadList />
+        ) : (
+          <div className="px-2.5 pt-3 text-xs text-muted-foreground">
+            Select an agent to start chatting
+          </div>
+        )}
       </SidebarContent>
 
       <SidebarRail />
