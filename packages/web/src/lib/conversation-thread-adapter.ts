@@ -115,9 +115,11 @@ export function createThreadHistoryAdapter(remoteId: string | undefined): Thread
           if (!remoteId || remoteId.startsWith('__LOCALID_')) return { messages: [] };
 
           const data = await api<ConversationDetail>(`/conversations/${remoteId}`);
+          const msgs = data.messages || [];
           return {
-            messages: (data.messages || []).map((msg) => ({
-              parentId: null as string | null,
+            messages: msgs.map((msg, i) => ({
+              // 建立父子链：每条消息的 parentId 指向前一条，首条为 null
+              parentId: (i > 0 ? msgs[i - 1]!.id : null) as string | null,
               message: {
                 id: msg.id || crypto.randomUUID(),
                 role: msg.role as 'user' | 'assistant',
