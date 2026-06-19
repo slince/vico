@@ -102,7 +102,7 @@ export default function Chat() {
   if (agentsLoading) return <ChatSkeleton />;
 
   return (
-    <div className="flex h-[calc(100vh-0px)] -m-6">
+    <div className="flex h-[calc(100vh-0px)] -my-6 -mr-6">
       {selectedAgent && runtime ? (
         <AssistantRuntimeProvider runtime={runtime} i18nIsDynamicList>
           <ChatSidebar
