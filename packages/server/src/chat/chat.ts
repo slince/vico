@@ -31,13 +31,18 @@ export interface ExecuteChatRawResult {
 export async function executeAgentChat(
   params: ExecuteChatParams,
 ): Promise<ExecuteChatRawResult> {
-  const { agentId, message, threadId, tenantId, userId } = params;
+  const { agentId, message, tenantId, userId } = params;
+  let { threadId: thread } = params;
 
   if (!message?.trim()) {
     throw new Error('Message is required');
   }
 
-  const thread = threadId;
+  // 前端新会话使用临时本地 ID（__LOCALID_ 前缀），后端需生成正式 ID 以便前端同步 URL
+  if (thread.startsWith('__LOCALID_')) {
+    thread = crypto.randomUUID();
+  }
+
   const requestContext = new RequestContext();
 
   const ctx = agentId === 'main'
@@ -80,14 +85,19 @@ async function saveThread(
 ): Promise<void> {
   const memory = await getMemory();
 
+  const currentResourceId = resourceId(tenantId, userId);
+
   // 检查是否为新 thread，首次创建时提取标题
   const existing = await memory.getThreadById({ threadId });
+  if (existing && existing.resourceId !== currentResourceId) {
+    throw new Error('Thread does not belong to current user');
+  }
   const title = existing ? existing.title || '' : extractTitle(message);
 
   await memory.saveThread({
     thread: {
       id: threadId,
-      resourceId: resourceId(tenantId, userId),
+      resourceId: currentResourceId,
       title,
       createdAt: new Date(),
       updatedAt: new Date(),

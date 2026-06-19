@@ -61,8 +61,7 @@ export default function Chat() {
   });
 
   /** ThreadList 选中线程时同步 URL */
-  const handleThreadChange = useCallback(
-    (tid: string) => {
+  const handleThreadChange = useCallback((tid: string) => {
       if (tid === activeThreadId) return;
       setActiveThreadId(tid);
       navigate(`/chat/${tid}`, { replace: true });
