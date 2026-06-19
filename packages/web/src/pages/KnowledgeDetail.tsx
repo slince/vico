@@ -1,11 +1,11 @@
 // 1. React
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 // 2. Third-party
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Database, FilePlus, FolderPlus, LayoutGrid, LayoutList } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, ChevronRight, Database, FilePlus, FolderPlus, Home, LayoutGrid, LayoutList } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -29,7 +29,7 @@ import { DocumentGrid, DocumentGridSkeleton, DocumentGridEmpty } from './knowled
 
 // 6. 类型
 import type { DocumentItem, KnowledgeBaseDetail, PaginatedDocuments } from './knowledge-detail/types';
-import { isDirectory } from './knowledge-detail/types';
+import { getDirectoryName, isDirectory } from './knowledge-detail/types';
 
 /**
  * 知识库详情页面
@@ -231,19 +231,20 @@ export default function KnowledgeDetail() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="font-medium">{t('tabDocuments')}</h3>
-          <div className="flex items-center border rounded-md">
+          <div className="flex items-center border rounded-md overflow-hidden">
             <Button
               variant={viewMode === 'list' ? 'secondary' : 'ghost'}
               size="icon-xs"
-              className="h-8 w-8 rounded-r-none"
+              className="h-8 w-8 rounded-none border-0"
               onClick={() => setViewMode('list')}
             >
               <LayoutList className="size-3.5" />
             </Button>
+            <div className="w-px bg-border self-stretch" />
             <Button
               variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
               size="icon-xs"
-              className="h-8 w-8 rounded-l-none"
+              className="h-8 w-8 rounded-none border-0"
               onClick={() => setViewMode('grid')}
             >
               <LayoutGrid className="size-3.5" />
