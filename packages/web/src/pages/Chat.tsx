@@ -15,12 +15,8 @@ import {ChatPanel} from './chat/ChatPanel';
 import {ChatEmpty} from './chat/ChatEmpty';
 import {ChatSkeleton} from './chat/ChatSkeleton';
 import {useAssistantRuntime} from '@/hooks/useAssistantRuntime';
-
-// 5. Types
-interface Agent {
-  id: string;
-  name: string;
-}
+import {useThread} from '@/hooks/useThread';
+import type {Agent} from '@/types/models';
 
 /**
  * Chat — 聊天页面。
@@ -61,14 +57,8 @@ export default function Chat() {
   });
 
   // 页面刷新时，从 URL threadId 查询对应 Agent 以恢复状态
-  const { data: threadAgentId } = useQuery({
-    queryKey: ['conversation', threadId, 'agentId'],
-    queryFn: async () => {
-      const conv = await api<{ agent_id: string }>(`/conversations/${threadId}`);
-      return conv.agent_id;
-    },
-    enabled: !!threadId,
-  });
+  const { data: thread } = useThread(threadId);
+  const threadAgentId = thread?.agent_id;
 
   const agentList: Agent[] = agents ?? [];
 
@@ -79,6 +69,14 @@ export default function Chat() {
       if (agent) setSelectedAgent(agent);
     }
   }, [threadAgentId, agentList, selectedAgent]);
+
+  // 进入 Chat 页面（无 threadId）时默认选中 main agent
+  useEffect(() => {
+    if (!threadId && agentList.length > 0 && !selectedAgent) {
+      const defaultAgent = agentList.find((a) => a.is_default === 1);
+      if (defaultAgent) setSelectedAgent(defaultAgent);
+    }
+  }, [threadId, agentList, selectedAgent]);
 
   /** ThreadList 选中线程时同步 URL */
   const handleThreadChange = useCallback((tid: string) => {

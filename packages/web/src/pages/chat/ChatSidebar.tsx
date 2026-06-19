@@ -9,11 +9,7 @@ import {Bot} from 'lucide-react';
 // 3. UI components
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
 import {ThreadList} from '@/components/assistant-ui/thread-list';
-
-interface Agent {
-  id: string;
-  name: string;
-}
+import type {Agent} from '@/types/models';
 
 interface ChatSidebarProps {
   agents: Agent[];
