@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { Bot } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatDateOnly } from '@/lib/date-format';
@@ -20,6 +22,7 @@ export function RecentConversations({
   conversations: DashboardStats['recentConversations'];
 }) {
   const { t } = useTranslation('dashboard');
+  const navigate = useNavigate();
 
   return (
     <Card>
@@ -32,14 +35,18 @@ export function RecentConversations({
             {conversations.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center justify-between py-2 border-b last:border-0"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/chat/${c.id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/chat/${c.id}`); }}
+                className="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:bg-muted/50 rounded-md px-2 -mx-2 transition-colors"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">
-                    {c.agent_name || t('unknownAgent')}
+                    {c.title || c.agent_name || t('unknownAgent')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {c.user_name} &middot; {t('messagesCount', { count: c.message_count })}
+                    {c.title && c.agent_name ? <><Bot className="size-3 inline-block mr-0.5" />{c.agent_name} · </> : ''}{t('messagesCount', { count: c.message_count })}
                   </p>
                 </div>
                 <Badge variant="secondary" className="shrink-0 ml-3">

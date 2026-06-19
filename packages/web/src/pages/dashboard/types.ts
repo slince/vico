@@ -25,10 +25,12 @@ export interface DashboardStats {
   /** 最近对话列表 */
   recentConversations: Array<{
     id: string;
-    agent_name: string;
-    user_name: string;
+    title: string;
+    agent_name?: string;
+    /** 最后一条消息预览 */
+    last_message?: string;
     message_count: number;
-    updated_at: string;
+    updated_at: number;
   }>;
   /** Token 消耗每日趋势（近30天） */
   tokenTrend: Array<{
