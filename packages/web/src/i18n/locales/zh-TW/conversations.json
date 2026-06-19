@@ -32,5 +32,20 @@
   "backToList": "返回列表",
   "roleSystem": "系統",
   "toolCall": "工具呼叫",
-  "toolResult": "工具結果"
+  "toolResult": "工具結果",
+  "deleteButton": "刪除",
+  "deleteConfirmTitle": "確認刪除",
+  "deleteConfirmDescription": "確定要刪除這條對話記錄嗎？刪除後無法復原。",
+  "deleteCancel": "取消",
+  "deleteConfirm": "確認刪除",
+  "deleteSuccess": "對話已刪除",
+  "selectAgent": "選擇 Agent",
+  "newChat": "新建對話",
+  "noConversations": "暫無對話",
+  "messageCount": "{{count}} 則訊息",
+  "chatStartHint": "發送訊息開始對話",
+  "chatSidebarEmpty": "選擇一個 Agent 開始對話",
+  "chatEmptyTitle": "開始對話",
+  "chatEmptyDescription": "選擇一個 Agent 開始對話",
+  "chatEmptyButton": "選擇 Agent"
 }

@@ -42,5 +42,10 @@
   "selectAgent": "选择 Agent",
   "newChat": "新建对话",
   "noConversations": "暂无对话",
-  "messageCount": "{{count}} 条消息"
+  "messageCount": "{{count}} 条消息",
+  "chatStartHint": "发送消息开始对话",
+  "chatSidebarEmpty": "选择一个 Agent 开始对话",
+  "chatEmptyTitle": "开始对话",
+  "chatEmptyDescription": "选择一个 Agent 开始对话",
+  "chatEmptyButton": "选择 Agent"
 }

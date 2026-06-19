@@ -42,5 +42,10 @@
   "selectAgent": "Select Agent",
   "newChat": "New Chat",
   "noConversations": "No conversations",
-  "messageCount": "{{count}} message(s)"
+  "messageCount": "{{count}} message(s)",
+  "chatStartHint": "Send a message to start the conversation",
+  "chatSidebarEmpty": "Select an agent to start chatting",
+  "chatEmptyTitle": "Start a conversation",
+  "chatEmptyDescription": "Select an agent to start chatting",
+  "chatEmptyButton": "Select Agent"
 }

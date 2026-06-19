@@ -1,6 +1,7 @@
 // 1. React
 
 // 2. Third-party
+import {useTranslation} from 'react-i18next';
 import {MessageCircle} from 'lucide-react';
 
 // 3. UI components
@@ -16,17 +17,18 @@ interface AgentChatEmptyProps {
  * Agent 对话空态 — 未选中 Agent 时显示。
  */
 export function ChatEmpty({ hasAgents, onSelectFirstAgent }: AgentChatEmptyProps) {
+  const { t } = useTranslation("conversations");
   return (
     <div className="flex-1 flex items-center justify-center bg-background">
       <Empty>
         <EmptyMedia variant="icon">
           <MessageCircle size={32} className="text-muted-foreground" />
         </EmptyMedia>
-        <EmptyTitle>开始对话</EmptyTitle>
-        <EmptyDescription>选择一个 Agent 开始对话</EmptyDescription>
+        <EmptyTitle>{t("chatEmptyTitle")}</EmptyTitle>
+        <EmptyDescription>{t("chatEmptyDescription")}</EmptyDescription>
         {hasAgents && (
           <Button variant="outline" onClick={onSelectFirstAgent}>
-            选择 Agent
+            {t("chatEmptyButton")}
           </Button>
         )}
       </Empty>

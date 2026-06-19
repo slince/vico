@@ -100,7 +100,7 @@ export function ChatSidebar({
           <ThreadList />
         ) : (
           <div className="p-6 text-center text-sm text-muted-foreground">
-            Select an agent to start chatting
+            {t("chatSidebarEmpty")}
           </div>
         )}
       </div>

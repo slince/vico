@@ -2,6 +2,7 @@
 import {type FC, useEffect} from 'react';
 
 // 2. Third-party
+import {useTranslation} from 'react-i18next';
 import {useAui} from '@assistant-ui/react';
 
 // 3. Sub-components
@@ -41,16 +42,19 @@ function ToolRegistrations() {
 }
 
 /** 自定义欢迎组件，显示 Agent 名称 */
-const Welcome: FC<{ agentName: string }> = ({ agentName }) => (
-  <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
-    <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
-      {agentName}
-    </h1>
-    <p className="text-muted-foreground mt-2 text-sm">
-      Send a message to start the conversation
-    </p>
-  </div>
-);
+const Welcome: FC<{ agentName: string }> = ({ agentName }) => {
+  const { t } = useTranslation("conversations");
+  return (
+    <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
+      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
+        {agentName}
+      </h1>
+      <p className="text-muted-foreground mt-2 text-sm">
+        {t("chatStartHint")}
+      </p>
+    </div>
+  );
+};
 
 /**
  * Agent 对话面板 — 已选中 Agent 时的聊天区域。
