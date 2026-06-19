@@ -200,7 +200,7 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
 }) => {
   const warnedRef = useRef(false);
   if (
-    process.env.NODE_ENV !== "production" &&
+    import.meta.env.MODE !== "production" &&
     !warnedRef.current &&
     Boolean(directive) === Boolean(action)
   ) {

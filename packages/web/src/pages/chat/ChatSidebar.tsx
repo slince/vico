@@ -29,13 +29,18 @@ interface ChatSidebarProps {
  * 必须在 AssistantRuntimeProvider 内部使用。
  */
 function ThreadUrlSync({ onThreadChange }: { onThreadChange?: (threadId: string) => void }) {
-  const threadId = useAuiState((s) => s.thread.threadId);
+  // threadItems 为数组，需要根据 mainThreadId 查找对应项的 remoteId
+  const remoteId = useAuiState((s) => {
+    const item = s.threads.threadItems.find((i) => i.id === s.threads.mainThreadId);
+    return item?.remoteId;
+  });
 
   useEffect(() => {
-    if (threadId) {
-      onThreadChange?.(threadId);
+    // 仅同步真实后端 ID，跳过本地临时 ID
+    if (remoteId && !remoteId.startsWith('__LOCALID_')) {
+      onThreadChange?.(remoteId);
     }
-  }, [threadId, onThreadChange]);
+  }, [remoteId, onThreadChange]);
 
   return null;
 }

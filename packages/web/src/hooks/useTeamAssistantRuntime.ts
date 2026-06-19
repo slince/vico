@@ -5,10 +5,9 @@
  * 通过 ai 的 DefaultChatTransport 连接 /api/v1/teams/:id/chat 端点。
  */
 import {useMemo} from 'react';
-import {useQuery} from '@tanstack/react-query';
 import {useChatRuntime} from '@assistant-ui/react-ai-sdk';
 import {DefaultChatTransport} from 'ai';
-import {api} from '@/api/client';
+import {createThreadHistoryAdapter} from '@/lib/conversation-thread-adapter';
 
 export interface UseTeamAssistantRuntimeOptions {
   /** Team ID，端点路径为 /api/v1/teams/:teamId/chat */
@@ -19,16 +18,6 @@ export interface UseTeamAssistantRuntimeOptions {
   onThreadCreated?: (threadId: string) => void;
   /** 错误回调 */
   onError?: (error: Error) => void;
-}
-
-interface MessageItem {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-interface ConversationData {
-  messages: MessageItem[];
 }
 
 /**
@@ -66,28 +55,16 @@ export function useTeamAssistantRuntime({
     [teamId],
   );
 
-  // 加载历史消息
-  const { data: history } = useQuery<ConversationData>({
-    queryKey: ['team-conversation', threadId],
-    queryFn: () => api(`/conversations/${threadId}`),
-    enabled: !!threadId,
-  });
-
-  // 将后端历史消息转为 AI SDK UIMessage 格式（parts 数组）
-  const initialMessages = useMemo(
-    () =>
-      (history?.messages || []).map((msg) => ({
-        id: msg.id || crypto.randomUUID(),
-        role: msg.role as 'user' | 'assistant',
-        parts: [{ type: 'text' as const, text: msg.content }],
-      })),
-    [history],
+  // 历史消息适配器 — 使用 useChatRuntime 的 adapters.history 自动加载
+  const history = useMemo(
+    () => (threadId ? createThreadHistoryAdapter(threadId) : undefined),
+    [threadId],
   );
 
   return useChatRuntime({
     transport,
     id: threadId,
-    messages: initialMessages,
+    adapters: history ? { history } : undefined,
     onFinish: ({message}) => {
       const meta = (message as any)?.metadata;
       if (!threadId && meta?.threadId && typeof meta.threadId === 'string') {

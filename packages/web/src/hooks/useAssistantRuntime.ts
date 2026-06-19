@@ -1,18 +1,19 @@
 /**
- * Assistant UI Runtime hook — 封装 useChatRuntime 连接 AI SDK 端点。
+ * Assistant UI Runtime hook — 使用 useRemoteThreadListRuntime 连接后端对话列表。
  *
- * 使用 @assistant-ui/react-ai-sdk 的 useChatRuntime 创建 AssistantRuntime，
- * 通过 ai 的 DefaultChatTransport 连接 /api/v1/chat 端点。
- * 支持历史消息加载和 threadId 回写。
+ * 与 Chat.tsx 中 AssistantRuntimeProvider 配合使用：
+ * - 通过 RemoteThreadListAdapter 从 /api/v1/conversations 加载对话列表
+ * - 每个线程通过 runtimeHook 创建独立的 useChatRuntime 实例
+ * - 支持历史消息加载和 threadId 回写
  */
-import {useMemo} from 'react';
-import {useQuery} from '@tanstack/react-query';
+import {useCallback, useMemo} from 'react';
 import {useChatRuntime} from '@assistant-ui/react-ai-sdk';
+import {useRemoteThreadListRuntime, useThreadListItem} from '@assistant-ui/react';
 import {DefaultChatTransport} from 'ai';
-import {api} from '@/api/client';
+import {createConversationThreadAdapter, createThreadHistoryAdapter} from '@/lib/conversation-thread-adapter';
 
 export interface UseAssistantRuntimeOptions {
-  /** Agent ID，会作为 body 参数发送到服务端 */
+  /** Agent ID，同时用于对话列表过滤和发送消息 */
   agentId: string;
   /** 可选的 thread ID，用于加载历史消息和继续对话 */
   threadId?: string;
@@ -22,22 +23,11 @@ export interface UseAssistantRuntimeOptions {
   onError?: (error: Error) => void;
 }
 
-interface MessageItem {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-interface ConversationData {
-  messages: MessageItem[];
-  agent_id: string;
-}
-
 /**
- * 创建 Assistant UI 聊天运行时。
+ * 创建 Assistant UI 聊天运行时，集成远程对话列表。
  *
- * 当 agentId 或 threadId 变化时会自动重建 runtime。
- * 有 threadId 时自动加载历史消息作为 initialMessages。
+ * 线程列表通过 RemoteThreadListAdapter 从后端加载，
+ * 每个线程独立创建 useChatRuntime 实例处理消息。
  *
  * @param options - 配置选项
  * @returns AssistantRuntime 实例，可直接传给 AssistantRuntimeProvider
@@ -48,61 +38,70 @@ export function useAssistantRuntime({
   onThreadCreated,
   onError,
 }: UseAssistantRuntimeOptions) {
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: '/api/v1/chat',
-        credentials: 'include',
-        body: () => ({ agentId, threadId }),
-        prepareSendMessagesRequest: ({ messages, body, id }) => {
-          // 只发送最后一条 user message，历史由 Mastra memory 管理
-          const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
-          return {
-            body: {
-              ...body,
-              id,
-              messages: lastUserMsg ? [lastUserMsg] : [],
-            },
-          };
-        },
-      }),
-    [agentId, threadId],
+  // 对话列表适配器 — 按 agentId 过滤
+  const adapter = useMemo(
+    () => createConversationThreadAdapter(agentId),
+    [agentId],
   );
 
-  // 加载历史消息
-  const { data: history } = useQuery<ConversationData>({
-    queryKey: ['conversation', threadId],
-    queryFn: () => api(`/conversations/${threadId}`),
-    enabled: !!threadId,
-  });
+  /**
+   * 线程运行时工厂 — useRemoteThreadListRuntime 为每个活跃线程调用此函数。
+   * 在 ThreadListItemRuntimeProvider 上下文中执行，可使用 useThreadListItem 获取线程元数据。
+   */
+  const runtimeHook = useCallback(() => {
+    // useThreadListItem() 返回 ThreadListItemState，remoteId 为直接属性
+    const { remoteId } = useThreadListItem();
 
-  // 将后端历史消息转为 AI SDK UIMessage 格式（parts 数组）
-  const initialMessages = useMemo(
-    () =>
-      (history?.messages || []).map((msg) => ({
-        id: msg.id || crypto.randomUUID(),
-        role: msg.role as 'user' | 'assistant',
-        parts: [{ type: 'text' as const, text: msg.content }],
-      })),
-    [history],
-  );
+    // 历史消息适配器 — 使用 useChatRuntime 的 adapters.history 自动加载
+    const history = useMemo(
+      () => createThreadHistoryAdapter(remoteId),
+      [remoteId],
+    );
 
-  return useChatRuntime({
-    transport,
-    id: threadId,
-    messages: initialMessages,
-    onFinish: ({message}) => {
-      // 从 finish 事件的 messageMetadata 中提取 threadId
-      const meta = (message as any)?.metadata;
-      if (!threadId && meta?.threadId && typeof meta.threadId === 'string') {
-        onThreadCreated?.(meta.threadId);
-      }
-    },
-    onError: (err: Error) => {
-      if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
-        window.location.href = '/login';
-      }
-      onError?.(err);
-    },
+    // 为此线程创建 transport — remoteId 为 Mastra 对话 ID（新线程则为本地 ID）
+    const transport = useMemo(
+      () =>
+        new DefaultChatTransport({
+          api: '/api/v1/chat',
+          credentials: 'include',
+          body: () => ({ agentId, threadId: remoteId }),
+          prepareSendMessagesRequest: ({ messages, body, id }) => {
+            const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+            return {
+              body: {
+                ...body,
+                id: remoteId,
+                messages: lastUserMsg ? [lastUserMsg] : [],
+              },
+            };
+          },
+        }),
+      [agentId, remoteId],
+    );
+
+    return useChatRuntime({
+      transport,
+      id: remoteId,
+      adapters: { history },
+      onFinish: ({message}) => {
+        const meta = (message as any)?.metadata;
+        // 新线程首次发送后，后端返回真实 Mastra threadId
+        if (meta?.threadId && typeof meta.threadId === 'string' && meta.threadId !== remoteId) {
+          onThreadCreated?.(meta.threadId);
+        }
+      },
+      onError: (err: Error) => {
+        if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
+          window.location.href = '/login';
+        }
+        onError?.(err);
+      },
+    });
+  }, [agentId, onThreadCreated, onError]);
+
+  return useRemoteThreadListRuntime({
+    runtimeHook,
+    adapter,
+    threadId,
   });
 }
