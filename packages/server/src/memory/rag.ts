@@ -129,7 +129,7 @@ class RAGManager {
     const { getClient } = await import('../db/init-libsql.js');
     const client = getClient();
 
-    const tableName = `mastra_vector_${indexName}`;
+    const tableName = indexName;
     const { rows } = await client.execute({
       sql: `SELECT id FROM ${tableName} WHERE json_extract(metadata, '$.document_id') = ?`,
       args: [documentId],

@@ -91,7 +91,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
 
     const { getClient } = await import('../db/init-libsql.js');
     const client = getClient();
-    const tableName = `mastra_vector_${kbIndexName(kbId)}`;
+    const tableName = kbIndexName(kbId);
 
     try {
       let sql = `SELECT id, metadata FROM ${tableName}`;
