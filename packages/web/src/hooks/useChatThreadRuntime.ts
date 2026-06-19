@@ -25,11 +25,7 @@ export interface UseChatThreadRuntimeOptions {
  * @param options - 配置选项
  * @returns AssistantRuntime 实例
  */
-export function useChatThreadRuntime({
- agentId,
-  onThreadCreated,
-  onError,
-}: UseChatThreadRuntimeOptions) {
+export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseChatThreadRuntimeOptions) {
 
   const remoteId = useAuiState(state => state.threadListItem.id);
 

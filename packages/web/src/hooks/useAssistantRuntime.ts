@@ -32,20 +32,17 @@ export interface UseAssistantRuntimeOptions {
  * @returns AssistantRuntime 实例，可直接传给 AssistantRuntimeProvider
  */
 export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError,}: UseAssistantRuntimeOptions) {
-
-  // 没有选择 agent 不构建runtime
-  if (agentId === undefined) {
-    return null
-  }
-
   // 对话列表适配器 — 按 agentId 过滤
   const adapter = useMemo(() => createConversationThreadAdapter(agentId), [agentId]);
 
-  return useRemoteThreadListRuntime({
+  const runtime = useRemoteThreadListRuntime({
     runtimeHook:  () => {
       return useChatThreadRuntime({ agentId, onThreadCreated, onError });
     },
     adapter,
     threadId,
   });
+
+  // 没有选择 agent 不需要runtime
+  return agentId ? runtime : null;
 }
