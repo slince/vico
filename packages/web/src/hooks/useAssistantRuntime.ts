@@ -33,6 +33,11 @@ export interface UseAssistantRuntimeOptions {
  */
 export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError,}: UseAssistantRuntimeOptions) {
 
+  // 没有选择 agent 不构建runtime
+  if (agentId === undefined) {
+    return null
+  }
+
   // 对话列表适配器 — 按 agentId 过滤
   const adapter = useMemo(() => createConversationThreadAdapter(agentId), [agentId]);
 

@@ -1,5 +1,5 @@
 // 1. React
-import {useCallback, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 
 // 2. Third-party
 import {useQuery, useQueryClient} from '@tanstack/react-query';
@@ -60,6 +60,26 @@ export default function Chat() {
     queryFn: () => api('/agents'),
   });
 
+  // 页面刷新时，从 URL threadId 查询对应 Agent 以恢复状态
+  const { data: threadAgentId } = useQuery({
+    queryKey: ['conversation', threadId, 'agentId'],
+    queryFn: async () => {
+      const conv = await api<{ agent_id: string }>(`/conversations/${threadId}`);
+      return conv.agent_id;
+    },
+    enabled: !!threadId,
+  });
+
+  const agentList: Agent[] = agents ?? [];
+
+  // 自动选中 URL 中 thread 对应的 Agent
+  useEffect(() => {
+    if (threadAgentId && agentList.length > 0 && selectedAgent?.id !== threadAgentId) {
+      const agent = agentList.find((a) => a.id === threadAgentId);
+      if (agent) setSelectedAgent(agent);
+    }
+  }, [threadAgentId, agentList, selectedAgent]);
+
   /** ThreadList 选中线程时同步 URL */
   const handleThreadChange = useCallback((tid: string) => {
       if (tid === activeThreadId) return;
@@ -80,8 +100,6 @@ export default function Chat() {
   );
 
   if (agentsLoading) return <ChatSkeleton />;
-
-  const agentList: Agent[] = agents ?? [];
 
   return (
     <div className="flex h-[calc(100vh-0px)] -m-6">
