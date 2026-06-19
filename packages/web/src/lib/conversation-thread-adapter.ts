@@ -4,7 +4,12 @@
  * - createConversationThreadAdapter: 对话列表适配器（list、delete、initialize）
  * - createThreadHistoryAdapter: 历史消息适配器，通过 useChatRuntime 的 adapters.history 自动加载/持久化
  */
-import type {RemoteThreadListAdapter, ThreadHistoryAdapter, ThreadMessage, GenericThreadHistoryAdapter} from '@assistant-ui/react';
+import type {
+  GenericThreadHistoryAdapter,
+  RemoteThreadListAdapter,
+  ThreadHistoryAdapter,
+  ThreadMessage
+} from '@assistant-ui/react';
 import {api} from '@/api/client';
 
 interface ConversationItem {
