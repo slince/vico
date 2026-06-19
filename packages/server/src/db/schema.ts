@@ -88,6 +88,7 @@ export const documents = sqliteTable('documents', {
   metadata: text('metadata').notNull().default('{}'),
   path: text('path').notNull().default(''),
   storage_key: text('storage_key'),
+  parent_id: text('parent_id'),
   created_at: integer('created_at').notNull(),
   updated_at: integer('updated_at').notNull(),
 }, (table) => ({
@@ -95,6 +96,7 @@ export const documents = sqliteTable('documents', {
   tenantIdx: index('idx_documents_tenant').on(table.tenant_id),
   kbFileUnq: unique('uq_documents_kb_file').on(table.kb_id, table.file_hash),
   pathIdx: index('idx_documents_kb_path').on(table.kb_id, table.path),
+  parentIdx: index('idx_documents_parent_id').on(table.parent_id),
 }));
 
 /** Agent ↔ 知识库绑定关联表 */

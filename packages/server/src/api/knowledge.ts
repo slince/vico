@@ -49,43 +49,39 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/knowledge-bases/:id/folders', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const paths = await documentManager.listPaths(auth.tenantId, c.req.param('id'));
-    // 从存储的路径派生所有父级目录
-    const folderSet = new Set<string>();
-    folderSet.add('/');
-    for (const p of paths) {
-      const parts = p.replace(/^\//, '').replace(/\/$/, '').split('/');
-      let accumulated = '';
-      for (const part of parts) {
-        if (!part) continue;
-        accumulated += '/' + part;
-        folderSet.add(accumulated + '/');
-      }
-    }
-    return c.json({ folders: Array.from(folderSet).sort() });
+    const parentId = c.req.query('parent_id') || null;
+    const folders = await documentManager.listFolders(auth.tenantId, c.req.param('id'), parentId || null);
+    return c.json({ folders });
+  });
+
+  app.get('/api/v1/knowledge-bases/:id/folders/:folderId/ancestors', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const ancestors = await documentManager.getAncestors(auth.tenantId, c.req.param('folderId'));
+    return c.json({ ancestors });
   });
 
   app.post('/api/v1/knowledge-bases/:id/folders', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const { name } = await c.req.json();
+    const { name, parent_id } = await c.req.json();
     if (!name) return c.json({ error: 'name required' }, 400);
 
     const folderName = name.replace(/^\/+|\/+$/g, '').replace(/\.\./g, '');
     if (!folderName) return c.json({ error: 'invalid name' }, 400);
 
-    // 创建占位文档以在 GET /folders 中产生该目录
+    // 创建目录文档，使用实际名称作为 filename
     const doc = await documentManager.create({
       tenantId: auth.tenantId,
       kbId: c.req.param('id'),
-      filename: '.dir',
+      filename: folderName,
       fileType: 'application/x-directory',
       fileSize: 0,
       source: 'manual',
-      path: `/${folderName}/`,
+      parentId: parent_id || null,
     });
     await documentManager.updateStatus(auth.tenantId, doc.id, 'ready');
-    return c.json({ id: doc.id, path: `/${folderName}/` });
+    return c.json({ id: doc.id, name: folderName, parent_id: doc.parent_id });
   });
 
   app.get('/api/v1/knowledge-bases/:id/documents', async (c) => {
@@ -93,9 +89,9 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
     const page = parseInt(c.req.query('page') || '1');
     const pageSize = parseInt(c.req.query('page_size') || '20');
-    const path = c.req.query('path') || undefined;
+    const parentId = c.req.query('parent_id') !== undefined ? (c.req.query('parent_id') || null) : undefined;
     return c.json(await documentManager.listByKb(auth.tenantId, c.req.param('id'), {
-      page, pageSize, path,
+      page, pageSize, parentId,
     }));
   });
 
@@ -245,7 +241,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.post('/api/v1/knowledge-bases/:id/documents', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const { content, filename } = await c.req.json();
+    const { content, filename, parent_id } = await c.req.json();
     if (!content || !filename) return c.json({ error: 'content and filename required' }, 400);
 
     const doc = await documentManager.create({
@@ -255,6 +251,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
       fileType: 'text/markdown',
       fileSize: Buffer.byteLength(content, 'utf-8'),
       source: 'manual',
+      parentId: parent_id || null,
     });
 
     try {

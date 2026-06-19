@@ -1,5 +1,5 @@
 // 1. React
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // 2. Third-party
 import { useTranslation } from 'react-i18next';
@@ -42,8 +42,8 @@ export default function KnowledgeDetail() {
   const queryClient = useQueryClient();
   const { t } = useTranslation('knowledge');
 
-  // 当前目录路径（来自 URL 查询参数）
-  const currentPath = searchParams.get('path') || '';
+  // 当前目录 ID（来自 URL 查询参数，空字符串表示根目录）
+  const currentFolderId = searchParams.get('folder') || '';
 
   // ---------- 状态 ----------
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
@@ -55,26 +55,14 @@ export default function KnowledgeDetail() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedDocName, setSelectedDocName] = useState<string>('');
 
-  // 路径变化时重置页码
-  const pathRef = useRef(currentPath);
+  // 目录变化时重置页码
+  const folderRef = useRef(currentFolderId);
   useEffect(() => {
-    if (pathRef.current !== currentPath) {
-      pathRef.current = currentPath;
+    if (folderRef.current !== currentFolderId) {
+      folderRef.current = currentFolderId;
       setDocPage(1);
     }
-  }, [currentPath]);
-
-  /** 面包屑分段 */
-  const breadcrumbs = useMemo(() => {
-    const segments = currentPath.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
-    const items: { label: string; path: string }[] = [];
-    let accumulated = '';
-    for (const seg of segments) {
-      accumulated += `/${seg}/`;
-      items.push({ label: seg, path: accumulated });
-    }
-    return items;
-  }, [currentPath]);
+  }, [currentFolderId]);
 
   // ---------- 数据获取 ----------
 
@@ -87,16 +75,25 @@ export default function KnowledgeDetail() {
 
   /** 文档列表（分页 + 当前目录过滤） */
   const { data: docPageData, isLoading: docsLoading } = useQuery<PaginatedDocuments>({
-    queryKey: ['knowledge-base', id, 'documents', docPage, currentPath],
+    queryKey: ['knowledge-base', id, 'documents', docPage, currentFolderId],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(docPage), page_size: '20' });
-      if (currentPath) params.set('path', currentPath);
+      // 始终传递 parent_id：空字符串=根目录，有值=子目录
+      params.set('parent_id', currentFolderId);
       return api(`/knowledge-bases/${id}/documents?${params.toString()}`);
     },
     enabled: !!id,
   });
   const documents = docPageData?.data ?? [];
   const docTotal = docPageData?.total ?? 0;
+
+  /** 当前目录的祖先链（用于面包屑），仅在进入子目录时查询 */
+  const { data: ancestorsData } = useQuery<{ ancestors: DocumentItem[] }>({
+    queryKey: ['knowledge-base', id, 'folders', currentFolderId, 'ancestors'],
+    queryFn: () => api(`/knowledge-bases/${id}/folders/${currentFolderId}/ancestors`),
+    enabled: !!id && !!currentFolderId,
+  });
+  const ancestors = ancestorsData?.ancestors ?? [];
 
   // ---------- 操作 ----------
 
@@ -113,7 +110,7 @@ export default function KnowledgeDetail() {
     mutationFn: (data: { content: string; filename: string }) =>
       api(`/knowledge-bases/${id}/documents`, {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, parent_id: currentFolderId || null }),
         headers: { 'Content-Type': 'application/json' },
       }),
     onSuccess: () => setNewDocOpen(false),
@@ -123,7 +120,7 @@ export default function KnowledgeDetail() {
     mutationFn: (data: { name: string }) =>
       api(`/knowledge-bases/${id}/folders`, {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, parent_id: currentFolderId || null }),
         headers: { 'Content-Type': 'application/json' },
       }),
     onSuccess: () => {
@@ -135,31 +132,33 @@ export default function KnowledgeDetail() {
   // ---------- 事件处理 ----------
 
   const handleBack = useCallback(() => {
-    if (currentPath) {
+    if (currentFolderId) {
       // 在子目录中：返回上级目录
-      const segments = currentPath.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
-      if (segments.length <= 1) {
-        setSearchParams({});
-      } else {
-        const parentPath = '/' + segments.slice(0, -1).join('/') + '/';
-        setSearchParams({ path: parentPath });
+      if (ancestors.length > 0) {
+        const currentFolder = ancestors[ancestors.length - 1];
+        if (currentFolder.parent_id) {
+          setSearchParams({ folder: currentFolder.parent_id });
+          return;
+        }
       }
+      // 无法确定父级时回到根目录
+      setSearchParams({});
     } else {
       navigate('/knowledge');
     }
-  }, [currentPath, navigate, setSearchParams]);
+  }, [currentFolderId, ancestors, navigate, setSearchParams]);
 
   const handleDeleteDocConfirm = useCallback(() => {
     if (deleteDocId) deleteDocMutation.mutate(deleteDocId);
   }, [deleteDocId, deleteDocMutation]);
 
   /** 导航到指定目录 */
-  const handleNavigateToPath = useCallback((path: string) => {
+  const handleNavigateToFolder = useCallback((folderId: string) => {
     setSelectedDocId(null);
     setSelectedDocName('');
     setDocPage(1);
-    if (path) {
-      setSearchParams({ path });
+    if (folderId) {
+      setSearchParams({ folder: folderId });
     } else {
       setSearchParams({});
     }
@@ -167,8 +166,7 @@ export default function KnowledgeDetail() {
 
   const handleSelectDoc = useCallback((doc: DocumentItem) => {
     if (isDirectory(doc)) {
-      // 目录：进入目录内部
-      handleNavigateToPath(doc.path);
+      handleNavigateToFolder(doc.id);
       return;
     }
     if (doc.status !== 'ready') return;
@@ -179,7 +177,7 @@ export default function KnowledgeDetail() {
       setSelectedDocId(doc.id);
       setSelectedDocName(doc.filename);
     }
-  }, [selectedDocId, handleNavigateToPath]);
+  }, [selectedDocId, handleNavigateToFolder]);
 
   const handleChunkDrawerClose = useCallback((open: boolean) => {
     if (!open) { setSelectedDocId(null); setSelectedDocName(''); }
@@ -256,28 +254,28 @@ export default function KnowledgeDetail() {
       <Separator />
 
       {/* 面包屑导航 */}
-      {currentPath && (
+      {currentFolderId && (
         <nav className="flex items-center gap-1 text-sm text-muted-foreground">
           <button
             type="button"
             className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
-            onClick={() => handleNavigateToPath('')}
+            onClick={() => handleNavigateToFolder('')}
           >
             <Home className="size-3.5" />
             <span>{t('rootFolder')}</span>
           </button>
-          {breadcrumbs.map((crumb, idx) => (
-            <span key={crumb.path} className="inline-flex items-center gap-1">
+          {ancestors.map((folder, idx) => (
+            <span key={folder.id} className="inline-flex items-center gap-1">
               <ChevronRight className="size-3.5" />
-              {idx === breadcrumbs.length - 1 ? (
-                <span className="font-medium text-foreground">{crumb.label}</span>
+              {idx === ancestors.length - 1 ? (
+                <span className="font-medium text-foreground">{folder.filename}</span>
               ) : (
                 <button
                   type="button"
                   className="hover:text-foreground transition-colors"
-                  onClick={() => handleNavigateToPath(crumb.path)}
+                  onClick={() => handleNavigateToFolder(folder.id)}
                 >
-                  {crumb.label}
+                  {folder.filename}
                 </button>
               )}
             </span>

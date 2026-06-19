@@ -4,7 +4,7 @@
  * 负责文档记录的 CRUD、状态流转和去重检测。
  * 不负责文件解析和索引（由 RAGManager 处理）。
  */
-import { eq, and, desc, count } from 'drizzle-orm';
+import { eq, and, desc, count, isNull } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
 
@@ -27,6 +27,7 @@ export interface DocumentRow {
   metadata: string;
   path: string;
   storage_key: string | null;
+  parent_id: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -34,7 +35,8 @@ export interface DocumentRow {
 export interface DocumentListOptions {
   page?: number;
   pageSize?: number;
-  path?: string;
+  /** 过滤 parent_id，null 表示根目录，undefined 表示不过滤 */
+  parentId?: string | null;
 }
 
 export interface PaginatedDocuments {
@@ -45,7 +47,7 @@ export interface PaginatedDocuments {
 }
 
 class DocumentManager {
-  /** 获取知识库内文档列表（分页 + 可选路径过滤） */
+  /** 获取知识库内文档列表（分页 + 可选父级目录过滤） */
   async listByKb(tenantId: string, kbId: string, opts?: DocumentListOptions): Promise<PaginatedDocuments> {
     const db = getDb();
     const page = Math.max(1, opts?.page ?? 1);
@@ -53,8 +55,12 @@ class DocumentManager {
     const offset = (page - 1) * pageSize;
 
     const conditions = [eq(documents.tenant_id, tenantId), eq(documents.kb_id, kbId)];
-    if (opts?.path !== undefined) {
-      conditions.push(eq(documents.path, opts.path));
+    if (opts?.parentId !== undefined) {
+      if (opts.parentId === null) {
+        conditions.push(isNull(documents.parent_id));
+      } else {
+        conditions.push(eq(documents.parent_id, opts.parentId));
+      }
     }
 
     const whereClause = and(...conditions);
@@ -72,13 +78,41 @@ class DocumentManager {
     return { data: rows, total, page, page_size: rows.length };
   }
 
-  /** 获取知识库内所有文档的目录路径列表（虚拟文件夹） */
-  async listPaths(tenantId: string, kbId: string): Promise<string[]> {
+  /** 获取指定目录下的子目录列表 */
+  async listFolders(tenantId: string, kbId: string, parentId?: string | null): Promise<DocumentRow[]> {
     const db = getDb();
-    const rows = await db.selectDistinct({ path: documents.path }).from(documents)
-      .where(and(eq(documents.tenant_id, tenantId), eq(documents.kb_id, kbId)))
-      .all();
-    return rows.map(r => r.path).filter(Boolean);
+    const conditions = [
+      eq(documents.tenant_id, tenantId),
+      eq(documents.kb_id, kbId),
+      eq(documents.file_type, 'application/x-directory'),
+    ];
+    if (parentId === undefined || parentId === null) {
+      conditions.push(isNull(documents.parent_id));
+    } else {
+      conditions.push(eq(documents.parent_id, parentId));
+    }
+    return db.select().from(documents).where(and(...conditions)).orderBy(documents.filename).all();
+  }
+
+  /** 获取文件夹的祖先链（从根到当前） */
+  async getAncestors(tenantId: string, folderId: string): Promise<DocumentRow[]> {
+    const db = getDb();
+    const ancestors: DocumentRow[] = [];
+    let currentId: string | null = folderId;
+    // 最多查询 20 层防止死循环
+    for (let i = 0; i < 20 && currentId; i++) {
+      const row = await db.select().from(documents)
+        .where(and(
+          eq(documents.id, currentId),
+          eq(documents.tenant_id, tenantId),
+          eq(documents.file_type, 'application/x-directory'),
+        ))
+        .get();
+      if (!row) break;
+      ancestors.unshift(row);
+      currentId = row.parent_id;
+    }
+    return ancestors;
   }
 
   /** 获取单个文档 */
@@ -94,7 +128,7 @@ class DocumentManager {
   async create(params: {
     tenantId: string; kbId: string; filename: string; fileType: string;
     fileSize: number; fileHash?: string; source?: string; sourceUrl?: string;
-    path?: string; storageKey?: string;
+    path?: string; storageKey?: string; parentId?: string | null;
   }): Promise<DocumentRow> {
     const db = getDb();
     const id = uuid();
@@ -112,6 +146,7 @@ class DocumentManager {
       source_url: params.sourceUrl ?? null,
       path: params.path ?? '',
       storage_key: params.storageKey ?? null,
+      parent_id: params.parentId ?? null,
       created_at: now,
       updated_at: now,
     }).run();

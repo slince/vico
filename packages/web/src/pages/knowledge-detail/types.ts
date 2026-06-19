@@ -15,17 +15,13 @@ export interface DocumentItem {
   status: string;
   source: string;
   path: string;
+  parent_id: string | null;
   created_at: number;
 }
 
 /** 是否为目录类型的文档 */
 export function isDirectory(doc: DocumentItem): boolean {
   return doc.file_type === 'application/x-directory';
-}
-
-/** 从目录文档的 path 字段提取显示名称 */
-export function getDirectoryName(doc: DocumentItem): string {
-  return doc.path.replace(/^\/|\/$/g, '') || '/';
 }
 
 /** 知识库详情数据结构 */

@@ -14,7 +14,7 @@ import {
 
 import type { DocumentViewProps } from './utils';
 import { formatFileSize, getFileIcon, getStatusBadgeProps, getStatusKey } from './utils';
-import { isDirectory, getDirectoryName } from './types';
+import { isDirectory } from './types';
 
 /**
  * 文档网格视图 — 卡片形式。
@@ -30,7 +30,7 @@ export function DocumentGrid({
         const badgeProps = getStatusBadgeProps(doc.status);
         const isSelected = selectedDocId === doc.id;
         const dir = isDirectory(doc);
-        const displayName = dir ? getDirectoryName(doc) : doc.filename;
+        const displayName = doc.filename;
         const { icon: FileIcon, colorClass } = dir ? { icon: Folder, colorClass: 'text-amber-500' } : getFileIcon(doc.file_type);
         return (
           <Card

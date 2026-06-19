@@ -22,16 +22,6 @@ function sanitizeFilename(name: string): string {
     .slice(0, 255);
 }
 
-/** 标准化文档目录路径：防穿越、确保以 / 开头和结尾、合并连续 / */
-function normalizePath(input: string | null): string {
-  if (!input) return '';
-  let cleaned = input.replace(/\.\./g, '');
-  if (!cleaned.startsWith('/')) cleaned = '/' + cleaned;
-  if (!cleaned.endsWith('/')) cleaned = cleaned + '/';
-  cleaned = cleaned.replace(/\/+/g, '/');
-  return cleaned;
-}
-
 /** 通过 magic bytes 检测文件类型 */
 const MAGIC_BYTES: Record<string, number[]> = {
   'application/pdf': [0x25, 0x50, 0x44, 0x46],
@@ -166,8 +156,8 @@ class KnowledgeManager {
       throw new Error(`Duplicate file: ${existing.filename} already indexed as document ${existing.id}`);
     }
 
-    // 提取目录路径（可选，默认根目录）
-    const docPath = normalizePath(formData.get('path') as string | null);
+    // 提取父级目录 ID（可选，默认根目录）
+    const parentId = (formData.get('parent_id') as string) || null;
 
     // 创建文档记录
     const doc = await documentManager.create({
@@ -177,7 +167,7 @@ class KnowledgeManager {
       fileSize: file.size,
       fileHash,
       source: 'upload',
-      path: docPath,
+      parentId,
     });
 
     try {
