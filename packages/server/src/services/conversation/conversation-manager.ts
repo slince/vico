@@ -73,23 +73,11 @@ class ConversationManager {
    */
   private async threadToConversation(thread: MastraThread): Promise<ConversationItem> {
     const meta = (thread.metadata || {}) as Record<string, unknown>;
-    const db = getDb();
-
-    let agentName: string | undefined;
-    const agentId = meta.agent_id as string | undefined;
-    if (agentId) {
-      const agent = await db
-        .select({ name: agents.name })
-        .from(agents)
-        .where(eq(agents.id, agentId))
-        .get();
-      agentName = agent?.name;
-    }
 
     return {
       id: thread.id,
       tenant_id: (thread.resourceId as string).split(':')[0],
-      agent_id: agentId || '',
+      agent_id: (meta.agent_id as string) || '',
       user_id: (meta.user_id as string) || '',
       title: thread.title || '',
       model_name: (meta.model_name as string) || '',
@@ -97,7 +85,6 @@ class ConversationManager {
       total_tokens: 0,
       created_at: new Date(thread.createdAt).getTime(),
       updated_at: new Date(thread.updatedAt).getTime(),
-      agent_name: agentName,
     };
   }
 
@@ -136,11 +123,7 @@ class ConversationManager {
     }
 
     if (search) {
-      convs = convs.filter(
-        (c) =>
-          c.title.toLowerCase().includes(search) ||
-          (c.agent_name || '').toLowerCase().includes(search),
-      );
+      convs = convs.filter((c) => c.title.toLowerCase().includes(search));
     }
 
     convs.sort((a, b) => b.updated_at - a.updated_at);

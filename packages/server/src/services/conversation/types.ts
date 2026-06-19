@@ -10,7 +10,6 @@ export interface ConversationItem {
   total_tokens: number;
   created_at: number;
   updated_at: number;
-  agent_name?: string;
 }
 
 /** 消息项 */
