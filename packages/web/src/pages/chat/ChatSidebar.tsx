@@ -17,8 +17,8 @@ interface Agent {
 
 interface ChatSidebarProps {
   agents: Agent[];
-  selectedAgentId: string;
-  onSelectAgent: (agentId: string) => void;
+  selectedAgent: Agent | null;
+  onSelectAgent: (agent: Agent) => void;
   /** 线程切换时同步 URL */
   onThreadChange?: (threadId: string) => void;
 }
@@ -54,7 +54,7 @@ function ThreadUrlSync({ onThreadChange }: { onThreadChange?: (threadId: string)
  */
 export function ChatSidebar({
   agents,
-  selectedAgentId,
+  selectedAgent,
   onSelectAgent,
   onThreadChange,
 }: ChatSidebarProps) {
@@ -62,9 +62,10 @@ export function ChatSidebar({
 
   const handleAgentChange = useCallback(
     (value: string) => {
-      onSelectAgent(value);
+      const agent = agents.find((a) => a.id === value);
+      if (agent) onSelectAgent(agent);
     },
-    [onSelectAgent],
+    [agents, onSelectAgent],
   );
 
   return (
@@ -75,7 +76,7 @@ export function ChatSidebar({
           <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
             <Bot className="size-4" />
           </div>
-          <Select value={selectedAgentId || ''} onValueChange={handleAgentChange}>
+          <Select value={selectedAgent?.id ?? ''} onValueChange={handleAgentChange}>
             <SelectTrigger className="h-8 flex-1">
               <SelectValue placeholder={t('selectAgent')} />
             </SelectTrigger>

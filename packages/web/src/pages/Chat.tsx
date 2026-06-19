@@ -35,7 +35,7 @@ export default function Chat() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [activeThreadId, setActiveThreadId] = useState<string>(threadId || '');
 
   // 首次对话创建 thread 后回写 URL
@@ -43,13 +43,13 @@ export default function Chat() {
     (newThreadId: string) => {
       setActiveThreadId(newThreadId);
       navigate(`/chat/${newThreadId}`, { replace: true });
-      queryClient.invalidateQueries({ queryKey: ['conversations', selectedAgentId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', selectedAgent?.id] });
     },
-    [navigate, queryClient, selectedAgentId],
+    [navigate, queryClient, selectedAgent?.id],
   );
 
   const runtime = useAssistantRuntime({
-    agentId: selectedAgentId,
+    agentId: selectedAgent?.id ?? '',
     threadId: activeThreadId || undefined,
     onThreadCreated: handleThreadCreated,
   });
@@ -71,8 +71,8 @@ export default function Chat() {
 
   /** 选择 Agent — 清除线程并回到 /chat */
   const handleSelectAgent = useCallback(
-    (agentId: string) => {
-      setSelectedAgentId(agentId);
+    (agent: Agent) => {
+      setSelectedAgent(agent);
       setActiveThreadId('');
       navigate('/chat', { replace: true });
     },
@@ -82,33 +82,30 @@ export default function Chat() {
   if (agentsLoading) return <ChatSkeleton />;
 
   const agentList: Agent[] = agents ?? [];
-  const selectedAgent = agentList.find((a) => a.id === selectedAgentId);
 
   return (
     <div className="flex h-[calc(100vh-0px)] -m-6">
-      {selectedAgentId && runtime ? (
+      {selectedAgent && runtime ? (
         <AssistantRuntimeProvider runtime={runtime}>
           <ChatSidebar
             agents={agentList}
-            selectedAgentId={selectedAgentId}
+            selectedAgent={selectedAgent}
             onSelectAgent={handleSelectAgent}
             onThreadChange={handleThreadChange}
           />
 
-          <ChatPanel
-            agentName={selectedAgent?.name || selectedAgentId}
-          />
+          <ChatPanel agent={selectedAgent} />
         </AssistantRuntimeProvider>
       ) : (
         <>
           <ChatSidebar
             agents={agentList}
-            selectedAgentId={selectedAgentId}
+            selectedAgent={selectedAgent}
             onSelectAgent={handleSelectAgent}
           />
           <ChatEmpty
             hasAgents={agentList.length > 0}
-            onSelectFirstAgent={() => setSelectedAgentId(agentList[0].id)}
+            onSelectFirstAgent={() => setSelectedAgent(agentList[0])}
           />
         </>
       )}
