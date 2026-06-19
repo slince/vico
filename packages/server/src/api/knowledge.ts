@@ -65,6 +65,29 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     return c.json({ folders: Array.from(folderSet).sort() });
   });
 
+  app.post('/api/v1/knowledge-bases/:id/folders', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const { name } = await c.req.json();
+    if (!name) return c.json({ error: 'name required' }, 400);
+
+    const folderName = name.replace(/^\/+|\/+$/g, '').replace(/\.\./g, '');
+    if (!folderName) return c.json({ error: 'invalid name' }, 400);
+
+    // 创建占位文档以在 GET /folders 中产生该目录
+    const doc = await documentManager.create({
+      tenantId: auth.tenantId,
+      kbId: c.req.param('id'),
+      filename: '.dir',
+      fileType: 'application/x-directory',
+      fileSize: 0,
+      source: 'manual',
+      path: `/${folderName}/`,
+    });
+    await documentManager.updateStatus(auth.tenantId, doc.id, 'ready');
+    return c.json({ id: doc.id, path: `/${folderName}/` });
+  });
+
   app.get('/api/v1/knowledge-bases/:id/documents', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;

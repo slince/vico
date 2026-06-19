@@ -18,7 +18,7 @@ interface CreateDocumentDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: { content: string; filename: string }) => void;
   isPending: boolean;
-  trigger: ReactNode;
+  trigger?: ReactNode;
 }
 
 /**
@@ -39,7 +39,7 @@ export function CreateDocumentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('newDocumentTitle')}</DialogTitle>
