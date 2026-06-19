@@ -63,12 +63,7 @@ export const DEFAULT_RAG_CONFIG: RagConfig = {
 };
 ```
 
-- [ ] **Step 2: Commit**
 
-```bash
-git add packages/server/src/config.ts
-git commit -m "feat(kb): define RagConfig type and global defaults"
-```
 
 ---
 
@@ -113,12 +108,7 @@ export const documents = sqliteTable('documents', {
 pnpm db:migrate
 ```
 
-- [ ] **Step 3: Commit**
 
-```bash
-git add packages/server/src/db/schema.ts
-git commit -m "feat(kb): add documents table with dedup and status tracking"
-```
 
 ---
 
@@ -269,12 +259,7 @@ class DocumentManager {
 export const documentManager = new DocumentManager();
 ```
 
-- [ ] **Step 2: Commit**
 
-```bash
-git add packages/server/src/services/knowledge/document-manager.ts
-git commit -m "feat(kb): add DocumentManager service for document lifecycle"
-```
 
 ---
 
@@ -420,12 +405,7 @@ async indexFile(kbId: string, filePath: string, documentId?: string): Promise<nu
 }
 ```
 
-- [ ] **Step 5: Commit**
 
-```bash
-git add packages/server/src/memory/rag.ts
-git commit -m "feat(kb): update RAGManager with doc-level indexing and global config"
-```
 
 ---
 
@@ -531,12 +511,7 @@ async uploadFile(tenantId: string, kbId: string, formData: FormData): Promise<{ 
 
 `create` 方法无需改动 — 全局配置统一生效。
 
-- [ ] **Step 3: Commit**
 
-```bash
-git add packages/server/src/services/knowledge/knowledge-manager.ts
-git commit -m "feat(kb): integrate document management, SHA256 dedup into upload pipeline"
-```
 
 ---
 
@@ -732,12 +707,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
 }
 ```
 
-- [ ] **Step 2: Commit**
 
-```bash
-git add packages/server/src/api/knowledge.ts packages/server/src/services/knowledge/knowledge-manager.ts
-git commit -m "feat(kb): add document and chunk management API routes"
-```
 
 ---
 
@@ -788,12 +758,7 @@ interface KnowledgeBaseDetail {
 - Chunks Tab：保持现有卡片列表，但改为从 `/api/v1/knowledge-bases/:id/chunks` 获取
 - 新增独立的 `useQuery` 获取 chunks 列表
 
-- [ ] **Step 3: Commit**
 
-```bash
-git add packages/web/src/pages/KnowledgeDetail.tsx
-git commit -m "feat(kb): add document list tab and real chunk data to detail page"
-```
 
 ---
 
@@ -914,12 +879,7 @@ export async function createRagSearchTool(agent: AgentDetail): Promise<any> {
 }
 ```
 
-- [ ] **Step 2: Commit**
 
-```bash
-git add packages/server/src/agent/tools/rag-tool.ts
-git commit -m "feat(kb): enhance RAG tool with query rewrite and rerank support"
-```
 
 ---
 
@@ -1006,12 +966,7 @@ export async function rewriteQuery(
 
 Query Rewrite 作为独立模块被 rag-tool 动态导入，在 `cfg.query_rewrite.enabled` 时生效。
 
-- [ ] **Step 3: Commit**
 
-```bash
-git add packages/server/src/memory/query-rewrite.ts
-git commit -m "feat(kb): add LLM query rewrite module for recall improvement"
-```
 
 ---
 
@@ -1085,12 +1040,7 @@ export async function rerank(
 
 Reranker 作为独立模块被 rag-tool 动态导入，在 `cfg.rerank.enabled` 时生效。
 
-- [ ] **Step 3: Commit**
 
-```bash
-git add packages/server/src/memory/reranker.ts
-git commit -m "feat(kb): add Cross-Encoder reranker for search result re-ranking"
-```
 
 ---
 
@@ -1166,43 +1116,11 @@ if (totalLen > 6000) {
 }
 ```
 
-- [ ] **Step 3: Commit**
 
-```bash
-git add packages/server/src/memory/context-compression.ts packages/server/src/agent/tools/rag-tool.ts
-git commit -m "feat(kb): add LLM context compression for oversized retrieval results"
-```
 
 ---
 
-### Task 3.2: Agent 系统提示词注入引用规则
-
-**Files:**
-- Modify: `packages/server/src/agent/tools/rag-tool.ts`
-- Modify: 创建 Agent 时自动注入的 system prompt 逻辑（查找相关代码）
-
-- [ ] **Step 1: 在 RAG 工具的 description 中强化引用要求**
-
-```typescript
-// rag-tool.ts 中 tool description 修改：
-description:
-  '搜索知识库获取相关文档内容。返回结果包含来源标记 [source: 文件名#chunk序号]。
-使用规则：
-1. 每条基于知识库的结论必须引用对应的 [source: ...] 标记
-2. 如果检索无结果或结果不相关，明确告知用户"未找到相关知识"
-3. 不要编造检索结果中不存在的信息',
-```
-
-- [ ] **Step 2: Commit**
-
-```bash
-git add packages/server/src/agent/tools/rag-tool.ts
-git commit -m "feat(kb): strengthen citation rules in RAG tool description"
-```
-
----
-
-### Task 3.3: 前端引用标记渲染
+### Task 3.2: 前端引用标记渲染
 
 **Files:**
 - Find chat message rendering component in `packages/web/src/components/assistant-ui/`
@@ -1212,12 +1130,7 @@ git commit -m "feat(kb): strengthen citation rules in RAG tool description"
 
 在消息渲染组件中，正则匹配 `[source: filename#chunkN]`，替换为可点击的 Badge/Link 组件，点击时发送请求获取原文内容并在 Popover 中展示。
 
-- [ ] **Step 2: Commit**
 
-```bash
-git add packages/web/src/components/assistant-ui/
-git commit -m "feat(kb): render source citation badges in chat messages"
-```
 
 ---
 
@@ -1360,13 +1273,7 @@ async indexFile(kbId: string, filePath: string, documentId?: string): Promise<nu
 }
 ```
 
-- [ ] **Step 4: Commit**
 
-```bash
-git add packages/server/src/memory/parsers/
-git add packages/server/src/memory/rag.ts
-git commit -m "feat(kb): add extensible parser registry with docx and html support"
-```
 
 ---
 
@@ -1446,12 +1353,7 @@ app.post('/api/v1/knowledge-bases/:id/import-url', async (c) => {
 });
 ```
 
-- [ ] **Step 3: Commit**
 
-```bash
-git add packages/server/src/services/knowledge/knowledge-manager.ts packages/server/src/api/knowledge.ts
-git commit -m "feat(kb): add URL import for knowledge bases"
-```
 
 ---
 
@@ -1502,12 +1404,7 @@ app.post('/api/v1/knowledge-bases/:id/documents', async (c) => {
 - 保存时调用 `POST /api/v1/knowledge-bases/:id/documents`
 - 保存成功后自动刷新文档列表
 
-- [ ] **Step 3: Commit**
 
-```bash
-git add packages/web/src/pages/KnowledgeDetail.tsx packages/server/src/api/knowledge.ts
-git commit -m "feat(kb): add online markdown editor for manual document creation"
-```
 
 ---
 
@@ -1526,10 +1423,9 @@ git commit -m "feat(kb): add online markdown editor for manual document creation
 | 2.2 Query Rewrite | 新建 Module | 45 分钟 |
 | 2.3 Reranker | 新建 Module | 1 小时 |
 | 3.1 上下文压缩 | 新建 Module | 45 分钟 |
-| 3.2 引用规则注入 | 修改 Prompt | 20 分钟 |
-| 3.3 前端引用渲染 | 修改前端 | 1 小时 |
+| 3.2 前端引用渲染 | 修改前端 | 1 小时 |
 | 4.1 解析器注册表 | 新建 Module | 1.5 小时 |
 | 4.2 URL 导入 | 修改 API+Service | 45 分钟 |
 | 4.3 在线 Markdown 编辑器 | 新增前端+后端 | 1.5 小时 |
 
-**总计：约 14.5 小时（2 个工作日）**
+**总计：约 14 小时（2 个工作日）**
