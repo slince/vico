@@ -15,7 +15,6 @@ import {ChatPanel} from './chat/ChatPanel';
 import {ChatEmpty} from './chat/ChatEmpty';
 import {ChatSkeleton} from './chat/ChatSkeleton';
 import {useAssistantRuntime} from '@/hooks/useAssistantRuntime';
-import {SidebarProvider} from '@/components/ui/sidebar';
 
 // 5. Types
 interface Agent {
@@ -87,35 +86,33 @@ export default function Chat() {
   const selectedAgent = agentList.find((a) => a.id === selectedAgentId);
 
   return (
-    <SidebarProvider>
-      <div className="flex h-[calc(100vh-0px)] -m-6">
-        {selectedAgentId && runtime ? (
-          <AssistantRuntimeProvider runtime={runtime}>
-            <ChatSidebar
-              agents={agentList}
-              selectedAgentId={selectedAgentId}
-              onSelectAgent={handleSelectAgent}
-              onThreadChange={handleThreadChange}
-            />
+    <div className="flex h-[calc(100vh-0px)] -m-6">
+      {selectedAgentId && runtime ? (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ChatSidebar
+            agents={agentList}
+            selectedAgentId={selectedAgentId}
+            onSelectAgent={handleSelectAgent}
+            onThreadChange={handleThreadChange}
+          />
 
-            <ChatPanel
-              agentName={selectedAgent?.name || selectedAgentId}
-            />
-          </AssistantRuntimeProvider>
-        ) : (
-          <>
-            <ChatSidebar
-              agents={agentList}
-              selectedAgentId={selectedAgentId}
-              onSelectAgent={handleSelectAgent}
-            />
-            <ChatEmpty
-              hasAgents={agentList.length > 0}
-              onSelectFirstAgent={() => setSelectedAgentId(agentList[0].id)}
-            />
-          </>
-        )}
-      </div>
-    </SidebarProvider>
+          <ChatPanel
+            agentName={selectedAgent?.name || selectedAgentId}
+          />
+        </AssistantRuntimeProvider>
+      ) : (
+        <>
+          <ChatSidebar
+            agents={agentList}
+            selectedAgentId={selectedAgentId}
+            onSelectAgent={handleSelectAgent}
+          />
+          <ChatEmpty
+            hasAgents={agentList.length > 0}
+            onSelectFirstAgent={() => setSelectedAgentId(agentList[0].id)}
+          />
+        </>
+      )}
+    </div>
   );
 }

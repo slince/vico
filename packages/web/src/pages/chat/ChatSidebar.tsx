@@ -1,29 +1,14 @@
 // 1. React
-import { useCallback, useEffect } from 'react';
+import {useCallback, useEffect} from 'react';
 
 // 2. Third-party
-import { useTranslation } from 'react-i18next';
-import { useAuiState } from '@assistant-ui/react';
-import { Bot } from 'lucide-react';
+import {useTranslation} from 'react-i18next';
+import {useAuiState} from '@assistant-ui/react';
+import {Bot} from 'lucide-react';
 
 // 3. UI components
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-} from '@/components/ui/sidebar';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
-import { ThreadList } from '@/components/assistant-ui/thread-list';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select';
+import {ThreadList} from '@/components/assistant-ui/thread-list';
 
 interface Agent {
   id: string;
@@ -56,11 +41,11 @@ function ThreadUrlSync({ onThreadChange }: { onThreadChange?: (threadId: string)
 }
 
 /**
- * Chat 左侧面板 — 基于 ThreadListSidebar 结构：
- * Sidebar > SidebarHeader（Agent 选择器）+ SidebarContent（ThreadList）。
+ * Chat 左侧面板 — 基于 ThreadListSidebar 的视觉结构：
+ * aside > header（Agent 选择器）+ content（ThreadList）。
  *
  * 使用 assistant-ui 的 ThreadList 组件管理对话列表，
- * 替换原有的自定义对话列表和删除确认弹窗。
+ * 使用普通 aside 而非 shadcn Sidebar 以避免与 Layout 的 SidebarProvider 冲突。
  */
 export function ChatSidebar({
   agents,
@@ -78,48 +63,41 @@ export function ChatSidebar({
   );
 
   return (
-    <Sidebar className="border-r">
-      <SidebarHeader className="mb-2 border-b px-2">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <div className="flex items-center gap-2 w-full">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Bot className="size-4" />
-                </div>
-                <Select value={selectedAgentId || ''} onValueChange={handleAgentChange}>
-                  <SelectTrigger className="h-8 flex-1 border-0 bg-transparent px-0 text-sm font-semibold shadow-none focus-visible:ring-0">
-                    <SelectValue placeholder={t('selectAgent')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+    <aside className="w-72 border-r bg-background flex flex-col shrink-0">
+      {/* Header — Agent 选择器 */}
+      <div className="p-3 space-y-2 border-b">
+        <div className="flex items-center gap-2">
+          <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg shrink-0">
+            <Bot className="size-4" />
+          </div>
+          <Select value={selectedAgentId || ''} onValueChange={handleAgentChange}>
+            <SelectTrigger className="h-8 flex-1">
+              <SelectValue placeholder={t('selectAgent')} />
+            </SelectTrigger>
+            <SelectContent>
+              {agents.map((agent) => (
+                <SelectItem key={agent.id} value={agent.id}>
+                  {agent.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* 线程切换时同步 URL（仅在 AssistantRuntimeProvider 内可用） */}
         {onThreadChange && <ThreadUrlSync onThreadChange={onThreadChange} />}
-      </SidebarHeader>
+      </div>
 
-      <SidebarContent className="px-2">
-        {/* ThreadList 需要 AuiProvider — 仅在 onThreadChange 传入时（即 Provider 内）渲染 */}
+      {/* Content — 对话列表（ThreadList 需要 AuiProvider） */}
+      <div className="flex-1 overflow-y-auto">
         {onThreadChange ? (
           <ThreadList />
         ) : (
-          <div className="px-2.5 pt-3 text-xs text-muted-foreground">
+          <div className="p-6 text-center text-sm text-muted-foreground">
             Select an agent to start chatting
           </div>
         )}
-      </SidebarContent>
-
-      <SidebarRail />
-    </Sidebar>
+      </div>
+    </aside>
   );
 }
