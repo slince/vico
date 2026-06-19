@@ -274,8 +274,6 @@ export default function KnowledgeDetail() {
     );
   }
 
-  const documents = kb.documents || [];
-
   // ==================== 渲染 ====================
   return (
     <div className="space-y-6">
