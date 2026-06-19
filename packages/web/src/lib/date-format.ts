@@ -17,7 +17,7 @@ export function getDateLocale(): Locale {
 
 /**
  * 按指定格式格式化日期
- * @param date - Date 对象或 ISO 字符串
+ * @param date - Date 对象、ISO 字符串或 Unix 毫秒时间戳
  * @param fmt - date-fns 格式字符串
  * @returns 格式化后的日期文本
  */
@@ -27,7 +27,7 @@ export function formatDate(date: Date | string, fmt: string): string {
 
 /**
  * 格式化为 "yyyy-MM-dd HH:mm:ss" 的完整日期时间
- * @param date - Date 对象或 ISO 字符串
+ * @param date - Date 对象、ISO 字符串或 Unix 毫秒时间戳
  * @returns 格式化后的日期时间文本
  */
 export function formatDateTime(date: Date | string): string {
@@ -36,16 +36,16 @@ export function formatDateTime(date: Date | string): string {
 
 /**
  * 格式化为 "yyyy-MM-dd" 的日期
- * @param date - Date 对象或 ISO 字符串
+ * @param date - Date 对象、ISO 字符串或 Unix 毫秒时间戳
  * @returns 格式化后的日期文本
  */
-export function formatDateOnly(date: Date | string): string {
+export function formatDateOnly(date: Date | string | number): string {
   return format(new Date(date), 'yyyy-MM-dd', { locale: getDateLocale() });
 }
 
 /**
  * 格式化为 "HH:mm:ss" 的时间
- * @param date - Date 对象或 ISO 字符串
+ * @param date - Date 对象、ISO 字符串或 Unix 毫秒时间戳
  * @returns 格式化后的时间文本
  */
 export function formatTimeOnly(date: Date | string): string {
@@ -54,7 +54,7 @@ export function formatTimeOnly(date: Date | string): string {
 
 /**
  * 格式化相对时间（如 "3 分钟前"、"2 小时前"）
- * @param date - Date 对象或 ISO 字符串
+ * @param date - Date 对象、ISO 字符串或 Unix 毫秒时间戳
  * @returns 相对时间文本
  */
 export function formatRelative(date: Date | string): string {
