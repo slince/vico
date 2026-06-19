@@ -104,7 +104,7 @@ export default function Chat() {
   return (
     <div className="flex h-[calc(100vh-0px)] -m-6">
       {selectedAgent && runtime ? (
-        <AssistantRuntimeProvider runtime={runtime}>
+        <AssistantRuntimeProvider runtime={runtime} i18nIsDynamicList>
           <ChatSidebar
             agents={agentList}
             selectedAgent={selectedAgent}
