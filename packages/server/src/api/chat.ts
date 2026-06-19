@@ -3,6 +3,7 @@ import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { executeAgentChat } from '../chat/chat.js';
 import { createAISDKStream, createNetworkAISDKStream } from '../agent/ai-sdk-stream.js';
+import { createTeamNetwork } from '../agent/team-network.js';
 import logger from '../lib/logger.js';
 
 /** AI SDK transport 发送的 message part 类型 */
@@ -74,7 +75,6 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     if (!message) return c.json({ error: 'message is required' }, 400);
 
     try {
-      const { createTeamNetwork } = await import('../agent/team-network.js');
       const { stream } = await createTeamNetwork(teamId, message, {
         tenantId: auth.tenantId,
         userId: auth.userId,

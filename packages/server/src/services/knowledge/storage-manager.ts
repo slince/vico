@@ -50,7 +50,7 @@ class StorageManager {
     return `${safeKbName}/${y}/${m}/${d}/${uuid()}-${filename}`;
   }
 
-  /** 上传本地文件到存储，返回 storage_key */
+  /** 上传本地文件到存储 */
   async put(localPath: string, key: string): Promise<void> {
     const files = this.getFiles();
     const buf = readFileSync(localPath);

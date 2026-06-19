@@ -4,6 +4,7 @@
  * 基于 Transformers.js，懒加载模型。
  * 注意：需要安装 @xenova/transformers 依赖才能使用。
  */
+import { pipeline } from '@xenova/transformers';
 import logger from '../lib/logger.js';
 
 export interface SearchResult {
@@ -33,31 +34,22 @@ export async function rerank(
   if (results.length <= 1) return results;
 
   try {
-    // 尝试加载 Transformers.js（可选依赖，可能未安装）
-    // @ts-ignore — @xenova/transformers is an optional dependency
-    const { pipeline } = await import('@xenova/transformers');
     const reranker = await pipeline('text-classification', modelName);
 
-    const pairs = results.map((r) => ({
-      text: query,
-      text_pair: r.content.substring(0, 512),
-    }));
-
-    const scores = await reranker(pairs, { topk: 1 });
-
-    const reranked = results.map((r, i) => ({
-      ...r,
-      score: scores[i]?.score ?? r.score,
-    }));
+    // 逐对评分：Cross-Encoder 对 (query, doc) 对逐一计算相关性分数
+    const reranked: SearchResult[] = [];
+    for (const r of results) {
+      // Cross-encoder 需要 query + doc 成对计算；Transformers.js 类型签名不含 text_pair 但运行时支持
+      const output = await (reranker as any)(query, {
+        text_pair: r.content.substring(0, 512),
+      });
+      const score = output?.score ?? 0;
+      reranked.push({ ...r, score });
+    }
 
     return reranked.sort((a, b) => b.score - a.score);
   } catch (err: any) {
-    // @xenova/transformers not installed or model load failed
-    if (err?.code === 'ERR_MODULE_NOT_FOUND' || err?.message?.includes('Cannot find module')) {
-      logger.warn('Reranker: @xenova/transformers not installed. Install with: pnpm add @xenova/transformers');
-    } else {
-      logger.warn({ err }, 'Rerank failed, returning original order');
-    }
+    logger.warn({ err }, 'Rerank failed, returning original order');
     return results;
   }
 }

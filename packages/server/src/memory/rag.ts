@@ -8,6 +8,15 @@ import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
 import { kbIndexName } from '../lib/resource.js';
+import { getClient } from '../db/init-libsql.js';
+import { parserRegistry } from './parsers/registry.js';
+// 注册各文件类型解析器（副作用导入）
+import './parsers/txt-parser.js';
+import './parsers/md-parser.js';
+import './parsers/pdf-parser.js';
+import './parsers/csv-parser.js';
+import './parsers/html-parser.js';
+import './parsers/docx-parser.js';
 
 class RAGManager {
   /**
@@ -82,16 +91,6 @@ class RAGManager {
 
   /** 索引单个文件，通过 ParserRegistry 自动识别类型并提取文本 */
   async indexFile(kbId: string, filePath: string, documentId?: string): Promise<number> {
-    // 确保解析器已注册（副作用导入）
-    await import('./parsers/registry.js');
-    await import('./parsers/txt-parser.js');
-    await import('./parsers/md-parser.js');
-    await import('./parsers/pdf-parser.js');
-    await import('./parsers/csv-parser.js');
-    await import('./parsers/html-parser.js');
-    await import('./parsers/docx-parser.js');
-
-    const { parserRegistry } = await import('./parsers/registry.js');
     const parser = parserRegistry.findParser(filePath);
     if (!parser) throw new Error(`Unsupported file type: ${filePath}`);
 
@@ -125,8 +124,6 @@ class RAGManager {
   async deleteDocumentChunks(kbId: string, documentId: string): Promise<number> {
     const vector = getVector();
     const indexName = kbIndexName(kbId);
-
-    const { getClient } = await import('../db/init-libsql.js');
     const client = getClient();
 
     const tableName = indexName;

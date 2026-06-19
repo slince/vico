@@ -8,6 +8,8 @@ import { getVector, getMemory } from '../memory-setup.js';
 import { kbIndexName } from '../../lib/resource.js';
 import { DEFAULT_RAG_CONFIG } from '../../config.js';
 import type { AgentDetail } from '../../services/agent/types.js';
+import { rewriteQuery } from '../../memory/query-rewrite.js';
+import { rerank } from '../../memory/reranker.js';
 
 /**
  * 为指定 Agent 创建 RAG 知识库检索工具。
@@ -44,9 +46,8 @@ export async function createRagSearchTool(agent: AgentDetail): Promise<any> {
       let queries = [query];
       if (cfg.query_rewrite.enabled) {
         try {
-          const { rewriteQuery } = await import('../../memory/query-rewrite.js');
           queries = await rewriteQuery(query);
-        } catch { /* 未安装依赖或模块不存在时静默降级 */ }
+        } catch { /* 允许静默降级 */ }
       }
 
       // 对每个 rewrite 执行向量搜索，合并结果
@@ -93,7 +94,6 @@ export async function createRagSearchTool(agent: AgentDetail): Promise<any> {
       // Rerank
       if (cfg.rerank.enabled && results.length > 1) {
         try {
-          const { rerank } = await import('../../memory/reranker.js');
           results = await rerank(query, results, cfg.rerank.model);
         } catch { /* rerank 失败静默降级 */ }
       }

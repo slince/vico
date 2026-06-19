@@ -7,6 +7,9 @@ import { storageManager } from '../services/knowledge/storage-manager.js';
 import { ragManager } from '../memory/rag.js';
 import { getVector } from '../agent/memory-setup.js';
 import { kbIndexName } from '../lib/resource.js';
+import { getClient } from '../db/init-libsql.js';
+import { getDb, schema } from '../db/db.js';
+import { eq, sql } from 'drizzle-orm';
 
 export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   // ── 知识库 CRUD ──
@@ -140,7 +143,6 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     const docId = c.req.query('document_id');
     const limit = Math.min(parseInt(c.req.query('limit') || '50'), 100);
 
-    const { getClient } = await import('../db/init-libsql.js');
     const client = getClient();
     const tableName = kbIndexName(kbId);
 
@@ -182,10 +184,8 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
       ids: [chunkId],
     });
 
-    const { getDb } = await import('../db/db.js');
-    const { knowledge_bases } = (await import('../db/db.js')).schema;
     const db = getDb();
-    const { eq, sql } = await import('drizzle-orm');
+    const { knowledge_bases } = schema;
     await db.update(knowledge_bases)
       .set({ chunk_count: sql`MAX(0, ${knowledge_bases.chunk_count} - 1)` })
       .where(eq(knowledge_bases.id, kbId));

@@ -13,6 +13,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { prepareAgentContext } from '../agent.factory.js';
 import { eq } from 'drizzle-orm';
 import { getDb } from '../../db/db.js';
 import { eval_runs, eval_case_results } from '../../db/schema.js';
@@ -108,9 +109,7 @@ async function executeEvalRun(
 
   const requestContext = new RequestContext();
 
-  // 动态导入避免循环依赖（mastra → agent factory → runner → mastra）
-  const { prepareAgentContext } = await import('../agent.factory.js');
-
+  // 静态导入 — prepareAgentContext 已移至顶部 import
   for (const tc of cases) {
     try {
       // 1. 调用 Agent 获取回复
