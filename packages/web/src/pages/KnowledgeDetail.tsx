@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Database, Trash2 } from 'lucide-react';
+import { ArrowLeft, Database, FilePlus, FileText, Trash2 } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -24,12 +24,36 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent,
   AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog, DialogTrigger, DialogContent,
+  DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
+} from '@/components/ui/table';
+
+// ---------- 类型 ----------
 
 /** 文档块数据结构 */
-interface Chunk {
+interface ChunkItem {
   id: string;
   content: string;
-  metadata: string | null;
+  metadata: string;
+}
+
+/** 知识库中的文档 */
+interface DocumentItem {
+  id: string;
+  filename: string;
+  file_type: string;
+  file_size: number;
+  chunk_count: number;
+  status: string;
+  source: string;
+  created_at: number;
 }
 
 /** 知识库详情数据结构 */
@@ -39,45 +63,149 @@ interface KnowledgeBaseDetail {
   description: string | null;
   source: string;
   chunk_count: number;
-  chunks: Chunk[];
+  documents: DocumentItem[];
+}
+
+// ---------- 工具函数 ----------
+
+/** 将字节数转换为可读的文件大小 */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** 根据文档状态返回 Badge 的 variant 和样式类名 */
+function getStatusBadgeProps(status: string): { variant: 'destructive' | 'secondary'; className: string } {
+  switch (status) {
+    case 'ready':
+      return { variant: 'secondary', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' };
+    case 'indexing':
+    case 'parsing':
+      return { variant: 'secondary', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
+    case 'error':
+      return { variant: 'destructive', className: '' };
+    case 'pending':
+    default:
+      return { variant: 'secondary', className: '' };
+  }
+}
+
+/** 文档状态的中英文本地化标签 */
+function getStatusLabel(status: string, lang: string): string {
+  const isZh = lang.startsWith('zh');
+  switch (status) {
+    case 'ready': return isZh ? '就绪' : 'Ready';
+    case 'indexing': return isZh ? '索引中' : 'Indexing';
+    case 'parsing': return isZh ? '解析中' : 'Parsing';
+    case 'error': return isZh ? '错误' : 'Error';
+    case 'pending': return isZh ? '等待中' : 'Pending';
+    default: return status;
+  }
+}
+
+/** 表格列头的中英文本地化标签（这些 key 尚未加入 i18n） */
+function useColumnLabels() {
+  const { i18n } = useTranslation('knowledge');
+  const isZh = i18n.language.startsWith('zh');
+  return {
+    type: isZh ? '类型' : 'Type',
+    size: isZh ? '大小' : 'Size',
+    status: isZh ? '状态' : 'Status',
+    chunks: isZh ? '分块数' : 'Chunks',
+    actions: isZh ? '操作' : 'Actions',
+  } as const;
 }
 
 /**
  * 知识库详情页面
- * 展示知识库元信息及其包含的所有文档块列表
+ * 通过 Tab 切换查看知识库概览、文档列表和分块列表
  */
 export default function KnowledgeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { t } = useTranslation('knowledge');
+  const { t, i18n } = useTranslation('knowledge');
+  const colLabels = useColumnLabels();
 
+  // ---------- 状态 ----------
   const [deleteChunkId, setDeleteChunkId] = useState<string | null>(null);
+  const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
+  const [newDocOpen, setNewDocOpen] = useState(false);
+  const [newDocName, setNewDocName] = useState('');
+  const [newDocContent, setNewDocContent] = useState('');
 
-  const { data: kb, isLoading } = useQuery<KnowledgeBaseDetail>({
+  // ---------- 数据获取 ----------
+
+  /** 知识库详情 */
+  const { data: kb, isLoading: kbLoading } = useQuery<KnowledgeBaseDetail>({
     queryKey: ['knowledge-base', id],
     queryFn: () => api(`/knowledge-bases/${id}`),
     enabled: !!id,
   });
 
+  /** 所有分块 */
+  const { data: chunks = [], isLoading: chunksLoading } = useQuery<ChunkItem[]>({
+    queryKey: ['knowledge-base', id, 'chunks'],
+    queryFn: () => api(`/knowledge-bases/${id}/chunks`),
+    enabled: !!id,
+  });
+
+  // ---------- 操作 ----------
+
+  /** 删除分块 */
   const deleteChunkMutation = useMutation({
     mutationFn: (chunkId: string) =>
       api(`/knowledge-bases/${id}/chunks/${chunkId}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id, 'chunks'] });
       setDeleteChunkId(null);
     },
   });
+
+  /** 删除文档 */
+  const deleteDocMutation = useMutation({
+    mutationFn: (docId: string) =>
+      api(`/knowledge-bases/${id}/documents/${docId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
+      setDeleteDocId(null);
+    },
+  });
+
+  /** 手动创建文档 */
+  const createDocMutation = useMutation({
+    mutationFn: (data: { content: string; filename: string }) =>
+      api(`/knowledge-bases/${id}/documents`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
+      setNewDocOpen(false);
+      setNewDocName('');
+      setNewDocContent('');
+    },
+  });
+
+  // ---------- 事件处理 ----------
 
   const handleBack = useCallback(() => {
     navigate('/knowledge');
   }, [navigate]);
 
-  const handleDeleteConfirm = useCallback(() => {
+  const handleDeleteChunkConfirm = useCallback(() => {
     if (deleteChunkId) {
       deleteChunkMutation.mutate(deleteChunkId);
     }
   }, [deleteChunkId, deleteChunkMutation]);
+
+  const handleDeleteDocConfirm = useCallback(() => {
+    if (deleteDocId) {
+      deleteDocMutation.mutate(deleteDocId);
+    }
+  }, [deleteDocId, deleteDocMutation]);
 
   /** 安全解析文件名 */
   const parseFilename = useCallback(
@@ -93,8 +221,8 @@ export default function KnowledgeDetail() {
     [t],
   );
 
-  // ---------- 加载态 ----------
-  if (isLoading) {
+  // ==================== 加载态 ====================
+  if (kbLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -105,23 +233,17 @@ export default function KnowledgeDetail() {
           </div>
         </div>
         <Separator />
+        <Skeleton className="h-8 w-64" />
         <div className="space-y-3">
-          <Skeleton className="h-5 w-24" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="py-4">
-                <Skeleton className="h-3 w-32 mb-2" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4 mt-1" />
-              </CardContent>
-            </Card>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
           ))}
         </div>
       </div>
     );
   }
 
-  // ---------- 空/错误态 ----------
+  // ==================== 空/错误态 ====================
   if (!kb) {
     return (
       <Empty>
@@ -135,11 +257,12 @@ export default function KnowledgeDetail() {
     );
   }
 
-  const chunks = kb.chunks || [];
+  const documents = kb.documents || [];
 
-  // ---------- 渲染 ----------
+  // ==================== 渲染 ====================
   return (
     <div className="space-y-6">
+      {/* 头部：返回按钮 + 名称 + 描述 */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="size-5" />
@@ -164,76 +287,265 @@ export default function KnowledgeDetail() {
 
       <Separator />
 
-      <div>
-        <h3 className="font-medium mb-3">{t('chunkListTitle')}</h3>
+      {/* Tab 视图 */}
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">{t('tabOverview')}</TabsTrigger>
+          <TabsTrigger value="documents">{t('tabDocuments')}</TabsTrigger>
+          <TabsTrigger value="chunks">{t('chunkListTitle')}</TabsTrigger>
+        </TabsList>
 
-        {chunks.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-8 text-center">
-            {t('noChunks')}
-          </p>
-        ) : (
-          <ScrollArea className="h-[calc(100vh-280px)]">
-            <div className="space-y-3 pr-4">
-              {chunks.map((chunk) => (
-                <Card key={chunk.id}>
+        {/* ---- 概览 Tab ---- */}
+        <TabsContent value="overview" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('tabOverview')}</CardTitle>
+              <CardDescription>{kb.description || t('noDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">{t('name')}:</span>
+                <span className="font-medium">{kb.name}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">{t('chunkCount', { count: kb.chunk_count })}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">{t('tabDocuments')}:</span>
+                <span className="font-medium">{documents.length}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">{colLabels.status}:</span>
+                <Badge variant="secondary" className="text-xs">
+                  {kb.source === 'skill_resource' ? t('sourceSkill') : t('sourceUpload')}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ---- 文档 Tab ---- */}
+        <TabsContent value="documents" className="mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium">{t('tabDocuments')}</h3>
+            <Dialog open={newDocOpen} onOpenChange={setNewDocOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <FilePlus className="size-4" />
+                  <span className="ml-1.5">{t('newDocument')}</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{t('newDocumentTitle')}</DialogTitle>
+                  <DialogDescription>{t('newDocumentDesc')}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('documentName')}</label>
+                    <Input
+                      placeholder={t('documentNamePlaceholder')}
+                      value={newDocName}
+                      onChange={(e) => setNewDocName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">{t('documentContent')}</label>
+                    <Textarea
+                      className="min-h-[200px]"
+                      placeholder={t('documentContentPlaceholder')}
+                      value={newDocContent}
+                      onChange={(e) => setNewDocContent(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setNewDocOpen(false)}>
+                    {t('common:cancel')}
+                  </Button>
+                  <Button
+                    onClick={() => createDocMutation.mutate({ content: newDocContent, filename: newDocName })}
+                    disabled={!newDocName.trim() || !newDocContent.trim() || createDocMutation.isPending}
+                  >
+                    {createDocMutation.isPending ? t('common:creating') : t('createAndIndex')}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          {documents.length === 0 ? (
+            <Empty>
+              <EmptyMedia variant="icon">
+                <FileText size={24} />
+              </EmptyMedia>
+              <EmptyTitle>{t('noDocuments')}</EmptyTitle>
+            </Empty>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('name')}</TableHead>
+                  <TableHead>{colLabels.type}</TableHead>
+                  <TableHead>{colLabels.size}</TableHead>
+                  <TableHead>{colLabels.status}</TableHead>
+                  <TableHead>{colLabels.chunks}</TableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {documents.map((doc) => {
+                  const badgeProps = getStatusBadgeProps(doc.status);
+                  return (
+                    <TableRow key={doc.id}>
+                      <TableCell className="font-medium max-w-48 truncate">
+                        {doc.filename}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground uppercase text-xs">
+                        {doc.file_type || '-'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatFileSize(doc.file_size)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={badgeProps.variant} className={badgeProps.className}>
+                          {getStatusLabel(doc.status, i18n.language)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {doc.chunk_count}
+                      </TableCell>
+                      <TableCell>
+                        <AlertDialog
+                          open={deleteDocId === doc.id}
+                          onOpenChange={(open) => {
+                            if (!open) setDeleteDocId(null);
+                          }}
+                        >
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteDocId(doc.id)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('deleteDocument')}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {t('confirmDeleteDoc', { name: doc.filename })}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <Button
+                                variant="outline"
+                                onClick={() => setDeleteDocId(null)}
+                              >
+                                {t('common:cancel')}
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={handleDeleteDocConfirm}
+                                disabled={deleteDocMutation.isPending}
+                              >
+                                {deleteDocMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
+                              </Button>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
+
+        {/* ---- 分块 Tab ---- */}
+        <TabsContent value="chunks" className="mt-4">
+          {chunksLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
                   <CardContent className="py-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1.5 font-medium">
-                          {parseFilename(chunk.metadata)}
-                        </p>
-                        <p className="text-sm line-clamp-3 text-foreground/80">
-                          {chunk.content}
-                        </p>
-                      </div>
-                      <AlertDialog
-                        open={deleteChunkId === chunk.id}
-                        onOpenChange={(open) => {
-                          if (!open) setDeleteChunkId(null);
-                        }}
-                      >
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="text-muted-foreground hover:text-destructive shrink-0"
-                            onClick={() => setDeleteChunkId(chunk.id)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t('deleteChunkTitle')}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {t('deleteChunkDesc')}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <Button
-                              variant="outline"
-                              onClick={() => setDeleteChunkId(null)}
-                            >
-                              {t('common:cancel')}
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              onClick={handleDeleteConfirm}
-                              disabled={deleteChunkMutation.isPending}
-                            >
-                              {deleteChunkMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
-                            </Button>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                    <Skeleton className="h-3 w-32 mb-2" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4 mt-1" />
                   </CardContent>
                 </Card>
               ))}
             </div>
-          </ScrollArea>
-        )}
-      </div>
+          ) : chunks.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              {t('noChunks')}
+            </p>
+          ) : (
+            <ScrollArea className="h-[calc(100vh-320px)]">
+              <div className="space-y-3 pr-4">
+                {chunks.map((chunk) => (
+                  <Card key={chunk.id}>
+                    <CardContent className="py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground mb-1.5 font-medium">
+                            {parseFilename(chunk.metadata)}
+                          </p>
+                          <p className="text-sm line-clamp-3 text-foreground/80">
+                            {chunk.content}
+                          </p>
+                        </div>
+                        <AlertDialog
+                          open={deleteChunkId === chunk.id}
+                          onOpenChange={(open) => {
+                            if (!open) setDeleteChunkId(null);
+                          }}
+                        >
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-xs"
+                              className="text-muted-foreground hover:text-destructive shrink-0"
+                              onClick={() => setDeleteChunkId(chunk.id)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('deleteChunkTitle')}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {t('deleteChunkDesc')}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <Button
+                                variant="outline"
+                                onClick={() => setDeleteChunkId(null)}
+                              >
+                                {t('common:cancel')}
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={handleDeleteChunkConfirm}
+                                disabled={deleteChunkMutation.isPending}
+                              >
+                                {deleteChunkMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
+                              </Button>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -70,6 +70,30 @@ export const knowledge_bases = sqliteTable('knowledge_bases', {
 
 // chunks 表已移除 — 被 Mastra LibSQLVector 接管
 
+/** 文档表 — 知识库中单个文件/URL/手动创建的文档记录 */
+export const documents = sqliteTable('documents', {
+  id: text('id').primaryKey(),
+  tenant_id: text('tenant_id').notNull().references(() => organization.id),
+  kb_id: text('kb_id').notNull().references(() => knowledge_bases.id, { onDelete: 'cascade' }),
+  filename: text('filename').notNull(),
+  file_type: text('file_type').notNull(),         // 'txt'|'md'|'pdf'|'docx'|'csv'|'html'|'url'|'manual'
+  file_size: integer('file_size').notNull().default(0),
+  file_hash: text('file_hash'),                    // SHA256，用于去重
+  chunk_count: integer('chunk_count').notNull().default(0),
+  status: text('status').notNull().default('pending'), // pending|parsing|indexing|ready|error
+  error_msg: text('error_msg'),
+  tags: text('tags').notNull().default('[]'),       // JSON 数组
+  source: text('source').notNull().default('upload'), // upload|url|manual
+  source_url: text('source_url'),
+  metadata: text('metadata').notNull().default('{}'),
+  created_at: integer('created_at').notNull(),
+  updated_at: integer('updated_at').notNull(),
+}, (table) => ({
+  kbIdx: index('idx_documents_kb_id').on(table.kb_id),
+  tenantIdx: index('idx_documents_tenant').on(table.tenant_id),
+  kbFileUnq: unique('uq_documents_kb_file').on(table.kb_id, table.file_hash),
+}));
+
 /** Agent ↔ 知识库绑定关联表 */
 export const agent_knowledge_bases = sqliteTable('agent_knowledge_bases', {
   agent_id: text('agent_id').notNull().references(() => agents.id),

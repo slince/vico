@@ -51,6 +51,15 @@ interface AppConfig {
   };
 }
 
+/** RAG 全局配置类型 */
+interface RagConfig {
+  chunk: { size: number; overlap: number; strategy: 'recursive' | 'semantic' | 'heading' };
+  retrieval: { top_k: number; similarity_threshold: number };
+  rerank: { enabled: boolean; model: string };
+  no_match: { strategy: 'free_answer' | 'fallback' | 'reject'; fallback_message: string };
+  query_rewrite: { enabled: boolean };
+}
+
 function loadConfig(): AppConfig {
   const configPath = process.env.CONFIG_PATH || resolve(__dirname, '../server.config.yaml');
   const defaultConfig: AppConfig = {
@@ -88,4 +97,27 @@ function loadConfig(): AppConfig {
 }
 
 export const config = loadConfig();
-export type { AppConfig };
+
+/** RAG 全局默认配置（从 config.rag 读取，可通过 server.config.yaml 覆盖） */
+export const DEFAULT_RAG_CONFIG: RagConfig = {
+  chunk: {
+    size: config.rag.chunk_size,
+    overlap: config.rag.chunk_overlap,
+    strategy: 'recursive',
+  },
+  retrieval: {
+    top_k: config.rag.retrieval_top_k,
+    similarity_threshold: 0.7,
+  },
+  rerank: {
+    enabled: false,
+    model: 'Xenova/bge-reranker-base',
+  },
+  no_match: {
+    strategy: 'free_answer',
+    fallback_message: '抱歉，未找到相关知识。',
+  },
+  query_rewrite: { enabled: false },
+};
+
+export type { AppConfig, RagConfig };

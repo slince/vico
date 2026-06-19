@@ -2,16 +2,20 @@ import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { knowledgeManager } from '../services/knowledge/knowledge-manager.js';
+import { documentManager } from '../services/knowledge/document-manager.js';
+import { ragManager } from '../memory/rag.js';
+import { getVector } from '../agent/memory-setup.js';
+import { kbIndexName } from '../lib/resource.js';
 
 export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
-  /** GET /api/v1/knowledge-bases — 知识库列表 */
+  // ── 知识库 CRUD ──
+
   app.get('/api/v1/knowledge-bases', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     return c.json(await knowledgeManager.list(auth.tenantId));
   });
 
-  /** POST /api/v1/knowledge-bases — 创建知识库 */
   app.post('/api/v1/knowledge-bases', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
@@ -19,17 +23,15 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     return c.json({ id: kb.id, message: 'created' });
   });
 
-  /** GET /api/v1/knowledge-bases/:id — 知识库详情 */
   app.get('/api/v1/knowledge-bases/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const kb = await knowledgeManager.getById(auth.tenantId, c.req.param('id'));
     if (!kb) return c.json({ error: 'Not found' }, 404);
-    // chunks table removed — data is now in LibSQLVector
-    return c.json({ ...kb, chunks: [] });
+    const docs = await documentManager.listByKb(auth.tenantId, kb.id);
+    return c.json({ ...kb, documents: docs });
   });
 
-  /** DELETE /api/v1/knowledge-bases/:id — 删除知识库 */
   app.delete('/api/v1/knowledge-bases/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
@@ -37,32 +39,174 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     return c.json({ message: 'deleted' });
   });
 
-  /** POST /api/v1/knowledge-bases/:id/upload — 上传文件并索引 */
+  // ── 文档管理 ──
+
+  app.get('/api/v1/knowledge-bases/:id/documents', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    return c.json(await documentManager.listByKb(auth.tenantId, c.req.param('id')));
+  });
+
+  app.get('/api/v1/knowledge-bases/:id/documents/:docId', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const doc = await documentManager.getById(auth.tenantId, c.req.param('docId'));
+    if (!doc) return c.json({ error: 'Not found' }, 404);
+    return c.json(doc);
+  });
+
+  app.delete('/api/v1/knowledge-bases/:id/documents/:docId', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const kbId = c.req.param('id');
+    const docId = c.req.param('docId');
+    await ragManager.deleteDocumentChunks(kbId, docId);
+    await documentManager.remove(auth.tenantId, docId);
+    return c.json({ message: 'deleted' });
+  });
+
+  app.post('/api/v1/knowledge-bases/:id/documents/:docId/reindex', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    return c.json({ message: 'Reindex not yet implemented for LibSQLVector-stored documents' }, 501);
+  });
+
+  app.patch('/api/v1/knowledge-bases/:id/documents/:docId', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const docId = c.req.param('docId');
+    const body = await c.req.json();
+    await documentManager.updateMeta(auth.tenantId, docId, body);
+    return c.json({ message: 'updated' });
+  });
+
+  // ── Chunk 管理 ──
+
+  app.get('/api/v1/knowledge-bases/:id/chunks', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const kbId = c.req.param('id');
+    const docId = c.req.query('document_id');
+    const limit = Math.min(parseInt(c.req.query('limit') || '50'), 100);
+
+    const { getClient } = await import('../db/init-libsql.js');
+    const client = getClient();
+    const tableName = `mastra_vector_${kbIndexName(kbId)}`;
+
+    try {
+      let sql = `SELECT id, metadata FROM ${tableName}`;
+      const args: string[] = [];
+      if (docId) {
+        sql += ` WHERE json_extract(metadata, '$.document_id') = ?`;
+        args.push(docId);
+      }
+      sql += ` LIMIT ?`;
+      args.push(String(limit));
+
+      const { rows } = await client.execute({ sql, args });
+      const chunks = rows.map((r: any) => {
+        let metadata: any = {};
+        try { metadata = JSON.parse(r.metadata as string); } catch {}
+        return {
+          id: r.id,
+          content: metadata.content || '',
+          metadata: r.metadata,
+        };
+      });
+      return c.json(chunks);
+    } catch {
+      return c.json([]);
+    }
+  });
+
+  app.delete('/api/v1/knowledge-bases/:id/chunks/:chunkId', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const vector = getVector();
+    const kbId = c.req.param('id');
+    const chunkId = c.req.param('chunkId');
+
+    await vector.deleteVectors({
+      indexName: kbIndexName(kbId),
+      ids: [chunkId],
+    });
+
+    const { getDb } = await import('../db/db.js');
+    const { knowledge_bases } = (await import('../db/db.js')).schema;
+    const db = getDb();
+    const { eq, sql } = await import('drizzle-orm');
+    await db.update(knowledge_bases)
+      .set({ chunk_count: sql`MAX(0, ${knowledge_bases.chunk_count} - 1)` })
+      .where(eq(knowledge_bases.id, kbId));
+
+    return c.json({ message: 'deleted' });
+  });
+
+  // ── URL 导入 ──
+
+  app.post('/api/v1/knowledge-bases/:id/import-url', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const { url } = await c.req.json();
+    if (!url) return c.json({ error: 'url is required' }, 400);
+    try {
+      const result = await knowledgeManager.importUrl(auth.tenantId, c.req.param('id'), url);
+      return c.json({ message: 'imported', ...result });
+    } catch (e: any) {
+      return c.json({ error: e.message }, 400);
+    }
+  });
+
+  // ── 手动文档创建 ──
+
+  app.post('/api/v1/knowledge-bases/:id/documents', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const { content, filename } = await c.req.json();
+    if (!content || !filename) return c.json({ error: 'content and filename required' }, 400);
+
+    const doc = await documentManager.create({
+      tenantId: auth.tenantId,
+      kbId: c.req.param('id'),
+      filename: `${filename}.md`,
+      fileType: 'text/markdown',
+      fileSize: Buffer.byteLength(content, 'utf-8'),
+      source: 'manual',
+    });
+
+    try {
+      await documentManager.updateStatus(auth.tenantId, doc.id, 'indexing');
+      const count = await ragManager.indexText(c.req.param('id'), content, { filename: `${filename}.md`, source: 'manual' }, doc.id);
+      await documentManager.updateChunkCount(auth.tenantId, doc.id, count);
+      await documentManager.updateStatus(auth.tenantId, doc.id, 'ready');
+      return c.json({ id: doc.id, chunk_count: count });
+    } catch (err: any) {
+      await documentManager.updateStatus(auth.tenantId, doc.id, 'error', err.message);
+      throw err;
+    }
+  });
+
+  // ── 文件上传 ──
+
   app.post('/api/v1/knowledge-bases/:id/upload', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     try {
-      const { chunkCount } = await knowledgeManager.uploadFile(
+      const result = await knowledgeManager.uploadFile(
         auth.tenantId,
         c.req.param('id'),
         await c.req.formData(),
       );
-      return c.json({ message: 'indexed', chunk_count: chunkCount });
+      return c.json({ message: 'indexed', chunk_count: result.chunkCount, document_id: result.documentId });
     } catch (e: any) {
       const msg = e.message;
       if (msg === 'Knowledge base not found') return c.json({ error: 'Not found' }, 404);
       if (msg.startsWith('File too large')) return c.json({ error: msg }, 413);
+      if (msg.startsWith('Duplicate file')) return c.json({ error: msg }, 409);
       if (['No file uploaded', 'Invalid filename', 'Unsupported file type', 'File content does not match declared type'].some((m) => msg.includes(m))) {
         return c.json({ error: msg }, 400);
       }
       throw e;
     }
-  });
-
-  /** DELETE /api/v1/knowledge-bases/:id/chunks/:chunkId — 删除分块（暂未实现） */
-  app.delete('/api/v1/knowledge-bases/:id/chunks/:chunkId', async (c) => {
-    const auth = await getAuthContext(c);
-    if (auth instanceof Response) return auth;
-    return c.json({ message: 'Chunk deletion via LibSQLVector not yet implemented.' }, 501);
   });
 }

@@ -50,6 +50,13 @@
       "when": 1782864000000,
       "tag": "0006_add_kb_id",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1750900000000,
+      "tag": "0007_add_documents_table",
+      "breakpoints": true
     }
   ]
 }

@@ -30,5 +30,13 @@
   "noDocuments": "暂无文档",
   "chunkCount": "{{count}} 个文档块",
   "deleteDocument": "删除文档",
-  "confirmDeleteDoc": "确定要删除文档「{{name}}」吗？"
+  "confirmDeleteDoc": "确定要删除文档「{{name}}」吗？",
+  "newDocument": "新建文档",
+  "newDocumentTitle": "新建文档",
+  "newDocumentDesc": "创建一个 Markdown 文档并索引到知识库",
+  "documentName": "文档名称",
+  "documentNamePlaceholder": "输入文档名称（不含扩展名）",
+  "documentContent": "内容 (Markdown)",
+  "documentContentPlaceholder": "输入 Markdown 内容...",
+  "createAndIndex": "创建并索引"
 }

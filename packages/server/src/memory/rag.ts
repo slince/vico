@@ -1,8 +1,8 @@
 import { v4 as uuid } from 'uuid';
-import { readFileSync, statSync, readdirSync } from 'node:fs';
+import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { MDocument } from '@mastra/rag';
-import { config } from '../config.js';
+import { config, DEFAULT_RAG_CONFIG } from '../config.js';
 import { getVector, getMemory } from '../agent/memory-setup.js';
 import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
@@ -21,17 +21,18 @@ class RAGManager {
    * @param metadata - 附加元数据
    * @returns 索引的分块数量
    */
-  async indexText(kbId: string, text: string, metadata: Record<string, any> = {}): Promise<number> {
+  async indexText(kbId: string, text: string, metadata: Record<string, any> = {}, documentId?: string): Promise<number> {
     const vector = getVector();
     const memory = await getMemory();
     if (!memory.embedder) throw new Error('Embedder not configured');
 
-    // MDocument 分块，recursive 策略（段落 → 空格 → 字符）
+    // MDocument 分块，策略和大小由 DEFAULT_RAG_CONFIG 控制
+    const kbConfig = DEFAULT_RAG_CONFIG;
     const doc = MDocument.fromText(text);
     const chunks = await doc.chunk({
-      strategy: 'recursive',
-      maxSize: config.rag.chunk_size,
-      overlap: config.rag.chunk_overlap,
+      strategy: kbConfig.chunk.strategy as 'recursive',
+      maxSize: kbConfig.chunk.size,
+      overlap: kbConfig.chunk.overlap,
     });
 
     const chunkTexts = chunks.map((c) => c.text);
@@ -60,7 +61,12 @@ class RAGManager {
       indexName,
       vectors: embedResult.embeddings,
       ids: chunkIds,
-      metadata: chunkTexts.map((c, i) => ({ content: c, chunk_index: i, ...metadata })),
+      metadata: chunkTexts.map((c, i) => ({
+        content: c,
+        chunk_index: i,
+        document_id: documentId ?? null,
+        ...metadata,
+      })),
     });
 
     // 更新知识库分块计数
@@ -74,29 +80,27 @@ class RAGManager {
     return chunkTexts.length;
   }
 
-  /** 索引单个文件，自动识别类型（txt/md/pdf/csv）并提取文本 */
-  async indexFile(kbId: string, filePath: string): Promise<number> {
-    let text: string;
-    const ext = basename(filePath).toLowerCase();
+  /** 索引单个文件，通过 ParserRegistry 自动识别类型并提取文本 */
+  async indexFile(kbId: string, filePath: string, documentId?: string): Promise<number> {
+    // 确保解析器已注册（副作用导入）
+    await import('./parsers/registry.js');
+    await import('./parsers/txt-parser.js');
+    await import('./parsers/md-parser.js');
+    await import('./parsers/pdf-parser.js');
+    await import('./parsers/csv-parser.js');
+    await import('./parsers/html-parser.js');
+    await import('./parsers/docx-parser.js');
 
-    if (ext.endsWith('.md') || ext.endsWith('.txt')) {
-      text = readFileSync(filePath, 'utf-8');
-    } else if (ext.endsWith('.pdf')) {
-      try {
-        const pdfParse = (await import('pdf-parse')).default;
-        const buf = readFileSync(filePath);
-        const data = await pdfParse(buf);
-        text = data.text;
-      } catch (err) {
-        throw new Error(`PDF parsing failed: ${err}`);
-      }
-    } else if (ext.endsWith('.csv')) {
-      text = readFileSync(filePath, 'utf-8');
-    } else {
-      throw new Error(`Unsupported file type: ${ext}`);
-    }
+    const { parserRegistry } = await import('./parsers/registry.js');
+    const parser = parserRegistry.findParser(filePath);
+    if (!parser) throw new Error(`Unsupported file type: ${filePath}`);
 
-    return this.indexText(kbId, text, { filename: basename(filePath), source: filePath });
+    const result = await parser.parse(filePath);
+    return this.indexText(kbId, result.text, {
+      filename: basename(filePath),
+      source: filePath,
+      ...result.metadata,
+    }, documentId);
   }
 
   /** 索引目录中所有文件 */
@@ -115,6 +119,35 @@ class RAGManager {
       }
     }
     return total;
+  }
+
+  /** 删除指定文档的所有向量 chunks，更新计数 */
+  async deleteDocumentChunks(kbId: string, documentId: string): Promise<number> {
+    const vector = getVector();
+    const indexName = kbIndexName(kbId);
+
+    const { getClient } = await import('../db/init-libsql.js');
+    const client = getClient();
+
+    const tableName = `mastra_vector_${indexName}`;
+    const { rows } = await client.execute({
+      sql: `SELECT id FROM ${tableName} WHERE json_extract(metadata, '$.document_id') = ?`,
+      args: [documentId],
+    });
+
+    const ids = rows.map((r: any) => r.id as string);
+    if (ids.length === 0) return 0;
+
+    await vector.deleteVectors({ indexName, ids });
+
+    // 更新 KB 计数
+    const db = getDb();
+    const { knowledge_bases } = schema;
+    await db.update(knowledge_bases)
+      .set({ chunk_count: sql`MAX(0, ${knowledge_bases.chunk_count} - ${ids.length})` })
+      .where(eq(knowledge_bases.id, kbId));
+
+    return ids.length;
   }
 }
 

@@ -30,5 +30,13 @@
   "noDocuments": "暫無文件",
   "chunkCount": "{{count}} 個文件區塊",
   "deleteDocument": "刪除文件",
-  "confirmDeleteDoc": "確定要刪除文件「{{name}}」嗎？"
+  "confirmDeleteDoc": "確定要刪除文件「{{name}}」嗎？",
+  "newDocument": "新增文件",
+  "newDocumentTitle": "新增文件",
+  "newDocumentDesc": "建立一個 Markdown 文件並索引到知識庫",
+  "documentName": "文件名稱",
+  "documentNamePlaceholder": "輸入文件名稱（不含副檔名）",
+  "documentContent": "內容 (Markdown)",
+  "documentContentPlaceholder": "輸入 Markdown 內容...",
+  "createAndIndex": "建立並索引"
 }

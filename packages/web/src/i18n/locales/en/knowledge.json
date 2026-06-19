@@ -30,5 +30,13 @@
   "noDocuments": "No documents",
   "chunkCount": "{{count}} chunk(s)",
   "deleteDocument": "Delete Document",
-  "confirmDeleteDoc": "Are you sure you want to delete \"{{name}}\"?"
+  "confirmDeleteDoc": "Are you sure you want to delete \"{{name}}\"?",
+  "newDocument": "New Document",
+  "newDocumentTitle": "New Document",
+  "newDocumentDesc": "Create a Markdown document and index it into the knowledge base",
+  "documentName": "Document Name",
+  "documentNamePlaceholder": "Enter document name (without extension)",
+  "documentContent": "Content (Markdown)",
+  "documentContentPlaceholder": "Enter Markdown content...",
+  "createAndIndex": "Create & Index"
 }

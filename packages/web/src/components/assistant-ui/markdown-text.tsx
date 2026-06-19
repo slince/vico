@@ -15,11 +15,12 @@ import { useTranslation } from "react-i18next";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
+import remarkCitation from "@/lib/remark-citation";
 
 const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkCitation]}
       className="aui-md"
       components={defaultComponents}
       defer

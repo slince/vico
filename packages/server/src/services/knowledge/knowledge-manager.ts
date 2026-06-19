@@ -1,10 +1,12 @@
 import { eq, and, desc, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
+import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { extname } from 'node:path';
 import { getDb, schema } from '../../db/db.js';
 import { ragManager } from '../../memory/rag.js';
 import { config } from '../../config.js';
+import { documentManager } from './document-manager.js';
 import {
   createKbSchema,
   type CreateKbInput,
@@ -97,9 +99,9 @@ class KnowledgeManager {
 
   /**
    * 上传文件到知识库并触发索引。
-   * 包含文件大小校验、MIME 白名单、magic bytes 校验。
+   * 包含文件大小校验、MIME 白名单、magic bytes 校验、SHA256 去重。
    */
-  async uploadFile(tenantId: string, kbId: string, formData: FormData): Promise<{ chunkCount: number }> {
+  async uploadFile(tenantId: string, kbId: string, formData: FormData): Promise<{ chunkCount: number; documentId: string }> {
     const db = getDb();
 
     const kb = await db.select().from(knowledge_bases)
@@ -120,11 +122,9 @@ class KnowledgeManager {
       throw new Error(`File too large (max ${limitMB}MB)`);
     }
 
-    // 文件名消毒
     const safeName = sanitizeFilename(file.name);
     if (!safeName) throw new Error('Invalid filename');
 
-    // MIME type 白名单
     const ext = extname(safeName).toLowerCase();
     const declaredType = file.type || EXT_TO_MIME[ext] || 'application/octet-stream';
     if (!config.upload.allowed_mime_types.includes(declaredType)) {
@@ -147,14 +147,84 @@ class KnowledgeManager {
       }
     }
 
+    // SHA256 去重检查
+    const fileHash = createHash('sha256').update(buf).digest('hex');
+    const existing = await documentManager.findByHash(tenantId, kbId, fileHash);
+    if (existing) {
+      try { unlinkSync(tmpPath); } catch {}
+      throw new Error(`Duplicate file: ${existing.filename} already indexed as document ${existing.id}`);
+    }
+
+    // 创建文档记录
+    const doc = await documentManager.create({
+      tenantId, kbId,
+      filename: safeName,
+      fileType: declaredType,
+      fileSize: file.size,
+      fileHash,
+      source: 'upload',
+    });
+
     try {
-      const count = await ragManager.indexFile(kbId, tmpPath);
+      await documentManager.updateStatus(tenantId, doc.id, 'indexing');
+      const count = await ragManager.indexFile(kbId, tmpPath, doc.id);
       unlinkSync(tmpPath);
-      return { chunkCount: count };
+      await documentManager.updateChunkCount(tenantId, doc.id, count);
+      await documentManager.updateStatus(tenantId, doc.id, 'ready');
+      return { chunkCount: count, documentId: doc.id };
     } catch (err) {
       try { unlinkSync(tmpPath); } catch {}
       const message = err instanceof Error ? err.message : 'Unknown error';
+      await documentManager.updateStatus(tenantId, doc.id, 'error', message);
       throw new Error(message);
+    }
+  }
+
+  /** 从 URL 导入网页内容到知识库 */
+  async importUrl(tenantId: string, kbId: string, url: string): Promise<{ chunkCount: number; documentId: string }> {
+    const db = getDb();
+    const kb = await db.select().from(knowledge_bases)
+      .where(and(eq(knowledge_bases.id, kbId), eq(knowledge_bases.tenant_id, tenantId)))
+      .get();
+    if (!kb) throw new Error('Knowledge base not found');
+
+    // 抓取网页
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch URL: ${response.status}`);
+    const html = await response.text();
+
+    // HTML → text
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s{2,}/g, '\n')
+      .trim();
+
+    // 生成文件名
+    const urlObj = new URL(url);
+    const filename = `${urlObj.hostname}${urlObj.pathname.replace(/\//g, '_')}`.slice(0, 200) + '.html';
+
+    // 创建文档记录
+    const doc = await documentManager.create({
+      tenantId, kbId, filename,
+      fileType: 'text/html',
+      fileSize: html.length,
+      source: 'url',
+      sourceUrl: url,
+    });
+
+    try {
+      await documentManager.updateStatus(tenantId, doc.id, 'indexing');
+      const count = await ragManager.indexText(kbId, text, { filename, source: url }, doc.id);
+      await documentManager.updateChunkCount(tenantId, doc.id, count);
+      await documentManager.updateStatus(tenantId, doc.id, 'ready');
+      return { chunkCount: count, documentId: doc.id };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      await documentManager.updateStatus(tenantId, doc.id, 'error', message);
+      throw err;
     }
   }
 }
