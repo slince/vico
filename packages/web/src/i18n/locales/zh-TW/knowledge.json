@@ -48,6 +48,7 @@
   "folderType": "目錄",
   "deleteFolder": "刪除目錄",
   "confirmDeleteFolder": "確定要刪除目錄「{{name}}」嗎？",
+  "rootFolder": "根目錄",
   "prevPage": "上一頁",
   "nextPage": "下一頁",
   "statusReady": "就緒",

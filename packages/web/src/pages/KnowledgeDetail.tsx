@@ -1,5 +1,5 @@
 // 1. React
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // 2. Third-party
 import { useTranslation } from 'react-i18next';
@@ -29,7 +29,7 @@ import { DocumentGrid, DocumentGridSkeleton, DocumentGridEmpty } from './knowled
 
 // 6. 类型
 import type { DocumentItem, KnowledgeBaseDetail, PaginatedDocuments } from './knowledge-detail/types';
-import { getDirectoryName, isDirectory } from './knowledge-detail/types';
+import { isDirectory } from './knowledge-detail/types';
 
 /**
  * 知识库详情页面
@@ -38,8 +38,12 @@ import { getDirectoryName, isDirectory } from './knowledge-detail/types';
 export default function KnowledgeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { t } = useTranslation('knowledge');
+
+  // 当前目录路径（来自 URL 查询参数）
+  const currentPath = searchParams.get('path') || '';
 
   // ---------- 状态 ----------
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
@@ -51,6 +55,27 @@ export default function KnowledgeDetail() {
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedDocName, setSelectedDocName] = useState<string>('');
 
+  // 路径变化时重置页码
+  const pathRef = useRef(currentPath);
+  useEffect(() => {
+    if (pathRef.current !== currentPath) {
+      pathRef.current = currentPath;
+      setDocPage(1);
+    }
+  }, [currentPath]);
+
+  /** 面包屑分段 */
+  const breadcrumbs = useMemo(() => {
+    const segments = currentPath.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
+    const items: { label: string; path: string }[] = [];
+    let accumulated = '';
+    for (const seg of segments) {
+      accumulated += `/${seg}/`;
+      items.push({ label: seg, path: accumulated });
+    }
+    return items;
+  }, [currentPath]);
+
   // ---------- 数据获取 ----------
 
   /** 知识库详情 */
@@ -60,10 +85,14 @@ export default function KnowledgeDetail() {
     enabled: !!id,
   });
 
-  /** 文档列表（分页） */
+  /** 文档列表（分页 + 当前目录过滤） */
   const { data: docPageData, isLoading: docsLoading } = useQuery<PaginatedDocuments>({
-    queryKey: ['knowledge-base', id, 'documents', docPage],
-    queryFn: () => api(`/knowledge-bases/${id}/documents?page=${docPage}&page_size=20`),
+    queryKey: ['knowledge-base', id, 'documents', docPage, currentPath],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(docPage), page_size: '20' });
+      if (currentPath) params.set('path', currentPath);
+      return api(`/knowledge-bases/${id}/documents?${params.toString()}`);
+    },
     enabled: !!id,
   });
   const documents = docPageData?.data ?? [];
@@ -106,15 +135,43 @@ export default function KnowledgeDetail() {
   // ---------- 事件处理 ----------
 
   const handleBack = useCallback(() => {
-    navigate('/knowledge');
-  }, [navigate]);
+    if (currentPath) {
+      // 在子目录中：返回上级目录
+      const segments = currentPath.replace(/^\/|\/$/g, '').split('/').filter(Boolean);
+      if (segments.length <= 1) {
+        setSearchParams({});
+      } else {
+        const parentPath = '/' + segments.slice(0, -1).join('/') + '/';
+        setSearchParams({ path: parentPath });
+      }
+    } else {
+      navigate('/knowledge');
+    }
+  }, [currentPath, navigate, setSearchParams]);
 
   const handleDeleteDocConfirm = useCallback(() => {
     if (deleteDocId) deleteDocMutation.mutate(deleteDocId);
   }, [deleteDocId, deleteDocMutation]);
 
+  /** 导航到指定目录 */
+  const handleNavigateToPath = useCallback((path: string) => {
+    setSelectedDocId(null);
+    setSelectedDocName('');
+    setDocPage(1);
+    if (path) {
+      setSearchParams({ path });
+    } else {
+      setSearchParams({});
+    }
+  }, [setSearchParams]);
+
   const handleSelectDoc = useCallback((doc: DocumentItem) => {
-    if (isDirectory(doc) || doc.status !== 'ready') return;
+    if (isDirectory(doc)) {
+      // 目录：进入目录内部
+      handleNavigateToPath(doc.path);
+      return;
+    }
+    if (doc.status !== 'ready') return;
     if (selectedDocId === doc.id) {
       setSelectedDocId(null);
       setSelectedDocName('');
@@ -122,7 +179,7 @@ export default function KnowledgeDetail() {
       setSelectedDocId(doc.id);
       setSelectedDocName(doc.filename);
     }
-  }, [selectedDocId]);
+  }, [selectedDocId, handleNavigateToPath]);
 
   const handleChunkDrawerClose = useCallback((open: boolean) => {
     if (!open) { setSelectedDocId(null); setSelectedDocName(''); }
@@ -197,6 +254,36 @@ export default function KnowledgeDetail() {
       </div>
 
       <Separator />
+
+      {/* 面包屑导航 */}
+      {currentPath && (
+        <nav className="flex items-center gap-1 text-sm text-muted-foreground">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+            onClick={() => handleNavigateToPath('')}
+          >
+            <Home className="size-3.5" />
+            <span>{t('rootFolder')}</span>
+          </button>
+          {breadcrumbs.map((crumb, idx) => (
+            <span key={crumb.path} className="inline-flex items-center gap-1">
+              <ChevronRight className="size-3.5" />
+              {idx === breadcrumbs.length - 1 ? (
+                <span className="font-medium text-foreground">{crumb.label}</span>
+              ) : (
+                <button
+                  type="button"
+                  className="hover:text-foreground transition-colors"
+                  onClick={() => handleNavigateToPath(crumb.path)}
+                >
+                  {crumb.label}
+                </button>
+              )}
+            </span>
+          ))}
+        </nav>
+      )}
 
       {/* 概览弹窗 */}
       <Dialog open={overviewOpen} onOpenChange={setOverviewOpen}>

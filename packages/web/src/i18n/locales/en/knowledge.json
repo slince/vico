@@ -48,6 +48,7 @@
   "folderType": "Folder",
   "deleteFolder": "Delete Folder",
   "confirmDeleteFolder": "Are you sure you want to delete folder \"{{name}}\"?",
+  "rootFolder": "Root",
   "prevPage": "Prev",
   "nextPage": "Next",
   "statusReady": "Ready",
