@@ -94,7 +94,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     const tableName = kbIndexName(kbId);
 
     try {
-      let sql = `SELECT id, metadata FROM ${tableName}`;
+      let sql = `SELECT vector_id, metadata FROM ${tableName}`;
       const args: string[] = [];
       if (docId) {
         sql += ` WHERE json_extract(metadata, '$.document_id') = ?`;
@@ -108,7 +108,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
         let metadata: any = {};
         try { metadata = JSON.parse(r.metadata as string); } catch {}
         return {
-          id: r.id,
+          id: r.vector_id,
           content: metadata.content || '',
           metadata: r.metadata,
         };

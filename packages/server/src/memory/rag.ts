@@ -131,11 +131,11 @@ class RAGManager {
 
     const tableName = indexName;
     const { rows } = await client.execute({
-      sql: `SELECT id FROM ${tableName} WHERE json_extract(metadata, '$.document_id') = ?`,
+      sql: `SELECT vector_id FROM ${tableName} WHERE json_extract(metadata, '$.document_id') = ?`,
       args: [documentId],
     });
 
-    const ids = rows.map((r: any) => r.id as string);
+    const ids = rows.map((r: any) => r.vector_id as string);
     if (ids.length === 0) return 0;
 
     await vector.deleteVectors({ indexName, ids });
