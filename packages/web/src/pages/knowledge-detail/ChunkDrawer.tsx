@@ -27,7 +27,6 @@ interface ChunkDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   t: (key: string, options?: Record<string, unknown>) => string;
-  language: string;
 }
 
 /**
@@ -35,10 +34,9 @@ interface ChunkDrawerProps {
  */
 export function ChunkDrawer({
   kbId, documentId, documentName,
-  open, onOpenChange, t, language,
+  open, onOpenChange, t,
 }: ChunkDrawerProps) {
   const queryClient = useQueryClient();
-  const isZh = language.startsWith('zh');
   const [chunkPage, setChunkPage] = useState(1);
   const [deleteChunkId, setDeleteChunkId] = useState<string | null>(null);
 
@@ -143,7 +141,7 @@ export function ChunkDrawer({
                 disabled={chunkPage <= 1}
                 onClick={() => setChunkPage((p) => Math.max(1, p - 1))}
               >
-                {isZh ? '上一页' : 'Prev'}
+                {t('prevPage')}
               </Button>
               <span className="text-xs px-1">{chunkPage}/{Math.ceil(chunkTotal / chunkPageSize)}</span>
               <Button
@@ -151,7 +149,7 @@ export function ChunkDrawer({
                 disabled={chunks.length < chunkPageSize}
                 onClick={() => setChunkPage((p) => p + 1)}
               >
-                {isZh ? '下一页' : 'Next'}
+                {t('nextPage')}
               </Button>
             </div>
           </div>

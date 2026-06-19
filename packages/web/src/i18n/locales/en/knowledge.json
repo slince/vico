@@ -38,5 +38,17 @@
   "documentNamePlaceholder": "Enter document name (without extension)",
   "documentContent": "Content (Markdown)",
   "documentContentPlaceholder": "Enter Markdown content...",
-  "createAndIndex": "Create & Index"
+  "createAndIndex": "Create & Index",
+  "prevPage": "Prev",
+  "nextPage": "Next",
+  "statusReady": "Ready",
+  "statusIndexing": "Indexing",
+  "statusParsing": "Parsing",
+  "statusError": "Error",
+  "statusPending": "Pending",
+  "colType": "Type",
+  "colSize": "Size",
+  "colStatus": "Status",
+  "colChunks": "Chunks",
+  "colActions": "Actions"
 }

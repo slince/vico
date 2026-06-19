@@ -38,5 +38,17 @@
   "documentNamePlaceholder": "输入文档名称（不含扩展名）",
   "documentContent": "内容 (Markdown)",
   "documentContentPlaceholder": "输入 Markdown 内容...",
-  "createAndIndex": "创建并索引"
+  "createAndIndex": "创建并索引",
+  "prevPage": "上一页",
+  "nextPage": "下一页",
+  "statusReady": "就绪",
+  "statusIndexing": "索引中",
+  "statusParsing": "解析中",
+  "statusError": "错误",
+  "statusPending": "等待中",
+  "colType": "类型",
+  "colSize": "大小",
+  "colStatus": "状态",
+  "colChunks": "分块数",
+  "colActions": "操作"
 }

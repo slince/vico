@@ -61,30 +61,16 @@ function getStatusBadgeProps(status: string): { variant: 'destructive' | 'second
   }
 }
 
-/** 文档状态的中英文本地化标签 */
-function getStatusLabel(status: string, lang: string): string {
-  const isZh = lang.startsWith('zh');
+/** 将文档状态映射为翻译 key */
+function getStatusKey(status: string): string {
   switch (status) {
-    case 'ready': return isZh ? '就绪' : 'Ready';
-    case 'indexing': return isZh ? '索引中' : 'Indexing';
-    case 'parsing': return isZh ? '解析中' : 'Parsing';
-    case 'error': return isZh ? '错误' : 'Error';
-    case 'pending': return isZh ? '等待中' : 'Pending';
+    case 'ready': return 'statusReady';
+    case 'indexing': return 'statusIndexing';
+    case 'parsing': return 'statusParsing';
+    case 'error': return 'statusError';
+    case 'pending': return 'statusPending';
     default: return status;
   }
-}
-
-/** 表格列头的中英文本地化标签 */
-function useColumnLabels() {
-  const { i18n } = useTranslation('knowledge');
-  const isZh = i18n.language.startsWith('zh');
-  return {
-    type: isZh ? '类型' : 'Type',
-    size: isZh ? '大小' : 'Size',
-    status: isZh ? '状态' : 'Status',
-    chunks: isZh ? '分块数' : 'Chunks',
-    actions: isZh ? '操作' : 'Actions',
-  } as const;
 }
 
 /**
@@ -95,8 +81,7 @@ export default function KnowledgeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { t, i18n } = useTranslation('knowledge');
-  const colLabels = useColumnLabels();
+  const { t } = useTranslation('knowledge');
 
   // ---------- 状态 ----------
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
@@ -259,7 +244,7 @@ export default function KnowledgeDetail() {
                 <span className="font-medium">{documents.length}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">{colLabels.status}:</span>
+                <span className="text-muted-foreground">{t('colStatus')}:</span>
                 <Badge variant="secondary" className="text-xs">
                   {kb.source === 'skill_resource' ? t('sourceSkill') : t('sourceUpload')}
                 </Badge>
@@ -303,10 +288,10 @@ export default function KnowledgeDetail() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('name')}</TableHead>
-                  <TableHead>{colLabels.type}</TableHead>
-                  <TableHead>{colLabels.size}</TableHead>
-                  <TableHead>{colLabels.status}</TableHead>
-                  <TableHead>{colLabels.chunks}</TableHead>
+                  <TableHead>{t('colType')}</TableHead>
+                  <TableHead>{t('colSize')}</TableHead>
+                  <TableHead>{t('colStatus')}</TableHead>
+                  <TableHead>{t('colChunks')}</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -331,7 +316,7 @@ export default function KnowledgeDetail() {
                       </TableCell>
                       <TableCell>
                         <Badge variant={badgeProps.variant} className={badgeProps.className}>
-                          {getStatusLabel(doc.status, i18n.language)}
+                          {t(getStatusKey(doc.status))}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
@@ -391,7 +376,7 @@ export default function KnowledgeDetail() {
                   disabled={docPage <= 1}
                   onClick={() => setDocPage((p) => Math.max(1, p - 1))}
                 >
-                  {i18n.language.startsWith('zh') ? '上一页' : 'Prev'}
+                  {t('prevPage')}
                 </Button>
                 <span className="text-sm">{docPage}</span>
                 <Button
@@ -399,7 +384,7 @@ export default function KnowledgeDetail() {
                   disabled={documents.length < 20}
                   onClick={() => setDocPage((p) => p + 1)}
                 >
-                  {i18n.language.startsWith('zh') ? '下一页' : 'Next'}
+                  {t('nextPage')}
                 </Button>
               </div>
             </div>
@@ -415,7 +400,6 @@ export default function KnowledgeDetail() {
         open={!!selectedDocId}
         onOpenChange={handleChunkDrawerClose}
         t={t}
-        language={i18n.language}
       />
     </div>
   );
