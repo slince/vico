@@ -23,65 +23,18 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent,
   AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog, DialogTrigger, DialogContent,
-  DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
-} from '@/components/ui/sheet';
+// 5. 页面子组件
+import { ChunkDrawer } from './knowledge-detail/ChunkDrawer';
+import { CreateDocumentDialog } from './knowledge-detail/CreateDocumentDialog';
 
-// ---------- 类型 ----------
-
-/** 文档块数据结构 */
-interface ChunkItem {
-  id: string;
-  content: string;
-  metadata: string;
-}
-
-/** 知识库中的文档 */
-interface DocumentItem {
-  id: string;
-  filename: string;
-  file_type: string;
-  file_size: number;
-  chunk_count: number;
-  status: string;
-  source: string;
-  created_at: number;
-}
-
-/** 知识库详情数据结构 */
-interface KnowledgeBaseDetail {
-  id: string;
-  name: string;
-  description: string | null;
-  source: string;
-  chunk_count: number;
-}
-
-/** 分页文档列表 */
-interface PaginatedDocuments {
-  data: DocumentItem[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-/** 分页分块列表 */
-interface PaginatedChunks {
-  data: ChunkItem[];
-  total: number;
-  page: number;
-  page_size: number;
-}
+// 6. 类型
+import type {
+  DocumentItem, KnowledgeBaseDetail, PaginatedDocuments,
+} from './knowledge-detail/types';
 
 // ---------- 工具函数 ----------
 
@@ -121,7 +74,7 @@ function getStatusLabel(status: string, lang: string): string {
   }
 }
 
-/** 表格列头的中英文本地化标签（这些 key 尚未加入 i18n） */
+/** 表格列头的中英文本地化标签 */
 function useColumnLabels() {
   const { i18n } = useTranslation('knowledge');
   const isZh = i18n.language.startsWith('zh');
@@ -136,7 +89,7 @@ function useColumnLabels() {
 
 /**
  * 知识库详情页面
- * 通过 Tab 切换查看知识库概览、文档列表和分块列表
+ * 负责数据获取、mutation 和子组件编排；文件分块通过右侧抽屉查看。
  */
 export default function KnowledgeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -146,15 +99,11 @@ export default function KnowledgeDetail() {
   const colLabels = useColumnLabels();
 
   // ---------- 状态 ----------
-  const [deleteChunkId, setDeleteChunkId] = useState<string | null>(null);
   const [deleteDocId, setDeleteDocId] = useState<string | null>(null);
   const [newDocOpen, setNewDocOpen] = useState(false);
-  const [newDocName, setNewDocName] = useState('');
-  const [newDocContent, setNewDocContent] = useState('');
   const [docPage, setDocPage] = useState(1);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedDocName, setSelectedDocName] = useState<string>('');
-  const [chunkPage, setChunkPage] = useState(1);
 
   // ---------- 数据获取 ----------
 
@@ -164,16 +113,6 @@ export default function KnowledgeDetail() {
     queryFn: () => api(`/knowledge-bases/${id}`),
     enabled: !!id,
   });
-
-  /** 选中文档的分块（分页） */
-  const { data: chunkPageData, isLoading: chunksLoading } = useQuery<PaginatedChunks>({
-    queryKey: ['knowledge-base', id, 'chunks', selectedDocId, chunkPage],
-    queryFn: () => api(`/knowledge-bases/${id}/chunks?document_id=${selectedDocId}&page=${chunkPage}&page_size=20`),
-    enabled: !!id && !!selectedDocId,
-  });
-  const chunks = chunkPageData?.data ?? [];
-  const chunkTotal = chunkPageData?.total ?? 0;
-  const chunkPageSize = chunkPageData?.page_size ?? 20;
 
   /** 文档列表（分页） */
   const { data: docPageData, isLoading: docsLoading } = useQuery<PaginatedDocuments>({
@@ -186,17 +125,6 @@ export default function KnowledgeDetail() {
 
   // ---------- 操作 ----------
 
-  /** 删除分块 */
-  const deleteChunkMutation = useMutation({
-    mutationFn: (chunkId: string) =>
-      api(`/knowledge-bases/${id}/chunks/${chunkId}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id, 'chunks', selectedDocId] });
-      setDeleteChunkId(null);
-    },
-  });
-
-  /** 删除文档 */
   const deleteDocMutation = useMutation({
     mutationFn: (docId: string) =>
       api(`/knowledge-bases/${id}/documents/${docId}`, { method: 'DELETE' }),
@@ -206,7 +134,6 @@ export default function KnowledgeDetail() {
     },
   });
 
-  /** 手动创建文档 */
   const createDocMutation = useMutation({
     mutationFn: (data: { content: string; filename: string }) =>
       api(`/knowledge-bases/${id}/documents`, {
@@ -214,12 +141,7 @@ export default function KnowledgeDetail() {
         body: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id, 'documents'] });
-      setNewDocOpen(false);
-      setNewDocName('');
-      setNewDocContent('');
-    },
+    onSuccess: () => setNewDocOpen(false),
   });
 
   // ---------- 事件处理 ----------
@@ -228,31 +150,24 @@ export default function KnowledgeDetail() {
     navigate('/knowledge');
   }, [navigate]);
 
-  const handleDeleteChunkConfirm = useCallback(() => {
-    if (deleteChunkId) {
-      deleteChunkMutation.mutate(deleteChunkId);
-    }
-  }, [deleteChunkId, deleteChunkMutation]);
-
   const handleDeleteDocConfirm = useCallback(() => {
-    if (deleteDocId) {
-      deleteDocMutation.mutate(deleteDocId);
-    }
+    if (deleteDocId) deleteDocMutation.mutate(deleteDocId);
   }, [deleteDocId, deleteDocMutation]);
 
-  /** 安全解析文件名 */
-  const parseFilename = useCallback(
-    (metadata: string | null): string => {
-      if (!metadata) return t('unknownFile');
-      try {
-        const parsed = JSON.parse(metadata);
-        return parsed.filename || t('unknownFile');
-      } catch {
-        return t('unknownFile');
-      }
-    },
-    [t],
-  );
+  const handleSelectDoc = useCallback((doc: DocumentItem) => {
+    if (doc.status !== 'ready') return;
+    if (selectedDocId === doc.id) {
+      setSelectedDocId(null);
+      setSelectedDocName('');
+    } else {
+      setSelectedDocId(doc.id);
+      setSelectedDocName(doc.filename);
+    }
+  }, [selectedDocId]);
+
+  const handleChunkDrawerClose = useCallback((open: boolean) => {
+    if (!open) { setSelectedDocId(null); setSelectedDocName(''); }
+  }, []);
 
   // ==================== 加载态 ====================
   if (kbLoading) {
@@ -293,7 +208,7 @@ export default function KnowledgeDetail() {
   // ==================== 渲染 ====================
   return (
     <div className="space-y-6">
-      {/* 头部：返回按钮 + 名称 + 描述 */}
+      {/* 头部 */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="size-5" />
@@ -318,7 +233,6 @@ export default function KnowledgeDetail() {
 
       <Separator />
 
-      {/* Tab 视图 */}
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">{t('tabOverview')}</TabsTrigger>
@@ -358,50 +272,18 @@ export default function KnowledgeDetail() {
         <TabsContent value="documents" className="mt-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium">{t('tabDocuments')}</h3>
-            <Dialog open={newDocOpen} onOpenChange={setNewDocOpen}>
-              <DialogTrigger asChild>
+            <CreateDocumentDialog
+              open={newDocOpen}
+              onOpenChange={setNewDocOpen}
+              onSubmit={(data) => createDocMutation.mutate(data)}
+              isPending={createDocMutation.isPending}
+              trigger={(
                 <Button size="sm">
                   <FilePlus className="size-4" />
                   <span className="ml-1.5">{t('newDocument')}</span>
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t('newDocumentTitle')}</DialogTitle>
-                  <DialogDescription>{t('newDocumentDesc')}</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t('documentName')}</label>
-                    <Input
-                      placeholder={t('documentNamePlaceholder')}
-                      value={newDocName}
-                      onChange={(e) => setNewDocName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">{t('documentContent')}</label>
-                    <Textarea
-                      className="min-h-[200px]"
-                      placeholder={t('documentContentPlaceholder')}
-                      value={newDocContent}
-                      onChange={(e) => setNewDocContent(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setNewDocOpen(false)}>
-                    {t('common:cancel')}
-                  </Button>
-                  <Button
-                    onClick={() => createDocMutation.mutate({ content: newDocContent, filename: newDocName })}
-                    disabled={!newDocName.trim() || !newDocContent.trim() || createDocMutation.isPending}
-                  >
-                    {createDocMutation.isPending ? t('common:creating') : t('createAndIndex')}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              )}
+            />
           </div>
           {docsLoading ? (
             <div className="space-y-3">
@@ -436,17 +318,7 @@ export default function KnowledgeDetail() {
                     <TableRow
                       key={doc.id}
                       className={`cursor-pointer transition-colors ${isSelected ? 'bg-accent' : 'hover:bg-muted/50'}`}
-                      onClick={() => {
-                        if (doc.status !== 'ready') return;
-                        if (isSelected) {
-                          setSelectedDocId(null);
-                          setSelectedDocName('');
-                        } else {
-                          setSelectedDocId(doc.id);
-                          setSelectedDocName(doc.filename);
-                          setChunkPage(1);
-                        }
-                      }}
+                      onClick={() => handleSelectDoc(doc)}
                     >
                       <TableCell className="font-medium max-w-48 truncate">
                         {doc.filename}
@@ -468,9 +340,7 @@ export default function KnowledgeDetail() {
                       <TableCell>
                         <AlertDialog
                           open={deleteDocId === doc.id}
-                          onOpenChange={(open) => {
-                            if (!open) setDeleteDocId(null);
-                          }}
+                          onOpenChange={(open) => { if (!open) setDeleteDocId(null); }}
                         >
                           <AlertDialogTrigger asChild>
                             <Button
@@ -490,10 +360,7 @@ export default function KnowledgeDetail() {
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <Button
-                                variant="outline"
-                                onClick={() => setDeleteDocId(null)}
-                              >
+                              <Button variant="outline" onClick={() => setDeleteDocId(null)}>
                                 {t('common:cancel')}
                               </Button>
                               <Button
@@ -520,8 +387,7 @@ export default function KnowledgeDetail() {
               </span>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="outline" size="sm"
                   disabled={docPage <= 1}
                   onClick={() => setDocPage((p) => Math.max(1, p - 1))}
                 >
@@ -529,8 +395,7 @@ export default function KnowledgeDetail() {
                 </Button>
                 <span className="text-sm">{docPage}</span>
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="outline" size="sm"
                   disabled={documents.length < 20}
                   onClick={() => setDocPage((p) => p + 1)}
                 >
@@ -540,123 +405,18 @@ export default function KnowledgeDetail() {
             </div>
           )}
         </TabsContent>
-
       </Tabs>
 
       {/* 选中文档的分块抽屉 */}
-      <Sheet open={!!selectedDocId} onOpenChange={(open) => { if (!open) { setSelectedDocId(null); setSelectedDocName(''); } }}>
-        <SheetContent side="right" className="w-[480px] sm:max-w-[480px] flex flex-col">
-          <SheetHeader>
-            <SheetTitle className="truncate pr-8">{selectedDocName || t('chunkListTitle')}</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-auto mt-6 -mr-6 pr-6">
-            {chunksLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Card key={i}>
-                    <CardContent className="py-4">
-                      <Skeleton className="h-3 w-32 mb-2" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4 mt-1" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : chunks.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">
-                {t('noChunks')}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {chunks.map((chunk) => (
-                  <Card key={chunk.id}>
-                    <CardContent className="py-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground mb-1.5 font-medium">
-                            {parseFilename(chunk.metadata)}
-                          </p>
-                          <p className="text-sm text-foreground/80 whitespace-pre-wrap">
-                            {chunk.content}
-                          </p>
-                        </div>
-                        <AlertDialog
-                          open={deleteChunkId === chunk.id}
-                          onOpenChange={(open) => {
-                            if (!open) setDeleteChunkId(null);
-                          }}
-                        >
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon-xs"
-                              className="text-muted-foreground hover:text-destructive shrink-0"
-                              onClick={(e) => { e.stopPropagation(); setDeleteChunkId(chunk.id); }}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>{t('deleteChunkTitle')}</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                {t('deleteChunkDesc')}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <Button
-                                variant="outline"
-                                onClick={() => setDeleteChunkId(null)}
-                              >
-                                {t('common:cancel')}
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                onClick={handleDeleteChunkConfirm}
-                                disabled={deleteChunkMutation.isPending}
-                              >
-                                {deleteChunkMutation.isPending ? t('common:deleting') : t('common:confirmDelete')}
-                              </Button>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 分块分页 */}
-          {chunkTotal > chunkPageSize && (
-            <div className="flex items-center justify-between pt-4 border-t shrink-0">
-              <span className="text-xs text-muted-foreground">
-                {t('chunkCount', { count: chunkTotal }).replace(/分块/, '条')}
-              </span>
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={chunkPage <= 1}
-                  onClick={() => setChunkPage((p) => Math.max(1, p - 1))}
-                >
-                  {i18n.language.startsWith('zh') ? '上一页' : 'Prev'}
-                </Button>
-                <span className="text-xs px-1">{chunkPage}/{Math.ceil(chunkTotal / chunkPageSize)}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={chunks.length < chunkPageSize}
-                  onClick={() => setChunkPage((p) => p + 1)}
-                >
-                  {i18n.language.startsWith('zh') ? '下一页' : 'Next'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      <ChunkDrawer
+        kbId={id!}
+        documentId={selectedDocId}
+        documentName={selectedDocName}
+        open={!!selectedDocId}
+        onOpenChange={handleChunkDrawerClose}
+        t={t}
+        language={i18n.language}
+      />
     </div>
   );
 }
