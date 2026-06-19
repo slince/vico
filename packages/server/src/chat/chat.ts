@@ -1,4 +1,3 @@
-import {v4 as uuidv4} from 'uuid';
 import {RequestContext} from '@mastra/core/request-context';
 import {mastra} from '../mastra.js';
 
@@ -11,7 +10,8 @@ import { resourceId } from '../lib/resource.js';
 export interface ExecuteChatParams {
   agentId: string;
   message: string;
-  threadId?: string;
+  /** 前端必传的对话线程 ID */
+  threadId: string;
   tenantId: string;
   userId: string;
 }
@@ -37,7 +37,7 @@ export async function executeAgentChat(
     throw new Error('Message is required');
   }
 
-  const thread = threadId || `${agentId}::${userId}::${uuidv4()}`;
+  const thread = threadId;
   const requestContext = new RequestContext();
 
   const ctx = agentId === 'main'
@@ -48,7 +48,7 @@ export async function executeAgentChat(
     agent_id: agentId,
     user_id: userId,
     model_name: ctx.agent.model_id,
-  });
+  }, message);
 
   const mastraAgentId = agentId === 'main' ? 'mainAgent' : 'agentProxy';
   const output: MastraModelOutput<unknown> = await mastra.getAgent(mastraAgentId).stream(
@@ -64,19 +64,31 @@ export async function executeAgentChat(
   return { thread, output };
 }
 
-/** 写入 thread 到 memory，resourceId = tenantId:userId 实现用户级隔离 */
+/** 提取消息前段作为对话标题（截取前 50 个字符，去除换行） */
+function extractTitle(message: string): string {
+  const cleaned = message.replace(/\n/g, ' ').trim();
+  return cleaned.length > 50 ? cleaned.slice(0, 50) + '…' : cleaned;
+}
+
+/** 写入 thread 到 memory，首次创建时从消息内容提取标题 */
 async function saveThread(
   threadId: string,
   tenantId: string,
   userId: string,
   metadata: Record<string, string>,
+  message: string,
 ): Promise<void> {
   const memory = await getMemory();
+
+  // 检查是否为新 thread，首次创建时提取标题
+  const existing = await memory.getThreadById({ threadId });
+  const title = existing ? existing.title || '' : extractTitle(message);
+
   await memory.saveThread({
     thread: {
       id: threadId,
       resourceId: resourceId(tenantId, userId),
-      title: '',
+      title,
       createdAt: new Date(),
       updatedAt: new Date(),
       metadata,

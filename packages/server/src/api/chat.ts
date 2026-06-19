@@ -39,11 +39,10 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     const agentId: string | undefined = body.agentId;
     const message = extractMessage(body);
-    // threadId: body.threadId 优先，其次 AI SDK chat init 的 id
-    const threadId: string | undefined = (body.threadId as string) || (body.id as string);
+    const threadId: string | undefined = body.threadId as string;
 
-    if (!agentId || !message) {
-      return c.json({ error: 'agentId and message are required' }, 400);
+    if (!agentId || !message || !threadId) {
+      return c.json({ error: 'agentId, message and threadId are required' }, 400);
     }
 
     try {
