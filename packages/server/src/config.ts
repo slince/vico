@@ -32,6 +32,16 @@ interface AppConfig {
     retrieval_top_k: number;
     embedder: 'fastembed' | string | OpenAICompatibleConfig;
   };
+  /** 文件存储后端配置 */
+  storage: {
+    type: 'local' | 's3';
+    root: string;
+    endpoint?: string;
+    region?: string;
+    access_key_id?: string;
+    secret_access_key?: string;
+    bucket?: string;
+  };
   /** 工具执行超时配置 */
   tool: {
     timeout_ms: number;
@@ -71,6 +81,7 @@ function loadConfig(): AppConfig {
     rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'openai/text-embedding-3-small' },
     tool: { timeout_ms: 30000 },
     upload: { max_size_bytes: 50 * 1024 * 1024, allowed_mime_types: ['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'text/x-python', 'text/javascript', 'application/json'] },
+    storage: { type: 'local', root: './data/storage' },
     workspace: { base_path: resolve(__dirname, '../../workspace'), contained: true, allowed_paths: [], timeout_ms: 30000, isolation: 'none' },
   };
 
@@ -88,6 +99,7 @@ function loadConfig(): AppConfig {
       rag: { ...defaultConfig.rag, ...parsed.rag },
       tool: { ...defaultConfig.tool, ...parsed.tool },
       upload: { ...defaultConfig.upload, ...parsed.upload },
+      storage: { ...defaultConfig.storage, ...parsed.storage },
       workspace: { ...defaultConfig.workspace, ...parsed.workspace },
     };
     return merged;

@@ -7,6 +7,7 @@ import { getDb, schema } from '../../db/db.js';
 import { ragManager } from '../../memory/rag.js';
 import { config } from '../../config.js';
 import { documentManager } from './document-manager.js';
+import { storageManager } from './storage-manager.js';
 import {
   createKbSchema,
   type CreateKbInput,
@@ -19,6 +20,16 @@ function sanitizeFilename(name: string): string {
     .replace(/[/\\:\0\x00-\x1f]/g, '_')
     .replace(/^\.+/, '')
     .slice(0, 255);
+}
+
+/** 标准化文档目录路径：防穿越、确保以 / 开头和结尾、合并连续 / */
+function normalizePath(input: string | null): string {
+  if (!input) return '';
+  let cleaned = input.replace(/\.\./g, '');
+  if (!cleaned.startsWith('/')) cleaned = '/' + cleaned;
+  if (!cleaned.endsWith('/')) cleaned = cleaned + '/';
+  cleaned = cleaned.replace(/\/+/g, '/');
+  return cleaned;
 }
 
 /** 通过 magic bytes 检测文件类型 */
@@ -155,6 +166,9 @@ class KnowledgeManager {
       throw new Error(`Duplicate file: ${existing.filename} already indexed as document ${existing.id}`);
     }
 
+    // 提取目录路径（可选，默认根目录）
+    const docPath = normalizePath(formData.get('path') as string | null);
+
     // 创建文档记录
     const doc = await documentManager.create({
       tenantId, kbId,
@@ -163,11 +177,18 @@ class KnowledgeManager {
       fileSize: file.size,
       fileHash,
       source: 'upload',
+      path: docPath,
     });
 
     try {
       await documentManager.updateStatus(tenantId, doc.id, 'indexing');
       const count = await ragManager.indexFile(kbId, tmpPath, doc.id);
+
+      // 持久化到文件存储
+      const storageKey = storageManager.generateKey(kb.name, safeName);
+      await storageManager.put(tmpPath, storageKey);
+      await documentManager.updateStorageKey(tenantId, doc.id, storageKey);
+
       unlinkSync(tmpPath);
       await documentManager.updateChunkCount(tenantId, doc.id, count);
       await documentManager.updateStatus(tenantId, doc.id, 'ready');

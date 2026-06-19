@@ -35,3 +35,15 @@ workspace:
   allowed_paths: []
   timeout_ms: 30000
   isolation: 'none'
+
+storage:
+  type: local
+  root: ./data/storage
+  # ── S3 兼容模式 (Aliyun OSS / MinIO / AWS S3) 示例 ──
+  # type: s3
+  # root: knowledge-bases
+  # endpoint: https://oss-cn-hangzhou.aliyuncs.com
+  # region: cn-hangzhou
+  # access_key_id: your-access-key
+  # secret_access_key: your-secret-key
+  # bucket: vico-storage

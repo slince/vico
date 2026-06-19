@@ -63,7 +63,14 @@ interface KnowledgeBaseDetail {
   description: string | null;
   source: string;
   chunk_count: number;
-  documents: DocumentItem[];
+}
+
+/** 分页文档列表 */
+interface PaginatedDocuments {
+  data: DocumentItem[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 // ---------- 工具函数 ----------
@@ -134,6 +141,7 @@ export default function KnowledgeDetail() {
   const [newDocOpen, setNewDocOpen] = useState(false);
   const [newDocName, setNewDocName] = useState('');
   const [newDocContent, setNewDocContent] = useState('');
+  const [docPage, setDocPage] = useState(1);
 
   // ---------- 数据获取 ----------
 
@@ -150,6 +158,15 @@ export default function KnowledgeDetail() {
     queryFn: () => api(`/knowledge-bases/${id}/chunks`),
     enabled: !!id,
   });
+
+  /** 文档列表（分页） */
+  const { data: docPageData, isLoading: docsLoading } = useQuery<PaginatedDocuments>({
+    queryKey: ['knowledge-base', id, 'documents', docPage],
+    queryFn: () => api(`/knowledge-bases/${id}/documents?page=${docPage}&page_size=20`),
+    enabled: !!id,
+  });
+  const documents = docPageData?.data ?? [];
+  const docTotal = docPageData?.total ?? 0;
 
   // ---------- 操作 ----------
 
@@ -168,7 +185,7 @@ export default function KnowledgeDetail() {
     mutationFn: (docId: string) =>
       api(`/knowledge-bases/${id}/documents/${docId}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id, 'documents'] });
       setDeleteDocId(null);
     },
   });
@@ -182,7 +199,7 @@ export default function KnowledgeDetail() {
         headers: { 'Content-Type': 'application/json' },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id, 'documents'] });
       setNewDocOpen(false);
       setNewDocName('');
       setNewDocContent('');
@@ -373,7 +390,13 @@ export default function KnowledgeDetail() {
               </DialogContent>
             </Dialog>
           </div>
-          {documents.length === 0 ? (
+          {docsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : documents.length === 0 ? (
             <Empty>
               <EmptyMedia variant="icon">
                 <FileText size={24} />
@@ -461,6 +484,32 @@ export default function KnowledgeDetail() {
                 })}
               </TableBody>
             </Table>
+          )}
+          {docTotal > 20 && (
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-sm text-muted-foreground">
+                {t('chunkCount', { count: docTotal }).replace(/分块/, '文档')}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={docPage <= 1}
+                  onClick={() => setDocPage((p) => Math.max(1, p - 1))}
+                >
+                  {i18n.language.startsWith('zh') ? '上一页' : 'Prev'}
+                </Button>
+                <span className="text-sm">{docPage}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={documents.length < 20}
+                  onClick={() => setDocPage((p) => p + 1)}
+                >
+                  {i18n.language.startsWith('zh') ? '下一页' : 'Next'}
+                </Button>
+              </div>
+            </div>
           )}
         </TabsContent>
 

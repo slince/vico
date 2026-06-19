@@ -86,12 +86,15 @@ export const documents = sqliteTable('documents', {
   source: text('source').notNull().default('upload'), // upload|url|manual
   source_url: text('source_url'),
   metadata: text('metadata').notNull().default('{}'),
+  path: text('path').notNull().default(''),
+  storage_key: text('storage_key'),
   created_at: integer('created_at').notNull(),
   updated_at: integer('updated_at').notNull(),
 }, (table) => ({
   kbIdx: index('idx_documents_kb_id').on(table.kb_id),
   tenantIdx: index('idx_documents_tenant').on(table.tenant_id),
   kbFileUnq: unique('uq_documents_kb_file').on(table.kb_id, table.file_hash),
+  pathIdx: index('idx_documents_kb_path').on(table.kb_id, table.path),
 }));
 
 /** Agent ↔ 知识库绑定关联表 */

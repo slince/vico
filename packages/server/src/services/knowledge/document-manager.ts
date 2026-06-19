@@ -25,18 +25,60 @@ export interface DocumentRow {
   source: string;
   source_url: string | null;
   metadata: string;
+  path: string;
+  storage_key: string | null;
   created_at: number;
   updated_at: number;
 }
 
+export interface DocumentListOptions {
+  page?: number;
+  pageSize?: number;
+  path?: string;
+}
+
+export interface PaginatedDocuments {
+  data: DocumentRow[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 class DocumentManager {
-  /** 获取知识库内文档列表 */
-  async listByKb(tenantId: string, kbId: string): Promise<DocumentRow[]> {
+  /** 获取知识库内文档列表（分页 + 可选路径过滤） */
+  async listByKb(tenantId: string, kbId: string, opts?: DocumentListOptions): Promise<PaginatedDocuments> {
     const db = getDb();
-    return db.select().from(documents)
-      .where(and(eq(documents.tenant_id, tenantId), eq(documents.kb_id, kbId)))
+    const page = Math.max(1, opts?.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, opts?.pageSize ?? 20));
+    const offset = (page - 1) * pageSize;
+
+    const conditions = [eq(documents.tenant_id, tenantId), eq(documents.kb_id, kbId)];
+    if (opts?.path !== undefined) {
+      conditions.push(eq(documents.path, opts.path));
+    }
+
+    const whereClause = and(...conditions);
+
+    const [totalResult] = await db.select({ c: count() }).from(documents).where(whereClause).all();
+    const total = totalResult?.c ?? 0;
+
+    const rows = await db.select().from(documents)
+      .where(whereClause)
       .orderBy(desc(documents.created_at))
+      .limit(pageSize)
+      .offset(offset)
       .all();
+
+    return { data: rows, total, page, page_size: rows.length };
+  }
+
+  /** 获取知识库内所有文档的目录路径列表（虚拟文件夹） */
+  async listPaths(tenantId: string, kbId: string): Promise<string[]> {
+    const db = getDb();
+    const rows = await db.selectDistinct({ path: documents.path }).from(documents)
+      .where(and(eq(documents.tenant_id, tenantId), eq(documents.kb_id, kbId)))
+      .all();
+    return rows.map(r => r.path).filter(Boolean);
   }
 
   /** 获取单个文档 */
@@ -52,6 +94,7 @@ class DocumentManager {
   async create(params: {
     tenantId: string; kbId: string; filename: string; fileType: string;
     fileSize: number; fileHash?: string; source?: string; sourceUrl?: string;
+    path?: string; storageKey?: string;
   }): Promise<DocumentRow> {
     const db = getDb();
     const id = uuid();
@@ -67,6 +110,8 @@ class DocumentManager {
       status: 'pending',
       source: params.source ?? 'upload',
       source_url: params.sourceUrl ?? null,
+      path: params.path ?? '',
+      storage_key: params.storageKey ?? null,
       created_at: now,
       updated_at: now,
     }).run();
@@ -117,6 +162,15 @@ class DocumentManager {
     if (data.metadata) updates.metadata = JSON.stringify(data.metadata);
     await db.update(documents).set(updates)
       .where(and(eq(documents.id, id), eq(documents.tenant_id, tenantId))).run();
+  }
+
+  /** 更新文档 storage_key */
+  async updateStorageKey(tenantId: string, id: string, storageKey: string): Promise<void> {
+    const db = getDb();
+    await db.update(documents).set({
+      storage_key: storageKey,
+      updated_at: Date.now(),
+    }).where(and(eq(documents.id, id), eq(documents.tenant_id, tenantId))).run();
   }
 
   /** 删除文档 */

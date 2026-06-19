@@ -3,6 +3,7 @@ import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { knowledgeManager } from '../services/knowledge/knowledge-manager.js';
 import { documentManager } from '../services/knowledge/document-manager.js';
+import { storageManager } from '../services/knowledge/storage-manager.js';
 import { ragManager } from '../memory/rag.js';
 import { getVector } from '../agent/memory-setup.js';
 import { kbIndexName } from '../lib/resource.js';
@@ -28,8 +29,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
     const kb = await knowledgeManager.getById(auth.tenantId, c.req.param('id'));
     if (!kb) return c.json({ error: 'Not found' }, 404);
-    const docs = await documentManager.listByKb(auth.tenantId, kb.id);
-    return c.json({ ...kb, documents: docs });
+    return c.json(kb);
   });
 
   app.delete('/api/v1/knowledge-bases/:id', async (c) => {
@@ -41,10 +41,36 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
 
   // ── 文档管理 ──
 
+  // ── 虚拟文件夹 ──
+
+  app.get('/api/v1/knowledge-bases/:id/folders', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const paths = await documentManager.listPaths(auth.tenantId, c.req.param('id'));
+    // 从存储的路径派生所有父级目录
+    const folderSet = new Set<string>();
+    folderSet.add('/');
+    for (const p of paths) {
+      const parts = p.replace(/^\//, '').replace(/\/$/, '').split('/');
+      let accumulated = '';
+      for (const part of parts) {
+        if (!part) continue;
+        accumulated += '/' + part;
+        folderSet.add(accumulated + '/');
+      }
+    }
+    return c.json({ folders: Array.from(folderSet).sort() });
+  });
+
   app.get('/api/v1/knowledge-bases/:id/documents', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    return c.json(await documentManager.listByKb(auth.tenantId, c.req.param('id')));
+    const page = parseInt(c.req.query('page') || '1');
+    const pageSize = parseInt(c.req.query('page_size') || '20');
+    const path = c.req.query('path') || undefined;
+    return c.json(await documentManager.listByKb(auth.tenantId, c.req.param('id'), {
+      page, pageSize, path,
+    }));
   });
 
   app.get('/api/v1/knowledge-bases/:id/documents/:docId', async (c) => {
@@ -60,6 +86,13 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
     const kbId = c.req.param('id');
     const docId = c.req.param('docId');
+
+    // 清理存储文件
+    const doc = await documentManager.getById(auth.tenantId, docId);
+    if (doc?.storage_key) {
+      try { await storageManager.delete(doc.storage_key); } catch {}
+    }
+
     await ragManager.deleteDocumentChunks(kbId, docId);
     await documentManager.remove(auth.tenantId, docId);
     return c.json({ message: 'deleted' });
@@ -78,6 +111,24 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     await documentManager.updateMeta(auth.tenantId, docId, body);
     return c.json({ message: 'updated' });
+  });
+
+  // ── 文件下载 ──
+
+  app.get('/api/v1/knowledge-bases/:id/documents/:docId/download', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const doc = await documentManager.getById(auth.tenantId, c.req.param('docId'));
+    if (!doc) return c.json({ error: 'Not found' }, 404);
+    if (!doc.storage_key) return c.json({ error: 'File not persisted' }, 404);
+
+    const stream = await storageManager.getStream(doc.storage_key);
+    return new Response(stream, {
+      headers: {
+        'Content-Type': doc.file_type || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(doc.filename)}"`,
+      },
+    });
   });
 
   // ── Chunk 管理 ──
