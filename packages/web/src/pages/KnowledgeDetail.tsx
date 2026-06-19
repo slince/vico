@@ -17,7 +17,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import {
@@ -34,6 +33,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from '@/components/ui/sheet';
 
 // ---------- 类型 ----------
 
@@ -68,6 +70,14 @@ interface KnowledgeBaseDetail {
 /** 分页文档列表 */
 interface PaginatedDocuments {
   data: DocumentItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+/** 分页分块列表 */
+interface PaginatedChunks {
+  data: ChunkItem[];
   total: number;
   page: number;
   page_size: number;
@@ -142,6 +152,9 @@ export default function KnowledgeDetail() {
   const [newDocName, setNewDocName] = useState('');
   const [newDocContent, setNewDocContent] = useState('');
   const [docPage, setDocPage] = useState(1);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [selectedDocName, setSelectedDocName] = useState<string>('');
+  const [chunkPage, setChunkPage] = useState(1);
 
   // ---------- 数据获取 ----------
 
@@ -152,12 +165,15 @@ export default function KnowledgeDetail() {
     enabled: !!id,
   });
 
-  /** 所有分块 */
-  const { data: chunks = [], isLoading: chunksLoading } = useQuery<ChunkItem[]>({
-    queryKey: ['knowledge-base', id, 'chunks'],
-    queryFn: () => api(`/knowledge-bases/${id}/chunks`),
-    enabled: !!id,
+  /** 选中文档的分块（分页） */
+  const { data: chunkPageData, isLoading: chunksLoading } = useQuery<PaginatedChunks>({
+    queryKey: ['knowledge-base', id, 'chunks', selectedDocId, chunkPage],
+    queryFn: () => api(`/knowledge-bases/${id}/chunks?document_id=${selectedDocId}&page=${chunkPage}&page_size=20`),
+    enabled: !!id && !!selectedDocId,
   });
+  const chunks = chunkPageData?.data ?? [];
+  const chunkTotal = chunkPageData?.total ?? 0;
+  const chunkPageSize = chunkPageData?.page_size ?? 20;
 
   /** 文档列表（分页） */
   const { data: docPageData, isLoading: docsLoading } = useQuery<PaginatedDocuments>({
@@ -175,7 +191,7 @@ export default function KnowledgeDetail() {
     mutationFn: (chunkId: string) =>
       api(`/knowledge-bases/${id}/chunks/${chunkId}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id, 'chunks'] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id, 'chunks', selectedDocId] });
       setDeleteChunkId(null);
     },
   });
@@ -307,7 +323,6 @@ export default function KnowledgeDetail() {
         <TabsList>
           <TabsTrigger value="overview">{t('tabOverview')}</TabsTrigger>
           <TabsTrigger value="documents">{t('tabDocuments')}</TabsTrigger>
-          <TabsTrigger value="chunks">{t('chunkListTitle')}</TabsTrigger>
         </TabsList>
 
         {/* ---- 概览 Tab ---- */}
@@ -416,8 +431,23 @@ export default function KnowledgeDetail() {
               <TableBody>
                 {documents.map((doc) => {
                   const badgeProps = getStatusBadgeProps(doc.status);
+                  const isSelected = selectedDocId === doc.id;
                   return (
-                    <TableRow key={doc.id}>
+                    <TableRow
+                      key={doc.id}
+                      className={`cursor-pointer transition-colors ${isSelected ? 'bg-accent' : 'hover:bg-muted/50'}`}
+                      onClick={() => {
+                        if (doc.status !== 'ready') return;
+                        if (isSelected) {
+                          setSelectedDocId(null);
+                          setSelectedDocName('');
+                        } else {
+                          setSelectedDocId(doc.id);
+                          setSelectedDocName(doc.filename);
+                          setChunkPage(1);
+                        }
+                      }}
+                    >
                       <TableCell className="font-medium max-w-48 truncate">
                         {doc.filename}
                       </TableCell>
@@ -511,27 +541,33 @@ export default function KnowledgeDetail() {
           )}
         </TabsContent>
 
-        {/* ---- 分块 Tab ---- */}
-        <TabsContent value="chunks" className="mt-4">
-          {chunksLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="py-4">
-                    <Skeleton className="h-3 w-32 mb-2" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4 mt-1" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : chunks.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              {t('noChunks')}
-            </p>
-          ) : (
-            <ScrollArea className="h-[calc(100vh-320px)]">
-              <div className="space-y-3 pr-4">
+      </Tabs>
+
+      {/* 选中文档的分块抽屉 */}
+      <Sheet open={!!selectedDocId} onOpenChange={(open) => { if (!open) { setSelectedDocId(null); setSelectedDocName(''); } }}>
+        <SheetContent side="right" className="w-[480px] sm:max-w-[480px] flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="truncate pr-8">{selectedDocName || t('chunkListTitle')}</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-auto mt-6 -mr-6 pr-6">
+            {chunksLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="py-4">
+                      <Skeleton className="h-3 w-32 mb-2" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4 mt-1" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : chunks.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                {t('noChunks')}
+              </p>
+            ) : (
+              <div className="space-y-3">
                 {chunks.map((chunk) => (
                   <Card key={chunk.id}>
                     <CardContent className="py-4">
@@ -540,7 +576,7 @@ export default function KnowledgeDetail() {
                           <p className="text-xs text-muted-foreground mb-1.5 font-medium">
                             {parseFilename(chunk.metadata)}
                           </p>
-                          <p className="text-sm line-clamp-3 text-foreground/80">
+                          <p className="text-sm text-foreground/80 whitespace-pre-wrap">
                             {chunk.content}
                           </p>
                         </div>
@@ -555,7 +591,7 @@ export default function KnowledgeDetail() {
                               variant="ghost"
                               size="icon-xs"
                               className="text-muted-foreground hover:text-destructive shrink-0"
-                              onClick={() => setDeleteChunkId(chunk.id)}
+                              onClick={(e) => { e.stopPropagation(); setDeleteChunkId(chunk.id); }}
                             >
                               <Trash2 className="size-3.5" />
                             </Button>
@@ -589,10 +625,38 @@ export default function KnowledgeDetail() {
                   </Card>
                 ))}
               </div>
-            </ScrollArea>
+            )}
+          </div>
+
+          {/* 分块分页 */}
+          {chunkTotal > chunkPageSize && (
+            <div className="flex items-center justify-between pt-4 border-t shrink-0">
+              <span className="text-xs text-muted-foreground">
+                {t('chunkCount', { count: chunkTotal }).replace(/分块/, '条')}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={chunkPage <= 1}
+                  onClick={() => setChunkPage((p) => Math.max(1, p - 1))}
+                >
+                  {i18n.language.startsWith('zh') ? '上一页' : 'Prev'}
+                </Button>
+                <span className="text-xs px-1">{chunkPage}/{Math.ceil(chunkTotal / chunkPageSize)}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={chunks.length < chunkPageSize}
+                  onClick={() => setChunkPage((p) => p + 1)}
+                >
+                  {i18n.language.startsWith('zh') ? '下一页' : 'Next'}
+                </Button>
+              </div>
+            </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

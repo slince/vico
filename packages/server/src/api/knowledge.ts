@@ -141,23 +141,31 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
     const kbId = c.req.param('id');
     const docId = c.req.query('document_id');
-    const limit = Math.min(parseInt(c.req.query('limit') || '50'), 100);
+    const page = Math.max(parseInt(c.req.query('page') || '1'), 1);
+    const pageSize = Math.min(parseInt(c.req.query('page_size') || '20'), 100);
 
     const client = getClient();
     const tableName = kbIndexName(kbId);
 
     try {
-      let sql = `SELECT vector_id, metadata FROM ${tableName}`;
-      const args: string[] = [];
-      if (docId) {
-        sql += ` WHERE json_extract(metadata, '$.document_id') = ?`;
-        args.push(docId);
-      }
-      sql += ` LIMIT ?`;
-      args.push(String(limit));
+      const whereClause = docId ? ` WHERE json_extract(metadata, '$.document_id') = ?` : '';
+      const args: string[] = docId ? [docId] : [];
 
-      const { rows } = await client.execute({ sql, args });
-      const chunks = rows.map((r: any) => {
+      // 统计总数
+      const { rows: countRows } = await client.execute({
+        sql: `SELECT COUNT(*) as count FROM ${tableName}${whereClause}`,
+        args,
+      });
+      const total = Number(countRows[0]?.count ?? 0);
+
+      // 分页查询
+      const offset = (page - 1) * pageSize;
+      const { rows } = await client.execute({
+        sql: `SELECT vector_id, metadata FROM ${tableName}${whereClause} LIMIT ? OFFSET ?`,
+        args: [...args, String(pageSize), String(offset)],
+      });
+
+      const data = rows.map((r: any) => {
         let metadata: any = {};
         try { metadata = JSON.parse(r.metadata as string); } catch {}
         return {
@@ -166,9 +174,10 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
           metadata: r.metadata,
         };
       });
-      return c.json(chunks);
+
+      return c.json({ data, total, page, page_size: pageSize });
     } catch {
-      return c.json([]);
+      return c.json({ data: [], total: 0, page, page_size: pageSize });
     }
   });
 
