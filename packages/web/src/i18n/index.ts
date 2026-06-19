@@ -1,8 +1,8 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-
 import commonZhCN from './locales/zh-CN/common.json';
+import assistantZhCN from './locales/zh-CN/assistant.json';
 import sidebarZhCN from './locales/zh-CN/sidebar.json';
 import authZhCN from './locales/zh-CN/auth.json';
 import dashboardZhCN from './locales/zh-CN/dashboard.json';
@@ -14,6 +14,7 @@ import knowledgeZhCN from './locales/zh-CN/knowledge.json';
 import settingsZhCN from './locales/zh-CN/settings.json';
 
 import commonZhTW from './locales/zh-TW/common.json';
+import assistantZhTW from './locales/zh-TW/assistant.json';
 import sidebarZhTW from './locales/zh-TW/sidebar.json';
 import authZhTW from './locales/zh-TW/auth.json';
 import dashboardZhTW from './locales/zh-TW/dashboard.json';
@@ -25,6 +26,7 @@ import knowledgeZhTW from './locales/zh-TW/knowledge.json';
 import settingsZhTW from './locales/zh-TW/settings.json';
 
 import commonEn from './locales/en/common.json';
+import assistantEn from './locales/en/assistant.json';
 import sidebarEn from './locales/en/sidebar.json';
 import authEn from './locales/en/auth.json';
 import dashboardEn from './locales/en/dashboard.json';
@@ -51,6 +53,7 @@ i18n
         conversations: conversationsZhCN,
         knowledge: knowledgeZhCN,
         settings: settingsZhCN,
+        assistant: assistantZhCN,
       },
       'zh-TW': {
         common: commonZhTW,
@@ -63,6 +66,7 @@ i18n
         conversations: conversationsZhTW,
         knowledge: knowledgeZhTW,
         settings: settingsZhTW,
+        assistant: assistantZhTW,
       },
       en: {
         common: commonEn,
@@ -75,6 +79,7 @@ i18n
         conversations: conversationsEn,
         knowledge: knowledgeEn,
         settings: settingsEn,
+        assistant: assistantEn,
       },
     },
     fallbackLng: 'zh-CN',

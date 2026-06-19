@@ -2,6 +2,7 @@
 
 import { type PropsWithChildren, useEffect, useState, type FC } from "react";
 import { XIcon, PlusIcon, FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -127,20 +128,17 @@ const AttachmentUI: FC = () => {
   const aui = useAui();
   const isComposer = aui.attachment.source !== "message";
 
-  const isImage = useAuiState((s) => s.attachment.type === "image");
-  const typeLabel = useAuiState((s) => {
-    const type = s.attachment.type;
-    switch (type) {
-      case "image":
-        return "Image";
-      case "document":
-        return "Document";
-      case "file":
-        return "File";
-      default:
-        return type;
-    }
-  });
+  const { t } = useTranslation("assistant");
+  const attachmentType = useAuiState((s) => s.attachment.type);
+  const isImage = attachmentType === "image";
+  const typeLabel =
+    attachmentType === "image"
+      ? t("attachment.image")
+      : attachmentType === "document"
+        ? t("attachment.document")
+        : attachmentType === "file"
+          ? t("attachment.file")
+          : attachmentType;
 
   return (
     <Tooltip>
@@ -177,7 +175,7 @@ const AttachmentRemove: FC = () => {
   return (
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton
-        tooltip="Remove file"
+        tooltip={t("attachment.remove")}
         className="aui-attachment-tile-remove text-muted-foreground hover:[&_svg]:text-destructive absolute end-1.5 top-1.5 size-3.5 rounded-full bg-white opacity-100 shadow-sm hover:bg-white! [&_svg]:text-black"
         side="top"
       >
@@ -208,15 +206,16 @@ export const ComposerAttachments: FC = () => {
 };
 
 export const ComposerAddAttachment: FC = () => {
+  const { t } = useTranslation("assistant");
   return (
     <ComposerPrimitive.AddAttachment asChild>
       <TooltipIconButton
-        tooltip="Add Attachment"
+        tooltip={t("attachment.add")}
         side="bottom"
         variant="ghost"
         size="icon"
         className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full p-1 text-xs font-semibold"
-        aria-label="Add Attachment"
+        aria-label={t("attachment.add")}
       >
         <PlusIcon className="aui-attachment-add-icon size-4.5 stroke-[1.5px]" />
       </TooltipIconButton>

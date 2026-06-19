@@ -1,0 +1,56 @@
+{
+  "composer": { "placeholder": "Type a message...", "send": "Send" },
+  "message": { "thinking": "Thinking...", "copy": "Copy", "copied": "Copied!" },
+  "threadList": {
+    "empty": "No conversations yet",
+    "newThread": "New chat",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "earlier": "Earlier"
+  },
+  "welcome": { "title": "How can I help you?" },
+  "thread": {
+    "scrollToBottom": "Scroll to bottom",
+    "sendMessage": "Send message",
+    "stopGenerating": "Stop generating",
+    "startVoice": "Start voice input",
+    "stopVoice": "Stop voice input",
+    "refresh": "Refresh",
+    "more": "More",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "update": "Update",
+    "branch": { "previous": "Previous", "next": "Next" },
+    "export": "Export as Markdown",
+    "archive": "Archive",
+    "delete": "Delete"
+  },
+  "attachment": {
+    "image": "Image",
+    "document": "Document",
+    "file": "File",
+    "remove": "Remove file",
+    "add": "Add Attachment"
+  },
+  "tool": {
+    "usedTool": "Used tool",
+    "cancelledTool": "Cancelled tool",
+    "cancelledReason": "Cancelled reason:",
+    "error": "Error:",
+    "approvedResult": "Approved by user",
+    "deniedResult": "User denied tool execution",
+    "allowOnce": "Allow",
+    "allowAlways": "Always allow",
+    "denyOnce": "Deny",
+    "denyAlways": "Always deny"
+  },
+  "modal": {
+    "openAssistant": "Open Assistant",
+    "closeAssistant": "Close Assistant"
+  },
+  "voice": {
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "disconnect": "Disconnect"
+  }
+}

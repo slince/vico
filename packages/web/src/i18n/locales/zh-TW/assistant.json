@@ -1,0 +1,56 @@
+{
+  "composer": { "placeholder": "輸入訊息...", "send": "發送" },
+  "message": { "thinking": "思考中...", "copy": "複製", "copied": "已複製！" },
+  "threadList": {
+    "empty": "暫無對話",
+    "newThread": "新建對話",
+    "today": "今天",
+    "yesterday": "昨天",
+    "earlier": "更早"
+  },
+  "welcome": { "title": "請問有什麼可以幫您？" },
+  "thread": {
+    "scrollToBottom": "捲動到底部",
+    "sendMessage": "發送訊息",
+    "stopGenerating": "停止生成",
+    "startVoice": "開始語音輸入",
+    "stopVoice": "停止語音輸入",
+    "refresh": "重新生成",
+    "more": "更多",
+    "edit": "編輯",
+    "cancel": "取消",
+    "update": "更新",
+    "branch": { "previous": "上一條", "next": "下一條" },
+    "export": "匯出為 Markdown",
+    "archive": "歸檔",
+    "delete": "刪除"
+  },
+  "attachment": {
+    "image": "圖片",
+    "document": "文檔",
+    "file": "文件",
+    "remove": "移除檔案",
+    "add": "添加附件"
+  },
+  "tool": {
+    "usedTool": "已使用工具",
+    "cancelledTool": "已取消工具",
+    "cancelledReason": "取消原因：",
+    "error": "錯誤：",
+    "approvedResult": "使用者已批准",
+    "deniedResult": "使用者已拒絕工具執行",
+    "allowOnce": "允許",
+    "allowAlways": "始終允許",
+    "denyOnce": "拒絕",
+    "denyAlways": "始終拒絕"
+  },
+  "modal": {
+    "openAssistant": "打開助手",
+    "closeAssistant": "關閉助手"
+  },
+  "voice": {
+    "mute": "靜音",
+    "unmute": "取消靜音",
+    "disconnect": "斷開連接"
+  }
+}

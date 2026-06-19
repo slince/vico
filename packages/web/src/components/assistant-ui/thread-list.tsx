@@ -14,6 +14,7 @@ import {
   TrashIcon,
 } from "lucide-react";
 import { Fragment, useMemo, type FC } from "react";
+import { useTranslation } from "react-i18next";
 
 export const ThreadList: FC = () => {
   return (
@@ -34,15 +35,17 @@ const DAY_IN_MS = 86_400_000;
 const dateGroupLabel = (
   date: Date | undefined,
   startOfToday: number,
+  labels: { today: string; yesterday: string; earlier: string },
 ): string => {
-  if (!date || date.getTime() >= startOfToday) return "Today";
-  if (date.getTime() >= startOfToday - DAY_IN_MS) return "Yesterday";
-  return "Earlier";
+  if (!date || date.getTime() >= startOfToday) return labels.today;
+  if (date.getTime() >= startOfToday - DAY_IN_MS) return labels.yesterday;
+  return labels.earlier;
 };
 
 type ThreadListGroup = { label: string; indices: number[] };
 
 const ThreadListItems: FC = () => {
+  const { t } = useTranslation("assistant");
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
 
@@ -63,9 +66,15 @@ const ThreadListItems: FC = () => {
       .map((_, index) => index)
       .sort((a, b) => time(b) - time(a));
 
+    const dateLabels = {
+      today: t("threadList.today"),
+      yesterday: t("threadList.yesterday"),
+      earlier: t("threadList.earlier"),
+    };
+
     const result: ThreadListGroup[] = [];
     for (const index of indices) {
-      const label = dateGroupLabel(dates[index], startOfToday);
+      const label = dateGroupLabel(dates[index], startOfToday, dateLabels);
       const lastGroup = result[result.length - 1];
       if (lastGroup?.label === label) {
         lastGroup.indices.push(index);
@@ -74,7 +83,7 @@ const ThreadListItems: FC = () => {
       }
     }
     return result;
-  }, [threadIds, threadItems]);
+  }, [threadIds, threadItems, t]);
 
   if (!groups) {
     return (
@@ -101,6 +110,7 @@ const ThreadListItems: FC = () => {
 };
 
 const ThreadListNew: FC = () => {
+  const { t } = useTranslation("assistant");
   return (
     <ThreadListPrimitive.New asChild>
       <Button
@@ -108,20 +118,21 @@ const ThreadListNew: FC = () => {
         className="aui-thread-list-new hover:bg-muted data-active:bg-muted h-8 justify-start gap-2 rounded-md px-2.5 text-sm font-normal"
       >
         <PlusIcon className="size-4" />
-        New Thread
+        {t("threadList.newThread")}
       </Button>
     </ThreadListPrimitive.New>
   );
 };
 
 const ThreadListSkeleton: FC = () => {
+  const { t } = useTranslation("assistant");
   return (
     <div className="flex flex-col gap-0.5">
       {Array.from({ length: 5 }, (_, i) => (
         <div
           key={i}
           role="status"
-          aria-label="Loading threads"
+          aria-label={t("threadList.empty")}
           className="aui-thread-list-skeleton-wrapper flex h-8 items-center px-2.5"
         >
           <Skeleton className="aui-thread-list-skeleton h-3.5 w-full" />
@@ -132,11 +143,12 @@ const ThreadListSkeleton: FC = () => {
 };
 
 const ThreadListItem: FC = () => {
+  const { t } = useTranslation("assistant");
   return (
     <ThreadListItemPrimitive.Root className="aui-thread-list-item group hover:bg-muted focus-visible:bg-muted data-active:bg-muted relative flex h-8 items-center rounded-md transition-colors focus-visible:outline-none">
       <ThreadListItemPrimitive.Trigger className="aui-thread-list-item-trigger flex h-full min-w-0 flex-1 items-center px-2.5 text-start text-sm group-hover:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9">
         <span className="aui-thread-list-item-title min-w-0 flex-1 truncate">
-          <ThreadListItemPrimitive.Title fallback="New Chat" />
+          <ThreadListItemPrimitive.Title fallback={t("threadList.newThread")} />
         </span>
       </ThreadListItemPrimitive.Trigger>
       <ThreadListItemMore />
@@ -145,6 +157,7 @@ const ThreadListItem: FC = () => {
 };
 
 const ThreadListItemMore: FC = () => {
+  const { t } = useTranslation("assistant");
   return (
     <ThreadListItemMorePrimitive.Root>
       <ThreadListItemMorePrimitive.Trigger asChild>
@@ -154,7 +167,7 @@ const ThreadListItemMore: FC = () => {
           className="aui-thread-list-item-more data-[state=open]:bg-accent absolute end-1.5 top-1/2 size-6 -translate-y-1/2 p-0 opacity-0 group-hover:opacity-100 group-data-active:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-3.5" />
-          <span className="sr-only">More options</span>
+          <span className="sr-only">{t("thread.more")}</span>
         </Button>
       </ThreadListItemMorePrimitive.Trigger>
       <ThreadListItemMorePrimitive.Content
@@ -166,13 +179,13 @@ const ThreadListItemMore: FC = () => {
         <ThreadListItemPrimitive.Archive asChild>
           <ThreadListItemMorePrimitive.Item className="aui-thread-list-item-more-item hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none">
             <ArchiveIcon className="size-4" />
-            Archive
+            {t("thread.archive")}
           </ThreadListItemMorePrimitive.Item>
         </ThreadListItemPrimitive.Archive>
         <ThreadListItemPrimitive.Delete asChild>
           <ThreadListItemMorePrimitive.Item className="aui-thread-list-item-more-item text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none">
             <TrashIcon className="size-4" />
-            Delete
+            {t("thread.delete")}
           </ThreadListItemMorePrimitive.Item>
         </ThreadListItemPrimitive.Delete>
       </ThreadListItemMorePrimitive.Content>
