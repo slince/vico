@@ -1,5 +1,5 @@
 // 2. Third-party
-import { FileText, Trash2 } from 'lucide-react';
+import { FileText, Folder, Trash2 } from 'lucide-react';
 
 // 3. UI components
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +13,8 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import type { DocumentViewProps } from './utils';
-import { formatFileSize, getStatusBadgeProps, getStatusKey } from './utils';
+import { formatFileSize, getFileIcon, getStatusBadgeProps, getStatusKey } from './utils';
+import { isDirectory, getDirectoryName } from './types';
 
 /**
  * 文档网格视图 — 卡片形式。
@@ -28,6 +29,9 @@ export function DocumentGrid({
       {documents.map((doc) => {
         const badgeProps = getStatusBadgeProps(doc.status);
         const isSelected = selectedDocId === doc.id;
+        const dir = isDirectory(doc);
+        const displayName = dir ? getDirectoryName(doc) : doc.filename;
+        const { icon: FileIcon, colorClass } = dir ? { icon: Folder, colorClass: 'text-amber-500' } : getFileIcon(doc.file_type);
         return (
           <Card
             key={doc.id}
@@ -38,14 +42,20 @@ export function DocumentGrid({
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="shrink-0 size-10 rounded-md bg-muted flex items-center justify-center">
-                    <FileText className="size-5 text-muted-foreground" />
+                    <FileIcon className={`size-5 ${colorClass}`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">{doc.filename}</p>
+                    <p className="font-medium text-sm truncate">{displayName}</p>
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <span className="uppercase">{doc.file_type || '-'}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{formatFileSize(doc.file_size)}</span>
+                      {dir ? (
+                        <span>{t('folderType')}</span>
+                      ) : (
+                        <>
+                          <span className="uppercase">{doc.file_type || '-'}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{formatFileSize(doc.file_size)}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -65,9 +75,9 @@ export function DocumentGrid({
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>{t('deleteDocument')}</AlertDialogTitle>
+                      <AlertDialogTitle>{dir ? t('deleteFolder') : t('deleteDocument')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        {t('confirmDeleteDoc', { name: doc.filename })}
+                        {dir ? t('confirmDeleteFolder', { name: displayName }) : t('confirmDeleteDoc', { name: doc.filename })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -83,11 +93,13 @@ export function DocumentGrid({
               </div>
               <div className="flex items-center gap-2 mt-3">
                 <Badge variant={badgeProps.variant} className={badgeProps.className}>
-                  {t(getStatusKey(doc.status))}
+                  {dir ? t('folderType') : t(getStatusKey(doc.status))}
                 </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {t('chunkCount', { count: doc.chunk_count })}
-                </span>
+                {!dir && (
+                  <span className="text-xs text-muted-foreground">
+                    {t('chunkCount', { count: doc.chunk_count })}
+                  </span>
+                )}
               </div>
             </CardContent>
           </Card>

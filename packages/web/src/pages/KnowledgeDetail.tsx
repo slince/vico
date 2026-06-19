@@ -29,6 +29,7 @@ import { DocumentGrid, DocumentGridSkeleton, DocumentGridEmpty } from './knowled
 
 // 6. 类型
 import type { DocumentItem, KnowledgeBaseDetail, PaginatedDocuments } from './knowledge-detail/types';
+import { isDirectory } from './knowledge-detail/types';
 
 /**
  * 知识库详情页面
@@ -113,7 +114,7 @@ export default function KnowledgeDetail() {
   }, [deleteDocId, deleteDocMutation]);
 
   const handleSelectDoc = useCallback((doc: DocumentItem) => {
-    if (doc.status !== 'ready') return;
+    if (isDirectory(doc) || doc.status !== 'ready') return;
     if (selectedDocId === doc.id) {
       setSelectedDocId(null);
       setSelectedDocName('');

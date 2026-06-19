@@ -1,8 +1,34 @@
+import type { LucideIcon } from 'lucide-react';
+import { File, FileImage, FileSpreadsheet, FileText, Presentation } from 'lucide-react';
+
 /** 将字节数转换为可读的文件大小 */
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** 根据 mime 类型返回文件图标和颜色 */
+export function getFileIcon(fileType: string): { icon: LucideIcon; colorClass: string } {
+  if (fileType.startsWith('image/')) {
+    return { icon: FileImage, colorClass: 'text-sky-500' };
+  }
+  if (fileType === 'application/pdf') {
+    return { icon: FileText, colorClass: 'text-red-500' };
+  }
+  if (fileType.includes('spreadsheet') || fileType.includes('excel') || fileType === 'application/vnd.ms-excel') {
+    return { icon: FileSpreadsheet, colorClass: 'text-green-500' };
+  }
+  if (fileType.includes('presentation') || fileType.includes('powerpoint') || fileType === 'application/vnd.ms-powerpoint') {
+    return { icon: Presentation, colorClass: 'text-orange-500' };
+  }
+  if (fileType.includes('msword') || fileType.includes('wordprocessing') || fileType === 'application/msword') {
+    return { icon: FileText, colorClass: 'text-blue-500' };
+  }
+  if (fileType.startsWith('text/')) {
+    return { icon: FileText, colorClass: 'text-muted-foreground' };
+  }
+  return { icon: File, colorClass: 'text-muted-foreground' };
 }
 
 /** 根据文档状态返回 Badge 的 variant 和样式类名 */

@@ -1,8 +1,5 @@
-// 1. React
-import { Fragment } from 'react';
-
 // 2. Third-party
-import { FileText, Trash2 } from 'lucide-react';
+import { FileText, Folder, Trash2 } from 'lucide-react';
 
 // 3. UI components
 import { Button } from '@/components/ui/button';
@@ -16,7 +13,8 @@ import {
 } from '@/components/ui/alert-dialog';
 
 import type { DocumentViewProps } from './utils';
-import { formatFileSize, getStatusBadgeProps, getStatusKey } from './utils';
+import { formatFileSize, getFileIcon, getStatusBadgeProps, getStatusKey } from './utils';
+import { isDirectory, getDirectoryName } from './types';
 
 /**
  * 文档列表视图 — 表格形式。
@@ -42,6 +40,9 @@ export function DocumentTable({
         {documents.map((doc) => {
           const badgeProps = getStatusBadgeProps(doc.status);
           const isSelected = selectedDocId === doc.id;
+          const dir = isDirectory(doc);
+          const displayName = dir ? getDirectoryName(doc) : doc.filename;
+          const { icon: FileIcon, colorClass } = dir ? { icon: Folder, colorClass: 'text-amber-500' } : getFileIcon(doc.file_type);
           return (
             <TableRow
               key={doc.id}
@@ -49,21 +50,24 @@ export function DocumentTable({
               onClick={() => onSelectDoc(doc)}
             >
               <TableCell className="font-medium max-w-48 truncate">
-                {doc.filename}
+                <span className="inline-flex items-center gap-1.5">
+                  <FileIcon className={`size-4 shrink-0 ${colorClass}`} />
+                  {displayName}
+                </span>
               </TableCell>
               <TableCell className="text-muted-foreground uppercase text-xs">
-                {doc.file_type || '-'}
+                {dir ? '—' : doc.file_type || '-'}
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {formatFileSize(doc.file_size)}
+                {dir ? '—' : formatFileSize(doc.file_size)}
               </TableCell>
               <TableCell>
                 <Badge variant={badgeProps.variant} className={badgeProps.className}>
-                  {t(getStatusKey(doc.status))}
+                  {dir ? t('folderType') : t(getStatusKey(doc.status))}
                 </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground">
-                {doc.chunk_count}
+                {dir ? '—' : doc.chunk_count}
               </TableCell>
               <TableCell>
                 <AlertDialog
@@ -82,9 +86,9 @@ export function DocumentTable({
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>{t('deleteDocument')}</AlertDialogTitle>
+                      <AlertDialogTitle>{dir ? t('deleteFolder') : t('deleteDocument')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        {t('confirmDeleteDoc', { name: doc.filename })}
+                        {dir ? t('confirmDeleteFolder', { name: displayName }) : t('confirmDeleteDoc', { name: doc.filename })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
