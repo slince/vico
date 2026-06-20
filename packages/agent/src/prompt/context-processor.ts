@@ -14,7 +14,7 @@ export const Priority = {
 } as const;
 
 /** 穿过洋葱各层的可变上下文 */
-export interface ModelRequestContext {
+export class ModelRequestContext {
   /** Agent 配置（只读引用） */
   readonly agent: AgentConfig;
   /** 系统提示词 — 处理器追加内容 */
@@ -23,6 +23,26 @@ export interface ModelRequestContext {
   messages: ModelMessage[];
   /** 暴露给 LLM 的工具 */
   tools: ToolSpec[];
+
+  constructor(init: {
+    agent: AgentConfig;
+    systemPrompt?: string;
+    messages?: ModelMessage[];
+    tools?: ToolSpec[];
+  }) {
+    this.agent = init.agent;
+    this.systemPrompt = init.systemPrompt ?? '';
+    this.messages = init.messages ?? [];
+    this.tools = init.tools ?? [];
+  }
+
+  /** 获取最后一条用户消息内容 */
+  getLastUserMessage(): string {
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      if (this.messages[i].role === 'user') return this.messages[i].content;
+    }
+    return '';
+  }
 }
 
 /**

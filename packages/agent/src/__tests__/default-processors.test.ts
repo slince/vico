@@ -9,7 +9,7 @@ import {
   OnionPipeline,
   buildModelRequest,
   Priority,
-  type ModelRequestContext,
+  ModelRequestContext,
   type ContextProcessor,
 } from '../prompt/context-processor.js';
 import type { AgentConfig } from '../contracts/agent.js';
@@ -27,13 +27,11 @@ function makeConfig(): AgentConfig {
 }
 
 function makeCtx(overrides?: Partial<ModelRequestContext>): ModelRequestContext {
-  return {
+  return new ModelRequestContext({
     agent: makeConfig(),
-    systemPrompt: '',
     messages: [{ role: 'user', content: 'hello' }],
-    tools: [],
     ...overrides,
-  };
+  });
 }
 
 describe('SystemPromptProcessor', () => {
@@ -190,12 +188,12 @@ describe('OnionPipeline', () => {
 describe('buildModelRequest', () => {
   it('converts ModelRequestContext to ModelRequest', () => {
     const config = makeConfig();
-    const ctx: ModelRequestContext = {
+    const ctx = new ModelRequestContext({
       agent: config,
       systemPrompt: 'You are helpful.',
       messages: [{ role: 'user', content: 'hello' }],
       tools: [{ name: 'echo', description: '', inputSchema: {}, policy: 'auto', kind: 'command' }],
-    };
+    });
     const req = buildModelRequest(ctx);
     expect(req.system).toBe('You are helpful.');
     expect(req.messages).toHaveLength(1);

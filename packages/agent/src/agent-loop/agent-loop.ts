@@ -10,7 +10,7 @@ import { ContextCompactor } from './context-compactor.js';
 import type { TokenEconomy } from './token-economy.js';
 import type { ApprovalGate } from './approval-gate.js';
 import type { ContextProcessor } from '../prompt/context-processor.js';
-import { OnionPipeline, buildModelRequest, type ModelRequestContext } from '../prompt/context-processor.js';
+import { OnionPipeline, buildModelRequest, ModelRequestContext } from '../prompt/context-processor.js';
 import { DynamicInstructionProcessor } from './dynamic-instruction-processor.js';
 
 export type { TurnResult, AgentLoopOptions } from './types.js';
@@ -110,12 +110,11 @@ export class AgentLoop {
         }
 
         // 3.1 洋葱管道：创建上下文 → 执行处理器 → 构建 ModelRequest
-        const ctx: ModelRequestContext = {
+        const ctx = new ModelRequestContext({
           agent: this.config,
-          systemPrompt: '',
           messages: [...messages],
           tools: [...this.boundTools],
-        };
+        });
         await this.pipeline.run(ctx);
         const request = buildModelRequest(ctx);
         request.abortSignal = signal;

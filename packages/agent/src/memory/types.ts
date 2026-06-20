@@ -8,6 +8,11 @@ export interface RagChunk {
   source: string;
 }
 
+/** RAG 知识库检索端口 */
+export interface RagProvider {
+  search(query: string, knowledgeBaseId: string, limit?: number): Promise<RagChunk[]>;
+}
+
 /** 三层记忆存储端口 */
 export interface MemoryStore {
   /** 短期记忆（滑动窗口） */
@@ -29,8 +34,5 @@ export interface MemoryStore {
     delete(id: string): Promise<void>;
   };
   /** RAG 知识库检索 */
-  rag: {
-    /** 在知识库中检索相关文档片段 */
-    search(query: string, knowledgeBaseId: string, limit?: number): Promise<RagChunk[]>;
-  };
+  rag: RagProvider;
 }

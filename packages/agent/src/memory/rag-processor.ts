@@ -1,30 +1,17 @@
 // @vico/agent - RagProcessor: retrieves RAG knowledge and appends as system message
 import type { ContextProcessor, ModelRequestContext } from '../prompt/context-processor.js';
 import { Priority } from '../prompt/context-processor.js';
-import type { RagChunk } from './types.js';
-import type { ModelMessage } from '../model/types.js';
-
-/** 提取最后一条用户消息内容作为检索查询 */
-function extractLastUserMessage(messages: ModelMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === 'user') return messages[i].content;
-  }
-  return '';
-}
+import type { RagProvider } from './types.js';
 
 /** 检索 RAG 知识库并追加为 system 消息（NORMAL 优先级） */
 export class RagProcessor implements ContextProcessor {
   readonly name = 'rag';
   readonly priority = Priority.NORMAL;
 
-  constructor(
-    private readonly ragProvider: {
-      search(query: string, kbId: string, limit?: number): Promise<RagChunk[]>;
-    },
-  ) {}
+  constructor(private readonly ragProvider: RagProvider) {}
 
   async process(ctx: ModelRequestContext): Promise<void> {
-    const query = extractLastUserMessage(ctx.messages);
+    const query = ctx.getLastUserMessage();
     if (!query) return;
 
     const results = await this.ragProvider.search(query, '', 5);

@@ -45,7 +45,7 @@ export { RagProcessor } from './memory/rag-processor.js';
 export { DynamicInstructionProcessor } from './agent-loop/dynamic-instruction-processor.js';
 
 export { type SkillCatalogEntry } from './skill/types.js';
-export { type RagChunk } from './memory/types.js';
+export { type RagChunk, type RagProvider } from './memory/types.js';
 
 // Ports — ToolHost
 export {
