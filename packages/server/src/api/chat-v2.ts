@@ -40,7 +40,7 @@ export function chatV2Routes(app: Hono<{ Variables: Variables }>): void {
         events.on('*', handler);
 
         try {
-          await agent.loop.runTurn(
+          await agent.getLoop().runTurn(
             `thread-${agentId}-${Date.now()}`,
             [],
             userMessage,

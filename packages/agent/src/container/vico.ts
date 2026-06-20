@@ -41,8 +41,7 @@ export interface VicoOptions {
  * await vico.init();
  *
  * // 创建 Agent 并注册到 Runtime（使用默认 modelFactory）
- * const runtime = vico.getRuntime();
- * await runtime.createAgent(config);
+ * await vico.runtime.createAgent(config);
  *
  * // 一行对话
  * const result = await vico.invoke(config.id, 'Hello');
@@ -118,7 +117,7 @@ export class Vico {
       location: s.path,
     }));
 
-    const loop = new AgentLoop({
+    const loopFactory = () => new AgentLoop({
       config,
       model: modelClient,
       toolHost: this.toolHost,
@@ -134,19 +133,10 @@ export class Vico {
 
     return new Agent({
       config,
-      loop,
+      loopFactory,
       skills: boundSkills,
       tools: boundTools,
     });
-  }
-
-  /**
-   * 获取 AgentRuntime。不传 factory 则返回构造函数自动创建的实例。
-   * @param factory — 可选，传入时用新 factory 重建 Runtime。
-   */
-  getRuntime(factory?: ModelClientFactory): AgentRuntime {
-    if (!factory) return this.runtime;
-    return this.createRuntime(factory);
   }
 
   /** 创建 AgentRuntime */
@@ -163,8 +153,7 @@ export class Vico {
    *
    * @example
    * ```ts
-   * const runtime = vico.getRuntime((c) => new MyModelClient(c));
-   * await runtime.createAgent(config);
+   * await vico.runtime.createAgent(config);
    * const result = await vico.invoke(config.id, 'Hello!');
    * ```
    */
@@ -179,7 +168,7 @@ export class Vico {
     const userMessage: ModelMessage = { role: 'user', content: message };
     const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
 
-    return agent.loop.runTurn(
+    return agent.getLoop().runTurn(
       threadId,
       [],
       userMessage,

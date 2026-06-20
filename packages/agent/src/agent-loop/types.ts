@@ -39,26 +39,36 @@ export interface AgentLoopOptions {
   spanTracker: SpanTracker;
 }
 
-/** Agent — 配置 + 运行时 loop + 绑定（memory/skills/tools） */
+/** Agent — 配置 + 运行时 loop（延迟构建）+ 绑定（memory/skills/tools） */
 export class Agent {
   readonly config: AgentConfig;
-  readonly loop: AgentLoop;
   readonly skills: Skill[];
   readonly tools: ToolSpec[];
   readonly memory?: MemoryStore;
 
+  private _loop?: AgentLoop;
+  private loopFactory: () => AgentLoop;
+
   constructor(params: {
     config: AgentConfig;
-    loop: AgentLoop;
+    loopFactory: () => AgentLoop;
     skills?: Skill[];
     tools?: ToolSpec[];
     memory?: MemoryStore;
   }) {
     this.config = params.config;
-    this.loop = params.loop;
+    this.loopFactory = params.loopFactory;
     this.skills = params.skills ?? [];
     this.tools = params.tools ?? [];
     this.memory = params.memory;
+  }
+
+  /** 获取 AgentLoop（首次调用时构建并缓存） */
+  getLoop(): AgentLoop {
+    if (!this._loop) {
+      this._loop = this.loopFactory();
+    }
+    return this._loop;
   }
 }
 

@@ -22,7 +22,7 @@ describe('AgentRuntime', () => {
 
   const factory: AgentFactory = async (config) => {
     factoryCallCount++;
-    return new Agent({ config, loop: {} as any });
+    return new Agent({ config, loopFactory: () => ({} as any) });
   };
 
   beforeEach(() => {
