@@ -36,8 +36,8 @@
   "newDocumentDesc": "创建一个 Markdown 文档并索引到知识库",
   "documentName": "文档名称",
   "documentNamePlaceholder": "输入文档名称（不含扩展名）",
-  "documentContent": "内容 (Markdown)",
-  "documentContentPlaceholder": "输入 Markdown 内容...",
+  "documentContent": "内容（富文本）",
+  "documentContentPlaceholder": "开始编辑... 支持标题、列表、表格、图片等格式",
   "createAndIndex": "创建并索引",
   "newFolderTitle": "新建目录",
   "newFolderDesc": "在知识库中创建一个新的目录",
@@ -70,5 +70,7 @@
   "editDialogTitle": "编辑知识库",
   "editDialogDesc": "修改知识库的名称和描述",
   "editButton": "编辑",
-  "saving": "保存中..."
+  "saving": "保存中...",
+  "enterFullscreen": "全屏编辑",
+  "exitFullscreen": "退出全屏"
 }

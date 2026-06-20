@@ -36,8 +36,8 @@
   "newDocumentDesc": "Create a Markdown document and index it into the knowledge base",
   "documentName": "Document Name",
   "documentNamePlaceholder": "Enter document name (without extension)",
-  "documentContent": "Content (Markdown)",
-  "documentContentPlaceholder": "Enter Markdown content...",
+  "documentContent": "Content (Rich Text)",
+  "documentContentPlaceholder": "Start typing... Supports headings, lists, tables, images and more",
   "createAndIndex": "Create & Index",
   "newFolderTitle": "New Folder",
   "newFolderDesc": "Create a new folder in the knowledge base",
@@ -70,5 +70,7 @@
   "editDialogTitle": "Edit Knowledge Base",
   "editDialogDesc": "Modify the name and description of the knowledge base",
   "editButton": "Edit",
-  "saving": "Saving..."
+  "saving": "Saving...",
+  "enterFullscreen": "Enter fullscreen",
+  "exitFullscreen": "Exit fullscreen"
 }

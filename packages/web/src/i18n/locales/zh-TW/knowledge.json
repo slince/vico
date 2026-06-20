@@ -36,8 +36,8 @@
   "newDocumentDesc": "建立一個 Markdown 文件並索引到知識庫",
   "documentName": "文件名稱",
   "documentNamePlaceholder": "輸入文件名稱（不含副檔名）",
-  "documentContent": "內容 (Markdown)",
-  "documentContentPlaceholder": "輸入 Markdown 內容...",
+  "documentContent": "內容（富文本）",
+  "documentContentPlaceholder": "開始編輯... 支援標題、列表、表格、圖片等格式",
   "createAndIndex": "建立並索引",
   "newFolderTitle": "新增目錄",
   "newFolderDesc": "在知識庫中建立一個新的目錄",
@@ -70,5 +70,7 @@
   "editDialogTitle": "編輯知識庫",
   "editDialogDesc": "修改知識庫的名稱和描述",
   "editButton": "編輯",
-  "saving": "儲存中..."
+  "saving": "儲存中...",
+  "enterFullscreen": "全螢幕編輯",
+  "exitFullscreen": "退出全螢幕"
 }

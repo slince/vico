@@ -236,6 +236,7 @@ export {
 export { Progress } from "./progress"
 export { RadioGroup, RadioGroupItem } from "./radio-group"
 export { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./resizable"
+export { RichtextEditor, type RichtextEditorProps } from "./richtext-editor"
 export { ScrollArea, ScrollBar } from "./scroll-area"
 export {
   Select,
