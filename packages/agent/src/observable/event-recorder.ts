@@ -17,9 +17,6 @@ export class MittEventRecorder implements EventRecorder {
   private emitter: Emitter<Record<string, unknown>>;
 
   constructor() {
-    // @ts-expect-error -- TS NodeNext 无法识别 mitt 默认导出为可调用函数，
-    // 因其 types 入口指向的 index.d.ts 没有伴生 JS 文件。
-    // 运行时 mitt 正确导出工厂函数作为默认导出。
     this.emitter = mitt<Record<string, unknown>>();
   }
 
