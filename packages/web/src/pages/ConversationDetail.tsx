@@ -94,7 +94,7 @@ export default function ConversationDetail() {
         <div className="flex-1">
           <h2 className="text-2xl font-bold tracking-tight">{t('detailTitle')}</h2>
 
-          <p className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             {t('metadataAgent')}: {conversation.agent_name ?? conversation.agent_id}
             <Separator
               orientation="vertical"
@@ -106,7 +106,7 @@ export default function ConversationDetail() {
               className="mx-2 inline-flex h-3 align-middle"
             />
             {t('totalRecords', { count: conversation.message_count })}
-          </p>
+          </div>
         </div>
 
         <Button
