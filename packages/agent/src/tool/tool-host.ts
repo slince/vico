@@ -1,5 +1,5 @@
 // @vico/agent - ToolHost port interface: tool discovery and execution
-import type { ToolSpec, ToolCall, ToolResult, ToolPolicy } from '../contracts/tool.js';
+import type { ToolSpec, ToolCall, ToolResult } from '../contracts/tool.js';
 import type { HookRunner } from '../hook/hook-types.js';
 
 /** 工具执行上下文 */

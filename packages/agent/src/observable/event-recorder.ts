@@ -17,7 +17,8 @@ export class MittEventRecorder implements EventRecorder {
   private emitter: Emitter<Record<string, unknown>>;
 
   constructor() {
-    this.emitter = mitt<Record<string, unknown>>();
+    const createEmitter = mitt as unknown as <T extends Record<string, unknown>>() => Emitter<T>;
+    this.emitter = createEmitter<Record<string, unknown>>();
   }
 
   emit(event: SSEEvent): void {

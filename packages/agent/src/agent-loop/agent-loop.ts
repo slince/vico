@@ -189,9 +189,13 @@ export class AgentLoopImpl implements AgentLoop {
 
         modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
-        // 3.3 如果有 assistant 文本回复，加入消息列表
-        if (fullText) {
-          messages.push({ role: 'assistant', content: fullText });
+        // 3.3 如果有 assistant 回复或工具调用，加入消息列表
+        if (fullText || toolCalls.length > 0) {
+          messages.push({
+            role: 'assistant',
+            content: fullText,
+            ...(toolCalls.length > 0 && { toolCalls }),
+          });
         }
 
         // 3.4 如果没有工具调用，循环结束
