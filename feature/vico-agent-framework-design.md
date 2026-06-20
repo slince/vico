@@ -230,7 +230,7 @@
 **职责**：替代 Mastra 的 IoC 容器，支持运行时动态创建/销毁/更新 Agent。
 
 ```typescript
-// ports/agent-runtime.ts
+// agent-runtime/agent-runtime.ts
 
 interface AgentRuntime {
   // 生命周期
@@ -264,7 +264,7 @@ interface AgentRuntime {
 **职责**：执行 Agent 的 "思考-行动" 循环，是框架的心脏。
 
 ```typescript
-// ports/agent-loop.ts
+// agent-loop/agent-loop.ts
 
 interface AgentLoopOptions {
   model: ModelClient;              // LLM 适配器
@@ -408,7 +408,7 @@ assemble(context):
 **职责**：封装 LLM 调用，提供统一接口。
 
 ```typescript
-// ports/model-client.ts
+// model/model-client.ts
 
 interface ModelClient {
   readonly provider: string;
@@ -449,7 +449,7 @@ type ModelStreamChunk =
 **推荐方案**：复用 AI SDK 的 `streamText` + `generateText`，封装为 `ModelClient` 端口。
 
 ```typescript
-// adapters/model/ai-sdk-adapter.ts
+// model/ai-sdk-adapter.ts
 
 class AISDKModelClient implements ModelClient {
   constructor(private config: ModelConfig) {}
@@ -482,7 +482,7 @@ class AISDKModelClient implements ModelClient {
 **职责**：管理工具的发现、过滤、审批、执行全流程。
 
 ```typescript
-// ports/tool-host.ts
+// tool/tool-host.ts
 
 interface ToolHost {
   // 列出当前上下文可用的工具
@@ -520,7 +520,7 @@ interface ToolExecutionContext {
 **工具来源聚合**（参考 Mastra 的 10+ 来源）：
 
 ```typescript
-// adapters/tool/local-tool-host.ts
+// tool/local-tool-host.ts
 
 class LocalToolHost implements ToolHost {
   private capabilityRegistry: CapabilityRegistry;
@@ -647,7 +647,7 @@ metadata:                   # 可选，任意键值对
 #### 4.6.3 核心接口
 
 ```typescript
-// ports/skill-loader.ts
+// skill/skill-loader.ts
 
 interface SkillLoader {
   // 发现
@@ -823,7 +823,7 @@ agent_skills 表: { agent_id, skill_id }
 **职责**：双层记忆 + RAG 知识库。
 
 ```typescript
-// ports/memory-store.ts
+// memory/memory-store.ts
 
 interface MemoryStore {
   // 短期记忆（滑动 FIFO 窗口）
@@ -864,7 +864,7 @@ interface MemoryStore {
 **职责**：在 Agent 生命周期关键节点插入自定义逻辑。
 
 ```typescript
-// ports/hook.ts
+// hook/hook-types.ts
 
 type HookEvent = 
   | 'turn:start' | 'turn:end'
@@ -893,7 +893,7 @@ interface HookRunner {
 **职责**：当上下文超出 Token 预算时，自动压缩历史消息。
 
 ```typescript
-// ports/context-compactor.ts
+// agent-loop/context-compactor.ts
 
 interface ContextCompactor {
   compactIfNeeded(items: Message[], model: ModelClient, signal: AbortSignal): Promise<{
@@ -933,7 +933,7 @@ compactIfNeeded(items):
 **职责**：追踪 Agent 执行过程，记录 Span 和事件。
 
 ```typescript
-// ports/observable.ts
+// observable/event-recorder.ts
 
 interface SpanTracker {
   startSpan(type: SpanType, metadata: Record<string, unknown>): Span;
@@ -1120,52 +1120,64 @@ packages/
 │   ├── tsconfig.json
 │   └── src/
 │       ├── index.ts         # 统一导出
-│       ├── ports/           # 所有抽象接口
-│       │   ├── agent-runtime.ts
-│       │   ├── agent-loop.ts
-│       │   ├── model-client.ts
-│       │   ├── tool-host.ts
-│       │   ├── skill-loader.ts
-│       │   ├── memory-store.ts
-│       │   ├── session-store.ts
-│       │   ├── prompt-assembler.ts
-│       │   ├── context-compactor.ts
-│       │   ├── hook.ts
-│       │   └── observable.ts
-│       ├── adapters/        # 具体实现
-│       │   ├── model/
-│       │   │   └── ai-sdk-adapter.ts
-│       │   ├── tool/
-│       │   │   ├── local-tool-host.ts
-│       │   │   ├── capability-registry.ts
-│       │   │   └── builtin-tools.ts
-│       │   ├── skill/
-│       │   │   └── fs-skill-loader.ts
-│       │   ├── memory/
-│       │   │   ├── short-term-memory.ts
-│       │   │   ├── long-term-memory.ts
-│       │   │   └── rag-manager.ts
-│       │   └── session/
-│       │       └── sqlite-session-store.ts
-│       ├── runtime/         # AgentRuntime + AgentLoop
-│       │   ├── agent-runtime.ts
-│       │   ├── agent-loop.ts
-│       │   ├── context-compactor.ts
-│       │   ├── token-economy.ts
-│       │   └── approval-gate.ts
-│       ├── prompt/          # Prompt 拼装
-│       │   ├── assembler.ts
-│       │   └── immutable-prefix.ts
-│       ├── hook/            # Hook 系统
-│       │   └── hook-runner.ts
-│       ├── observable/      # 可观测性
-│       │   ├── span-tracker.ts
-│       │   └── event-recorder.ts
-│       └── contracts/       # Zod Schema
-│           ├── agent.ts
-│           ├── tool.ts
-│           ├── memory.ts
-│           └── events.ts
+│       │
+│       ├── agent-runtime/   # Agent 运行时容器（动态管理）
+│       │   ├── agent-runtime.ts    # 单例：创建/销毁/查找 Agent 实例
+│       │   └── agent-config.ts     # Agent 配置类型（从 DB 加载）
+│       │
+│       ├── agent-loop/      # Agent 循环引擎（核心）
+│       │   ├── agent-loop.ts        # 主循环：runTurn → modelStep → dispatchTools
+│       │   ├── context-compactor.ts # 上下文压缩（启发式 + LLM 摘要）
+│       │   ├── token-economy.ts     # Token 经济管理
+│       │   └── approval-gate.ts     # 审批门控
+│       │
+│       ├── prompt/          # 系统提示词拼装
+│       │   ├── assembler.ts         # 组装系统 prompt
+│       │   └── immutable-prefix.ts  # 不可变前缀管理（Prompt 缓存优化）
+│       │
+│       ├── model/           # 模型抽象层
+│       │   ├── model-client.ts      # 抽象端口
+│       │   ├── ai-sdk-adapter.ts    # AI SDK 适配器实现
+│       │   └── model-registry.ts    # 模型注册表（从 DB 加载）
+│       │
+│       ├── tool/            # 工具系统
+│       │   ├── tool-host.ts         # 抽象端口
+│       │   ├── local-tool-host.ts   # 工具执行器（审批+策略+并行）
+│       │   ├── capability-registry.ts # 能力注册表
+│       │   └── builtin-tools.ts     # 内置工具
+│       │
+│       ├── skill/           # Skill 插件系统
+│       │   ├── skill-loader.ts      # 抽象端口
+│       │   ├── fs-skill-loader.ts   # 文件系统加载器
+│       │   ├── skill-manager.ts     # 单例管理器
+│       │   └── skill-tools.ts       # skill / skill_search / skill_read 工具
+│       │
+│       ├── memory/          # 记忆系统
+│       │   ├── memory-store.ts      # 抽象端口
+│       │   ├── short-term-memory.ts # 短期记忆（FIFO 窗口）
+│       │   ├── long-term-memory.ts  # 长期记忆（向量检索）
+│       │   ├── rag-manager.ts       # RAG 知识库
+│       │   └── embedder.ts          # 嵌入器抽象 + 适配器
+│       │
+│       ├── hook/            # 生命周期 Hook
+│       │   ├── hook-runner.ts       # Hook 执行引擎
+│       │   └── hook-types.ts        # PreToolUse/PostToolUse/TurnStart 等
+│       │
+│       ├── session/         # 会话/存储
+│       │   ├── session-store.ts     # 会话持久化端口
+│       │   ├── conversation-store.ts # 对话记录存储
+│       │   └── message-store.ts     # 消息存储
+│       │
+│       ├── contracts/       # Zod Schema 定义
+│       │   ├── agent.ts
+│       │   ├── tool.ts
+│       │   ├── memory.ts
+│       │   └── events.ts
+│       │
+│       └── observable/      # 可观测性
+│           ├── span-tracker.ts      # Span 追踪
+│           ├── event-recorder.ts    # SSE 事件广播
+│           └── usage-tracker.ts     # Token 用量统计
 │
 ├── web/                     # 前端（不变）
 └── skills/                  # Skill 插件（不变）
