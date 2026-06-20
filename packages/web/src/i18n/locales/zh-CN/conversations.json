@@ -47,5 +47,8 @@
   "chatSidebarEmpty": "选择一个 Agent 开始对话",
   "chatEmptyTitle": "开始对话",
   "chatEmptyDescription": "选择一个 Agent 开始对话",
-  "chatEmptyButton": "选择 Agent"
+  "chatEmptyButton": "选择 Agent",
+  "knowledgeSearch": "知识库搜索",
+  "knowledgeResultCount": "{{count}} 条结果",
+  "knowledgeNoResults": "未找到相关知识"
 }

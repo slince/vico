@@ -42,7 +42,13 @@
     "allowOnce": "允许",
     "allowAlways": "始终允许",
     "denyOnce": "拒绝",
-    "denyAlways": "始终拒绝"
+    "denyAlways": "始终拒绝",
+    "knowledgeSearch": {
+      "searching": "正在搜索知识库...",
+      "failed": "知识库搜索失败",
+      "resultCount": "{{count}} 条结果",
+      "noResults": "未找到相关知识"
+    }
   },
   "modal": {
     "openAssistant": "打开助手",

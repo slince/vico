@@ -42,7 +42,13 @@
     "allowOnce": "允許",
     "allowAlways": "始終允許",
     "denyOnce": "拒絕",
-    "denyAlways": "始終拒絕"
+    "denyAlways": "始終拒絕",
+    "knowledgeSearch": {
+      "searching": "正在搜尋知識庫...",
+      "failed": "知識庫搜尋失敗",
+      "resultCount": "{{count}} 條結果",
+      "noResults": "未找到相關知識"
+    }
   },
   "modal": {
     "openAssistant": "打開助手",

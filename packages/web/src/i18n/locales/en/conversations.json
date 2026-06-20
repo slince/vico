@@ -47,5 +47,8 @@
   "chatSidebarEmpty": "Select an agent to start chatting",
   "chatEmptyTitle": "Start a conversation",
   "chatEmptyDescription": "Select an agent to start chatting",
-  "chatEmptyButton": "Select Agent"
+  "chatEmptyButton": "Select Agent",
+  "knowledgeSearch": "Knowledge Search",
+  "knowledgeResultCount": "{{count}} result(s)",
+  "knowledgeNoResults": "No relevant knowledge found"
 }

@@ -9,6 +9,7 @@ import {useAui} from '@assistant-ui/react';
 import {Thread} from '@/components/assistant-ui/thread';
 import {WeatherToolRenderer} from './ToolUIs/weather-ui';
 import {ExecToolRenderer} from './ToolUIs/exec-ui';
+import {KnowledgeSearchToolRenderer} from './ToolUIs/knowledge-search-ui';
 
 interface Agent {
   id: string;
@@ -32,9 +33,15 @@ function ToolRegistrations() {
       ExecToolRenderer,
       { standalone: true },
     );
+    const unsubKnowledge = aui.tools().setToolUI(
+      'search_knowledge_base',
+      KnowledgeSearchToolRenderer,
+      { standalone: true },
+    );
     return () => {
       unsubWeather();
       unsubExec();
+      unsubKnowledge();
     };
   }, [aui]);
 

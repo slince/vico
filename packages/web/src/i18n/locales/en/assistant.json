@@ -42,7 +42,13 @@
     "allowOnce": "Allow",
     "allowAlways": "Always allow",
     "denyOnce": "Deny",
-    "denyAlways": "Always deny"
+    "denyAlways": "Always deny",
+    "knowledgeSearch": {
+      "searching": "Searching knowledge base...",
+      "failed": "Knowledge search failed",
+      "resultCount": "{{count}} result(s)",
+      "noResults": "No relevant knowledge found"
+    }
   },
   "modal": {
     "openAssistant": "Open Assistant",
