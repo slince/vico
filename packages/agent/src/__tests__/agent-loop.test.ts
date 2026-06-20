@@ -5,7 +5,7 @@ import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/model
 import type { AgentConfig } from '../contracts/agent.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
-import { PromptAssembler } from '../prompt/assembler.js';
+import { SystemPromptProcessor } from '../prompt/default-processors.js';
 
 function makeConfig(): AgentConfig {
   return {
@@ -54,7 +54,7 @@ describe('AgentLoop', () => {
       config: makeConfig(),
       model,
       toolHost: mockToolHost as any,
-      promptAssembler: new PromptAssembler(),
+      processors: [new SystemPromptProcessor()],
       events,
       spanTracker: tracker,
     });
@@ -67,7 +67,7 @@ describe('AgentLoop', () => {
     );
 
     expect(result.status).toBe('completed');
-    expect(result.steps).toBe(0); // no tool calls, single turn
+    expect(result.steps).toBe(0);
   });
 
   it('executes tool calls and continues loop', async () => {
@@ -80,7 +80,6 @@ describe('AgentLoop', () => {
       { type: 'text_delta', content: 'Let me search.' },
       { type: 'tool_call_complete', id: 'call-1', name: 'search', args: { q: 'test' } },
       { type: 'completed', finishReason: 'tool_calls' },
-      // second model step after tool results
       { type: 'text_delta', content: 'Found results.' },
       { type: 'completed', finishReason: 'stop' },
     ]);
@@ -89,7 +88,7 @@ describe('AgentLoop', () => {
       config: makeConfig(),
       model,
       toolHost: mockToolHost as any,
-      promptAssembler: new PromptAssembler(),
+      processors: [new SystemPromptProcessor()],
       events,
       spanTracker: tracker,
     });
@@ -105,7 +104,6 @@ describe('AgentLoop', () => {
     expect(result.steps).toBeGreaterThan(0);
     expect(doneEvents.length).toBe(1);
 
-    // verify spans
     const spans = tracker.getAllSpans();
     expect(spans.some((s) => s.type === 'agent_run')).toBe(true);
     expect(spans.some((s) => s.type === 'tool_call')).toBe(true);
@@ -116,13 +114,11 @@ describe('AgentLoop', () => {
     const tracker = new InMemorySpanTracker();
     const controller = new AbortController();
 
-    // model that yields text, then waits for the abort signal (simulates long-running call)
     const model: ModelClient = {
       provider: 'mock',
       model: 'mock',
       async *stream(request: ModelRequest): AsyncIterable<ModelStreamChunk> {
         yield { type: 'text_delta', content: 'thinking...' };
-        // wait until the abort signal fires, simulating a long-running call
         await new Promise<void>((resolve) => {
           if (request.abortSignal.aborted) {
             resolve();
@@ -141,12 +137,11 @@ describe('AgentLoop', () => {
       config: makeConfig(),
       model,
       toolHost: mockToolHost as any,
-      promptAssembler: new PromptAssembler(),
+      processors: [new SystemPromptProcessor()],
       events,
       spanTracker: tracker,
     });
 
-    // interrupt after 10ms — both flag the loop and abort the signal to unblock the stream
     setTimeout(() => {
       loop.interrupt();
       controller.abort();

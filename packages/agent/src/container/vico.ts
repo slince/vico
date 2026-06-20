@@ -10,7 +10,7 @@ import { FSSkillLoader } from '../skill/fs-skill-loader.js';
 import { createSkillTools, createSkillToolHandlers } from '../skill/skill-tools.js';
 import { AgentLoop } from '../agent-loop/agent-loop.js';
 import type { TurnResult } from '../agent-loop/types.js';
-import { PromptAssembler } from '../prompt/assembler.js';
+import { SystemPromptProcessor, SkillCatalogProcessor } from '../prompt/default-processors.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
 import { CompositeHookRunner, type HookRunner } from '../hook/hook-runner.js';
@@ -117,11 +117,13 @@ export class Vico {
       config,
       model: modelClient,
       toolHost: this.toolHost,
-      promptAssembler: new PromptAssembler(),
+      processors: [
+        new SystemPromptProcessor(),
+        new SkillCatalogProcessor(skillCatalog),
+      ],
       events: this.events,
       spanTracker: this.spanTracker,
       hooks: this.hooks,
-      skillCatalog,
       boundTools,
     });
 

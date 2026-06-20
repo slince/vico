@@ -27,13 +27,27 @@ export {
 } from './model/model-client.js';
 export { AISDKModelClient } from './model/ai-sdk-adapter.js';
 
-// PromptAssembler
+// Context processors (onion model)
 export {
-  PromptAssembler,
-  type PromptContext,
+  type ContextProcessor,
+  type ModelRequestContext,
+  OnionPipeline,
+  buildModelRequest,
+  Priority,
+} from './prompt/context-processor.js';
+
+export {
+  SystemPromptProcessor,
+  SkillCatalogProcessor,
+  MemoryProcessor,
+  RagProcessor,
+  DynamicInstructionProcessor,
+} from './prompt/default-processors.js';
+
+export {
   type SkillCatalogEntry,
   type RagChunk,
-} from './prompt/assembler.js';
+} from './prompt/types.js';
 
 // Ports — ToolHost
 export {

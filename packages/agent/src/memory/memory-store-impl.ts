@@ -2,7 +2,7 @@
 import type { MemoryStore } from './memory-store.js';
 import type { ModelMessage } from '../model/model-client.js';
 import type { MemoryRecord } from '../contracts/memory.js';
-import type { RagChunk } from '../prompt/assembler.js';
+import type { RagChunk } from '../prompt/types.js';
 import { ShortTermMemory } from './short-term-memory.js';
 
 /** Phase 3 内存版 MemoryStore — STM 完整实现，LTM/RAG 为存根（Phase 5 接 DB） */

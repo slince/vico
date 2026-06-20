@@ -1,8 +1,6 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type { TurnResult, AgentLoopOptions } from './types.js';
 import type { ModelClient, ModelMessage } from '../model/model-client.js';
-import type { PromptContext, SkillCatalogEntry } from '../prompt/types.js';
-import { PromptAssembler } from '../prompt/assembler.js';
 import type { ToolHost, ToolExecutionContext } from '../tool/tool-host.js';
 import type { ToolCall, ToolResult, ToolSpec } from '../contracts/tool.js';
 import type { EventRecorder } from '../observable/event-recorder.js';
@@ -11,8 +9,9 @@ import type { CompositeHookRunner } from '../hook/hook-runner.js';
 import { ContextCompactor } from './context-compactor.js';
 import type { TokenEconomy } from './token-economy.js';
 import type { ApprovalGate } from './approval-gate.js';
-import type { MemoryStore } from '../memory/types.js';
-import type { RagChunk } from '../prompt/types.js';
+import type { ContextProcessor } from '../prompt/context-processor.js';
+import { OnionPipeline, buildModelRequest, type ModelRequestContext } from '../prompt/context-processor.js';
+import { DynamicInstructionProcessor } from '../prompt/default-processors.js';
 
 export type { TurnResult, AgentLoopOptions } from './types.js';
 
@@ -21,7 +20,6 @@ export class AgentLoop {
   private config: AgentLoopOptions['config'];
   private model: ModelClient;
   private toolHost: ToolHost;
-  private promptAssembler: PromptAssembler;
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalGate?: ApprovalGate;
@@ -31,27 +29,28 @@ export class AgentLoop {
   private steerBuffer: string[] = [];
   private interrupted = false;
 
-  // Bindings — 注入 PromptContext
-  private skillCatalog: SkillCatalogEntry[];
-  private memoryProvider?: MemoryStore;
-  private ragProvider?: { search(query: string, kbId: string, limit?: number): Promise<RagChunk[]> };
+  private pipeline: OnionPipeline;
   private boundTools: ToolSpec[];
 
   constructor(options: AgentLoopOptions) {
     this.config = options.config;
     this.model = options.model;
     this.toolHost = options.toolHost;
-    this.promptAssembler = options.promptAssembler;
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
     this.approvalGate = options.approvalGate;
     this.hooks = options.hooks;
     this.events = options.events;
     this.spanTracker = options.spanTracker;
-    this.skillCatalog = options.skillCatalog ?? [];
-    this.memoryProvider = options.memoryProvider;
-    this.ragProvider = options.ragProvider;
     this.boundTools = options.boundTools ?? [];
+
+    // 用户提供的处理器 + 内置 DynamicInstructionProcessor
+    const userProcessors = options.processors ?? [];
+    const steerProcessor = new DynamicInstructionProcessor(() => {
+      const text = this.drainSteerBuffer();
+      return text ? [text] : [];
+    });
+    this.pipeline = new OnionPipeline([...userProcessors, steerProcessor]);
   }
 
   /**
@@ -71,7 +70,7 @@ export class AgentLoop {
     const usage = { input: 0, output: 0 };
 
     try {
-      // 1. 前置：排干 steer 缓冲区
+      // 1. 前置：排干 steer 缓冲区，作为用户消息追加
       const steerText = this.drainSteerBuffer();
       if (steerText) {
         messages.push({ role: 'user', content: steerText });
@@ -110,9 +109,15 @@ export class AgentLoop {
           break;
         }
 
-        // 3.1 组装 prompt（异步：查询记忆 + RAG）
-        const promptCtx = await this.buildPromptContext(messages);
-        const request = this.promptAssembler.assemble(promptCtx);
+        // 3.1 洋葱管道：创建上下文 → 执行处理器 → 构建 ModelRequest
+        const ctx: ModelRequestContext = {
+          agent: this.config,
+          systemPrompt: '',
+          messages: [...messages],
+          tools: [...this.boundTools],
+        };
+        await this.pipeline.run(ctx);
+        const request = buildModelRequest(ctx);
         request.abortSignal = signal;
 
         // 3.2 调用模型
@@ -240,29 +245,6 @@ export class AgentLoop {
     };
 
     return this.toolHost.executeBatch(calls, context);
-  }
-
-  /**
-   * 构建 PromptContext — 查询记忆、RAG，合并 bindings。
-   * 使用最后一条用户消息作为检索查询。
-   */
-  private async buildPromptContext(messages: ModelMessage[]): Promise<PromptContext> {
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
-
-    const [memoryItems, ragResults] = await Promise.all([
-      this.memoryProvider?.ltm.search(lastUserMsg, 5) ?? [],
-      this.ragProvider?.search(lastUserMsg, '', 5) ?? [],
-    ]);
-
-    return {
-      agent: this.config,
-      skillCatalog: this.skillCatalog,
-      memoryItems,
-      ragResults,
-      history: messages,
-      tools: this.boundTools,
-      dynamicInstructions: this.steerBuffer.length > 0 ? [this.drainSteerBuffer()] : [],
-    };
   }
 
   /** 排干 steer 缓冲区 */
