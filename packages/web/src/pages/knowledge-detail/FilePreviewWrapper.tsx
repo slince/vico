@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
-import { FilePreviewModal, type PreviewFileInput } from '@eternalheart/react-file-preview';
+import { FilePreviewModal, configurePdfjs, type PreviewFileInput } from '@eternalheart/react-file-preview';
 import type { DocumentItem } from './types';
 import { isDirectory } from './types';
+
+// PDF.js worker 配置（使用本地 worker 文件，避免 CDN 网络问题）
+configurePdfjs({
+  workerSrc: '/pdfjs/pdf.worker.min.mjs',
+});
 
 interface FilePreviewWrapperProps {
   open: boolean;

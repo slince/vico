@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "mkdir -p public/pdfjs && cp $(find ../../node_modules/.pnpm -name 'pdf.worker.min.mjs' -not -path '*/legacy/*' | head -1) public/pdfjs/"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.209",
