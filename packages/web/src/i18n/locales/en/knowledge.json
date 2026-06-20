@@ -60,5 +60,11 @@
   "colSize": "Size",
   "colStatus": "Status",
   "colChunks": "Chunks",
-  "colActions": "Actions"
+  "colActions": "Actions",
+  "refresh": "Refresh",
+  "uploadFile": "Upload File",
+  "uploadDialogTitle": "Upload File",
+  "uploadDialogDesc": "Select a file to upload to the current folder",
+  "selectFile": "Select File",
+  "uploading": "Uploading..."
 }

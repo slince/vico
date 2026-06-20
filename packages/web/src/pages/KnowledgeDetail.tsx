@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Database, FilePlus, FolderPlus, Home, LayoutGrid, LayoutList } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Database, FilePlus, FolderPlus, Home, LayoutGrid, LayoutList, RefreshCw, Upload } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -24,6 +24,7 @@ import {
 import { ChunkDrawer } from './knowledge-detail/ChunkDrawer';
 import { CreateDocumentDialog } from './knowledge-detail/CreateDocumentDialog';
 import { CreateFolderDialog } from './knowledge-detail/CreateFolderDialog';
+import { UploadDialog } from './knowledge-detail/UploadDialog';
 import { DocumentTable, DocumentTableSkeleton, DocumentTableEmpty } from './knowledge-detail/DocumentTable';
 import { DocumentGrid, DocumentGridSkeleton, DocumentGridEmpty } from './knowledge-detail/DocumentGrid';
 
@@ -52,6 +53,7 @@ export default function KnowledgeDetail() {
   const [docPage, setDocPage] = useState(1);
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedDocName, setSelectedDocName] = useState<string>('');
 
@@ -113,7 +115,10 @@ export default function KnowledgeDetail() {
         body: JSON.stringify({ ...data, parent_id: currentFolderId || null }),
         headers: { 'Content-Type': 'application/json' },
       }),
-    onSuccess: () => setNewDocOpen(false),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
+      setNewDocOpen(false);
+    },
   });
 
   const createFolderMutation = useMutation({
@@ -124,10 +129,31 @@ export default function KnowledgeDetail() {
         headers: { 'Content-Type': 'application/json' },
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id, 'documents'] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
       setNewFolderOpen(false);
     },
   });
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (currentFolderId) formData.append('parent_id', currentFolderId);
+      return api(`/knowledge-bases/${id}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
+      setUploadOpen(false);
+    },
+  });
+
+  /** 手动刷新文档列表 */
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['knowledge-base', id] });
+  }, [queryClient, id]);
 
   // ---------- 事件处理 ----------
 
@@ -336,24 +362,34 @@ export default function KnowledgeDetail() {
             </Button>
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm">
-              <FilePlus className="size-4" />
-              <span className="ml-1.5">{t('common:create')}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setNewDocOpen(true)}>
-              <FilePlus className="size-4" />
-              {t('newDocumentTrigger')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setNewFolderOpen(true)}>
-              <FolderPlus className="size-4" />
-              {t('newFolderTrigger')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <RefreshCw className="size-4" />
+            <span className="ml-1.5">{t('refresh')}</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setUploadOpen(true)}>
+            <Upload className="size-4" />
+            <span className="ml-1.5">{t('uploadFile')}</span>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm">
+                <FilePlus className="size-4" />
+                <span className="ml-1.5">{t('common:create')}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setNewDocOpen(true)}>
+                <FilePlus className="size-4" />
+                {t('newDocumentTrigger')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setNewFolderOpen(true)}>
+                <FolderPlus className="size-4" />
+                {t('newFolderTrigger')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <CreateDocumentDialog
         open={newDocOpen}
@@ -366,6 +402,12 @@ export default function KnowledgeDetail() {
         onOpenChange={setNewFolderOpen}
         onSubmit={(data) => createFolderMutation.mutate(data)}
         isPending={createFolderMutation.isPending}
+      />
+      <UploadDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onSubmit={(file) => uploadMutation.mutate(file)}
+        isPending={uploadMutation.isPending}
       />
       {docsLoading ? (
         viewMode === 'list' ? <DocumentTableSkeleton /> : <DocumentGridSkeleton />
