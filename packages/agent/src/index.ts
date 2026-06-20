@@ -82,7 +82,7 @@ export {
   type SessionStore,
   type Thread,
   type Turn,
-  type ConversationEntry,
+  type Message,
 } from './session/session-store.js';
 
 // ContextCompactor

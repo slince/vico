@@ -20,7 +20,7 @@ export interface Turn {
 }
 
 /** 对话记录条目 */
-export interface ConversationEntry {
+export interface Message {
   id: string;
   threadId: string;
   turnId: string;
@@ -54,7 +54,7 @@ export interface SessionStore {
   /** 消息操作 */
 
   /** 追加对话记录 */
-  appendEntry(entry: Omit<ConversationEntry, 'id' | 'createdAt'>): Promise<ConversationEntry>;
+  appendEntry(entry: Omit<Message, 'id' | 'createdAt'>): Promise<Message>;
   /** 获取线程的对话记录列表 */
-  getEntries(threadId: string, limit?: number): Promise<ConversationEntry[]>;
+  getEntries(threadId: string, limit?: number): Promise<Message[]>;
 }

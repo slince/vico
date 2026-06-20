@@ -2,6 +2,6 @@
 export {
   type Thread,
   type Turn,
-  type ConversationEntry,
+  type Message,
   type SessionStore,
 } from './types.js';
