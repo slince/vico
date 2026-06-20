@@ -45,6 +45,7 @@ export {
 
 // Tool system
 export { LocalToolHost, type ToolSource, type ToolHandler } from './tool/local-tool-host.js';
+export { ChildAgentExecutor, type ChildAgentRef, type DelegateStrategy } from './tool/child-agent-executor.js';
 export { CapabilityRegistry } from './tool/capability-registry.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy, type PolicyContext } from './tool/tool-policy.js';
@@ -106,3 +107,4 @@ export {
   AgentLoopImpl,
 } from './agent-loop/agent-loop.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
+export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';

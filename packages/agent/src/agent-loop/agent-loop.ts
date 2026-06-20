@@ -8,6 +8,7 @@ import type { SpanTracker } from '../observable/span-tracker.js';
 import type { CompositeHookRunner } from '../hook/hook-runner.js';
 import type { ContextCompactor } from './context-compactor.js';
 import type { TokenEconomy } from './token-economy.js';
+import type { ApprovalGate } from './approval-gate.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
 /** 一次 turn 的执行结果 */
@@ -43,6 +44,7 @@ export interface AgentLoopOptions {
   promptAssembler: PromptAssembler;
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
+  approvalGate?: ApprovalGate;
   hooks?: CompositeHookRunner;
   events: EventRecorder;
   spanTracker: SpanTracker;
@@ -56,6 +58,7 @@ export class AgentLoopImpl implements AgentLoop {
   private promptAssembler: PromptAssembler;
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
+  private approvalGate?: ApprovalGate;
   private hooks?: CompositeHookRunner;
   private events: EventRecorder;
   private spanTracker: SpanTracker;
@@ -69,6 +72,7 @@ export class AgentLoopImpl implements AgentLoop {
     this.promptAssembler = options.promptAssembler;
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
+    this.approvalGate = options.approvalGate;
     this.hooks = options.hooks;
     this.events = options.events;
     this.spanTracker = options.spanTracker;
@@ -262,7 +266,12 @@ export class AgentLoopImpl implements AgentLoop {
       agentId: this.config.id,
       threadId,
       workspace: '',
-      awaitApproval: async () => ({ approved: true }),
+      awaitApproval: async (call: ToolCall) => {
+        if (this.approvalGate) {
+          return this.approvalGate.requestApproval(call);
+        }
+        return { approved: true };
+      },
       hooks: this.hooks?.getByEvent('tool:before') ?? [],
       signal: new AbortController().signal,
     };
