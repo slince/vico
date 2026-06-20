@@ -24,8 +24,10 @@ export {
   type ModelMessage,
   type ModelStreamChunk,
   type MessageRole,
+  type ModelClientFactory,
 } from './model/model-client.js';
 export { AISDKModelClient } from './model/ai-sdk-adapter.js';
+export { defaultModelFactory } from './model/factory.js';
 
 // Context processors (onion model)
 export {
@@ -127,5 +129,4 @@ export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.j
 export {
   Vico,
   type VicoOptions,
-  type ModelClientFactory,
 } from './container/vico.js';

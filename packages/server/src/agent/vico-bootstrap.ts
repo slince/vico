@@ -1,33 +1,11 @@
 // src/agent/vico-bootstrap.ts
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import type { LanguageModel } from 'ai';
 import {
   Vico,
-  AISDKModelClient,
   AgentRuntime,
-  type ModelClientFactory,
+  defaultModelFactory,
   type AgentConfig,
 } from '@vico/agent';
 import type { AgentDetail } from '../services/agent/types.js';
-
-/** 从 ModelRef 创建 AI SDK LanguageModel */
-function createLanguageModel(modelRef: AgentConfig['model']): LanguageModel {
-  const apiKey = modelRef.apiKey ?? undefined;
-  const baseURL = modelRef.baseUrl ?? undefined;
-  const provider = modelRef.provider.toLowerCase();
-
-  switch (provider) {
-    case 'anthropic':
-      return createAnthropic({ apiKey, baseURL })(modelRef.model);
-    case 'deepseek':
-    case 'qwen':
-    case 'custom':
-    case 'openai':
-    default:
-      return createOpenAI({ apiKey, baseURL }).chat(modelRef.model);
-  }
-}
 
 /**
  * Vico Bootstrap — Vico 的单例包装。
@@ -40,13 +18,7 @@ export class VicoBootstrap {
   async init(skillRoots: string[]): Promise<void> {
     this.container = new Vico({ skillRoots });
     await this.container.init();
-
-    const modelFactory: ModelClientFactory = (ref) => {
-      const languageModel = createLanguageModel(ref);
-      return new AISDKModelClient(languageModel, ref.provider, ref.model);
-    };
-
-    this.runtime = this.container.getRuntime(modelFactory);
+    this.runtime = this.container.getRuntime(defaultModelFactory);
   }
 
   /** 根据 DB AgentDetail 创建 Vico AgentConfig */

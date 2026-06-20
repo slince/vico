@@ -1,9 +1,9 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import type { AgentConfig, ModelRef } from '../contracts/agent.js';
+import type { AgentConfig } from '../contracts/agent.js';
 import type {TurnResult} from '../agent-loop/types.js';
 import {Agent, type AgentFactory} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import type {ModelClient, ModelMessage} from '../model/model-client.js';
+import type {ModelClient, ModelMessage, ModelClientFactory} from '../model/model-client.js';
 import type {ToolSource} from '../tool/types.js';
 import {LocalToolHost} from '../tool/local-tool-host.js';
 import {SkillManager} from '../skill/skill-manager.js';
@@ -15,8 +15,7 @@ import {MittEventRecorder} from '../observable/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
 
-/** ModelClient 工厂 — 用于 getRuntime() 批量创建 Agent */
-export type ModelClientFactory = (ref: ModelRef) => ModelClient;
+export type { ModelClientFactory } from '../model/types.js';
 
 /** Vico 配置选项 */
 export interface VicoOptions {

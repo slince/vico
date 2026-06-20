@@ -5,4 +5,5 @@ export {
   type ModelRequest,
   type ModelStreamChunk,
   type ModelClient,
+  type ModelClientFactory,
 } from './types.js';
