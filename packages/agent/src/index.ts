@@ -52,6 +52,8 @@ export { BuiltinTools } from './tool/builtin-tools.js';
 
 // Ports — MemoryStore
 export { type MemoryStore } from './memory/memory-store.js';
+export { ShortTermMemory } from './memory/short-term-memory.js';
+export { InMemoryMemoryStore } from './memory/memory-store-impl.js';
 
 // Ports — SkillLoader
 export { type SkillLoader, type Skill } from './skill/skill-loader.js';
@@ -70,7 +72,7 @@ export {
 } from './session/session-store.js';
 
 // Ports — ContextCompactor
-export { type ContextCompactor } from './agent-loop/context-compactor.js';
+export { type ContextCompactor, ContextCompactorImpl } from './agent-loop/context-compactor.js';
 
 // Ports — Hook
 export {
@@ -103,3 +105,4 @@ export {
   type TurnResult,
   AgentLoopImpl,
 } from './agent-loop/agent-loop.js';
+export { TokenEconomy } from './agent-loop/token-economy.js';

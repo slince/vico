@@ -7,6 +7,7 @@ import type { EventRecorder } from '../observable/event-recorder.js';
 import type { SpanTracker } from '../observable/span-tracker.js';
 import type { CompositeHookRunner } from '../hook/hook-runner.js';
 import type { ContextCompactor } from './context-compactor.js';
+import type { TokenEconomy } from './token-economy.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
 /** 一次 turn 的执行结果 */
@@ -41,6 +42,7 @@ export interface AgentLoopOptions {
   toolHost: ToolHost;
   promptAssembler: PromptAssembler;
   compactor?: ContextCompactor;
+  tokenEconomy?: TokenEconomy;
   hooks?: CompositeHookRunner;
   events: EventRecorder;
   spanTracker: SpanTracker;
@@ -53,6 +55,7 @@ export class AgentLoopImpl implements AgentLoop {
   private toolHost: ToolHost;
   private promptAssembler: PromptAssembler;
   private compactor?: ContextCompactor;
+  private tokenEconomy?: TokenEconomy;
   private hooks?: CompositeHookRunner;
   private events: EventRecorder;
   private spanTracker: SpanTracker;
@@ -65,6 +68,7 @@ export class AgentLoopImpl implements AgentLoop {
     this.toolHost = options.toolHost;
     this.promptAssembler = options.promptAssembler;
     this.compactor = options.compactor;
+    this.tokenEconomy = options.tokenEconomy;
     this.hooks = options.hooks;
     this.events = options.events;
     this.spanTracker = options.spanTracker;
@@ -130,6 +134,12 @@ export class AgentLoopImpl implements AgentLoop {
 
         this.events.emit({ type: 'step_start', step: steps + 1 });
 
+        // 检查 token 预算
+        if (this.tokenEconomy?.isInputExhausted()) {
+          this.events.emit({ type: 'error', message: 'Input token budget exhausted' });
+          break;
+        }
+
         // 3.1 组装 prompt
         const promptCtx = this.buildPromptContext(messages);
         const request = this.promptAssembler.assemble(promptCtx);
@@ -161,6 +171,7 @@ export class AgentLoopImpl implements AgentLoop {
             case 'usage':
               usage.input += chunk.input;
               usage.output += chunk.output;
+              this.tokenEconomy?.track(chunk.input, chunk.output);
               break;
             case 'error':
               modelSpan.error(new Error(chunk.message));
@@ -198,9 +209,11 @@ export class AgentLoopImpl implements AgentLoop {
 
         // 3.6 将工具结果追加到消息列表
         for (const result of toolResults) {
+          const raw = result.status === 'success' ? JSON.stringify(result.output) : '';
+          const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
           messages.push({
             role: 'tool',
-            content: JSON.stringify(result.output),
+            content: truncated,
             toolCallId: result.callId,
           });
           this.events.emit({
