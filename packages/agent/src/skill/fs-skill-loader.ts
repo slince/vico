@@ -1,30 +1,8 @@
 // src/skill/fs-skill-loader.ts
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
-import type { Skill, SkillLoader } from './skill-loader.js';
-
-/** 简易 YAML frontmatter 解析器 */
-function parseFrontmatter(content: string): { data: Record<string, unknown>; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) return { data: {}, body: content };
-
-  const data: Record<string, unknown> = {};
-  const yamlBlock = match[1];
-  // 简易解析：仅支持 key: value 格式
-  for (const line of yamlBlock.split('\n')) {
-    const colonIdx = line.indexOf(':');
-    if (colonIdx === -1) continue;
-    const key = line.slice(0, colonIdx).trim();
-    const value = line.slice(colonIdx + 1).trim();
-
-    if (value === 'true') data[key] = true;
-    else if (value === 'false') data[key] = false;
-    else if (/^\d+$/.test(value)) data[key] = parseInt(value, 10);
-    else data[key] = value;
-  }
-
-  return { data, body: match[2] };
-}
+import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
+import {resolve} from 'node:path';
+import matter from 'gray-matter';
+import type {Skill, SkillLoader} from './types.js';
 
 /** 验证 SKILL.md 的 name 字段：1-64 字符，小写字母+连字符 */
 function validateSkillName(name: unknown): name is string {
@@ -102,7 +80,7 @@ export class FSSkillLoader implements SkillLoader {
   private async loadSkillFromDir(dir: string): Promise<Skill> {
     const mdPath = resolve(dir, 'SKILL.md');
     const content = readFileSync(mdPath, 'utf-8');
-    const { data, body } = parseFrontmatter(content);
+    const { data, content: body } = matter(content);
 
     const name = data.name as string;
     if (!validateSkillName(name)) {
