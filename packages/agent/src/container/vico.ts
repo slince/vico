@@ -1,7 +1,7 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
 import type { AgentConfig } from '../contracts/agent.js';
-import { Agent, type AgentFactory } from '../agent-runtime/types.js';
-import { AgentRuntime } from '../agent-runtime/agent-runtime.js';
+import { Agent, type AgentFactory } from '../agent-loop/types.js';
+import { AgentRuntime } from '../agent-loop/agent-runtime.js';
 import type { ModelClient, ModelMessage } from '../model/model-client.js';
 import type { ToolSource } from '../tool/types.js';
 import { LocalToolHost } from '../tool/local-tool-host.js';

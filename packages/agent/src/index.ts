@@ -108,9 +108,11 @@ export {
 // AgentRuntime
 export {
   AgentRuntime,
+} from './agent-loop/agent-runtime.js';
+export {
   Agent,
   type AgentFactory,
-} from './agent-runtime/agent-runtime.js';
+} from './agent-loop/types.js';
 
 // AgentLoop
 export {

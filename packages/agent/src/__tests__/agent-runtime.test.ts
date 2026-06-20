@@ -1,6 +1,7 @@
 // agent-runtime.test.ts — tests for AgentRuntime: create, cache, LRU eviction, lifecycle
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AgentRuntime, Agent, type AgentFactory } from '../agent-runtime/agent-runtime.js';
+import { AgentRuntime } from '../agent-loop/agent-runtime.js';
+import { Agent, type AgentFactory } from '../agent-loop/types.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
 function makeConfig(id: string): AgentConfig {
