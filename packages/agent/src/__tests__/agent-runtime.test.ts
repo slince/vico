@@ -1,6 +1,6 @@
 // agent-runtime.test.ts — tests for AgentRuntime: create, cache, LRU eviction, lifecycle
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AgentRuntime, type Agent, type AgentFactory } from '../agent-runtime/agent-runtime.js';
+import { AgentRuntime, Agent, type AgentFactory } from '../agent-runtime/agent-runtime.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
 function makeConfig(id: string, tenantId = 'tenant-1'): AgentConfig {
@@ -22,10 +22,7 @@ describe('AgentRuntime', () => {
 
   const factory: AgentFactory = async (config) => {
     factoryCallCount++;
-    return {
-      config,
-      loop: {} as any, // mock loop
-    };
+    return new Agent({ config, loop: {} as any });
   };
 
   beforeEach(() => {

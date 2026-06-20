@@ -2,7 +2,7 @@
  * Vico Agent Framework — Quickstart Demo
  *
  * 演示最小可运行用例：
- *   1. VicoContainer 一键装配所有服务
+ *   1. Vico 一键装配所有服务
  *   2. FakeModelClient 模拟 LLM（无需 API Key）
  *   3. 运行一个带工具调用的对话 turn
  *
@@ -10,7 +10,7 @@
  */
 
 import {
-  VicoContainer,
+  Vico,
 } from '@vico/agent';
 import type { ModelClient, ModelRequest, ModelStreamChunk, ToolCall } from '@vico/agent';
 import { fileURLToPath } from 'node:url';
@@ -62,7 +62,7 @@ async function main() {
   console.log('═'.repeat(60));
 
   // 一键装配
-  const vico = new VicoContainer({
+  const vico = new Vico({
     skillRoots: [resolve(__dirname, 'skills')],
   });
   await vico.init();

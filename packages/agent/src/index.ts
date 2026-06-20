@@ -93,7 +93,7 @@ export {
 // AgentRuntime
 export {
   AgentRuntime,
-  type Agent,
+  Agent,
   type AgentFactory,
 } from './agent-runtime/agent-runtime.js';
 
@@ -108,7 +108,7 @@ export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.j
 
 // Container
 export {
-  VicoContainer,
-  type VicoContainerOptions,
+  Vico,
+  type VicoOptions,
   type ModelClientFactory,
-} from './container/vico-container.js';
+} from './container/vico.js';

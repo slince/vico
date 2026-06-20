@@ -1,8 +1,8 @@
 // @vico/agent - AgentRuntime: manages Agent lifecycle with LRU cache
-import type { Agent, AgentFactory } from './types.js';
+import { Agent, type AgentFactory } from './types.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
-export type { Agent, AgentFactory } from './types.js';
+export { Agent, type AgentFactory } from './types.js';
 
 /** Agent 缓存条目 */
 interface CacheEntry {

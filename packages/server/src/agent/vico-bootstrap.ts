@@ -3,7 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import type { LanguageModel } from 'ai';
 import {
-  VicoContainer,
+  Vico,
   AISDKModelClient,
   AgentRuntime,
   type ModelClientFactory,
@@ -30,15 +30,15 @@ function createLanguageModel(modelRef: AgentConfig['model']): LanguageModel {
 }
 
 /**
- * Vico Bootstrap — VicoContainer 的单例包装。
+ * Vico Bootstrap — Vico 的单例包装。
  * 管理 AgentRuntime + ToolHost + SkillManager 生命周期。
  */
 export class VicoBootstrap {
-  private container!: VicoContainer;
+  private container!: Vico;
   private runtime!: AgentRuntime;
 
   async init(skillRoots: string[]): Promise<void> {
-    this.container = new VicoContainer({ skillRoots });
+    this.container = new Vico({ skillRoots });
     await this.container.init();
 
     const modelFactory: ModelClientFactory = (config) => {
