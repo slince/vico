@@ -127,7 +127,10 @@ class KnowledgeManager {
     if (!safeName) throw new Error('Invalid filename');
 
     const ext = extname(safeName).toLowerCase();
-    const declaredType = file.type || EXT_TO_MIME[ext] || 'application/octet-stream';
+    // 浏览器可能将未知类型标为 application/octet-stream，此时用扩展名推断
+    const declaredType = (!file.type || file.type === 'application/octet-stream')
+      ? (EXT_TO_MIME[ext] || 'application/octet-stream')
+      : file.type;
     if (!config.upload.allowed_mime_types.includes(declaredType)) {
       throw new Error(`Unsupported file type: ${declaredType}`);
     }
