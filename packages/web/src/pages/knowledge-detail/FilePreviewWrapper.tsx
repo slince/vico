@@ -16,7 +16,7 @@ interface FilePreviewWrapperProps {
 
 /**
  * 文件预览弹窗包装。
- * 从文档列表中过滤出可预览的文件（非目录、就绪态、有 storage_key），构建 URL 对象传给 FilePreviewModal。
+ * 从文档列表中过滤出可预览的文件（非目录、就绪态），构建 URL 对象传给 FilePreviewModal。
  */
 export function FilePreviewWrapper({
   open, onClose, documents, selectedDocId, kbId,
@@ -26,7 +26,7 @@ export function FilePreviewWrapper({
     const previewFiles: PreviewFileInput[] = [];
     let targetIndex = 0;
     for (const doc of documents) {
-      if (isDirectory(doc) || doc.status !== 'ready' || !doc.storage_key) continue;
+      if (isDirectory(doc) || doc.status !== 'ready') continue;
       previewFiles.push({
         name: doc.filename,
         type: doc.file_type,

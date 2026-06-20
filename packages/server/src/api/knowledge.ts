@@ -158,17 +158,45 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/knowledge-bases/:id/documents/:docId/preview', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const doc = await documentManager.getById(auth.tenantId, c.req.param('docId'));
+    const kbId = c.req.param('id');
+    const docId = c.req.param('docId');
+    const doc = await documentManager.getById(auth.tenantId, docId);
     if (!doc) return c.json({ error: 'Not found' }, 404);
-    if (!doc.storage_key) return c.json({ error: 'File not persisted' }, 404);
 
-    const stream = await storageManager.getStream(doc.storage_key);
-    return new Response(stream, {
-      headers: {
-        'Content-Type': doc.file_type || 'application/octet-stream',
-        'Content-Disposition': `inline; filename="${encodeURIComponent(doc.filename)}"`,
-      },
-    });
+    // 有 storage_key → 从文件存储读取
+    if (doc.storage_key) {
+      const stream = await storageManager.getStream(doc.storage_key);
+      return new Response(stream, {
+        headers: {
+          'Content-Type': doc.file_type || 'application/octet-stream',
+          'Content-Disposition': `inline; filename="${encodeURIComponent(doc.filename)}"`,
+        },
+      });
+    }
+
+    // 无 storage_key → 从向量库重建内容（手动创建的文档）
+    const client = getClient();
+    const tableName = kbIndexName(kbId);
+    try {
+      const { rows } = await client.execute({
+        sql: `SELECT metadata FROM ${tableName} WHERE json_extract(metadata, '$.document_id') = ? ORDER BY CAST(json_extract(metadata, '$.chunk_index') AS INTEGER) ASC`,
+        args: [docId],
+      });
+      const content = rows
+        .map((r: any) => {
+          try { return JSON.parse(r.metadata as string)?.content || ''; } catch { return ''; }
+        })
+        .join('\n');
+
+      return new Response(content, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Disposition': `inline; filename="${encodeURIComponent(doc.filename)}"`,
+        },
+      });
+    } catch {
+      return c.json({ error: 'Failed to retrieve document content' }, 500);
+    }
   });
 
   // ── Chunk 管理 ──
