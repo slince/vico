@@ -1,15 +1,19 @@
 // 1. React
-import { useRef, useState } from 'react';
+import {useRef, useState} from 'react';
 
 // 2. Third-party
-import { useTranslation } from 'react-i18next';
-import { Upload } from 'lucide-react';
+import {useTranslation} from 'react-i18next';
+import {Upload} from 'lucide-react';
 
 // 3. UI components
-import { Button } from '@/components/ui/button';
+import {Button} from '@/components/ui/button';
 import {
-  Dialog, DialogContent,
-  DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 
 interface UploadDialogProps {
@@ -17,6 +21,18 @@ interface UploadDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (file: File) => void;
   isPending: boolean;
+}
+
+/** 截断文件名，保留首尾，超出部分用 ... 代替 */
+function truncateFileName(name: string, maxLen = 28): string {
+  if (name.length <= maxLen) return name;
+  const ext = name.lastIndexOf('.');
+  if (ext === -1 || ext === 0) return name.slice(0, maxLen - 1) + '…';
+  const extName = name.slice(ext);
+  const base = name.slice(0, ext);
+  const keepBase = maxLen - extName.length - 1;
+  if (keepBase <= 0) return name.slice(0, maxLen - 1) + '…';
+  return base.slice(0, keepBase) + '…' + extName;
 }
 
 /**
@@ -37,7 +53,6 @@ export function UploadDialog({
   const handleSubmit = () => {
     if (selectedFile) {
       onSubmit(selectedFile);
-      setSelectedFile(null);
     }
   };
 
@@ -57,8 +72,8 @@ export function UploadDialog({
             accept=".pdf,.txt,.md,.csv,.py,.js,.json,.html"
           />
           <Button variant="outline" className="w-full" onClick={() => inputRef.current?.click()}>
-            <Upload className="size-4" />
-            <span className="ml-2">{selectedFile ? selectedFile.name : t('selectFile')}</span>
+            <Upload className="size-4 shrink-0" />
+            <span className="ml-2">{selectedFile ? truncateFileName(selectedFile.name) : t('selectFile')}</span>
           </Button>
         </div>
         <DialogFooter>

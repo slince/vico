@@ -6,9 +6,12 @@ export async function api<T = any>(
   options: RequestInit = {}
 ): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
+  // FormData 需要浏览器自动设置 Content-Type（含 boundary），不要覆盖
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
