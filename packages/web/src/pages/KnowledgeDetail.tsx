@@ -25,6 +25,7 @@ import { ChunkDrawer } from './knowledge-detail/ChunkDrawer';
 import { CreateDocumentDialog } from './knowledge-detail/CreateDocumentDialog';
 import { CreateFolderDialog } from './knowledge-detail/CreateFolderDialog';
 import { UploadDialog } from './knowledge-detail/UploadDialog';
+import { FilePreviewWrapper } from './knowledge-detail/FilePreviewWrapper';
 import { DocumentTable, DocumentTableSkeleton, DocumentTableEmpty } from './knowledge-detail/DocumentTable';
 import { DocumentGrid, DocumentGridSkeleton, DocumentGridEmpty } from './knowledge-detail/DocumentGrid';
 
@@ -54,6 +55,7 @@ export default function KnowledgeDetail() {
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [previewDocId, setPreviewDocId] = useState<string | null>(null);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [selectedDocName, setSelectedDocName] = useState<string>('');
 
@@ -196,14 +198,9 @@ export default function KnowledgeDetail() {
       return;
     }
     if (doc.status !== 'ready') return;
-    if (selectedDocId === doc.id) {
-      setSelectedDocId(null);
-      setSelectedDocName('');
-    } else {
-      setSelectedDocId(doc.id);
-      setSelectedDocName(doc.filename);
-    }
-  }, [selectedDocId, handleNavigateToFolder]);
+    // 打开文件预览
+    setPreviewDocId(doc.id);
+  }, [handleNavigateToFolder]);
 
   const handleChunkDrawerClose = useCallback((open: boolean) => {
     if (!open) { setSelectedDocId(null); setSelectedDocName(''); }
@@ -466,6 +463,15 @@ export default function KnowledgeDetail() {
           </div>
         </div>
       )}
+
+      {/* 文件预览 */}
+      <FilePreviewWrapper
+        open={!!previewDocId}
+        onClose={() => setPreviewDocId(null)}
+        documents={documents}
+        selectedDocId={previewDocId || ''}
+        kbId={id!}
+      />
 
       {/* 选中文档的分块抽屉 */}
       <ChunkDrawer

@@ -16,6 +16,7 @@ export interface DocumentItem {
   source: string;
   path: string;
   parent_id: string | null;
+  storage_key: string | null;
   created_at: number;
 }
 

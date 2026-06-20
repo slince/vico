@@ -153,6 +153,24 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     });
   });
 
+  // ── 文件预览 ──
+
+  app.get('/api/v1/knowledge-bases/:id/documents/:docId/preview', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const doc = await documentManager.getById(auth.tenantId, c.req.param('docId'));
+    if (!doc) return c.json({ error: 'Not found' }, 404);
+    if (!doc.storage_key) return c.json({ error: 'File not persisted' }, 404);
+
+    const stream = await storageManager.getStream(doc.storage_key);
+    return new Response(stream, {
+      headers: {
+        'Content-Type': doc.file_type || 'application/octet-stream',
+        'Content-Disposition': `inline; filename="${encodeURIComponent(doc.filename)}"`,
+      },
+    });
+  });
+
   // ── Chunk 管理 ──
 
   app.get('/api/v1/knowledge-bases/:id/chunks', async (c) => {

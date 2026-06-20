@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { router } from './router';
 import './i18n';
 import './index.css';
+import '@eternalheart/react-file-preview/style.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
