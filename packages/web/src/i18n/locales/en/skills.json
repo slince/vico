@@ -1,0 +1,12 @@
+{
+  "pageTitle": "Skill Management",
+  "emptyTitle": "No Skills Available",
+  "emptyDescription": "Make sure skill packages are available in the skills directory; they will appear here automatically",
+  "statusEnabled": "Enabled",
+  "statusDisabled": "Disabled",
+  "installButton": "Install",
+  "uninstallButton": "Uninstall",
+  "totalCount": "{{count}} skill(s) total",
+  "confirmUninstallTitle": "Confirm Uninstall",
+  "confirmUninstallDesc": "Are you sure you want to uninstall skill \"{{name}}\"? All agents bound to this skill will lose the corresponding capabilities."
+}

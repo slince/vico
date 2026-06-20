@@ -1,0 +1,12 @@
+{
+  "pageTitle": "Skill 管理",
+  "emptyTitle": "暂无可用的 Skill",
+  "emptyDescription": "请确保 skills 目录下有可用的 Skill 包，它们将自动出现在此处",
+  "statusEnabled": "已启用",
+  "statusDisabled": "已禁用",
+  "installButton": "安装",
+  "uninstallButton": "卸载",
+  "totalCount": "共 {{count}} 个 Skill",
+  "confirmUninstallTitle": "确认卸载",
+  "confirmUninstallDesc": "确定要卸载 Skill「{{name}}」吗？卸载后，所有已绑定此 Skill 的 Agent 将失去对应能力。"
+}

@@ -13,6 +13,7 @@ import ConversationDetail from '@/pages/ConversationDetail';
 import KnowledgeBases from '@/pages/KnowledgeBases';
 import KnowledgeDetail from '@/pages/KnowledgeDetail';
 import Settings from '@/pages/Settings';
+import Skills from '@/pages/Skills';
 import Chat from '@/pages/Chat';
 
 function AuthWrapper() {
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
           { path: 'agents/:id', element: <AgentDetail /> },
           { path: 'teams', element: <Teams /> },
           { path: 'teams/:id', element: <TeamDetail /> },
+          { path: 'skills', element: <Skills /> },
           { path: 'knowledge', element: <KnowledgeBases /> },
           { path: 'knowledge/:id', element: <KnowledgeDetail /> },
           { path: 'conversations', element: <Conversations /> },
