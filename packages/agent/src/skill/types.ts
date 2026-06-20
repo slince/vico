@@ -33,6 +33,13 @@ export interface SkillStore {
   load(): Promise<Skill[]>;
 }
 
+/** Skill 目录项（元数据，非完整指令） */
+export interface SkillCatalogEntry {
+  name: string;
+  description: string;
+  location: string;
+}
+
 /** Skill 加载器端口 — 发现、加载、刷新 Skill 插件 */
 export interface SkillLoader {
   /** 从指定根目录发现所有 Skill */

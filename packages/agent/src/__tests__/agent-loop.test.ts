@@ -5,7 +5,7 @@ import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/model
 import type { AgentConfig } from '../contracts/agent.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
-import { SystemPromptProcessor } from '../prompt/default-processors.js';
+import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
 
 function makeConfig(): AgentConfig {
   return {

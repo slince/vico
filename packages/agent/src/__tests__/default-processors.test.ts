@@ -1,12 +1,10 @@
 // default-processors.test.ts — tests for context processors and onion pipeline
 import { describe, it, expect, vi } from 'vitest';
-import {
-  SystemPromptProcessor,
-  SkillCatalogProcessor,
-  MemoryProcessor,
-  RagProcessor,
-  DynamicInstructionProcessor,
-} from '../prompt/default-processors.js';
+import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
+import { SkillCatalogProcessor } from '../skill/skill-catalog-processor.js';
+import { MemoryProcessor } from '../memory/memory-processor.js';
+import { RagProcessor } from '../memory/rag-processor.js';
+import { DynamicInstructionProcessor } from '../agent-loop/dynamic-instruction-processor.js';
 import {
   OnionPipeline,
   buildModelRequest,

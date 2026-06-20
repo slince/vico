@@ -1,5 +1,5 @@
 // src/skill/skills-processor.ts
-import type { Skill } from './skill-loader.js';
+import type { Skill } from './types.js';
 import type { SkillManager } from './skill-manager.js';
 
 /** SkillsProcessor — 将可用 Skill 元数据注入系统提示词（提前注入模式） */

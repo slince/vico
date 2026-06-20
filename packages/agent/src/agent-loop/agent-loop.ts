@@ -11,7 +11,7 @@ import type { TokenEconomy } from './token-economy.js';
 import type { ApprovalGate } from './approval-gate.js';
 import type { ContextProcessor } from '../prompt/context-processor.js';
 import { OnionPipeline, buildModelRequest, type ModelRequestContext } from '../prompt/context-processor.js';
-import { DynamicInstructionProcessor } from '../prompt/default-processors.js';
+import { DynamicInstructionProcessor } from './dynamic-instruction-processor.js';
 
 export type { TurnResult, AgentLoopOptions } from './types.js';
 

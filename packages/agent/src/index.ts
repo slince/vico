@@ -38,18 +38,14 @@ export {
   Priority,
 } from './prompt/context-processor.js';
 
-export {
-  SystemPromptProcessor,
-  SkillCatalogProcessor,
-  MemoryProcessor,
-  RagProcessor,
-  DynamicInstructionProcessor,
-} from './prompt/default-processors.js';
+export { SystemPromptProcessor } from './prompt/system-prompt-processor.js';
+export { SkillCatalogProcessor } from './skill/skill-catalog-processor.js';
+export { MemoryProcessor } from './memory/memory-processor.js';
+export { RagProcessor } from './memory/rag-processor.js';
+export { DynamicInstructionProcessor } from './agent-loop/dynamic-instruction-processor.js';
 
-export {
-  type SkillCatalogEntry,
-  type RagChunk,
-} from './prompt/types.js';
+export { type SkillCatalogEntry } from './skill/types.js';
+export { type RagChunk } from './memory/types.js';
 
 // Ports — ToolHost
 export {
@@ -73,7 +69,7 @@ export { ShortTermMemory } from './memory/short-term-memory.js';
 export { InMemoryMemoryStore } from './memory/memory-store-impl.js';
 
 // Ports — SkillLoader
-export { type SkillLoader, type Skill, type SkillStore } from './skill/skill-loader.js';
+export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js';
 
 // Skill system
 export { FSSkillLoader } from './skill/fs-skill-loader.js';

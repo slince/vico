@@ -1,7 +1,12 @@
 // @vico/agent - Memory module type definitions
 import type { ModelMessage } from '../model/types.js';
 import type { MemoryRecord } from '../contracts/memory.js';
-import type { RagChunk } from '../prompt/types.js';
+/** RAG 检索结果 */
+export interface RagChunk {
+  content: string;
+  score: number;
+  source: string;
+}
 
 /** 三层记忆存储端口 */
 export interface MemoryStore {
