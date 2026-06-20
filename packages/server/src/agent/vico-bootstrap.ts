@@ -2,7 +2,6 @@
 import {
   Vico,
   AgentRuntime,
-  defaultModelFactory,
   type AgentConfig,
 } from '@vico/agent';
 import type { AgentDetail } from '../services/agent/types.js';
@@ -18,7 +17,7 @@ export class VicoBootstrap {
   async init(skillRoots: string[]): Promise<void> {
     this.container = new Vico({ skillRoots });
     await this.container.init();
-    this.runtime = this.container.getRuntime(defaultModelFactory);
+    this.runtime = this.container.getRuntime();
   }
 
   /** 根据 DB AgentDetail 创建 Vico AgentConfig */

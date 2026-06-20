@@ -1,9 +1,10 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import type { AgentConfig } from '../contracts/agent.js';
+import type {AgentConfig} from '../contracts/agent.js';
 import type {TurnResult} from '../agent-loop/types.js';
 import {Agent, type AgentFactory} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import type {ModelClient, ModelMessage, ModelClientFactory} from '../model/model-client.js';
+import type {ModelClient, ModelClientFactory, ModelMessage} from '../model/model-client.js';
+import {defaultModelFactory} from '../model/factory.js';
 import type {ToolSource} from '../tool/types.js';
 import {LocalToolHost} from '../tool/local-tool-host.js';
 import {SkillManager} from '../skill/skill-manager.js';
@@ -25,6 +26,8 @@ export interface VicoOptions {
   toolSources?: ToolSource[];
   /** 全局生命周期钩子 */
   hooks?: HookRunner[];
+  /** ModelClient 工厂（不传则使用 defaultModelFactory） */
+  modelFactory?: ModelClientFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
   maxCached?: number;
 }
@@ -37,12 +40,12 @@ export interface VicoOptions {
  * const vico = new Vico({ skillRoots: ['./skills'] });
  * await vico.init();
  *
- * // 创建 Agent 并注册到 Runtime
- * const runtime = vico.getRuntime((c) => new AISDKModelClient(...));
+ * // 创建 Agent 并注册到 Runtime（使用默认 modelFactory）
+ * const runtime = vico.getRuntime();
  * await runtime.createAgent(config);
  *
  * // 一行对话
- * const result = await vico.invoke({ agentId: config.id, message: 'Hello' });
+ * const result = await vico.invoke(config.id, 'Hello');
  * ```
  */
 export class Vico {
@@ -51,13 +54,16 @@ export class Vico {
   readonly toolHost = new LocalToolHost();
   readonly hooks = new CompositeHookRunner();
 
-  private skillManager: SkillManager;
+  private readonly skillManager: SkillManager;
   private initialized = false;
   private options: VicoOptions;
-  private runtime?: AgentRuntime;
+  private readonly modelFactory: ModelClientFactory;
+  readonly runtime: AgentRuntime;
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
+    this.modelFactory = options.modelFactory ?? defaultModelFactory;
+    this.runtime = this.createRuntime(this.modelFactory);
     this.skillManager = new SkillManager(new FSSkillLoader());
 
     if (options.toolSources) {
@@ -135,15 +141,21 @@ export class Vico {
   }
 
   /**
-   * 创建并缓存 AgentRuntime。
+   * 获取 AgentRuntime。不传 factory 则返回构造函数自动创建的实例。
+   * @param factory — 可选，传入时用新 factory 重建 Runtime。
    */
-  getRuntime(factory: ModelClientFactory): AgentRuntime {
+  getRuntime(factory?: ModelClientFactory): AgentRuntime {
+    if (!factory) return this.runtime;
+    return this.createRuntime(factory);
+  }
+
+  /** 创建 AgentRuntime */
+  private createRuntime(factory: ModelClientFactory): AgentRuntime {
     const agentFactory: AgentFactory = async (config) => {
       const mc = factory(config.model);
       return this.createAgent(config, mc);
     };
-    this.runtime = new AgentRuntime(agentFactory, this.options.maxCached);
-    return this.runtime;
+    return new AgentRuntime(agentFactory, this.options.maxCached);
   }
 
   /**
@@ -157,10 +169,6 @@ export class Vico {
    * ```
    */
   async invoke(agentId: string, message: string, options?: { threadId?: string; [key: string]: unknown }): Promise<TurnResult> {
-    if (!this.runtime) {
-      throw new Error('Runtime not initialized. Call getRuntime(factory) first.');
-    }
-
     const agent = this.runtime.getAgent(agentId);
     if (!agent) {
       throw new Error(
