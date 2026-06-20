@@ -76,6 +76,7 @@ export { FSSkillLoader } from './skill/fs-skill-loader.js';
 export { SkillManager } from './skill/skill-manager.js';
 export { createSkillTools, createSkillToolHandlers } from './skill/skill-tools.js';
 export { formatSkillCatalog } from './skill/skills-processor.js';
+export { ManagedSkillStore } from './skill/managed-skill-store.js';
 
 /** Ports — SessionStore */
 export {
