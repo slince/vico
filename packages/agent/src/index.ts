@@ -105,3 +105,10 @@ export {
 } from './agent-loop/agent-loop.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
 export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';
+
+// Container
+export {
+  VicoContainer,
+  type VicoContainerOptions,
+  type ModelClientFactory,
+} from './container/vico-container.js';
