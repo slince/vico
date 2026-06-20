@@ -94,7 +94,6 @@ export class Vico {
 
     // 触发工具注册
     const allTools = await this.toolHost.listTools({
-      tenantId: config.tenantId,
       userId: '',
       agentId: config.id,
       threadId: '',
@@ -183,7 +182,6 @@ export class Vico {
       params.config ??
       ({
         id: params.agentId,
-        tenantId: 'default',
         name: params.agentId,
         systemPrompt: 'You are a helpful assistant.',
         model: { provider: 'openai', model: 'gpt-4o' },

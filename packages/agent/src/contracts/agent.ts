@@ -12,7 +12,6 @@ export const ModelRefSchema = z.object({
 /** Agent 配置（从 DB 加载） */
 export const AgentConfigSchema = z.object({
   id: z.string().uuid(),
-  tenantId: z.string(),
   name: z.string().min(1).max(128),
   systemPrompt: z.string().default(''),
   model: ModelRefSchema,

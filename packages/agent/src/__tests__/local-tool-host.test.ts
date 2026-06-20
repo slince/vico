@@ -4,7 +4,7 @@ import { LocalToolHost } from '../tool/local-tool-host.js';
 
 function makeCtx(overrides?: Record<string, unknown>): any {
   return {
-    tenantId: 't1', userId: 'u1', agentId: 'a1', threadId: 'th1',
+    userId: 'u1', agentId: 'a1', threadId: 'th1',
     workspace: '/tmp', hooks: [],
     awaitApproval: async () => ({ approved: true }),
     signal: new AbortController().signal,

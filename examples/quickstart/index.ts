@@ -89,7 +89,6 @@ async function main() {
   // 创建 Agent
   const config = {
     id: 'echo-agent',
-    tenantId: 'demo',
     name: 'Echo Bot',
     systemPrompt: 'You are a friendly echo bot. Call the echo tool when asked to repeat something.',
     model: { provider: 'mock' as const, model: 'mock-model' },

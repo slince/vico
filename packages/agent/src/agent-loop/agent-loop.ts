@@ -225,7 +225,6 @@ export class AgentLoop {
 
   private async dispatchTools(calls: ToolCall[], threadId: string): Promise<ToolResult[]> {
     const context: ToolExecutionContext = {
-      tenantId: this.config.tenantId,
       userId: '',
       agentId: this.config.id,
       threadId,
@@ -251,7 +250,7 @@ export class AgentLoop {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
 
     const [memoryItems, ragResults] = await Promise.all([
-      this.memoryProvider?.ltm.search(lastUserMsg, this.config.tenantId, 5) ?? [],
+      this.memoryProvider?.ltm.search(lastUserMsg, 5) ?? [],
       this.ragProvider?.search(lastUserMsg, '', 5) ?? [],
     ]);
 

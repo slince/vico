@@ -6,7 +6,6 @@ import type { AgentConfig } from '../contracts/agent.js';
 function makeConfig(overrides?: Partial<AgentConfig>): AgentConfig {
   return {
     id: '00000000-0000-4000-8000-000000000001',
-    tenantId: 'tenant-1',
     name: 'test',
     systemPrompt: 'You are a helpful assistant.',
     model: { provider: 'openai', model: 'gpt-4o' },
@@ -58,7 +57,7 @@ describe('PromptAssembler', () => {
     const req = assembler.assemble({
       agent: makeConfig(),
       skillCatalog: [],
-      memoryItems: [{ id: '00000000-0000-4000-8000-000000000001', tenantId: 't1', content: 'remember this', createdAt: 1 }],
+      memoryItems: [{ id: '00000000-0000-4000-8000-000000000001', content: 'remember this', createdAt: 1 }],
       ragResults: [],
       history: [{ role: 'user', content: 'hi' }],
       tools: [],
@@ -77,7 +76,7 @@ describe('PromptAssembler', () => {
     const req = assembler.assemble({
       agent: makeConfig(),
       skillCatalog: [],
-      memoryItems: [{ id: '00000000-0000-4000-8000-000000000001', tenantId: 't1', content: 'remember this', createdAt: 1 }],
+      memoryItems: [{ id: '00000000-0000-4000-8000-000000000001', content: 'remember this', createdAt: 1 }],
       ragResults: [{ content: 'rag content', score: 0.9, source: 'doc1' }],
       history: [{ role: 'user', content: 'hi' }],
       tools: [],

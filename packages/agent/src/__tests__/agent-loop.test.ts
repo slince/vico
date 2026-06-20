@@ -10,7 +10,6 @@ import { PromptAssembler } from '../prompt/assembler.js';
 function makeConfig(): AgentConfig {
   return {
     id: '00000000-0000-4000-8000-000000000001',
-    tenantId: 'tenant-1',
     name: 'test-agent',
     systemPrompt: 'You are helpful.',
     model: { provider: 'openai', model: 'gpt-4o' },

@@ -3,10 +3,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { AgentRuntime, Agent, type AgentFactory } from '../agent-runtime/agent-runtime.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
-function makeConfig(id: string, tenantId = 'tenant-1'): AgentConfig {
+function makeConfig(id: string): AgentConfig {
   return {
     id,
-    tenantId,
     name: `agent-${id}`,
     systemPrompt: 'test',
     model: { provider: 'openai', model: 'gpt-4o' },
@@ -42,13 +41,13 @@ describe('AgentRuntime', () => {
     expect(factoryCallCount).toBe(1); // factory only called once
   });
 
-  it('lists agents by tenant', async () => {
-    await runtime.createAgent(makeConfig('agent-1', 'tenant-A'));
-    await runtime.createAgent(makeConfig('agent-2', 'tenant-A'));
-    await runtime.createAgent(makeConfig('agent-3', 'tenant-B'));
+  it('lists all agents', async () => {
+    await runtime.createAgent(makeConfig('agent-1'));
+    await runtime.createAgent(makeConfig('agent-2'));
+    await runtime.createAgent(makeConfig('agent-3'));
 
-    const tenantAAgents = runtime.listAgents('tenant-A');
-    expect(tenantAAgents).toHaveLength(2);
+    const agents = runtime.listAgents();
+    expect(agents).toHaveLength(3);
   });
 
   it('destroys agent', async () => {

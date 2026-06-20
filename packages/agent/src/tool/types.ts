@@ -5,7 +5,6 @@ import type { AgentLoop } from '../agent-loop/agent-loop.js';
 
 /** 工具执行上下文 */
 export interface ToolExecutionContext {
-  tenantId: string;
   userId: string;
   agentId: string;
   threadId: string;

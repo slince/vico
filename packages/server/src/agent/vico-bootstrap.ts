@@ -53,7 +53,6 @@ export class VicoBootstrap {
   static toAgentConfig(detail: AgentDetail): AgentConfig {
     return {
       id: detail.id,
-      tenantId: detail.tenant_id,
       name: detail.name,
       systemPrompt: detail.system_prompt ?? '',
       model: {

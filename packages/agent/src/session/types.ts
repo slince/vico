@@ -5,7 +5,6 @@ import type { ModelMessage } from '../model/types.js';
 export interface Thread {
   id: string;
   agentId: string;
-  tenantId: string;
   title?: string;
   createdAt: number;
   updatedAt: number;
@@ -37,11 +36,11 @@ export interface SessionStore {
   /** Thread 操作 */
 
   /** 创建新线程 */
-  createThread(agentId: string, tenantId: string, title?: string): Promise<Thread>;
+  createThread(agentId: string, title?: string): Promise<Thread>;
   /** 获取线程详情 */
   getThread(threadId: string): Promise<Thread | undefined>;
-  /** 列出租户下所有线程 */
-  listThreads(tenantId: string, agentId?: string): Promise<Thread[]>;
+  /** 列出指定 Agent 的所有线程 */
+  listThreads(agentId?: string): Promise<Thread[]>;
 
   /** Turn 操作 */
 

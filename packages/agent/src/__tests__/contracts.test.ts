@@ -9,7 +9,6 @@ describe('AgentConfigSchema', () => {
   it('parses valid config', () => {
     const result = AgentConfigSchema.safeParse({
       id: '00000000-0000-4000-8000-000000000001',
-      tenantId: 'tenant-1',
       name: 'test-agent',
       systemPrompt: 'You are helpful.',
       model: { provider: 'openai', model: 'gpt-4o' },
@@ -25,7 +24,6 @@ describe('AgentConfigSchema', () => {
   it('applies defaults', () => {
     const result = AgentConfigSchema.safeParse({
       id: '00000000-0000-4000-8000-000000000001',
-      tenantId: 'tenant-1',
       name: 'test',
       model: { provider: 'openai', model: 'gpt-4o' },
     });
@@ -55,7 +53,6 @@ describe('MemoryRecordSchema', () => {
   it('parses valid memory record', () => {
     const result = MemoryRecordSchema.safeParse({
       id: '00000000-0000-4000-8000-000000000001',
-      tenantId: 't1',
       content: 'user prefers dark mode',
       createdAt: 1700000000000,
     });

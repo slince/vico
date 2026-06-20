@@ -15,7 +15,7 @@ export interface MemoryStore {
   /** 长期记忆（向量检索） */
   ltm: {
     /** 按语义搜索记忆记录 */
-    search(query: string, tenantId: string, limit?: number): Promise<MemoryRecord[]>;
+    search(query: string, limit?: number): Promise<MemoryRecord[]>;
     /** 创建记忆记录 */
     create(record: MemoryRecord): Promise<void>;
     /** 更新记忆记录 */

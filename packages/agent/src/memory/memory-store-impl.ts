@@ -13,7 +13,7 @@ export class InMemoryMemoryStore implements MemoryStore {
   };
 
   ltm: {
-    search(query: string, tenantId: string, limit?: number): Promise<MemoryRecord[]>;
+    search(query: string, limit?: number): Promise<MemoryRecord[]>;
     create(record: MemoryRecord): Promise<void>;
     update(id: string, patch: Partial<MemoryRecord>): Promise<void>;
     delete(id: string): Promise<void>;
@@ -33,10 +33,10 @@ export class InMemoryMemoryStore implements MemoryStore {
     };
 
     this.ltm = {
-      search: async (query, tenantId, limit = 5) => {
+      search: async (query, limit = 5) => {
         const q = query.toLowerCase();
         const filtered = ltmRecords
-          .filter((r) => r.tenantId === tenantId && r.content.toLowerCase().includes(q))
+          .filter((r) => r.content.toLowerCase().includes(q))
           .slice(0, limit);
         return filtered;
       },

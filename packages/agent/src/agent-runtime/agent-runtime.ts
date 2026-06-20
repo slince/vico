@@ -21,9 +21,9 @@ export class AgentRuntime {
     this.maxCached = maxCached;
   }
 
-  /** 缓存键 = tenant_id + agent_id */
+  /** 缓存键 = agent_id */
   private cacheKey(config: AgentConfig): string {
-    return `${config.tenantId}:${config.id}`;
+    return config.id;
   }
 
   async createAgent(config: AgentConfig): Promise<Agent> {
@@ -69,12 +69,10 @@ export class AgentRuntime {
     return undefined;
   }
 
-  listAgents(tenantId: string): Agent[] {
+  listAgents(): Agent[] {
     const result: Agent[] = [];
-    for (const [key, entry] of this.cache) {
-      if (key.startsWith(`${tenantId}:`)) {
-        result.push(entry.agent);
-      }
+    for (const entry of this.cache.values()) {
+      result.push(entry.agent);
     }
     return result;
   }
