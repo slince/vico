@@ -10,11 +10,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Run Drizzle migrations.
  * Imports from index.ts — does not auto-execute.
  */
-export function runMigrations() {
+export async function runMigrations() {
   const db = getDb();
   const migrationsFolder = resolve(__dirname, '../../drizzle');
   try {
-    migrate(db, { migrationsFolder });
+    await migrate(db, { migrationsFolder });
   } catch (err: any) {
     const msg = err?.message ?? '';
     // 忽略已存在的表/列（幂等迁移）

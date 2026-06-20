@@ -64,6 +64,13 @@
       "when": 1783180800000,
       "tag": "0008_add_document_path_storage_key",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1783612800000,
+      "tag": "0009_add_document_parent_id",
+      "breakpoints": true
     }
   ]
 }

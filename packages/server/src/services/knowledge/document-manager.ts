@@ -133,6 +133,22 @@ class DocumentManager {
     const db = getDb();
     const id = uuid();
     const now = Date.now();
+
+    // 计算相对知识库根目录的路径
+    const isDir = params.fileType === 'application/x-directory';
+    let computedPath: string;
+    if (params.path !== undefined) {
+      computedPath = params.path; // 调用方显式指定路径时优先使用
+    } else if (params.parentId) {
+      const parent = await this.getById(params.tenantId, params.parentId);
+      const parentPath = parent?.path || '';
+      computedPath = isDir
+        ? `${parentPath}${params.filename}/`
+        : `${parentPath}${params.filename}`;
+    } else {
+      computedPath = isDir ? `/${params.filename}/` : `/${params.filename}`;
+    }
+
     await db.insert(documents).values({
       id,
       tenant_id: params.tenantId,
@@ -144,7 +160,7 @@ class DocumentManager {
       status: 'pending',
       source: params.source ?? 'upload',
       source_url: params.sourceUrl ?? null,
-      path: params.path ?? '',
+      path: computedPath,
       storage_key: params.storageKey ?? null,
       parent_id: params.parentId ?? null,
       created_at: now,
