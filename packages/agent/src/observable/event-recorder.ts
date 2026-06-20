@@ -25,7 +25,6 @@ export class MittEventRecorder implements EventRecorder {
 
   emit(event: SSEEvent): void {
     this.emitter.emit(event.type, event);
-    this.emitter.emit('*', event);
   }
 
   on(event: string, handler: (data: unknown) => void): void {
