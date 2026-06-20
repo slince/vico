@@ -405,6 +405,8 @@ export default function KnowledgeDetail() {
         onOpenChange={setUploadOpen}
         onSubmit={(file) => uploadMutation.mutate(file)}
         isPending={uploadMutation.isPending}
+        error={uploadMutation.error?.message ?? null}
+        onClearError={() => uploadMutation.reset()}
       />
       {docsLoading && !docPageData ? (
         viewMode === 'list' ? <DocumentTableSkeleton /> : <DocumentGridSkeleton />

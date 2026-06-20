@@ -21,6 +21,8 @@ interface UploadDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (file: File) => void;
   isPending: boolean;
+  error?: string | null;
+  onClearError?: () => void;
 }
 
 /** 截断文件名，保留首尾，超出部分用 ... 代替 */
@@ -39,7 +41,7 @@ function truncateFileName(name: string, maxLen = 28): string {
  * 上传文件弹窗 — 选择文件并上传到知识库。
  */
 export function UploadDialog({
-  open, onOpenChange, onSubmit, isPending,
+  open, onOpenChange, onSubmit, isPending, error, onClearError,
 }: UploadDialogProps) {
   const { t } = useTranslation('knowledge');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +49,10 @@ export function UploadDialog({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setSelectedFile(file);
+    if (file) {
+      setSelectedFile(file);
+      onClearError?.();
+    }
   };
 
   const handleSubmit = () => {
@@ -71,10 +76,11 @@ export function UploadDialog({
             onChange={handleFileChange}
             accept=".pdf,.txt,.md,.csv,.py,.js,.json,.html"
           />
-          <Button variant="outline" className="w-full" onClick={() => inputRef.current?.click()}>
+          <Button variant="outline" className="w-full" disabled={isPending} onClick={() => inputRef.current?.click()}>
             <Upload className="size-4 shrink-0" />
             <span className="ml-2">{selectedFile ? truncateFileName(selectedFile.name) : t('selectFile')}</span>
           </Button>
+          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
