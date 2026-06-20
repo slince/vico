@@ -9,8 +9,8 @@ import { config } from '../../config.js';
 import { documentManager } from './document-manager.js';
 import { storageManager } from './storage-manager.js';
 import {
-  createKbSchema,
-  type CreateKbInput,
+  createKbSchema, updateKbSchema,
+  type CreateKbInput, type UpdateKbInput,
   type KnowledgeBaseRow,
 } from './types.js';
 
@@ -96,6 +96,25 @@ class KnowledgeManager {
     await db.delete(knowledge_bases)
       .where(and(eq(knowledge_bases.id, id), eq(knowledge_bases.tenant_id, tenantId)))
       .run();
+  }
+
+  /** 更新知识库基本信息 */
+  async update(tenantId: string, id: string, input: unknown): Promise<KnowledgeBaseRow> {
+    const data = updateKbSchema.parse(input) as UpdateKbInput;
+    const db = getDb();
+    const updates: Record<string, unknown> = {};
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.description !== undefined) updates.description = data.description;
+    if (Object.keys(updates).length === 0) {
+      const kb = await this.getById(tenantId, id);
+      if (!kb) throw new Error('Not found');
+      return kb;
+    }
+    await db.update(knowledge_bases)
+      .set(updates)
+      .where(and(eq(knowledge_bases.id, id), eq(knowledge_bases.tenant_id, tenantId)))
+      .run();
+    return (await this.getById(tenantId, id))!;
   }
 
   /**

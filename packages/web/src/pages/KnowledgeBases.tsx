@@ -1,11 +1,11 @@
 // 1. React
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 // 2. Third-party
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Database, Plus, Trash2, Upload } from 'lucide-react';
+import { Database, Pencil, Plus, Trash2 } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -54,12 +54,9 @@ interface KnowledgeBase {
   chunk_count: number;
 }
 
-/** 可用于上传的文件类型扩展名列表 */
-const ACCEPTED_FILE_TYPES = '.pdf,.txt,.md,.csv';
-
 /**
  * 知识库列表页面
- * 使用卡片网格展示所有知识库，支持创建、删除和上传文档操作
+ * 使用卡片网格展示所有知识库，支持创建、编辑和删除操作
  */
 export default function KnowledgeBases() {
   const { t } = useTranslation('knowledge');
@@ -68,10 +65,11 @@ export default function KnowledgeBases() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editTargetId, setEditTargetId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadTargetKbId, setUploadTargetKbId] = useState<string | null>(null);
 
   const { data: kbs, isLoading } = useQuery<KnowledgeBase[]>({
     queryKey: ['knowledge-bases'],
@@ -89,6 +87,16 @@ export default function KnowledgeBases() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name: string; description: string } }) =>
+      api(`/knowledge-bases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
+      setEditDialogOpen(false);
+      setEditTargetId(null);
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       api(`/knowledge-bases/${id}`, { method: 'DELETE' }),
@@ -98,42 +106,20 @@ export default function KnowledgeBases() {
     },
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async ({ kbId, file }: { kbId: string; file: File }) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch(`/api/v1/knowledge-bases/${kbId}/upload`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Upload failed');
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['knowledge-bases'] });
-    },
-  });
-
-  const handleUploadClick = useCallback((kbId: string) => {
-    setUploadTargetKbId(kbId);
-    fileInputRef.current?.click();
+  const handleEditOpen = useCallback((kb: KnowledgeBase) => {
+    setEditTargetId(kb.id);
+    setEditName(kb.name);
+    setEditDesc(kb.description || '');
+    setEditDialogOpen(true);
   }, []);
 
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file && uploadTargetKbId) {
-        uploadMutation.mutate({ kbId: uploadTargetKbId, file });
-      }
-      e.target.value = '';
-      setUploadTargetKbId(null);
-    },
-    [uploadMutation, uploadTargetKbId],
-  );
+  const handleEditSave = useCallback(() => {
+    if (!editName.trim() || !editTargetId) return;
+    updateMutation.mutate({
+      id: editTargetId,
+      data: { name: editName.trim(), description: editDesc.trim() },
+    });
+  }, [editName, editDesc, editTargetId, updateMutation]);
 
   const handleCreate = useCallback(() => {
     if (!name.trim()) return;
@@ -224,15 +210,43 @@ export default function KnowledgeBases() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={ACCEPTED_FILE_TYPES}
-        className="hidden"
-        onChange={handleFileChange}
-      />
+        {/* 编辑知识库弹窗 */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t('editDialogTitle')}</DialogTitle>
+              <DialogDescription>{t('editDialogDesc')}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-kb-name">{t('name')}</Label>
+                <Input
+                  id="edit-kb-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder={t('namePlaceholder')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-kb-desc">{t('desc')}</Label>
+                <Textarea
+                  id="edit-kb-desc"
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  placeholder={t('descPlaceholder')}
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter showCloseButton>
+              <Button onClick={handleEditSave} disabled={!editName.trim() || updateMutation.isPending}>
+                {updateMutation.isPending ? t('saving') : t('common:save')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {kbList.length === 0 ? (
         <Empty>
@@ -273,12 +287,11 @@ export default function KnowledgeBases() {
               </CardContent>
               <CardFooter className="border-t gap-2">
                 <Button
+                  variant="outline"
                   size="sm"
-                  onClick={() => handleUploadClick(kb.id)}
-                  disabled={uploadMutation.isPending && uploadTargetKbId === kb.id}
+                  onClick={() => handleEditOpen(kb)}
                 >
-                  <Upload className="size-3.5" />
-                  {t('uploadButton')}
+                  <Pencil className="size-3.5" />
                 </Button>
                 <AlertDialog
                   open={deleteTargetId === kb.id}

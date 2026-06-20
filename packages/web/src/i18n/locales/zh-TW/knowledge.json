@@ -66,5 +66,9 @@
   "uploadDialogTitle": "上傳檔案",
   "uploadDialogDesc": "選擇要上傳到目前目錄的檔案",
   "selectFile": "選擇檔案",
-  "uploading": "上傳中..."
+  "uploading": "上傳中...",
+  "editDialogTitle": "編輯知識庫",
+  "editDialogDesc": "修改知識庫的名稱和描述",
+  "editButton": "編輯",
+  "saving": "儲存中..."
 }

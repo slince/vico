@@ -42,6 +42,13 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     return c.json({ message: 'deleted' });
   });
 
+  app.put('/api/v1/knowledge-bases/:id', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    const kb = await knowledgeManager.update(auth.tenantId, c.req.param('id'), await c.req.json());
+    return c.json(kb);
+  });
+
   // ── 文档管理 ──
 
   // ── 虚拟文件夹 ──

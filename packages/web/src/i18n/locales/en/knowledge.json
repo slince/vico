@@ -66,5 +66,9 @@
   "uploadDialogTitle": "Upload File",
   "uploadDialogDesc": "Select a file to upload to the current folder",
   "selectFile": "Select File",
-  "uploading": "Uploading..."
+  "uploading": "Uploading...",
+  "editDialogTitle": "Edit Knowledge Base",
+  "editDialogDesc": "Modify the name and description of the knowledge base",
+  "editButton": "Edit",
+  "saving": "Saving..."
 }

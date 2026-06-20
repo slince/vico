@@ -66,5 +66,9 @@
   "uploadDialogTitle": "上传文件",
   "uploadDialogDesc": "选择要上传到当前目录的文件",
   "selectFile": "选择文件",
-  "uploading": "上传中..."
+  "uploading": "上传中...",
+  "editDialogTitle": "编辑知识库",
+  "editDialogDesc": "修改知识库的名称和描述",
+  "editButton": "编辑",
+  "saving": "保存中..."
 }

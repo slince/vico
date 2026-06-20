@@ -18,3 +18,10 @@ export const createKbSchema = z.object({
 });
 
 export type CreateKbInput = z.infer<typeof createKbSchema>;
+
+export const updateKbSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+});
+
+export type UpdateKbInput = z.infer<typeof updateKbSchema>;
