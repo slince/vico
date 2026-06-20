@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, Database, FilePlus, FolderPlus, Home, LayoutGrid, LayoutList, RefreshCw, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 
 // 3. API
 import { api } from '@/api/client';
@@ -151,6 +152,13 @@ export default function KnowledgeDetail() {
       setUploadOpen(false);
     },
   });
+
+  // 上传失败时 toast 提示
+  useEffect(() => {
+    if (uploadMutation.error) {
+      toast.error(uploadMutation.error.message);
+    }
+  }, [uploadMutation.error]);
 
   /** 手动刷新文档列表 */
   const handleRefresh = useCallback(() => {
@@ -405,8 +413,6 @@ export default function KnowledgeDetail() {
         onOpenChange={setUploadOpen}
         onSubmit={(file) => uploadMutation.mutate(file)}
         isPending={uploadMutation.isPending}
-        error={uploadMutation.error?.message ?? null}
-        onClearError={() => uploadMutation.reset()}
       />
       {docsLoading && !docPageData ? (
         viewMode === 'list' ? <DocumentTableSkeleton /> : <DocumentGridSkeleton />
