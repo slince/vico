@@ -1,5 +1,5 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import type {AgentConfig} from '../contracts/agent.js';
+import type { AgentConfig, ModelRef } from '../contracts/agent.js';
 import type {TurnResult} from '../agent-loop/types.js';
 import {Agent, type AgentFactory} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
@@ -16,7 +16,7 @@ import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
 
 /** ModelClient 工厂 — 用于 getRuntime() 批量创建 Agent */
-export type ModelClientFactory = (config: AgentConfig) => ModelClient;
+export type ModelClientFactory = (ref: ModelRef) => ModelClient;
 
 /** Vico 配置选项 */
 export interface VicoOptions {
@@ -140,7 +140,7 @@ export class Vico {
    */
   getRuntime(factory: ModelClientFactory): AgentRuntime {
     const agentFactory: AgentFactory = async (config) => {
-      const mc = factory(config);
+      const mc = factory(config.model);
       return this.createAgent(config, mc);
     };
     this.runtime = new AgentRuntime(agentFactory, this.options.maxCached);
@@ -157,7 +157,7 @@ export class Vico {
    * const result = await vico.invoke(config.id, 'Hello!');
    * ```
    */
-  async invoke(agentId: string, message: string): Promise<TurnResult> {
+  async invoke(agentId: string, message: string, options?: { threadId?: string; [key: string]: unknown }): Promise<TurnResult> {
     if (!this.runtime) {
       throw new Error('Runtime not initialized. Call getRuntime(factory) first.');
     }
@@ -170,9 +170,10 @@ export class Vico {
     }
 
     const userMessage: ModelMessage = { role: 'user', content: message };
+    const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
 
     return agent.loop.runTurn(
-      `invoke-${agentId}-${Date.now()}`,
+      threadId,
       [],
       userMessage,
       new AbortController().signal,

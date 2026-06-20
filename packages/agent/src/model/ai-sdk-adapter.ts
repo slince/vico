@@ -1,12 +1,8 @@
 // @vico/agent - AISDKModelClient: AI SDK v6 适配器，实现 ModelClient 端口
-import type { LanguageModel } from 'ai';
-import { streamText } from 'ai';
-import type {
-  ModelClient,
-  ModelRequest,
-  ModelStreamChunk,
-} from './model-client.js';
-import type { ToolSpec } from '../contracts/tool.js';
+import type {LanguageModel} from 'ai';
+import {streamText} from 'ai';
+import type {ModelClient, ModelRequest, ModelStreamChunk,} from './types.js';
+import type {ToolSpec} from '../contracts/tool.js';
 
 /**
  * 将框架 ToolSpec 数组转为 AI SDK v6 streamText 可接受的 tools 对象。

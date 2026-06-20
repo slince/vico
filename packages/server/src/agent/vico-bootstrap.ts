@@ -41,9 +41,9 @@ export class VicoBootstrap {
     this.container = new Vico({ skillRoots });
     await this.container.init();
 
-    const modelFactory: ModelClientFactory = (config) => {
-      const languageModel = createLanguageModel(config.model);
-      return new AISDKModelClient(languageModel, config.model.provider, config.model.model);
+    const modelFactory: ModelClientFactory = (ref) => {
+      const languageModel = createLanguageModel(ref);
+      return new AISDKModelClient(languageModel, ref.provider, ref.model);
     };
 
     this.runtime = this.container.getRuntime(modelFactory);
