@@ -76,7 +76,7 @@ export default function KnowledgeDetail() {
   });
 
   /** 文档列表（分页 + 当前目录过滤） */
-  const { data: docPageData, isLoading: docsLoading } = useQuery<PaginatedDocuments>({
+  const { data: docPageData, isLoading: docsLoading, isFetching: docsFetching } = useQuery<PaginatedDocuments>({
     queryKey: ['knowledge-base', id, 'documents', docPage, currentFolderId],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(docPage), page_size: '20' });
@@ -409,32 +409,38 @@ export default function KnowledgeDetail() {
         onSubmit={(file) => uploadMutation.mutate(file)}
         isPending={uploadMutation.isPending}
       />
-      {docsLoading ? (
+      {docsLoading && !docPageData ? (
         viewMode === 'list' ? <DocumentTableSkeleton /> : <DocumentGridSkeleton />
       ) : documents.length === 0 ? (
         viewMode === 'list' ? <DocumentTableEmpty t={t} /> : <DocumentGridEmpty t={t} />
-      ) : viewMode === 'list' ? (
-        <DocumentTable
-          documents={documents}
-          selectedDocId={selectedDocId}
-          deleteDocId={deleteDocId}
-          onSelectDoc={handleSelectDoc}
-          onDeleteDocIdChange={setDeleteDocId}
-          onDeleteConfirm={handleDeleteDocConfirm}
-          deletePending={deleteDocMutation.isPending}
-          t={t}
-        />
       ) : (
-        <DocumentGrid
-          documents={documents}
-          selectedDocId={selectedDocId}
-          deleteDocId={deleteDocId}
-          onSelectDoc={handleSelectDoc}
-          onDeleteDocIdChange={setDeleteDocId}
-          onDeleteConfirm={handleDeleteDocConfirm}
-          deletePending={deleteDocMutation.isPending}
-          t={t}
-        />
+        <>
+          {/* 刷新时的加载指示器 */}
+          {docsFetching && <Skeleton className="h-1 w-full rounded-sm mb-4" />}
+          {viewMode === 'list' ? (
+            <DocumentTable
+              documents={documents}
+              selectedDocId={selectedDocId}
+              deleteDocId={deleteDocId}
+              onSelectDoc={handleSelectDoc}
+              onDeleteDocIdChange={setDeleteDocId}
+              onDeleteConfirm={handleDeleteDocConfirm}
+              deletePending={deleteDocMutation.isPending}
+              t={t}
+            />
+          ) : (
+            <DocumentGrid
+              documents={documents}
+              selectedDocId={selectedDocId}
+              deleteDocId={deleteDocId}
+              onSelectDoc={handleSelectDoc}
+              onDeleteDocIdChange={setDeleteDocId}
+              onDeleteConfirm={handleDeleteDocConfirm}
+              deletePending={deleteDocMutation.isPending}
+              t={t}
+            />
+          )}
+        </>
       )}
       {docTotal > 20 && (
         <div className="flex items-center justify-between">

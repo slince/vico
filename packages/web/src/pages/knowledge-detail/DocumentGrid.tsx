@@ -7,14 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Empty, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import {
-  AlertDialog, AlertDialogTrigger, AlertDialogContent,
-  AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
-} from '@/components/ui/alert-dialog';
 
 import type { DocumentViewProps } from './utils';
 import { formatFileSize, getFileIcon, getStatusBadgeProps, getStatusKey } from './utils';
 import { isDirectory } from './types';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 
 /**
  * 文档网格视图 — 卡片形式。
@@ -59,37 +56,24 @@ export function DocumentGrid({
                     </div>
                   </div>
                 </div>
-                <AlertDialog
+                <DeleteConfirmDialog
                   open={deleteDocId === doc.id}
                   onOpenChange={(open) => { if (!open) onDeleteDocIdChange(null); }}
+                  onConfirm={onDeleteConfirm}
+                  isPending={deletePending}
+                  isDir={dir}
+                  name={displayName}
+                  t={t}
                 >
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); onDeleteDocIdChange(doc.id); }}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{dir ? t('deleteFolder') : t('deleteDocument')}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {dir ? t('confirmDeleteFolder', { name: displayName }) : t('confirmDeleteDoc', { name: doc.filename })}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <Button variant="outline" onClick={() => onDeleteDocIdChange(null)}>
-                        {t('common:cancel')}
-                      </Button>
-                      <Button variant="destructive" onClick={onDeleteConfirm} disabled={deletePending}>
-                        {deletePending ? t('common:deleting') : t('common:confirmDelete')}
-                      </Button>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); onDeleteDocIdChange(doc.id); }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </DeleteConfirmDialog>
               </div>
               <div className="flex items-center gap-2 mt-3">
                 <Badge variant={badgeProps.variant} className={badgeProps.className}>
