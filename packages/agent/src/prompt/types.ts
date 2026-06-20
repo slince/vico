@@ -29,7 +29,3 @@ export interface PromptContext {
   dynamicInstructions: string[];
 }
 
-/** 系统提示词拼装器端口 */
-export interface PromptAssembler {
-  assemble(context: PromptContext): ModelRequest;
-}

@@ -1,14 +1,6 @@
 // src/agent-loop/context-compactor.ts
 import type { ModelMessage, ModelClient } from '../model/model-client.js';
 
-export interface ContextCompactor {
-  compactIfNeeded(
-    items: ModelMessage[],
-    model: ModelClient,
-    signal: AbortSignal,
-  ): Promise<{ compacted: ModelMessage[]; wasCompacted: boolean; removedTokens: number }>;
-}
-
 /** 简单的 Token 估算（4 字符 ≈ 1 token） */
 function estimateTokens(messages: ModelMessage[]): number {
   let chars = 0;
@@ -20,7 +12,7 @@ function estimateTokens(messages: ModelMessage[]): number {
 }
 
 /** 上下文压缩器 — 启发式阈值 + LLM 摘要 */
-export class ContextCompactorImpl implements ContextCompactor {
+export class ContextCompactor {
   private softThreshold: number;
   private keepRecent: number;
 

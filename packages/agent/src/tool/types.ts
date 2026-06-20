@@ -1,7 +1,7 @@
 // @vico/agent - Tool module type definitions
 import type { ToolSpec, ToolCall, ToolResult } from '../contracts/tool.js';
-import type { HookRunner } from '../hook/types.js';
-import type { AgentLoop } from '../agent-loop/types.js';
+import type { HookRunner } from '../hook/hook-runner.js';
+import type { AgentLoop } from '../agent-loop/agent-loop.js';
 
 /** 工具执行上下文 */
 export interface ToolExecutionContext {

@@ -11,8 +11,8 @@
  */
 
 import {
-  AgentLoopImpl,
-  PromptAssemblerImpl,
+  AgentLoop,
+  PromptAssembler,
   MittEventRecorder,
   InMemorySpanTracker,
   CompositeHookRunner,
@@ -111,7 +111,7 @@ async function bootstrap() {
   };
 
   const modelClient = new FakeModelClient();
-  const promptAssembler = new PromptAssemblerImpl();
+  const promptAssembler = new PromptAssembler();
 
   // 需要先生成工具列表
   const allTools = await toolHost.listTools({
@@ -127,7 +127,7 @@ async function bootstrap() {
 
   console.log(`🔧 Tools available: ${allTools.map((t) => t.name).join(', ')}`);
 
-  const loop = new AgentLoopImpl({
+  const loop = new AgentLoop({
     config: agentConfig,
     model: modelClient,
     toolHost,

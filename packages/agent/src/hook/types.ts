@@ -20,10 +20,3 @@ export interface HookResult {
   message?: string;
 }
 
-/** 钩子运行器端口 — 生命周期事件拦截与干预 */
-export interface HookRunner {
-  /** 钩子绑定的事件类型 */
-  event: HookEvent;
-  /** 执行钩子逻辑，传入当前上下文数据，返回处理决策 */
-  run(data: unknown): Promise<HookResult>;
-}

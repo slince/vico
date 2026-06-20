@@ -1,20 +1,21 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type { TurnResult, AgentLoop, AgentLoopOptions } from './types.js';
+import type { TurnResult, AgentLoopOptions } from './types.js';
 import type { ModelClient, ModelMessage } from '../model/model-client.js';
-import type { PromptAssembler, PromptContext } from '../prompt/assembler.js';
+import type { PromptContext } from '../prompt/types.js';
+import { PromptAssembler } from '../prompt/assembler.js';
 import type { ToolHost, ToolExecutionContext } from '../tool/tool-host.js';
 import type { ToolCall, ToolResult } from '../contracts/tool.js';
 import type { EventRecorder } from '../observable/event-recorder.js';
 import type { SpanTracker } from '../observable/span-tracker.js';
 import type { CompositeHookRunner } from '../hook/hook-runner.js';
-import type { ContextCompactor } from './context-compactor.js';
+import { ContextCompactor } from './context-compactor.js';
 import type { TokenEconomy } from './token-economy.js';
 import type { ApprovalGate } from './approval-gate.js';
 
-export type { TurnResult, AgentLoop, AgentLoopOptions } from './types.js';
+export type { TurnResult, AgentLoopOptions } from './types.js';
 
-/** AgentLoop 默认实现 — 编排 model→tool→repeat 循环 */
-export class AgentLoopImpl implements AgentLoop {
+/** AgentLoop — 编排 model→tool→repeat 循环 */
+export class AgentLoop {
   private config: AgentLoopOptions['config'];
   private model: ModelClient;
   private toolHost: ToolHost;
@@ -167,7 +168,7 @@ export class AgentLoopImpl implements AgentLoop {
           break;
         }
 
-        // 3.5 执行工具调用（Phase 1：简单透传给 ToolHost）
+        // 3.5 执行工具调用
         const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
         let toolResults: ToolResult[];
         try {
@@ -175,7 +176,7 @@ export class AgentLoopImpl implements AgentLoop {
           toolSpan.end({ results: toolResults.length });
         } catch (err) {
           toolSpan.error(err as Error);
-          throw err; // 重新抛出，由外层 catch 处理
+          throw err;
         }
 
         // 3.6 将工具结果追加到消息列表
@@ -222,14 +223,12 @@ export class AgentLoopImpl implements AgentLoop {
   }
 
   /**
-   * 工具分发（Phase 1：透传给 ToolHost，串行执行）。
-   *
-   * Phase 2 将支持并行组、审批策略、风暴断路器。
+   * 工具分发
    */
   private async dispatchTools(calls: ToolCall[], threadId: string): Promise<ToolResult[]> {
     const context: ToolExecutionContext = {
       tenantId: this.config.tenantId,
-      userId: '', // Phase 2 从上下文注入
+      userId: '',
       agentId: this.config.id,
       threadId,
       workspace: '',
@@ -246,12 +245,7 @@ export class AgentLoopImpl implements AgentLoop {
     return this.toolHost.executeBatch(calls, context);
   }
 
-  /**
-   * 从当前消息列表构建 PromptContext。
-   *
-   * Phase 1 中 skillCatalog、memoryItems、ragResults、tools 留空，
-   * 这些将在后续阶段由 SkillLoader、MemoryStore、RAG 管理器填充。
-   */
+  /** 从当前消息列表构建 PromptContext */
   private buildPromptContext(messages: ModelMessage[]): PromptContext {
     return {
       agent: this.config,

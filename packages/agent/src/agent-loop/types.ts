@@ -1,6 +1,7 @@
 // @vico/agent - AgentLoop module type definitions
 import type { ModelClient, ModelMessage } from '../model/types.js';
-import type { PromptAssembler, PromptContext } from '../prompt/types.js';
+import type { PromptAssembler } from '../prompt/assembler.js';
+import type { PromptContext } from '../prompt/types.js';
 import type { ToolHost, ToolExecutionContext } from '../tool/types.js';
 import type { ToolCall, ToolResult } from '../contracts/tool.js';
 import type { EventRecorder } from '../observable/types.js';
@@ -20,22 +21,6 @@ export interface TurnResult {
 }
 
 /** Agent 循环端口 — 驱动单个对话 turn 的执行 */
-export interface AgentLoop {
-  /** 执行一个 turn：将 userMessage 追加到 history，运行 agentic loop 后返回结果 */
-  runTurn(
-    threadId: string,
-    history: ModelMessage[],
-    userMessage: ModelMessage,
-    signal: AbortSignal,
-  ): Promise<TurnResult>;
-
-  /** 中断当前正在执行的 turn */
-  interrupt(): void;
-
-  /** 注入引导文本（human-in-the-loop） */
-  steer(text: string): void;
-}
-
 /** AgentLoop 构造选项 */
 export interface AgentLoopOptions {
   config: AgentConfig;

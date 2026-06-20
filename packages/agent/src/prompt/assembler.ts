@@ -1,8 +1,8 @@
-// @vico/agent - PromptAssembler port interface: assembles system prompt from context
-import type { PromptAssembler, PromptContext } from './types.js';
+// @vico/agent - PromptAssembler: assembles system prompt from context
+import type { PromptContext } from './types.js';
 import type { ModelRequest, ModelMessage } from '../model/model-client.js';
 
-export type { SkillCatalogEntry, RagChunk, PromptContext, PromptAssembler } from './types.js';
+export type { SkillCatalogEntry, RagChunk, PromptContext } from './types.js';
 
 /**
  * PromptAssembler 默认实现。
@@ -12,7 +12,7 @@ export type { SkillCatalogEntry, RagChunk, PromptContext, PromptAssembler } from
  * 2. 对话历史
  * 3. 动态上下文（记忆、RAG、动态指令）—— 放在 history 之后，避免破坏缓存前缀
  */
-export class PromptAssemblerImpl implements PromptAssembler {
+export class PromptAssembler {
   assemble(context: PromptContext): ModelRequest {
     const messages: ModelMessage[] = [];
     const { agent, skillCatalog, memoryItems, ragResults, history, tools, dynamicInstructions } =

@@ -1,6 +1,6 @@
-// agent-runtime.test.ts — tests for AgentRuntimeImpl: create, cache, LRU eviction, lifecycle
+// agent-runtime.test.ts — tests for AgentRuntime: create, cache, LRU eviction, lifecycle
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AgentRuntimeImpl, type Agent, type AgentFactory } from '../agent-runtime/agent-runtime.js';
+import { AgentRuntime, type Agent, type AgentFactory } from '../agent-runtime/agent-runtime.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
 function makeConfig(id: string, tenantId = 'tenant-1'): AgentConfig {
@@ -16,9 +16,9 @@ function makeConfig(id: string, tenantId = 'tenant-1'): AgentConfig {
   };
 }
 
-describe('AgentRuntimeImpl', () => {
+describe('AgentRuntime', () => {
   let factoryCallCount = 0;
-  let runtime: AgentRuntimeImpl;
+  let runtime: AgentRuntime;
 
   const factory: AgentFactory = async (config) => {
     factoryCallCount++;
@@ -30,7 +30,7 @@ describe('AgentRuntimeImpl', () => {
 
   beforeEach(() => {
     factoryCallCount = 0;
-    runtime = new AgentRuntimeImpl(factory, 10);
+    runtime = new AgentRuntime(factory, 10);
   });
 
   it('creates agent via factory', async () => {
@@ -74,7 +74,7 @@ describe('AgentRuntimeImpl', () => {
   });
 
   it('evicts LRU when over capacity', async () => {
-    const smallRuntime = new AgentRuntimeImpl(factory, 3);
+    const smallRuntime = new AgentRuntime(factory, 3);
     await smallRuntime.createAgent(makeConfig('agent-1'));
     await smallRuntime.createAgent(makeConfig('agent-2'));
     await smallRuntime.createAgent(makeConfig('agent-3'));

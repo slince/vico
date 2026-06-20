@@ -1,8 +1,8 @@
 // @vico/agent - AgentRuntime: manages Agent lifecycle with LRU cache
-import type { Agent, AgentFactory, AgentRuntime } from './types.js';
+import type { Agent, AgentFactory } from './types.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
-export type { Agent, AgentFactory, AgentRuntime } from './types.js';
+export type { Agent, AgentFactory } from './types.js';
 
 /** Agent 缓存条目 */
 interface CacheEntry {
@@ -10,8 +10,8 @@ interface CacheEntry {
   lastUsedAt: number;
 }
 
-/** AgentRuntime 默认实现 — LRU 缓存 + 动态 Agent 生命周期 */
-export class AgentRuntimeImpl implements AgentRuntime {
+/** AgentRuntime — LRU 缓存 + 动态 Agent 生命周期 */
+export class AgentRuntime {
   private cache: Map<string, CacheEntry> = new Map();
   private factory: AgentFactory;
   private maxCached: number;
@@ -41,7 +41,6 @@ export class AgentRuntimeImpl implements AgentRuntime {
   }
 
   async destroyAgent(agentId: string): Promise<void> {
-    // 按 agentId 查找所有租户的缓存
     for (const [key, entry] of this.cache) {
       if (entry.agent.config.id === agentId) {
         this.cache.delete(key);
@@ -50,7 +49,6 @@ export class AgentRuntimeImpl implements AgentRuntime {
   }
 
   async updateAgent(agentId: string, patch: Partial<AgentConfig>): Promise<Agent> {
-    // 找到旧 agent，merge 配置后重建
     for (const [key, entry] of this.cache) {
       if (entry.agent.config.id === agentId) {
         const newConfig = { ...entry.agent.config, ...patch };

@@ -1,10 +1,10 @@
-// hook-runner.test.ts — tests for HookRunnerImpl and CompositeHookRunner
+// hook-runner.test.ts — tests for HookRunner and CompositeHookRunner
 import { describe, it, expect } from 'vitest';
-import { HookRunnerImpl, CompositeHookRunner } from '../hook/hook-runner.js';
+import { HookRunner, CompositeHookRunner } from '../hook/hook-runner.js';
 
-describe('HookRunnerImpl', () => {
+describe('HookRunner', () => {
   it('runs handler and returns result', async () => {
-    const runner = new HookRunnerImpl('turn:start', async (data) => ({
+    const runner = new HookRunner('turn:start', async (data) => ({
       action: 'continue',
       message: `got: ${data}`,
     }));
@@ -14,7 +14,7 @@ describe('HookRunnerImpl', () => {
   });
 
   it('catches handler errors gracefully', async () => {
-    const runner = new HookRunnerImpl('tool:before', async () => {
+    const runner = new HookRunner('tool:before', async () => {
       throw new Error('boom');
     });
     const result = await runner.run({});
@@ -29,13 +29,13 @@ describe('CompositeHookRunner', () => {
     const order: number[] = [];
 
     composite.register(
-      new HookRunnerImpl('turn:start', async () => {
+      new HookRunner('turn:start', async () => {
         order.push(1);
         return { action: 'continue' };
       }),
     );
     composite.register(
-      new HookRunnerImpl('turn:start', async () => {
+      new HookRunner('turn:start', async () => {
         order.push(2);
         return { action: 'continue' };
       }),
@@ -50,13 +50,13 @@ describe('CompositeHookRunner', () => {
     const order: number[] = [];
 
     composite.register(
-      new HookRunnerImpl('tool:before', async () => {
+      new HookRunner('tool:before', async () => {
         order.push(1);
         return { action: 'deny', message: 'blocked' };
       }),
     );
     composite.register(
-      new HookRunnerImpl('tool:before', async () => {
+      new HookRunner('tool:before', async () => {
         order.push(2);
         return { action: 'continue' };
       }),
@@ -71,7 +71,7 @@ describe('CompositeHookRunner', () => {
     const composite = new CompositeHookRunner();
 
     composite.register(
-      new HookRunnerImpl('prompt:submit', async (data) => ({
+      new HookRunner('prompt:submit', async (data) => ({
         action: 'modify',
         modifiedData: { ...(data as any), extra: true },
       })),

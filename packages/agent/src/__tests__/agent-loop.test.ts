@@ -1,11 +1,11 @@
-// agent-loop.test.ts — integration tests for AgentLoopImpl: text-only, tool calls, interrupt
+// agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
 import { describe, it, expect, vi } from 'vitest';
-import { AgentLoopImpl, type AgentLoopOptions } from '../agent-loop/agent-loop.js';
+import { AgentLoop, type AgentLoopOptions } from '../agent-loop/agent-loop.js';
 import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/model-client.js';
 import type { AgentConfig } from '../contracts/agent.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
-import { PromptAssemblerImpl } from '../prompt/assembler.js';
+import { PromptAssembler } from '../prompt/assembler.js';
 
 function makeConfig(): AgentConfig {
   return {
@@ -41,7 +41,7 @@ const mockToolHost = {
     calls.map((c) => ({ callId: c.id, name: c.name, status: 'success' as const, output: 'ok' })),
 };
 
-describe('AgentLoopImpl', () => {
+describe('AgentLoop', () => {
   it('completes a turn with text-only response', async () => {
     const events = new MittEventRecorder();
     const tracker = new InMemorySpanTracker();
@@ -51,11 +51,11 @@ describe('AgentLoopImpl', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const loop = new AgentLoopImpl({
+    const loop = new AgentLoop({
       config: makeConfig(),
       model,
       toolHost: mockToolHost as any,
-      promptAssembler: new PromptAssemblerImpl(),
+      promptAssembler: new PromptAssembler(),
       events,
       spanTracker: tracker,
     });
@@ -86,11 +86,11 @@ describe('AgentLoopImpl', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const loop = new AgentLoopImpl({
+    const loop = new AgentLoop({
       config: makeConfig(),
       model,
       toolHost: mockToolHost as any,
-      promptAssembler: new PromptAssemblerImpl(),
+      promptAssembler: new PromptAssembler(),
       events,
       spanTracker: tracker,
     });
@@ -138,11 +138,11 @@ describe('AgentLoopImpl', () => {
       },
     };
 
-    const loop = new AgentLoopImpl({
+    const loop = new AgentLoop({
       config: makeConfig(),
       model,
       toolHost: mockToolHost as any,
-      promptAssembler: new PromptAssemblerImpl(),
+      promptAssembler: new PromptAssembler(),
       events,
       spanTracker: tracker,
     });

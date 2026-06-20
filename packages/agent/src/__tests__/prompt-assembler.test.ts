@@ -1,6 +1,6 @@
-// prompt-assembler.test.ts — tests for PromptAssemblerImpl system prompt assembly
+// prompt-assembler.test.ts — tests for PromptAssembler system prompt assembly
 import { describe, it, expect } from 'vitest';
-import { PromptAssemblerImpl } from '../prompt/assembler.js';
+import { PromptAssembler } from '../prompt/assembler.js';
 import type { AgentConfig } from '../contracts/agent.js';
 
 function makeConfig(overrides?: Partial<AgentConfig>): AgentConfig {
@@ -17,9 +17,9 @@ function makeConfig(overrides?: Partial<AgentConfig>): AgentConfig {
   };
 }
 
-describe('PromptAssemblerImpl', () => {
+describe('PromptAssembler', () => {
   it('assembles system prompt + history', () => {
-    const assembler = new PromptAssemblerImpl();
+    const assembler = new PromptAssembler();
     const req = assembler.assemble({
       agent: makeConfig(),
       skillCatalog: [],
@@ -36,7 +36,7 @@ describe('PromptAssemblerImpl', () => {
   });
 
   it('includes skill catalog in system prompt', () => {
-    const assembler = new PromptAssemblerImpl();
+    const assembler = new PromptAssembler();
     const req = assembler.assemble({
       agent: makeConfig(),
       skillCatalog: [
@@ -54,7 +54,7 @@ describe('PromptAssemblerImpl', () => {
   });
 
   it('puts dynamic context after history', () => {
-    const assembler = new PromptAssemblerImpl();
+    const assembler = new PromptAssembler();
     const req = assembler.assemble({
       agent: makeConfig(),
       skillCatalog: [],
@@ -73,7 +73,7 @@ describe('PromptAssemblerImpl', () => {
   });
 
   it('includes rag results after memory items', () => {
-    const assembler = new PromptAssemblerImpl();
+    const assembler = new PromptAssembler();
     const req = assembler.assemble({
       agent: makeConfig(),
       skillCatalog: [],

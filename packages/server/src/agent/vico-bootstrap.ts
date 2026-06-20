@@ -2,13 +2,13 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import type { LanguageModel } from 'ai';
-import { AgentRuntimeImpl, type AgentFactory } from '@vico/agent';
+import { AgentRuntime, type AgentFactory } from '@vico/agent';
 import { AISDKModelClient } from '@vico/agent';
 import { LocalToolHost } from '@vico/agent';
 import { SkillManager } from '@vico/agent';
 import { FSSkillLoader } from '@vico/agent';
-import { AgentLoopImpl } from '@vico/agent';
-import { PromptAssemblerImpl } from '@vico/agent';
+import { AgentLoop } from '@vico/agent';
+import { PromptAssembler } from '@vico/agent';
 import { MittEventRecorder, InMemorySpanTracker } from '@vico/agent';
 import { CompositeHookRunner } from '@vico/agent';
 import type { AgentConfig } from '@vico/agent';
@@ -37,7 +37,7 @@ function createLanguageModel(modelRef: AgentConfig['model']): LanguageModel {
  * 单例启动，管理 AgentRuntime + ToolHost + SkillManager 生命周期。
  */
 export class VicoBootstrap {
-  private runtime!: AgentRuntimeImpl;
+  private runtime!: AgentRuntime;
   private toolHost!: LocalToolHost;
   private skillManager!: SkillManager;
   private events = new MittEventRecorder();
@@ -57,10 +57,10 @@ export class VicoBootstrap {
     const factory: AgentFactory = async (config: AgentConfig) => {
       const languageModel = createLanguageModel(config.model);
       const modelClient = new AISDKModelClient(languageModel, config.model.provider, config.model.model);
-      const promptAssembler = new PromptAssemblerImpl();
+      const promptAssembler = new PromptAssembler();
       const hooks = new CompositeHookRunner();
 
-      const loop = new AgentLoopImpl({
+      const loop = new AgentLoop({
         config,
         model: modelClient,
         toolHost: self.toolHost,
@@ -73,7 +73,7 @@ export class VicoBootstrap {
       return { config, loop };
     };
 
-    this.runtime = new AgentRuntimeImpl(factory);
+    this.runtime = new AgentRuntime(factory);
   }
 
   /** 根据 DB AgentDetail 创建 Vico AgentConfig */
@@ -93,7 +93,7 @@ export class VicoBootstrap {
     };
   }
 
-  getRuntime(): AgentRuntimeImpl { return this.runtime; }
+  getRuntime(): AgentRuntime { return this.runtime; }
   getToolHost(): LocalToolHost { return this.toolHost; }
   getSkillManager(): SkillManager { return this.skillManager; }
   getEvents(): MittEventRecorder { return this.events; }

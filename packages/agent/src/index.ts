@@ -27,13 +27,12 @@ export {
 } from './model/model-client.js';
 export { AISDKModelClient } from './model/ai-sdk-adapter.js';
 
-// Ports — PromptAssembler
+// PromptAssembler
 export {
-  type PromptAssembler,
+  PromptAssembler,
   type PromptContext,
   type SkillCatalogEntry,
   type RagChunk,
-  PromptAssemblerImpl,
 } from './prompt/assembler.js';
 
 // Ports — ToolHost
@@ -73,18 +72,17 @@ export {
   type ConversationEntry,
 } from './session/session-store.js';
 
-// Ports — ContextCompactor
-export { type ContextCompactor, ContextCompactorImpl } from './agent-loop/context-compactor.js';
+// ContextCompactor
+export { ContextCompactor } from './agent-loop/context-compactor.js';
 
-// Ports — Hook
+// Hook
 export {
-  type HookRunner,
   type HookEvent,
   type HookResult,
 } from './hook/hook-types.js';
-export { HookRunnerImpl, CompositeHookRunner } from './hook/hook-runner.js';
+export { HookRunner, CompositeHookRunner } from './hook/hook-runner.js';
 
-// Ports — Observable
+// Observable
 export { type EventRecorder, MittEventRecorder } from './observable/event-recorder.js';
 export {
   type SpanTracker,
@@ -92,20 +90,18 @@ export {
   InMemorySpanTracker,
 } from './observable/span-tracker.js';
 
-// Runtime
+// AgentRuntime
 export {
-  type AgentRuntime,
+  AgentRuntime,
   type Agent,
   type AgentFactory,
-  AgentRuntimeImpl,
 } from './agent-runtime/agent-runtime.js';
 
 // AgentLoop
 export {
-  type AgentLoop,
+  AgentLoop,
   type AgentLoopOptions,
   type TurnResult,
-  AgentLoopImpl,
 } from './agent-loop/agent-loop.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
 export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';
