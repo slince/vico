@@ -43,11 +43,23 @@ export {
   type ApprovalDecision,
 } from './tool/tool-host.js';
 
+// Tool system
+export { LocalToolHost, type ToolSource, type ToolHandler } from './tool/local-tool-host.js';
+export { CapabilityRegistry } from './tool/capability-registry.js';
+export { StormBreaker } from './tool/storm-breaker.js';
+export { resolvePolicy, type PolicyContext } from './tool/tool-policy.js';
+export { BuiltinTools } from './tool/builtin-tools.js';
+
 // Ports — MemoryStore
 export { type MemoryStore } from './memory/memory-store.js';
 
 // Ports — SkillLoader
 export { type SkillLoader, type Skill } from './skill/skill-loader.js';
+
+// Skill system
+export { FSSkillLoader } from './skill/fs-skill-loader.js';
+export { SkillManager } from './skill/skill-manager.js';
+export { createSkillTools, createSkillToolHandlers } from './skill/skill-tools.js';
 
 // Ports — SessionStore
 export {
