@@ -1,6 +1,6 @@
 // src/skill/skill-manager.ts
-import type { Skill } from './skill-loader.js';
-import type { FSSkillLoader } from './fs-skill-loader.js';
+import type {Skill} from './types.js';
+import type {FSSkillLoader} from './fs-skill-loader.js';
 
 export class SkillManager {
   private skills: Map<string, Skill> = new Map();
