@@ -122,7 +122,7 @@ export function RichtextEditor({
     <div
       data-slot="richtext-editor"
       className={cn(
-        'rounded-2xl border border-input bg-input/50 overflow-hidden',
+        'rounded-2xl border border-input bg-background overflow-hidden',
         'focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30',
         'transition-[color,box-shadow] duration-200',
         disabled && 'opacity-50 pointer-events-none',
