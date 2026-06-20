@@ -95,6 +95,9 @@ importers:
       '@mastra/rag':
         specifier: ^2.2.1
         version: 2.2.1(@mastra/core@1.42.0(ai@6.0.204(zod@4.4.3))(express@5.2.1)(zod@4.4.3))(encoding@0.1.13)(zod@4.4.3)
+      '@vico/agent':
+        specifier: workspace:*
+        version: link:../agent
       '@xenova/transformers':
         specifier: ^2.17.2
         version: 2.17.2
