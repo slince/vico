@@ -187,8 +187,14 @@ export class AgentLoopImpl implements AgentLoop {
 
         // 3.5 执行工具调用（Phase 1：简单透传给 ToolHost）
         const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
-        const toolResults = await this.dispatchTools(toolCalls, threadId);
-        toolSpan.end({ results: toolResults.length });
+        let toolResults: ToolResult[];
+        try {
+          toolResults = await this.dispatchTools(toolCalls, threadId);
+          toolSpan.end({ results: toolResults.length });
+        } catch (err) {
+          toolSpan.error(err as Error);
+          throw err; // 重新抛出，由外层 catch 处理
+        }
 
         // 3.6 将工具结果追加到消息列表
         for (const result of toolResults) {
