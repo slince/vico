@@ -77,13 +77,15 @@ export { SkillManager } from './skill/skill-manager.js';
 export { createSkillTools, createSkillToolHandlers } from './skill/skill-tools.js';
 export { formatSkillCatalog } from './skill/skills-processor.js';
 
-// Ports — SessionStore
+/** Ports — SessionStore */
 export {
   type SessionStore,
   type Thread,
   type Turn,
   type Message,
 } from './session/session-store.js';
+export { InMemorySessionStore } from './session/memory-session-store.js';
+export { FileSessionStore, type FileSessionStoreOptions } from './session/file-session-store.js';
 
 // ContextCompactor
 export { ContextCompactor } from './agent-loop/context-compactor.js';

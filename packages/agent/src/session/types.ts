@@ -55,6 +55,6 @@ export interface SessionStore {
 
   /** 追加对话记录 */
   appendEntry(entry: Omit<Message, 'id' | 'createdAt'>): Promise<Message>;
-  /** 获取线程的对话记录列表 */
-  getEntries(threadId: string, limit?: number): Promise<Message[]>;
+  /** 获取线程的对话记录列表（支持分页） */
+  getEntries(threadId: string, options?: { limit?: number; start?: number }): Promise<Message[]>;
 }
