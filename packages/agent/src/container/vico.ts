@@ -92,8 +92,8 @@ export class Vico {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
 
-    // 触发工具注册
-    const allTools = await this.toolHost.listTools({
+    // 加载 agent 绑定的 tools 和 skills
+    const boundTools = config.tools ? await config.tools.load() : await this.toolHost.listTools({
       userId: '',
       agentId: config.id,
       threadId: '',
@@ -103,19 +103,14 @@ export class Vico {
       signal: new AbortController().signal,
     });
 
-    // 按 agent config 过滤工具和 skill
-    const allowedTools = config.allowedToolNames
-      ? allTools.filter((t) => config.allowedToolNames!.includes(t.name))
-      : allTools;
-
-    const boundSkills = config.skillIds
-      ? config.skillIds.map((id) => this.skillManager.get(id)).filter(Boolean)
+    const boundSkills = config.skills
+      ? await config.skills.load()
       : this.skillManager.listAll();
 
     const skillCatalog = boundSkills.map((s) => ({
-      name: s!.name,
-      description: s!.description,
-      location: s!.path,
+      name: s.name,
+      description: s.description,
+      location: s.path,
     }));
 
     const loop = new AgentLoop({
@@ -127,14 +122,14 @@ export class Vico {
       spanTracker: this.spanTracker,
       hooks: this.hooks,
       skillCatalog,
-      boundTools: allowedTools,
+      boundTools,
     });
 
     return new Agent({
       config,
       loop,
-      skills: boundSkills.filter(Boolean) as Agent['skills'],
-      tools: allowedTools,
+      skills: boundSkills,
+      tools: boundTools,
     });
   }
 

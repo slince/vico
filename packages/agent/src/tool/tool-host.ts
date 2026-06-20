@@ -3,4 +3,5 @@ export {
   type ToolExecutionContext,
   type ApprovalDecision,
   type ToolHost,
+  type ToolStore,
 } from './types.js';

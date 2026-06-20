@@ -28,6 +28,11 @@ export interface Skill {
   metadata?: Record<string, string>;
 }
 
+/** Skill 存储端口 — 加载 Skill 列表 */
+export interface SkillStore {
+  load(): Promise<Skill[]>;
+}
+
 /** Skill 加载器端口 — 发现、加载、刷新 Skill 插件 */
 export interface SkillLoader {
   /** 从指定根目录发现所有 Skill */

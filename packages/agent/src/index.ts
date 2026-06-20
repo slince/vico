@@ -40,6 +40,7 @@ export {
   type ToolHost,
   type ToolExecutionContext,
   type ApprovalDecision,
+  type ToolStore,
 } from './tool/tool-host.js';
 
 // Tool system
@@ -56,7 +57,7 @@ export { ShortTermMemory } from './memory/short-term-memory.js';
 export { InMemoryMemoryStore } from './memory/memory-store-impl.js';
 
 // Ports — SkillLoader
-export { type SkillLoader, type Skill } from './skill/skill-loader.js';
+export { type SkillLoader, type Skill, type SkillStore } from './skill/skill-loader.js';
 
 // Skill system
 export { FSSkillLoader } from './skill/fs-skill-loader.js';

@@ -31,7 +31,6 @@ export class LocalToolHost implements ToolHost {
     // 聚合所有来源
     const all: ToolSpec[] = [];
     for (const source of this.sources) {
-      // 检查是否有 allowedToolNames 限制（由 agent config 指定）
       const tools = await source.list(ctx);
       for (const tool of tools) {
         this.registry.register(tool, [source.name]);

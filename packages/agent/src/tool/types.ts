@@ -26,6 +26,11 @@ export interface ToolHost {
   executeBatch(calls: ToolCall[], context: ToolExecutionContext): Promise<ToolResult[]>;
 }
 
+/** 工具存储端口 — 加载工具列表 */
+export interface ToolStore {
+  load(): Promise<ToolSpec[]>;
+}
+
 /** 工具执行处理器 */
 export interface ToolHandler {
   execute(call: ToolCall, ctx: ToolExecutionContext): Promise<unknown>;
