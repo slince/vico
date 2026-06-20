@@ -1,18 +1,11 @@
 // src/tool/child-agent-executor.ts
 import type { ToolSpec, ToolCall, ToolResult } from '../contracts/tool.js';
 import type { ToolExecutionContext } from './tool-host.js';
+import type { DelegateStrategy, ChildAgentRef } from './types.js';
 import type { AgentLoop } from '../agent-loop/agent-loop.js';
 import type { ModelMessage } from '../model/model-client.js';
 
-/** 子 Agent 委托策略 */
-export type DelegateStrategy = 'readonly' | 'inherit';
-
-export interface ChildAgentRef {
-  /** 子 Agent 标识 */
-  agentId: string;
-  /** 子 Agent 的 AgentLoop 实例 */
-  loop: AgentLoop;
-}
+export type { DelegateStrategy, ChildAgentRef } from './types.js';
 
 /** 子 Agent 委托执行器 */
 export class ChildAgentExecutor {

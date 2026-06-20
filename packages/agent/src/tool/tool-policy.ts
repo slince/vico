@@ -1,11 +1,8 @@
 // src/tool/tool-policy.ts
 import type { ToolPolicy, ToolCall } from '../contracts/tool.js';
-import type { ApprovalDecision } from './tool-host.js';
+import type { ApprovalDecision, PolicyContext } from './types.js';
 
-export interface PolicyContext {
-  firstUse: boolean;
-  previousApproved: boolean;
-}
+export type { PolicyContext } from './types.js';
 
 export function resolvePolicy(
   policy: ToolPolicy,
