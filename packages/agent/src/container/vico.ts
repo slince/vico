@@ -1,21 +1,21 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import type { AgentConfig } from '../contracts/agent.js';
-import { Agent, type AgentFactory } from '../agent-loop/types.js';
-import { AgentRuntime } from '../agent-loop/agent-runtime.js';
-import type { ModelClient, ModelMessage } from '../model/model-client.js';
-import type { ToolSource } from '../tool/types.js';
-import { LocalToolHost } from '../tool/local-tool-host.js';
-import { SkillManager } from '../skill/skill-manager.js';
-import { FSSkillLoader } from '../skill/fs-skill-loader.js';
-import { createSkillTools, createSkillToolHandlers } from '../skill/skill-tools.js';
-import { AgentLoop } from '../agent-loop/agent-loop.js';
-import type { TurnResult } from '../agent-loop/types.js';
-import { SystemPromptProcessor, SkillCatalogProcessor } from '../prompt/default-processors.js';
-import { MittEventRecorder } from '../observable/event-recorder.js';
-import { InMemorySpanTracker } from '../observable/span-tracker.js';
-import { CompositeHookRunner, type HookRunner } from '../hook/hook-runner.js';
+import type {AgentConfig} from '../contracts/agent.js';
+import type {TurnResult} from '../agent-loop/types.js';
+import {Agent, type AgentFactory} from '../agent-loop/types.js';
+import {AgentRuntime} from '../agent-loop/agent-runtime.js';
+import type {ModelClient, ModelMessage} from '../model/model-client.js';
+import type {ToolSource} from '../tool/types.js';
+import {LocalToolHost} from '../tool/local-tool-host.js';
+import {SkillManager} from '../skill/skill-manager.js';
+import {FSSkillLoader} from '../skill/fs-skill-loader.js';
+import {createSkillToolHandlers, createSkillTools} from '../skill/skill-tools.js';
+import {AgentLoop} from '../agent-loop/agent-loop.js';
+import {SkillCatalogProcessor, SystemPromptProcessor} from '../prompt/default-processors.js';
+import {MittEventRecorder} from '../observable/event-recorder.js';
+import {InMemorySpanTracker} from '../observable/span-tracker.js';
+import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
 
-/** ModelClient 工厂 — 用于 getRuntime() / invoke() 批量创建 Agent */
+/** ModelClient 工厂 — 用于 getRuntime() 批量创建 Agent */
 export type ModelClientFactory = (config: AgentConfig) => ModelClient;
 
 /** Vico 配置选项 */
@@ -37,12 +37,13 @@ export interface VicoOptions {
  * ```ts
  * const vico = new Vico({ skillRoots: ['./skills'] });
  * await vico.init();
- * const agent = await vico.createAgent(config, modelClient);
- * await agent.loop.runTurn(threadId, history, message, signal);
  *
- * // 或使用 invoke 一行对话
- * vico.setModelFactory((c) => new AISDKModelClient(...));
- * const result = await vico.invoke({ agentId: 'bot', message: 'Hello' });
+ * // 创建 Agent 并注册到 Runtime
+ * const runtime = vico.getRuntime((c) => new AISDKModelClient(...));
+ * await runtime.createAgent(config);
+ *
+ * // 一行对话
+ * const result = await vico.invoke({ agentId: config.id, message: 'Hello' });
  * ```
  */
 export class Vico {
@@ -54,7 +55,6 @@ export class Vico {
   private skillManager: SkillManager;
   private initialized = false;
   private options: VicoOptions;
-  private modelFactory?: ModelClientFactory;
   private runtime?: AgentRuntime;
 
   constructor(options: VicoOptions = {}) {
@@ -136,64 +136,43 @@ export class Vico {
   }
 
   /**
-   * 返回带 LRU 缓存的 AgentRuntime。
+   * 创建并缓存 AgentRuntime。
    */
   getRuntime(factory: ModelClientFactory): AgentRuntime {
     const agentFactory: AgentFactory = async (config) => {
       const mc = factory(config);
       return this.createAgent(config, mc);
     };
-    return new AgentRuntime(agentFactory, this.options.maxCached);
+    this.runtime = new AgentRuntime(agentFactory, this.options.maxCached);
+    return this.runtime;
   }
 
   /**
-   * 设置 ModelClient 工厂（invoke 需要）。
-   */
-  setModelFactory(factory: ModelClientFactory): void {
-    this.modelFactory = factory;
-  }
-
-  /**
-   * 一行对话：发送消息给指定 Agent，返回结果。
-   *
-   * 首次调用时为该 agentId 创建 Agent 并缓存，后续调用复用。
+   * 一行对话：从 Runtime 中查找 Agent，发送消息并返回结果。
    *
    * @example
    * ```ts
-   * vico.setModelFactory((c) => new FakeModelClient());
-   * const result = await vico.invoke({ agentId: 'bot', message: 'Hello!' });
-   * console.log(result.messages.map(m => m.content).join('\\n'));
+   * const runtime = vico.getRuntime((c) => new MyModelClient(c));
+   * await runtime.createAgent(config);
+   * const result = await vico.invoke(config.id, 'Hello!');
    * ```
    */
-  async invoke(params: {
-    agentId: string;
-    message: string;
-    config?: AgentConfig;
-    modelClient?: ModelClient;
-  }): Promise<TurnResult> {
-    if (!this.modelFactory && !params.modelClient) {
-      throw new Error('setModelFactory() or pass modelClient before calling invoke()');
+  async invoke(agentId: string, message: string): Promise<TurnResult> {
+    if (!this.runtime) {
+      throw new Error('Runtime not initialized. Call getRuntime(factory) first.');
     }
 
-    const config =
-      params.config ??
-      ({
-        id: params.agentId,
-        name: params.agentId,
-        systemPrompt: 'You are a helpful assistant.',
-        model: { provider: 'openai', model: 'gpt-4o' },
-        temperature: 0.7,
-        maxTokens: 4096,
-        maxSteps: 5,
-      } as AgentConfig);
+    const agent = this.runtime.getAgent(agentId);
+    if (!agent) {
+      throw new Error(
+        `Agent "${agentId}" not found in runtime. Create it first via runtime.createAgent().`,
+      );
+    }
 
-    const mc = params.modelClient ?? this.modelFactory!(config);
-    const agent = await this.createAgent(config, mc);
-
-    const userMessage: ModelMessage = { role: 'user', content: params.message };
+    const userMessage: ModelMessage = { role: 'user', content: message };
 
     return agent.loop.runTurn(
-      `invoke-${params.agentId}-${Date.now()}`,
+      `invoke-${agentId}-${Date.now()}`,
       [],
       userMessage,
       new AbortController().signal,
