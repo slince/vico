@@ -1,0 +1,116 @@
+// src/tool/builtin/edit-tool.ts
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve, relative } from 'node:path';
+import type { Tool } from '../types.js';
+
+interface EditArgs {
+  path: string;
+  oldText?: string;
+  newText?: string;
+  edits?: Array<{ oldText: string; newText: string }>;
+}
+
+function resolvePath(workspace: string, targetPath: string): string {
+  const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
+  if (!abs.startsWith(resolve(workspace)) && !targetPath.startsWith('/')) {
+    throw new Error(`Path "${targetPath}" is outside the workspace`);
+  }
+  return abs;
+}
+
+/** 统一 diff 生成 */
+function generateDiff(oldContent: string, newContent: string): string {
+  const oldLines = oldContent.split('\n');
+  const newLines = newContent.split('\n');
+  const diff: string[] = [];
+
+  // 简易逐行 diff
+  let i = 0;
+  while (i < oldLines.length && i < newLines.length) {
+    if (oldLines[i] !== newLines[i]) {
+      diff.push(`-${oldLines[i]}`);
+      diff.push(`+${newLines[i]}`);
+    }
+    i++;
+  }
+  while (i < oldLines.length) {
+    diff.push(`-${oldLines[i++]}`);
+  }
+  while (i < newLines.length) {
+    diff.push(`+${newLines[i++]}`);
+  }
+
+  return diff.length > 0 ? diff.join('\n') : 'No changes detected';
+}
+
+export const editTool: Tool = {
+  name: 'edit',
+  description:
+    'Edit a file using exact string replacement. Supports single replace (oldText → newText) or multiple replacements via the edits array. Each oldText must appear exactly once in the file. Returns a unified diff of the changes.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      path: { type: 'string', description: 'The file path to edit (relative to workspace or absolute)' },
+      oldText: { type: 'string', description: 'The exact text to replace (single edit mode)' },
+      newText: { type: 'string', description: 'The replacement text (single edit mode)' },
+      edits: {
+        type: 'array',
+        description: 'Multiple edits to apply',
+        items: {
+          type: 'object',
+          properties: {
+            oldText: { type: 'string', description: 'The exact text to find' },
+            newText: { type: 'string', description: 'The replacement text' },
+          },
+          required: ['oldText', 'newText'],
+        },
+      },
+    },
+    required: ['path'],
+  },
+  policy: 'on-request',
+  kind: 'file_change',
+  tags: ['builtin', 'edit'],
+  async execute(call, ctx) {
+    const args = call.args as EditArgs;
+    if (!args.path || typeof args.path !== 'string') {
+      throw new Error('"path" is required and must be a string');
+    }
+
+    // 支持两种调用模式：单次替换（oldText/newText）或批量（edits 数组）
+    const edits = args.edits ?? (
+      args.oldText !== undefined
+        ? [{ oldText: args.oldText, newText: args.newText ?? '' }]
+        : []
+    );
+
+    if (edits.length === 0) {
+      throw new Error('Either "oldText"+"newText" or "edits" array must be provided');
+    }
+
+    const absPath = resolvePath(ctx.workspace, args.path);
+    const original = readFileSync(absPath, 'utf-8');
+
+    let modified = original;
+    for (const edit of edits) {
+      const count = (modified.match(new RegExp(edit.oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+      if (count === 0) {
+        throw new Error(`oldText not found in file:\n\`\`\`\n${edit.oldText.slice(0, 200)}${edit.oldText.length > 200 ? '...' : ''}\n\`\`\``);
+      }
+      if (count > 1) {
+        throw new Error(`oldText appears ${count} times in the file. Please use a larger string with more surrounding context to make it unique.`);
+      }
+    }
+
+    for (const edit of edits) {
+      modified = modified.replace(edit.oldText, edit.newText);
+    }
+
+    writeFileSync(absPath, modified, 'utf-8');
+
+    const rel = relative(ctx.workspace, absPath);
+    const diff = generateDiff(original, modified);
+
+    return `Edited ${rel} (${edits.length} replacement(s)):\n\n${diff}`;
+  },
+};

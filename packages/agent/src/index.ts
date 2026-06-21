@@ -67,6 +67,19 @@ export { resolvePolicy } from './tool/tool-policy.js';
 export { type PolicyContext } from './tool/types.js';
 export { BuiltinTools } from './tool/builtin-tools.js';
 
+// Builtin tools (individual exports)
+export {
+  readTool,
+  bashTool,
+  editTool,
+  writeTool,
+  grepTool,
+  findTool,
+  lsTool,
+  lspTool,
+  coreBuiltinTools,
+} from './tool/builtin/index.js';
+
 // Ports — MemoryStore
 export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
 export { ConversationHistoryMemory } from './memory/conversation-history-memory.js';

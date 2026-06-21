@@ -1,5 +1,6 @@
 // src/tool/builtin-tools.ts
 import type { Tool } from './types.js';
+import { coreBuiltinTools } from './builtin/index.js';
 
 const UPDATE_WORKING_MEMORY_TOOL: Tool = {
   name: 'updateWorkingMemory',
@@ -48,6 +49,8 @@ export const BuiltinTools: { list(): Tool[] } = {
         execute: async () => new Date().toISOString(),
       },
       UPDATE_WORKING_MEMORY_TOOL,
+      // 7 核心 + 1 可选
+      ...coreBuiltinTools,
     ];
   },
 };
