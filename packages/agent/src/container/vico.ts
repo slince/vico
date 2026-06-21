@@ -21,7 +21,6 @@ import type {SessionStore} from '../session/types.js';
 import {InMemorySessionStore} from '../session/memory-session-store.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
-import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
 import {createMemoryToolSource} from "../memory/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 import {createSkillToolSource} from "../skill/skill-tool-source.js";
@@ -67,8 +66,6 @@ export interface VicoOptions {
   skills?: SkillOptions;
   /** 额外的工具来源 */
   toolSources?: ToolSource[];
-  /** 全局生命周期钩子 */
-  hooks?: HookRunner[];
   /** ModelClient 工厂（不传则使用 defaultModelFactory） */
   modelFactory?: ModelClientFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
@@ -103,7 +100,6 @@ export interface InvokeOptions {
 export class Vico {
   readonly events = new MittEventRecorder();
   readonly spanTracker = new InMemorySpanTracker();
-  readonly hooks = new CompositeHookRunner();
 
   private readonly skillManager: SkillManager;
   private initialized = false;
@@ -120,12 +116,6 @@ export class Vico {
     this.memory = options.memory ?? new MemoryStore();
     this.session = options.session ?? new InMemorySessionStore();
     this.skillManager = new SkillManager(new FSSkillLoader());
-
-    if (options.hooks) {
-      for (const hook of options.hooks) {
-        this.hooks.register(hook);
-      }
-    }
   }
 
   /** 初始化：发现 Skill、注册 skill 工具 */
@@ -220,7 +210,6 @@ export class Vico {
       processors,
       events: this.events,
       spanTracker: this.spanTracker,
-      hooks: this.hooks,
     });
   }
 

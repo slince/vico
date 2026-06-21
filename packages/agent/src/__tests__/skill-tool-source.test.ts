@@ -27,7 +27,7 @@ describe('SkillToolSource', () => {
 
   afterEach(() => rmSync(TMP, { recursive: true, force: true }));
 
-  const makeCtx = () => ({ userId: 'u1', agentId: 'a1', threadId: 't1', workspace: '/', hooks: [], signal: new AbortController().signal, awaitApproval: async () => ({ approved: true }) });
+  const makeCtx = () => ({ userId: 'u1', agentId: 'a1', threadId: 't1', workspace: '/', signal: new AbortController().signal, awaitApproval: async () => ({ approved: true }) });
 
   it('skill tool returns instructions', async () => {
     const source = createSkillToolSource(manager);

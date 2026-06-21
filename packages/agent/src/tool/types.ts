@@ -1,6 +1,5 @@
 // @vico/agent - Tool module type definitions
 import { z } from 'zod';
-import type { HookRunner } from '../hook/hook-runner.js';
 import type { AgentLoop } from '../agent-loop/agent-loop.js';
 
 /** 工具审批策略 */
@@ -49,7 +48,6 @@ export interface ToolExecutionContext {
   threadId: string;
   workspace: string;
   awaitApproval: (call: ToolCall) => Promise<ApprovalDecision>;
-  hooks: HookRunner[];
   signal: AbortSignal;
 }
 

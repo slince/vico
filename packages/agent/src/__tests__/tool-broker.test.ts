@@ -5,7 +5,7 @@ import { ToolBroker } from '../tool/tool-broker.js';
 function makeCtx(overrides?: Record<string, unknown>): any {
   return {
     userId: 'u1', agentId: 'a1', threadId: 'th1',
-    workspace: '/tmp', hooks: [],
+    workspace: '/tmp',
     awaitApproval: async () => ({ approved: true }),
     signal: new AbortController().signal,
     ...overrides,

@@ -59,16 +59,6 @@ export class ToolBroker {
     }
 
     try {
-      // PreToolUse hook
-      if (ctx.hooks.length > 0) {
-        for (const hook of ctx.hooks) {
-          const result = await hook.run({ call });
-          if (result.action === 'deny') {
-            return { callId: call.id, name: call.name, status: 'error', output: null, error: result.message ?? 'Denied by hook' };
-          }
-        }
-      }
-
       const output = await tool.execute(call, ctx);
       this.stormBreaker.record(call.name, call.args);
 

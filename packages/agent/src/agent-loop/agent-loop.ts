@@ -4,7 +4,6 @@ import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventRecorder, SpanTracker, SSEEvent} from '../observable/types.js';
-import type {CompositeHookRunner} from '../hook/hook-runner.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
@@ -19,7 +18,6 @@ export class AgentLoop {
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalGate?: ApprovalGate;
-  private hooks?: CompositeHookRunner;
   private events: EventRecorder;
   private spanTracker: SpanTracker;
   private steerBuffer: string[] = [];
@@ -34,7 +32,6 @@ export class AgentLoop {
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
     this.approvalGate = options.approvalGate;
-    this.hooks = options.hooks;
     this.events = options.events;
     this.spanTracker = options.spanTracker;
 
@@ -91,17 +88,6 @@ export class AgentLoop {
 
     try {
       this.applySteerBuffer(messages);
-
-      if (this.hooks) {
-        const hookResult = await this.hooks.runAll('turn:start', { threadId, messages });
-        if (hookResult.action === 'deny') {
-          if (session && this.currentTurnId) {
-            await session.updateTurn(this.currentTurnId, { status: 'aborted', steps: 0 });
-          }
-          turnSpan.end({ status: 'denied' });
-          return { status: 'interrupted', steps: 0, usage, messages };
-        }
-      }
 
       while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
@@ -171,10 +157,6 @@ export class AgentLoop {
           scopeId,
         }),
       );
-
-      if (this.hooks) {
-        await this.hooks.runAll('turn:end', { threadId, messages, usage });
-      }
 
       if (session && this.currentTurnId) {
         const finalStatus = this.interrupted ? 'aborted' : 'completed';
@@ -326,7 +308,6 @@ export class AgentLoop {
         }
         return { approved: true };
       },
-      hooks: this.hooks?.getByEvent('tool:before') ?? [],
       signal: new AbortController().signal,
     };
 

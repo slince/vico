@@ -114,13 +114,6 @@ export { FileSessionStore, type FileSessionStoreOptions } from './session/file-s
 // ContextCompactor
 export { ContextCompactor } from './agent-loop/context-compactor.js';
 
-// Hook
-export {
-  type HookEvent,
-  type HookResult,
-} from './hook/types.js';
-export { HookRunner, CompositeHookRunner } from './hook/hook-runner.js';
-
 // Observable
 export { MittEventRecorder } from './observable/event-recorder.js';
 export { type EventRecorder } from './observable/types.js';

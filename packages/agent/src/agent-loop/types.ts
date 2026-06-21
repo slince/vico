@@ -5,7 +5,6 @@ import type {ContextProcessor} from '../prompt/context-processor.js';
 import type {Tool, ToolStore} from '../tool/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {EventRecorder, SpanTracker} from '../observable/types.js';
-import type {CompositeHookRunner} from '../hook/hook-runner.js';
 import type {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
@@ -82,7 +81,6 @@ export interface AgentLoopOptions {
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
   approvalGate?: ApprovalGate;
-  hooks?: CompositeHookRunner;
   events: EventRecorder;
   spanTracker: SpanTracker;
   /** 工作记忆（提供时自动注册 updateWorkingMemory 工具 handler） */
