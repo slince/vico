@@ -165,7 +165,7 @@ export class Vico {
     }
 
     // 加载 agent 绑定的 tools 和 skills
-    const boundTools = config.tools ? await config.tools.load() : await this.toolBroker.listTools({
+    const tools = config.tools ? await config.tools.load() : await this.toolBroker.listTools({
       userId: '',
       agentId: config.id,
       threadId: '',
@@ -175,7 +175,7 @@ export class Vico {
       signal: new AbortController().signal,
     });
 
-    const boundSkills = config.skills
+    const skills = config.skills
       ? await config.skills.load()
       : this.skillManager.listAll();
 
@@ -185,8 +185,8 @@ export class Vico {
     const agent = new Agent({
       config,
       model,
-      skills: boundSkills,
-      tools: boundTools,
+      skills,
+      tools,
       memory,
       session,
     });
