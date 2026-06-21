@@ -29,6 +29,7 @@ export class PdfParser implements Parser {
     }
 
     try {
+      // @ts-expect-error - pdf-parse has no types
       const pdfParse = await import('pdf-parse');
       const data = await pdfParse.default(buf);
       return {

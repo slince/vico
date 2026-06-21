@@ -1,43 +1,44 @@
-// @vico/agent - VectorSemanticRecall: 基于 Embedder + VectorStore 的语义召回实现
-import type {Embedder, SemanticRecallMemory, VectorStore} from '../types.js';
-import type {MemoryRecord} from '../types.js';
-import {InMemoryVectorStore} from './in-memory-vector-store.js';
+// @vico/agent - VectorSemanticRecall: 基于 @vico/rag BatchEmbedder + VectorStore 的语义召回实现
+import type { BatchEmbedder } from '../types.js';
+import type { SemanticRecallMemory, VectorStore } from '../types.js';
+import type { MemoryRecord } from '../types.js';
+import { RagVectorStore } from './rag-vector-store.js';
 
 /** VectorSemanticRecall 构造选项 */
 export interface VectorSemanticRecallOptions {
-  /** 嵌入器，将文本转换为向量 */
-  embedder: Embedder;
-  /** 向量存储，未提供时使用 InMemoryVectorStore */
+  /** 批量嵌入器，将文本转换为向量 */
+  embedder: BatchEmbedder;
+  /** 向量存储，未提供时使用 RagVectorStore（基于 @vico/rag） */
   vectorStore?: VectorStore;
 }
 
-/** 基于 Embedder + VectorStore 的语义召回实现 */
+/** 基于 BatchEmbedder + VectorStore 的语义召回实现 */
 export class VectorSemanticRecall implements SemanticRecallMemory {
-  private readonly embedder: Embedder;
+  private readonly embedder: BatchEmbedder;
   private vectorStore: VectorStore;
 
   constructor(options: VectorSemanticRecallOptions) {
     this.embedder = options.embedder;
-    this.vectorStore = options.vectorStore ?? new InMemoryVectorStore();
+    this.vectorStore = options.vectorStore ?? new RagVectorStore();
   }
 
   async search(query: string, limit = 5): Promise<MemoryRecord[]> {
-    const embedding = await this.embedder(query);
-    return this.vectorStore.search(embedding, limit);
+    const { embeddings } = await this.embedder.doEmbed({ values: [query] });
+    return this.vectorStore.search(embeddings[0], limit);
   }
 
   async create(record: MemoryRecord): Promise<void> {
-    // 若未提供 embedding，通过 embedder 计算
     if (!record.embedding) {
-      record = { ...record, embedding: await this.embedder(record.content) };
+      const { embeddings } = await this.embedder.doEmbed({ values: [record.content] });
+      record = { ...record, embedding: embeddings[0] };
     }
     await this.vectorStore.add(record);
   }
 
   async update(id: string, patch: Partial<MemoryRecord>): Promise<void> {
-    // 若 content 变更但未提供新 embedding，重新计算
     if (patch.content !== undefined && !patch.embedding) {
-      patch = { ...patch, embedding: await this.embedder(patch.content) };
+      const { embeddings } = await this.embedder.doEmbed({ values: [patch.content] });
+      patch = { ...patch, embedding: embeddings[0] };
     }
     await this.vectorStore.update(id, patch);
   }

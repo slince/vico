@@ -1,6 +1,8 @@
 // @vico/agent - Memory module type definitions
 import { z } from 'zod';
 
+export { type BatchEmbedder, type BatchEmbedOptions, type BatchEmbedResult } from '@vico/rag';
+
 export const MemoryRecordSchema = z.object({
   id: z.string().uuid(),
   threadId: z.string().optional(),
@@ -10,9 +12,6 @@ export const MemoryRecordSchema = z.object({
   createdAt: z.number(),
 });
 export type MemoryRecord = z.infer<typeof MemoryRecordSchema>;
-
-/** 嵌入器 — 将文本转换为向量 */
-export type Embedder = (text: string) => Promise<number[]>;
 
 /** 语义召回记忆 — 基于向量检索的长期记忆 */
 export interface SemanticRecallMemory {
@@ -49,4 +48,3 @@ export interface WorkingMemory {
   /** 获取模板（用于注入 system prompt） */
   getTemplate(): string;
 }
-

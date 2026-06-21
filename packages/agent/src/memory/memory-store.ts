@@ -1,7 +1,7 @@
 // @vico/agent - MemoryStore: memory processing class wrapping three-layer memory + RAG
 import type { ConversationHistoryMemory } from './conversation-history-memory.js';
 import type {
-  Embedder,
+  BatchEmbedder,
   SemanticRecallMemory,
   WorkingMemory,
 } from './types.js';
@@ -10,7 +10,7 @@ import { InMemorySemanticRecall } from './semantic/in-memory-semantic-recall.js'
 import { InMemoryWorkingMemory } from './working/in-memory-working-memory.js';
 import { InMemoryRagProvider } from '../rag/in-memory-rag-provider.js';
 import { VectorSemanticRecall } from './semantic/vector-semantic-recall.js';
-import { InMemoryVectorStore } from './semantic/in-memory-vector-store.js';
+import { RagVectorStore } from './semantic/rag-vector-store.js';
 
 /** MemoryStore 构造选项 — 各层均可选，未提供时使用内存默认实现 */
 export interface MemoryStoreOptions {
@@ -18,8 +18,8 @@ export interface MemoryStoreOptions {
   semantic?: SemanticRecallMemory;
   working?: WorkingMemory;
   rag?: RagProvider;
-  /** 嵌入器，用于提取文本向量 */
-  embedder?: Embedder;
+  /** 批量嵌入器，用于提取文本向量 */
+  embedder?: BatchEmbedder;
   /** 是否启用语义召回，默认 true */
   semanticEnabled?: boolean;
   /** 会话历史窗口大小，默认 20 */
@@ -32,8 +32,8 @@ export class MemoryStore {
   readonly semantic: SemanticRecallMemory;
   readonly working: WorkingMemory;
   readonly rag: RagProvider;
-  /** 嵌入器，用于提取文本向量 */
-  readonly embedder?: Embedder;
+  /** 批量嵌入器，用于提取文本向量 */
+  readonly embedder?: BatchEmbedder;
   /** 语义召回是否启用 */
   readonly semanticEnabled: boolean;
   /** 会话历史窗口大小 */
@@ -49,7 +49,7 @@ export class MemoryStore {
     } else if (options.embedder) {
       this.semantic = new VectorSemanticRecall({
         embedder: options.embedder,
-        vectorStore: new InMemoryVectorStore(),
+        vectorStore: new RagVectorStore(),
       });
     } else {
       this.semantic = new InMemorySemanticRecall();

@@ -48,7 +48,9 @@ export {
   type RagProvider,
 } from './rag/types.js';
 export {
-  type Embedder,
+  type BatchEmbedder,
+  type BatchEmbedOptions,
+  type BatchEmbedResult,
   type SemanticRecallMemory,
   type WorkingMemory,
   type VectorStore,
@@ -90,7 +92,7 @@ export { InMemoryWorkingMemory } from './memory/working/in-memory-working-memory
 export { InMemoryRagProvider } from './rag/in-memory-rag-provider.js';
 export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/working/file-working-memory.js';
 export { createUpdateWorkingMemoryTool } from './memory/working/working-memory-tool.js';
-export { InMemoryVectorStore } from './memory/semantic/in-memory-vector-store.js';
+export { RagVectorStore } from './memory/semantic/rag-vector-store.js';
 export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/semantic/vector-semantic-recall.js';
 
 // Ports — SkillLoader
