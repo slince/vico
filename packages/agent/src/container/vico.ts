@@ -123,34 +123,33 @@ export class Vico {
       location: s.path,
     }));
 
-    const loopFactory = () => {
-      const processors: ContextProcessor[] = [
-        new SystemPromptProcessor(),
-        new SkillCatalogProcessor(skillCatalog),
-      ];
-      if (this.options.memoryStore) {
-        processors.push(new MemoryProcessor(this.options.memoryStore));
-      }
-
-      return new AgentLoop({
-        config,
-        model: modelClient,
-        toolHost: this.toolHost,
-        processors,
-        events: this.events,
-        spanTracker: this.spanTracker,
-        hooks: this.hooks,
-        boundTools,
-        workingMemory: this.options.memoryStore?.working,
-      });
-    };
-
-    return new Agent({
+    const agent: Agent = new Agent({
       config,
-      loopFactory,
+      loopFactory: (): AgentLoop => {
+        const processors: ContextProcessor[] = [
+          new SystemPromptProcessor(),
+          new SkillCatalogProcessor(skillCatalog),
+        ];
+        if (this.options.memoryStore) {
+          processors.push(new MemoryProcessor(this.options.memoryStore));
+        }
+
+        return new AgentLoop({
+          agent,
+          model: modelClient,
+          toolHost: this.toolHost,
+          processors,
+          events: this.events,
+          spanTracker: this.spanTracker,
+          hooks: this.hooks,
+          workingMemory: this.options.memoryStore?.working,
+        });
+      },
       skills: boundSkills,
       tools: boundTools,
     });
+
+    return agent;
   }
 
   /** 创建 AgentRuntime */

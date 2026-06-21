@@ -1,7 +1,7 @@
 // agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
 import { describe, it, expect, vi } from 'vitest';
 import { AgentLoop } from '../agent-loop/agent-loop.js';
-import type { AgentLoopOptions } from '../agent-loop/types.js';
+import { Agent, type AgentLoopOptions } from '../agent-loop/types.js';
 import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/types.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
@@ -51,8 +51,13 @@ describe('AgentLoop', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const loop = new AgentLoop({
+    const agent = new Agent({
       config: makeConfig(),
+      loopFactory: () => { throw new Error('not used'); },
+    });
+
+    const loop = new AgentLoop({
+      agent,
       model,
       toolHost: mockToolHost as any,
       processors: [new SystemPromptProcessor()],
@@ -85,8 +90,13 @@ describe('AgentLoop', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const loop = new AgentLoop({
+    const agent = new Agent({
       config: makeConfig(),
+      loopFactory: () => { throw new Error('not used'); },
+    });
+
+    const loop = new AgentLoop({
+      agent,
       model,
       toolHost: mockToolHost as any,
       processors: [new SystemPromptProcessor()],
@@ -134,8 +144,13 @@ describe('AgentLoop', () => {
       },
     };
 
-    const loop = new AgentLoop({
+    const agent = new Agent({
       config: makeConfig(),
+      loopFactory: () => { throw new Error('not used'); },
+    });
+
+    const loop = new AgentLoop({
+      agent,
       model,
       toolHost: mockToolHost as any,
       processors: [new SystemPromptProcessor()],

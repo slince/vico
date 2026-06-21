@@ -1,8 +1,9 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type { TurnResult, AgentLoopOptions } from './types.js';
+import type { Agent } from './types.js';
 import type { ModelClient, ModelMessage } from '../model/types.js';
 import type { ToolHost, ToolExecutionContext } from '../tool/types.js';
-import type { ToolCall, ToolResult, ToolSpec } from '../tool/types.js';
+import type { ToolCall, ToolResult } from '../tool/types.js';
 import type { EventRecorder } from '../observable/types.js';
 import type { SpanTracker } from '../observable/types.js';
 import type { CompositeHookRunner } from '../hook/hook-runner.js';
@@ -16,7 +17,7 @@ import { DynamicInstructionProcessor } from './dynamic-instruction-processor.js'
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {
-  private config: AgentLoopOptions['config'];
+  private agent: Agent;
   private model: ModelClient;
   private toolHost: ToolHost;
   private compactor?: ContextCompactor;
@@ -29,10 +30,9 @@ export class AgentLoop {
   private interrupted = false;
 
   private pipeline: OnionPipeline;
-  private boundTools: ToolSpec[];
 
   constructor(options: AgentLoopOptions) {
-    this.config = options.config;
+    this.agent = options.agent;
     this.model = options.model;
     this.toolHost = options.toolHost;
     this.compactor = options.compactor;
@@ -41,7 +41,6 @@ export class AgentLoop {
     this.hooks = options.hooks;
     this.events = options.events;
     this.spanTracker = options.spanTracker;
-    this.boundTools = options.boundTools ?? [];
 
     // 用户提供的处理器 + 内置 DynamicInstructionProcessor
     const userProcessors = options.processors ?? [];
@@ -112,7 +111,7 @@ export class AgentLoop {
       }
 
       // 3. 主循环：model → tool → repeat
-      while (steps < this.config.maxSteps && !this.interrupted) {
+      while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
           turnSpan.end({ status: 'aborted' });
           return { status: 'aborted', steps, usage, messages };
@@ -137,9 +136,9 @@ export class AgentLoop {
 
         // 3.1 洋葱管道：创建上下文 → 执行处理器 → 构建 ModelRequest
         const ctx = new ModelRequestContext({
-          agent: this.config,
+          agent: this.agent.config,
           messages: [...messages],
-          tools: [...this.boundTools],
+          tools: [...this.agent.tools],
           threadId,
           scopeId,
         });
@@ -237,9 +236,9 @@ export class AgentLoop {
       // 4. 洋葱管道离开阶段：循环结束后逆序执行 resolve()
       await this.pipeline.resolve(
         new ModelRequestContext({
-          agent: this.config,
+          agent: this.agent.config,
           messages: [...messages],
-          tools: [...this.boundTools],
+          tools: [...this.agent.tools],
           threadId,
           scopeId,
         }),
@@ -269,7 +268,7 @@ export class AgentLoop {
   private async dispatchTools(calls: ToolCall[], threadId: string, userId: string, workspace: string): Promise<ToolResult[]> {
     const context: ToolExecutionContext = {
       userId,
-      agentId: this.config.id,
+      agentId: this.agent.config.id,
       threadId,
       workspace,
       awaitApproval: async (call: ToolCall) => {
