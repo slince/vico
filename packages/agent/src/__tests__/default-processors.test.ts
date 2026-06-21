@@ -68,13 +68,14 @@ describe('SkillCatalogProcessor', () => {
 describe('MemoryProcessor', () => {
   it('appends memory results as system message', async () => {
     const memoryStore = {
-      stm: { push: vi.fn(), get: vi.fn(() => []) },
-      ltm: {
+      conversation: { push: vi.fn(), get: vi.fn(() => []) },
+      semantic: {
         search: vi.fn(async () => [
           { id: 'm1', content: 'user prefers dark mode', createdAt: 1 },
         ]),
         create: vi.fn(), update: vi.fn(), delete: vi.fn(),
       },
+      working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(), clear: vi.fn() },
       rag: { search: vi.fn(async () => []) },
     };
     const p = new MemoryProcessor(memoryStore);
@@ -82,20 +83,21 @@ describe('MemoryProcessor', () => {
     ctx.messages = [{ role: 'user', content: 'what theme do I use?' }];
     await p.process(ctx);
     expect(ctx.messages.some((m) => m.role === 'system' && m.content.includes('dark mode'))).toBe(true);
-    expect(memoryStore.ltm.search).toHaveBeenCalledWith('what theme do I use?', 5);
+    expect(memoryStore.semantic.search).toHaveBeenCalledWith('what theme do I use?', 5);
   });
 
   it('no-op when no user message found', async () => {
     const memoryStore = {
-      stm: { push: vi.fn(), get: vi.fn(() => []) },
-      ltm: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+      conversation: { push: vi.fn(), get: vi.fn(() => []) },
+      semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+      working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(), clear: vi.fn() },
       rag: { search: vi.fn() },
     };
     const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     ctx.messages = [{ role: 'system', content: 'system only' }];
     await p.process(ctx);
-    expect(memoryStore.ltm.search).not.toHaveBeenCalled();
+    expect(memoryStore.semantic.search).not.toHaveBeenCalled();
   });
 });
 

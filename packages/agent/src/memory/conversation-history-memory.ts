@@ -1,8 +1,9 @@
-// src/memory/short-term-memory.ts
-import type { ModelMessage } from '../model/model-client.js';
+// src/memory/conversation-history-memory.ts
+import type {ModelMessage} from '../model/types.js';
+import type {ConversationHistoryMemory} from './types.js';
 
-/** 短期记忆 — 基于 Map 的 FIFO 滑动窗口 */
-export class ShortTermMemory {
+/** 基于 Map 的 FIFO 滑动窗口实现 */
+export class ConversationHistoryMemoryStore implements ConversationHistoryMemory {
   private threads: Map<string, ModelMessage[]> = new Map();
 
   push(threadId: string, message: ModelMessage): void {

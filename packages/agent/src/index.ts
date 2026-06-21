@@ -45,7 +45,13 @@ export { RagProcessor } from './memory/rag-processor.js';
 export { DynamicInstructionProcessor } from './agent-loop/dynamic-instruction-processor.js';
 
 export { type SkillCatalogEntry } from './skill/types.js';
-export { type RagChunk, type RagProvider } from './memory/types.js';
+export {
+  type RagChunk,
+  type RagProvider,
+  type ConversationHistoryMemory,
+  type SemanticRecallMemory,
+  type WorkingMemory,
+} from './memory/types.js';
 
 // Ports — ToolHost
 export {
@@ -65,7 +71,7 @@ export { BuiltinTools } from './tool/builtin-tools.js';
 
 // Ports — MemoryStore
 export { type MemoryStore } from './memory/memory-store.js';
-export { ShortTermMemory } from './memory/short-term-memory.js';
+export { ConversationHistoryMemoryStore } from './memory/conversation-history-memory.js';
 export { InMemoryMemoryStore } from './memory/memory-store-impl.js';
 
 // Ports — SkillLoader

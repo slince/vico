@@ -14,7 +14,7 @@ export class MemoryProcessor implements ContextProcessor {
     const query = ctx.getLastUserMessage();
     if (!query) return;
 
-    const items = await this.memoryStore.ltm.search(query, 5);
+    const items = await this.memoryStore.semantic.search(query, 5);
     if (items.length === 0) return;
 
     const memText = items.map((m) => `- ${m.content}`).join('\n');
