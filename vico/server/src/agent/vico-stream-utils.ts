@@ -94,9 +94,8 @@ export async function turnEventsToAISDK(
 
   const stream = new ReadableStream({
     async start(controller) {
-      const encoder = new TextEncoder();
       const enqueue = (chunk: unknown) => {
-        controller.enqueue(encoder.encode(`0:${JSON.stringify(chunk)}\n`));
+        controller.enqueue(chunk);
       };
 
       enqueue({ type: 'start' });
