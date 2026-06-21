@@ -33,29 +33,6 @@ export const agents = sqliteTable('agents', {
   updated_at: integer('updated_at').notNull(),
 });
 
-/** 已安装的 Skill 表 */
-export const installed_skills = sqliteTable('installed_skills', {
-  id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
-  skill_name: text('skill_name').notNull(),
-  display_name: text('display_name').notNull(),
-  version: text('version').notNull(),
-  config: text('config').notNull().default('{}'),
-  enabled: integer('enabled').notNull().default(1),
-  installed_at: integer('installed_at').notNull(),
-}, (table) => ({
-  unq: unique().on(table.tenant_id, table.skill_name),
-}));
-
-/** Agent ↔ Skill 绑定关联表 */
-export const agent_skills = sqliteTable('agent_skills', {
-  agent_id: text('agent_id').notNull().references(() => agents.id),
-  skill_name: text('skill_name').notNull(),
-  config: text('config').notNull().default('{}'),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.agent_id, table.skill_name] }),
-}));
-
 /** 知识库表 */
 export const knowledge_bases = sqliteTable('knowledge_bases', {
   id: text('id').primaryKey(),

@@ -3,7 +3,6 @@ import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { agentManager } from '../services/agent/agent-manager.js';
 import { knowledgeManager } from '../services/knowledge/knowledge-manager.js';
-import { skillManager } from '../skill/manager.js';
 import { conversationManager } from '../services/conversation/conversation-manager.js';
 
 export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
@@ -16,14 +15,12 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
     const [
       activeAgents,
       totalAgents,
-      installedSkills,
       totalKnowledgeBases,
       totalConversations,
       recentConversations,
     ] = await Promise.all([
       agentManager.countEnabled(auth.tenantId),
       agentManager.count(auth.tenantId),
-      skillManager.countEnabled(auth.tenantId),
       knowledgeManager.count(auth.tenantId),
       conversationManager.count(auth.userId),
       conversationManager.recent(auth.userId, 5),
@@ -34,7 +31,6 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
       totalTokens: 0,
       activeAgents,
       totalAgents,
-      installedSkills,
       totalKnowledgeBases,
       recentConversations,
       tokenTrend: [],

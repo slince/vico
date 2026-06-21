@@ -58,14 +58,6 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     return c.json({ message: 'deleted' });
   });
 
-  // ── 替换 Skills ──
-  app.put('/api/v1/agents/:id/skills', async (c) => {
-    const auth = await getAuthContext(c);
-    if (auth instanceof Response) return auth;
-    await agentManager.replaceSkills(auth.tenantId, c.req.param('id'), await c.req.json());
-    return c.json({ message: 'updated' });
-  });
-
   // ── 替换知识库 ──
   app.put('/api/v1/agents/:id/knowledge', async (c) => {
     const auth = await getAuthContext(c);

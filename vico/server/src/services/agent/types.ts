@@ -28,19 +28,8 @@ export interface AgentRow {
   updated_at: number;
 }
 
-/** agent_skills 关联表行类型 */
-export interface SkillBinding {
-  skill_name: string;
-  config: string;
-}
-
-// ── 返回类型 ──
-
-/** Agent 详情/列表类型（含关联的 skills 及扁平化的 skill_names） */
-export interface AgentDetail extends AgentRow {
-  skills: SkillBinding[];
-  skill_names: string[];
-}
+/** Agent 详情/列表类型 */
+export interface AgentDetail extends AgentRow {}
 
 // ── 运行时配置 ──
 
@@ -52,7 +41,7 @@ export interface AgentDetail extends AgentRow {
  * 反复查询 DB。
  */
 export interface AgentRuntimeConfig {
-  /** Agent 详情（含 skills、knowledge_bases 等），供工具构建及调用方使用 */
+  /** Agent 详情 */
   agent: AgentDetail;
   /** 模型配置 */
   model: ModelConfigRow;
@@ -100,16 +89,6 @@ export const updateAgentSchema = z.object({
 });
 
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
-
-/** 替换 Skills 的输入校验 */
-export const replaceSkillsSchema = z.object({
-  skills: z.array(z.object({
-    skill_name: z.string().min(1),
-    config: z.record(z.string(), z.any()).optional().default({}),
-  })).optional().default([]),
-});
-
-export type ReplaceSkillsInput = z.infer<typeof replaceSkillsSchema>;
 
 /** 设置/替换 Agent 绑定的知识库（单 KB） */
 export const replaceKnowledgeSchema = z.object({
