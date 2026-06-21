@@ -1,18 +1,34 @@
-// @vico/agent - MemoryProcessor: injects working memory entities and semantic recall results
+// @vico/agent - MemoryProcessor: injects conversation history, working memory, and semantic recall
 import type { ContextProcessor, ModelRequestContext } from '../prompt/context-processor.js';
 import { Priority } from '../prompt/context-processor.js';
 import type { MemoryStore } from './memory-store.js';
 
-/** 注入工作记忆实体和语义召回结果（NORMAL 优先级） */
+/** 注入会话历史、工作记忆和语义召回结果（NORMAL 优先级） */
 export class MemoryProcessor implements ContextProcessor {
   readonly name = 'memory';
   readonly priority = Priority.NORMAL;
 
-  constructor(private readonly memoryStore: MemoryStore) {}
+  constructor(
+    private readonly memoryStore: MemoryStore,
+    private readonly threadId: string,
+  ) {}
 
   async process(ctx: ModelRequestContext): Promise<void> {
+    this.injectConversationHistory(ctx);
     await this.injectWorkingMemory(ctx);
     await this.injectSemanticRecall(ctx);
+  }
+
+  /** 注入会话历史（FIFO 滑动窗口） */
+  private injectConversationHistory(ctx: ModelRequestContext): void {
+    const history = this.memoryStore.conversation.get(
+      this.threadId,
+      this.memoryStore.conversationWindow,
+    );
+    if (history.length === 0) return;
+
+    // 会话历史插入到消息列表最前面，保持时间顺序
+    ctx.messages.unshift(...history);
   }
 
   /** 注入工作记忆实体 */

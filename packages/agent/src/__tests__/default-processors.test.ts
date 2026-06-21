@@ -66,9 +66,27 @@ describe('SkillCatalogProcessor', () => {
 });
 
 describe('MemoryProcessor', () => {
+  it('injects conversation history', () => {
+    const memoryStore = {
+      semanticEnabled: false,
+      conversationWindow: 20,
+      conversation: { push: vi.fn(), get: vi.fn(() => [{ role: 'user' as const, content: 'previous msg' }]) },
+      semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+      working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(async () => []), clear: vi.fn() },
+      rag: { search: vi.fn() },
+    };
+    const p = new MemoryProcessor(memoryStore, 't1');
+    const ctx = makeCtx();
+    ctx.messages = [{ role: 'user', content: 'current msg' }];
+    p.process(ctx);
+    expect(ctx.messages[0]).toMatchObject({ role: 'user', content: 'previous msg' });
+    expect(memoryStore.conversation.get).toHaveBeenCalledWith('t1', 20);
+  });
+
   it('appends memory results as system message', async () => {
     const memoryStore = {
       semanticEnabled: true,
+      conversationWindow: 20,
       conversation: { push: vi.fn(), get: vi.fn(() => []) },
       semantic: {
         search: vi.fn(async () => [
@@ -79,7 +97,7 @@ describe('MemoryProcessor', () => {
       working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(async () => []), clear: vi.fn() },
       rag: { search: vi.fn(async () => []) },
     };
-    const p = new MemoryProcessor(memoryStore);
+    const p = new MemoryProcessor(memoryStore, 't1');
     const ctx = makeCtx();
     ctx.messages = [{ role: 'user', content: 'what theme do I use?' }];
     await p.process(ctx);
@@ -90,12 +108,13 @@ describe('MemoryProcessor', () => {
   it('no-op when semantic recall is disabled', async () => {
     const memoryStore = {
       semanticEnabled: false,
+      conversationWindow: 20,
       conversation: { push: vi.fn(), get: vi.fn(() => []) },
       semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(async () => []), clear: vi.fn() },
       rag: { search: vi.fn() },
     };
-    const p = new MemoryProcessor(memoryStore);
+    const p = new MemoryProcessor(memoryStore, 't1');
     const ctx = makeCtx();
     ctx.messages = [{ role: 'user', content: 'hello' }];
     await p.process(ctx);
@@ -105,12 +124,13 @@ describe('MemoryProcessor', () => {
   it('no-op when no user message found', async () => {
     const memoryStore = {
       semanticEnabled: true,
+      conversationWindow: 20,
       conversation: { push: vi.fn(), get: vi.fn(() => []) },
       semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(async () => []), clear: vi.fn() },
       rag: { search: vi.fn() },
     };
-    const p = new MemoryProcessor(memoryStore);
+    const p = new MemoryProcessor(memoryStore, 't1');
     const ctx = makeCtx();
     ctx.messages = [{ role: 'system', content: 'system only' }];
     await p.process(ctx);
@@ -120,6 +140,7 @@ describe('MemoryProcessor', () => {
   it('injects working memory entities as system message', async () => {
     const memoryStore = {
       semanticEnabled: false,
+      conversationWindow: 20,
       conversation: { push: vi.fn(), get: vi.fn(() => []) },
       semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
       working: {
@@ -131,7 +152,7 @@ describe('MemoryProcessor', () => {
       },
       rag: { search: vi.fn() },
     };
-    const p = new MemoryProcessor(memoryStore);
+    const p = new MemoryProcessor(memoryStore, 't1');
     const ctx = makeCtx();
     await p.process(ctx);
     expect(ctx.messages.some((m) => m.role === 'system' && m.content.includes('User profile') && m.content.includes('Alice'))).toBe(true);

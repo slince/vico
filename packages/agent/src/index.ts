@@ -72,6 +72,9 @@ export { BuiltinTools } from './tool/builtin-tools.js';
 // Ports — MemoryStore
 export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
 export { ConversationHistoryMemoryStore } from './memory/conversation-history-memory.js';
+export { InMemorySemanticRecall } from './memory/in-memory-semantic-recall.js';
+export { InMemoryWorkingMemory } from './memory/in-memory-working-memory.js';
+export { InMemoryRagProvider } from './memory/in-memory-rag-provider.js';
 
 // Ports — SkillLoader
 export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js';
