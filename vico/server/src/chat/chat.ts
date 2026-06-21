@@ -1,16 +1,12 @@
 /**
- * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，runTurn 执行。
+ * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，vico.stream 执行。
  */
-import {type Agent, type ModelMessage, type Tool, type TurnEvent, type TurnResult} from '@vico/agent';
+import type {Agent, Tool, TurnEvent, TurnResult} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
 import logger from '../lib/logger.js';
 import {vico} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
 import {createRagSearchTool} from '../agent/tools/rag-tool.js';
-
-// ---------------------------------------------------------------------------
-// 类型
-// ---------------------------------------------------------------------------
 
 export interface ExecuteChatParams {
   agentId: string;
@@ -21,40 +17,31 @@ export interface ExecuteChatParams {
 }
 
 export interface ExecuteChatResult {
-  thread: string;
   stream: AsyncGenerator<TurnEvent, TurnResult>;
 }
 
-// ---------------------------------------------------------------------------
-// 公共 API
-// ---------------------------------------------------------------------------
-
+/** 执行 Agent 对话 — 通过 vico.stream */
 export async function executeAgentChat(
   params: ExecuteChatParams,
 ): Promise<ExecuteChatResult> {
-  const { agentId, message, tenantId, userId } = params;
-  let threadId: string = params.threadId;
+  const { agentId, message, threadId, tenantId, userId } = params;
 
   if (!message?.trim()) throw new Error('Message is required');
-  if (threadId.startsWith('__LOCALID_')) threadId = crypto.randomUUID();
 
-  // 从 Vico Runtime 获取或创建 Agent（Vico 自带 LRU 缓存）
-  let agent = vico.runtime.getAgent(agentId);
-  if (!agent) {
+  // 确保 Agent 已在 Vico Runtime 注册
+  if (!vico.runtime.getAgent(agentId)) {
     const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
     if (!agentConfig) throw new Error('Agent not found');
-    agent = await createAgentWithVico(agentConfig);
+    await createAgent(agentConfig);
   }
 
-  const userMessage: ModelMessage = { role: 'user', content: message };
+  const stream = vico.stream(agentId, message, {
+    threadId,
+    userId,
+    scopeId: tenantId,
+  });
 
-  const stream = agent.getLoop().runTurn(
-    threadId, [], userMessage,
-    new AbortController().signal,
-    { userId, scopeId: tenantId },
-  );
-
-  return { thread: threadId, stream };
+  return { stream };
 }
 
 /** 清空 Agent 缓存（Skill/KB 变更时调用） */
@@ -62,14 +49,9 @@ export function invalidateAgentCache(_tenantId: string, agentId: string): void {
   vico.runtime.destroy(agentId);
 }
 
-// ---------------------------------------------------------------------------
-// 通过 Vico 创建 Agent
-// ---------------------------------------------------------------------------
-
-async function createAgentWithVico(runtimeConfig: AgentRuntimeConfig): Promise<Agent> {
+async function createAgent(runtimeConfig: AgentRuntimeConfig): Promise<Agent> {
   const { agent, model } = runtimeConfig;
 
-  // 加载 Agent 绑定的 Skill 工具 + RAG 工具
   const tools = await loadTools(agent);
 
   return vico.createAgent({
@@ -91,14 +73,9 @@ async function createAgentWithVico(runtimeConfig: AgentRuntimeConfig): Promise<A
   });
 }
 
-// ---------------------------------------------------------------------------
-// 工具加载
-// ---------------------------------------------------------------------------
-
 async function loadTools(agent: any): Promise<Tool[]> {
   const tools: Tool[] = [];
 
-  // RAG 工具
   if (agent.rag_mode !== 'disabled') {
     try {
       const ragTool = await createRagSearchTool(agent);

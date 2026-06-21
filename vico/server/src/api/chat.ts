@@ -41,7 +41,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     }
 
     try {
-      const { thread, stream } = await executeAgentChat({
+      const { stream } = await executeAgentChat({
         agentId,
         message,
         threadId,
@@ -50,7 +50,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       });
 
       return turnEventsToAISDK(stream, {
-        doneMetadata: { threadId: thread },
+        doneMetadata: { threadId },
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'An internal error occurred';
