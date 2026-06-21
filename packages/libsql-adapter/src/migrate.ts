@@ -19,7 +19,7 @@ import type * as schema from './schema.js';
 export async function ensureTables(
   db: LibSQLDatabase<typeof schema>,
 ): Promise<void> {
-  // 会话线程表 — 每个对话线程一条记录
+  // 会话线程表
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_threads (
       id TEXT PRIMARY KEY,
@@ -30,23 +30,23 @@ export async function ensureTables(
     )
   `);
 
-  // 对话轮次表 — 一次 Agent 交互为一个 turn
+  // 对话轮次表
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_turns (
       id TEXT PRIMARY KEY,
-      thread_id TEXT NOT NULL REFERENCES vico_threads(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'running',
       steps INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     )
   `);
 
-  // 消息表 — 单条对话记录（user/assistant/tool）
+  // 消息表
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_messages (
       id TEXT PRIMARY KEY,
-      thread_id TEXT NOT NULL REFERENCES vico_threads(id) ON DELETE CASCADE,
-      turn_id TEXT NOT NULL REFERENCES vico_turns(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL,
+      turn_id TEXT NOT NULL,
       role TEXT NOT NULL,
       content TEXT NOT NULL,
       tool_call_id TEXT,
@@ -62,7 +62,7 @@ export async function ensureTables(
     ON vico_messages(thread_id)
   `);
 
-  // 记忆条目表 — type='working' 为工作记忆，type='semantic' 为语义记忆
+  // 记忆条目表
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_memory_entries (
       id TEXT PRIMARY KEY,
