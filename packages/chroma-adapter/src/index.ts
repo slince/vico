@@ -1,6 +1,5 @@
-// @vico/chroma — Public API barrel exports
+// @vico/chroma-adapter — Public API barrel exports
 
-// Chroma VectorStore adapter
 export {
   ChromaVectorStore,
   type ChromaVectorStoreOptions,

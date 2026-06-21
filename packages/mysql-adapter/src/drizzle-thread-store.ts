@@ -1,28 +1,29 @@
-// @vico/libsql-adapter — Drizzle-backed SessionStore implementation
+// @vico/mysql-adapter — MySQL/Drizzle-backed ThreadStore implementation
 import { eq, desc } from 'drizzle-orm';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import type { SessionStore, Thread, Turn, Message } from '@vico/agent';
+import type { MySql2Database } from 'drizzle-orm/mysql2';
+import type { ThreadStore, Thread, Turn, Message } from '@vico/agent';
 import {
-  sessionThreads,
-  sessionTurns,
-  sessionMessages,
+  threads,
+  turns,
+  messages,
 } from './schema.js';
 import type * as schema from './schema.js';
 
-/** DrizzleSessionStore 构造选项 */
-export interface DrizzleSessionStoreOptions {
-  /** Drizzle LibSQL 数据库实例（schema 需包含本包的表） */
-  db: LibSQLDatabase<typeof schema>;
+/** DrizzleThreadStore construction options */
+export interface DrizzleThreadStoreOptions {
+  /** Drizzle MySQL database instance (schema must include this package's tables) */
+  db: MySql2Database<typeof schema>;
 }
 
 /**
- * Drizzle ORM 版 SessionStore — 持久化到 LibSQL。
- * 无租户过滤，适合单租户场景；多租户请外层包装 WHERE tenant_id。
+ * MySQL/Drizzle-based ThreadStore.
+ * No tenant filtering; suitable for single-tenant scenarios.
+ * Multi-tenant scenarios should wrap with WHERE tenant_id externally.
  */
-export class DrizzleSessionStore implements SessionStore {
-  private db: LibSQLDatabase<typeof schema>;
+export class DrizzleThreadStore implements ThreadStore {
+  private db: MySql2Database<typeof schema>;
 
-  constructor(options: DrizzleSessionStoreOptions) {
+  constructor(options: DrizzleThreadStoreOptions) {
     this.db = options.db;
   }
 
@@ -31,7 +32,7 @@ export class DrizzleSessionStore implements SessionStore {
   async createThread(agentId: string, title?: string): Promise<Thread> {
     const id = crypto.randomUUID();
     const now = Date.now();
-    await this.db.insert(sessionThreads).values({
+    await this.db.insert(threads).values({
       id,
       agent_id: agentId,
       title: title ?? null,
@@ -44,8 +45,8 @@ export class DrizzleSessionStore implements SessionStore {
   async getThread(threadId: string): Promise<Thread | undefined> {
     const rows = await this.db
       .select()
-      .from(sessionThreads)
-      .where(eq(sessionThreads.id, threadId))
+      .from(threads)
+      .where(eq(threads.id, threadId))
       .limit(1);
     return rows.length === 0 ? undefined : this._toThread(rows[0]);
   }
@@ -53,10 +54,10 @@ export class DrizzleSessionStore implements SessionStore {
   async listThreads(agentId?: string): Promise<Thread[]> {
     const base = this.db
       .select()
-      .from(sessionThreads)
-      .orderBy(desc(sessionThreads.updated_at));
+      .from(threads)
+      .orderBy(desc(threads.updated_at));
     const rows = await (agentId
-      ? base.where(eq(sessionThreads.agent_id, agentId))
+      ? base.where(eq(threads.agent_id, agentId))
       : base);
     return rows.map((r) => this._toThread(r));
   }
@@ -66,7 +67,7 @@ export class DrizzleSessionStore implements SessionStore {
   async createTurn(threadId: string): Promise<Turn> {
     const id = crypto.randomUUID();
     const now = Date.now();
-    await this.db.insert(sessionTurns).values({
+    await this.db.insert(turns).values({
       id,
       thread_id: threadId,
       status: 'running',
@@ -82,16 +83,16 @@ export class DrizzleSessionStore implements SessionStore {
     if (patch.steps !== undefined) values.steps = patch.steps;
     if (Object.keys(values).length === 0) return;
     await this.db
-      .update(sessionTurns)
+      .update(turns)
       .set(values)
-      .where(eq(sessionTurns.id, turnId));
+      .where(eq(turns.id, turnId));
   }
 
   async getTurn(turnId: string): Promise<Turn | undefined> {
     const rows = await this.db
       .select()
-      .from(sessionTurns)
-      .where(eq(sessionTurns.id, turnId))
+      .from(turns)
+      .where(eq(turns.id, turnId))
       .limit(1);
     return rows.length === 0 ? undefined : this._toTurn(rows[0]);
   }
@@ -103,17 +104,15 @@ export class DrizzleSessionStore implements SessionStore {
   ): Promise<Message> {
     const id = crypto.randomUUID();
     const now = Date.now();
-    await this.db.insert(sessionMessages).values({
+    await this.db.insert(messages).values({
       id,
       thread_id: entry.threadId,
       turn_id: entry.turnId,
       role: entry.role,
       content: entry.content,
       tool_call_id: entry.toolCallId ?? null,
-      tool_calls: entry.toolCalls ? JSON.stringify(entry.toolCalls) : null,
-      tool_results: entry.toolResults
-        ? JSON.stringify(entry.toolResults)
-        : null,
+      tool_calls: entry.toolCalls,
+      tool_results: entry.toolResults,
       created_at: now,
     });
     return { ...entry, id, createdAt: now };
@@ -126,9 +125,9 @@ export class DrizzleSessionStore implements SessionStore {
     const start = options?.start ?? 0;
     const base = this.db
       .select()
-      .from(sessionMessages)
-      .where(eq(sessionMessages.thread_id, threadId))
-      .orderBy(sessionMessages.created_at)
+      .from(messages)
+      .where(eq(messages.thread_id, threadId))
+      .orderBy(messages.created_at)
       .offset(start);
     const rows = await (options?.limit ? base.limit(options.limit) : base);
     return rows.map((r) => this._toMessage(r));
@@ -138,19 +137,20 @@ export class DrizzleSessionStore implements SessionStore {
     threadId: string,
     limit: number,
   ): Promise<Message[]> {
-    // 先按 created_at DESC 取 limit 条，再反转顺序（FIFO 窗口按时间正序）
+    // First take `limit` rows by created_at DESC, then reverse order
+    // (FIFO window in chronological order)
     const rows = await this.db
       .select()
-      .from(sessionMessages)
-      .where(eq(sessionMessages.thread_id, threadId))
-      .orderBy(desc(sessionMessages.created_at))
+      .from(messages)
+      .where(eq(messages.thread_id, threadId))
+      .orderBy(desc(messages.created_at))
       .limit(limit);
     return rows.reverse().map((r) => this._toMessage(r));
   }
 
   // --- Private mappers ---
 
-  private _toThread(r: typeof sessionThreads.$inferSelect): Thread {
+  private _toThread(r: typeof threads.$inferSelect): Thread {
     return {
       id: r.id,
       agentId: r.agent_id,
@@ -160,7 +160,7 @@ export class DrizzleSessionStore implements SessionStore {
     };
   }
 
-  private _toTurn(r: typeof sessionTurns.$inferSelect): Turn {
+  private _toTurn(r: typeof turns.$inferSelect): Turn {
     return {
       id: r.id,
       threadId: r.thread_id,
@@ -170,7 +170,7 @@ export class DrizzleSessionStore implements SessionStore {
     };
   }
 
-  private _toMessage(r: typeof sessionMessages.$inferSelect): Message {
+  private _toMessage(r: typeof messages.$inferSelect): Message {
     return {
       id: r.id,
       threadId: r.thread_id,
@@ -178,12 +178,8 @@ export class DrizzleSessionStore implements SessionStore {
       role: r.role,
       content: r.content,
       toolCallId: r.tool_call_id ?? undefined,
-      toolCalls: r.tool_calls
-        ? (JSON.parse(r.tool_calls) as unknown)
-        : undefined,
-      toolResults: r.tool_results
-        ? (JSON.parse(r.tool_results) as unknown)
-        : undefined,
+      toolCalls: r.tool_calls as unknown,
+      toolResults: r.tool_results as unknown,
       createdAt: r.created_at,
     };
   }

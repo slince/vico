@@ -2,17 +2,17 @@
 
 // Schema — 供调用方纳入 drizzle-kit 生成迁移
 export {
-  sessionThreads,
-  sessionTurns,
-  sessionMessages,
+  threads,
+  turns,
+  messages,
   memoryEntries,
 } from './schema.js';
 
-// SessionStore adapter
+// ThreadStore adapter
 export {
-  DrizzleSessionStore,
-  type DrizzleSessionStoreOptions,
-} from './drizzle-session-store.js';
+  DrizzleThreadStore,
+  type DrizzleThreadStoreOptions,
+} from './drizzle-thread-store.js';
 
 // WorkingMemory adapter
 export {

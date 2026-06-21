@@ -63,9 +63,9 @@ importers:
 
   packages/chroma-adapter:
     dependencies:
-      '@vico/agent':
+      '@vico/rag':
         specifier: workspace:*
-        version: link:../agent
+        version: link:../rag
       chromadb:
         specifier: ^3.0.0
         version: 3.4.3

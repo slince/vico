@@ -2,17 +2,17 @@
 
 // Schema — for callers to include in drizzle-kit migration generation
 export {
-  sessionThreads,
-  sessionTurns,
-  sessionMessages,
+  threads,
+  turns,
+  messages,
   memoryEntries,
 } from './schema.js';
 
-// SessionStore adapter
+// ThreadStore adapter
 export {
-  DrizzleSessionStore,
-  type DrizzleSessionStoreOptions,
-} from './drizzle-session-store.js';
+  DrizzleThreadStore,
+  type DrizzleThreadStoreOptions,
+} from './drizzle-thread-store.js';
 
 // WorkingMemory adapter
 export {

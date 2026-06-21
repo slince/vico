@@ -1,10 +1,10 @@
-// @vico/libsql-adapter — Drizzle table definitions for session and memory persistence
+// @vico/libsql-adapter — Drizzle table definitions for thread and memory persistence
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 
-// --- Session tables ---
+// --- Thread tables ---
 
 /** 会话线程 */
-export const sessionThreads = sqliteTable('vico_session_threads', {
+export const threads = sqliteTable('vico_threads', {
   id: text('id').primaryKey(),
   agent_id: text('agent_id').notNull(),
   title: text('title'),
@@ -13,27 +13,27 @@ export const sessionThreads = sqliteTable('vico_session_threads', {
 });
 
 /** 对话轮次 */
-export const sessionTurns = sqliteTable('vico_session_turns', {
+export const turns = sqliteTable('vico_turns', {
   id: text('id').primaryKey(),
   thread_id: text('thread_id')
     .notNull()
-    .references(() => sessionThreads.id, { onDelete: 'cascade' }),
+    .references(() => threads.id, { onDelete: 'cascade' }),
   status: text('status').notNull().default('running'),
   steps: integer('steps').notNull().default(0),
   created_at: integer('created_at').notNull(),
 });
 
 /** 消息 */
-export const sessionMessages = sqliteTable(
-  'vico_session_messages',
+export const messages = sqliteTable(
+  'vico_messages',
   {
     id: text('id').primaryKey(),
     thread_id: text('thread_id')
       .notNull()
-      .references(() => sessionThreads.id, { onDelete: 'cascade' }),
+      .references(() => threads.id, { onDelete: 'cascade' }),
     turn_id: text('turn_id')
       .notNull()
-      .references(() => sessionTurns.id, { onDelete: 'cascade' }),
+      .references(() => turns.id, { onDelete: 'cascade' }),
     role: text('role').notNull(),
     content: text('content').notNull(),
     tool_call_id: text('tool_call_id'),
@@ -42,7 +42,7 @@ export const sessionMessages = sqliteTable(
     created_at: integer('created_at').notNull(),
   },
   (table) => ({
-    threadIdx: index('idx_sm_thread').on(table.thread_id),
+    threadIdx: index('idx_msg_thread').on(table.thread_id),
   }),
 );
 

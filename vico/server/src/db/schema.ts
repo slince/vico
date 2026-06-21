@@ -230,8 +230,8 @@ export const eval_case_results = sqliteTable('eval_case_results', {
   latency: integer('latency').notNull().default(0),
 });
 
-/** Session — 会话线程表 */
-export const session_threads = sqliteTable('session_threads', {
+/** Thread — 会话线程表 */
+export const threads = sqliteTable('threads', {
   id: text('id').primaryKey(),
   tenant_id: text('tenant_id').notNull().references(() => organization.id),
   agent_id: text('agent_id').notNull(),
@@ -240,20 +240,20 @@ export const session_threads = sqliteTable('session_threads', {
   updated_at: integer('updated_at').notNull(),
 });
 
-/** Session — 对话轮次表 */
-export const session_turns = sqliteTable('session_turns', {
+/** Thread — 对话轮次表 */
+export const turns = sqliteTable('turns', {
   id: text('id').primaryKey(),
-  thread_id: text('thread_id').notNull().references(() => session_threads.id, { onDelete: 'cascade' }),
+  thread_id: text('thread_id').notNull().references(() => threads.id, { onDelete: 'cascade' }),
   status: text('status').notNull().default('running'),
   steps: integer('steps').notNull().default(0),
   created_at: integer('created_at').notNull(),
 });
 
-/** Session — 消息表 */
-export const session_messages = sqliteTable('session_messages', {
+/** Thread — 消息表 */
+export const thread_messages = sqliteTable('thread_messages', {
   id: text('id').primaryKey(),
-  thread_id: text('thread_id').notNull().references(() => session_threads.id, { onDelete: 'cascade' }),
-  turn_id: text('turn_id').notNull().references(() => session_turns.id, { onDelete: 'cascade' }),
+  thread_id: text('thread_id').notNull().references(() => threads.id, { onDelete: 'cascade' }),
+  turn_id: text('turn_id').notNull().references(() => turns.id, { onDelete: 'cascade' }),
   role: text('role').notNull(),
   content: text('content').notNull(),
   tool_calls: text('tool_calls'),

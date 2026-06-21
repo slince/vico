@@ -1,10 +1,10 @@
-// @vico/mysql-adapter — MySQL Drizzle table definitions for session and memory persistence
+// @vico/mysql-adapter — MySQL Drizzle table definitions for thread and memory persistence
 import { mysqlTable, varchar, text, bigint, int, json, index } from 'drizzle-orm/mysql-core';
 
-// --- Session tables ---
+// --- Thread tables ---
 
-/** session threads */
-export const sessionThreads = mysqlTable('vico_session_threads', {
+/** threads */
+export const threads = mysqlTable('vico_threads', {
   id: varchar('id', { length: 36 }).primaryKey(),
   agent_id: varchar('agent_id', { length: 36 }).notNull(),
   title: text('title'),
@@ -13,27 +13,27 @@ export const sessionThreads = mysqlTable('vico_session_threads', {
 });
 
 /** conversation turns */
-export const sessionTurns = mysqlTable('vico_session_turns', {
+export const turns = mysqlTable('vico_turns', {
   id: varchar('id', { length: 36 }).primaryKey(),
   thread_id: varchar('thread_id', { length: 36 })
     .notNull()
-    .references(() => sessionThreads.id, { onDelete: 'cascade' }),
+    .references(() => threads.id, { onDelete: 'cascade' }),
   status: varchar('status', { length: 36 }).notNull().default('running'),
   steps: int('steps').notNull().default(0),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
 
 /** messages */
-export const sessionMessages = mysqlTable(
-  'vico_session_messages',
+export const messages = mysqlTable(
+  'vico_messages',
   {
     id: varchar('id', { length: 36 }).primaryKey(),
     thread_id: varchar('thread_id', { length: 36 })
       .notNull()
-      .references(() => sessionThreads.id, { onDelete: 'cascade' }),
+      .references(() => threads.id, { onDelete: 'cascade' }),
     turn_id: varchar('turn_id', { length: 36 })
       .notNull()
-      .references(() => sessionTurns.id, { onDelete: 'cascade' }),
+      .references(() => turns.id, { onDelete: 'cascade' }),
     role: varchar('role', { length: 36 }).notNull(),
     content: text('content').notNull(),
     tool_call_id: varchar('tool_call_id', { length: 255 }),
@@ -42,7 +42,7 @@ export const sessionMessages = mysqlTable(
     created_at: bigint('created_at', { mode: 'number' }).notNull(),
   },
   (table) => ({
-    threadIdx: index('idx_sm_thread').on(table.thread_id),
+    threadIdx: index('idx_msg_thread').on(table.thread_id),
   }),
 );
 
