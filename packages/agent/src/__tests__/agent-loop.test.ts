@@ -1,6 +1,6 @@
 // agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
 import { describe, it, expect, vi } from 'vitest';
-import { AgentLoop } from '../agent-loop/agent-loop.js';
+import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent, type AgentLoopOptions } from '../agent-loop/types.js';
 import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/types.js';
 import type { AgentConfig } from '../agent-loop/types.js';
@@ -65,12 +65,12 @@ describe('AgentLoop', () => {
       spanTracker: tracker,
     });
 
-    const result = await loop.runTurn(
+    const result = await collectTurnResult(loop.runTurn(
       'thread-1',
       [],
       { role: 'user', content: 'hi' },
       new AbortController().signal,
-    );
+    ));
 
     expect(result.status).toBe('completed');
     expect(result.steps).toBe(0);
@@ -104,12 +104,12 @@ describe('AgentLoop', () => {
       spanTracker: tracker,
     });
 
-    const result = await loop.runTurn(
+    const result = await collectTurnResult(loop.runTurn(
       'thread-1',
       [],
       { role: 'user', content: 'search for test' },
       new AbortController().signal,
-    );
+    ));
 
     expect(result.status).toBe('completed');
     expect(result.steps).toBeGreaterThan(0);
@@ -163,12 +163,12 @@ describe('AgentLoop', () => {
       controller.abort();
     }, 10);
 
-    const result = await loop.runTurn(
+    const result = await collectTurnResult(loop.runTurn(
       'thread-1',
       [],
       { role: 'user', content: 'hi' },
       controller.signal,
-    );
+    ));
 
     expect(result.status).toBe('interrupted');
   });

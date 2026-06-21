@@ -50,6 +50,18 @@ export interface TurnResult {
   messages: ModelMessage[];
 }
 
+/** turn 执行过程中的流式事件 */
+export type TurnEvent =
+  | { type: 'text_delta'; content: string }
+  | { type: 'reasoning_delta'; content: string }
+  | { type: 'tool_call_start'; id: string; name: string }
+  | { type: 'tool_result'; id: string; name: string; status: 'success' | 'error'; output: unknown }
+  | { type: 'step_start'; step: number }
+  | { type: 'step_end'; step: number }
+  | { type: 'compacted'; removedTokens: number }
+  | { type: 'error'; message: string }
+  | { type: 'done'; usage: { input: number; output: number } };
+
 /** AgentLoop 构造选项 */
 export interface AgentLoopOptions {
   agent: Agent;

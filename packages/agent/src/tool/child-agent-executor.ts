@@ -2,7 +2,7 @@
 import type { ToolSpec, ToolCall, ToolResult } from './types.js';
 import type { ToolExecutionContext } from './types.js';
 import type { DelegateStrategy, ChildAgentRef } from './types.js';
-import type { AgentLoop } from '../agent-loop/agent-loop.js';
+import { type AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import type { ModelMessage } from '../model/types.js';
 
 
@@ -54,12 +54,12 @@ export class ChildAgentExecutor {
     };
 
     try {
-      const result = await ref.loop.runTurn(
+      const result = await collectTurnResult(ref.loop.runTurn(
         `delegate-${agentId}-${Date.now()}`,
         [],
         userMessage,
         ctx.signal,
-      );
+      ));
 
       const output = result.messages
         .filter((m) => m.role === 'assistant')

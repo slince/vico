@@ -10,7 +10,8 @@ import {LocalToolHost} from '../tool/local-tool-host.js';
 import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import {createSkillToolHandlers, createSkillTools} from '../skill/skill-tools.js';
-import {AgentLoop} from '../agent-loop/agent-loop.js';
+import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
+import type {TurnEvent} from '../agent-loop/types.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillCatalogProcessor} from '../skill/skill-catalog-processor.js';
@@ -187,12 +188,27 @@ export class Vico {
     const userMessage: ModelMessage = { role: 'user', content: message };
     const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
 
-    return agent.getLoop().runTurn(
+    return collectTurnResult(agent.getLoop().runTurn(
       threadId,
       [],
       userMessage,
       new AbortController().signal,
-    );
+    ));
+  }
+
+  /** 流式对话 — 返回异步迭代器，逐条获得过程事件 */
+  stream(agentId: string, message: string, options?: InvokeOptions): AsyncGenerator<TurnEvent, TurnResult> {
+    const agent = this.runtime.getAgent(agentId);
+    if (!agent) {
+      throw new Error(
+        `Agent "${agentId}" not found in runtime. Create it first via runtime.createAgent().`,
+      );
+    }
+
+    const userMessage: ModelMessage = { role: 'user', content: message };
+    const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
+
+    return agent.getLoop().runTurn(threadId, [], userMessage, new AbortController().signal);
   }
 
   getSkillManager(): SkillManager {

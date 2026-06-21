@@ -123,8 +123,8 @@ export { AgentRuntime } from './agent-loop/agent-runtime.js';
 export { Agent, type AgentFactory } from './agent-loop/types.js';
 
 // AgentLoop
-export { AgentLoop } from './agent-loop/agent-loop.js';
-export { type AgentLoopOptions, type TurnResult } from './agent-loop/types.js';
+export { AgentLoop, collectTurnResult } from './agent-loop/agent-loop.js';
+export { type AgentLoopOptions, type TurnResult, type TurnEvent } from './agent-loop/types.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
 export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';
 
