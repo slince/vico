@@ -215,44 +215,26 @@ export class Vico {
 
   /**
    * 一行对话：从 Runtime 中查找 Agent，发送消息并返回结果。
-   *
-   * @example
-   * ```ts
-   * await vico.createAgent(config);
-   * const result = await vico.invoke(config.id, 'Hello!');
-   * ```
    */
   async invoke(agentId: string, message: string, options?: InvokeOptions): Promise<TurnResult> {
-    const agent = this.runtime.getAgent(agentId);
-    if (!agent) {
-      throw new Error(
-        `Agent "${agentId}" not found in runtime. Create it first via vico.createAgent().`,
-      );
-    }
-
-    const userMessage: ModelMessage = { role: 'user', content: message };
-    const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
-
-    return collectTurnResult(agent.getLoop().runTurn(
-      threadId,
-      [],
-      userMessage,
-      new AbortController().signal,
-    ));
+    return collectTurnResult(this.run(agentId, message, options));
   }
 
   /** 流式对话 — 返回异步迭代器，逐条获得过程事件 */
   stream(agentId: string, message: string, options?: InvokeOptions): AsyncGenerator<TurnEvent, TurnResult> {
+    return this.run(agentId, message, options);
+  }
+
+  /** 获取 Agent 并构造 runTurn 参数 */
+  private run(agentId: string, message: string, options?: InvokeOptions) {
     const agent = this.runtime.getAgent(agentId);
     if (!agent) {
       throw new Error(
         `Agent "${agentId}" not found in runtime. Create it first via vico.createAgent().`,
       );
     }
-
     const userMessage: ModelMessage = { role: 'user', content: message };
     const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
-
     return agent.getLoop().runTurn(threadId, [], userMessage, new AbortController().signal);
   }
 

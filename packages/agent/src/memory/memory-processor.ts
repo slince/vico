@@ -23,6 +23,7 @@ export class MemoryProcessor implements ContextProcessor {
 
   /** 循环结束后提取事实存入语义记忆 */
   async resolve(ctx: ModelRequestContext): Promise<void> {
+    if (!this.memoryStore.semantic) return;
     const facts = this.extractFacts(ctx);
     for (const fact of facts) {
       await this.memoryStore.semantic.create(fact);
@@ -64,6 +65,7 @@ export class MemoryProcessor implements ContextProcessor {
 
   /** 语义召回长期记忆 */
   private async injectSemanticRecall(ctx: ModelRequestContext): Promise<void> {
+    if (!this.memoryStore.semantic) return;
     const query = ctx.getLastUserMessage();
     if (!query) return;
 
