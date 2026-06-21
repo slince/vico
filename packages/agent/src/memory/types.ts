@@ -25,18 +25,6 @@ export interface SemanticRecallMemory {
   delete(id: string): Promise<void>;
 }
 
-/** 向量存储适配器 — 按向量进行相似度检索与持久化 */
-export interface VectorStore {
-  /** 添加一条带向量的记忆记录 */
-  add(record: MemoryRecord): Promise<void>;
-  /** 按向量相似度检索 limit 条记录 */
-  search(embedding: number[], limit: number): Promise<MemoryRecord[]>;
-  /** 更新记录 */
-  update(id: string, patch: Partial<MemoryRecord>): Promise<void>;
-  /** 删除记录 */
-  delete(id: string): Promise<void>;
-}
-
 /** 工作记忆 — 模板驱动的用户事实存储，LLM 自主更新 */
 export interface WorkingMemory {
   /** 作用域 */

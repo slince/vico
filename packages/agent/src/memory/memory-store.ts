@@ -10,7 +10,6 @@ import { InMemorySemanticRecall } from './semantic/in-memory-semantic-recall.js'
 import { InMemoryWorkingMemory } from './working/in-memory-working-memory.js';
 import { InMemoryRagProvider } from '../rag/in-memory-rag-provider.js';
 import { VectorSemanticRecall } from './semantic/vector-semantic-recall.js';
-import { RagVectorStore } from './semantic/rag-vector-store.js';
 
 /** MemoryStore 构造选项 — 各层均可选，未提供时使用内存默认实现 */
 export interface MemoryStoreOptions {
@@ -49,7 +48,6 @@ export class MemoryStore {
     } else if (options.embedder) {
       this.semantic = new VectorSemanticRecall({
         embedder: options.embedder,
-        vectorStore: new RagVectorStore(),
       });
     } else {
       this.semantic = new InMemorySemanticRecall();
