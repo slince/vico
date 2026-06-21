@@ -197,7 +197,7 @@ export class Vico {
 
   /** 为 Agent 构建 AgentLoop */
   private buildLoop(agent: Agent, modelClient: ModelClient, skills: Skill[]): AgentLoop {
-    const memoryStore = agent.memory ?? this.memory;
+    const memory = agent.memory ?? this.memory;
 
     // prompt context processor
     const processors: ContextProcessor[] = [
@@ -207,9 +207,9 @@ export class Vico {
 
     const toolBroker = new ToolBroker();
 
-    if (memoryStore) {
-      processors.push(new MemoryProcessor(memoryStore));
-      toolBroker.addSource(createMemoryToolSource(memoryStore))
+    if (memory) {
+      processors.push(new MemoryProcessor(memory));
+      toolBroker.addSource(createMemoryToolSource(memory))
     }
 
     // 注册自定义的tool
