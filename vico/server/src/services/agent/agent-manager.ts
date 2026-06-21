@@ -4,7 +4,6 @@ import { getDb, schema } from '../../db/db.js';
 import { agentToolStore } from '../../agent/tools/agent-tool-store.js';
 import { modelManager } from '../model/model-manager.js';
 import { skillManager } from '../../skill/manager.js';
-import { resolveModelProvider } from '../../agent/bridges/model-bridge.js';
 import {
   createAgentSchema,
   updateAgentSchema,
@@ -131,17 +130,13 @@ class AgentManager {
     const agent = await this.getById(tenantId, agentId);
     if (!agent) return null;
 
-    // 解析模型
+    // 解析模型配置
     let model: AgentRuntimeConfig['model'] | null = null;
     if (agent.model_id) {
-      model = await modelManager.resolveModelConfig(tenantId, agent.model_id);
+      model = await modelManager.getById(tenantId, agent.model_id);
     }
     if (!model) {
-      // 模型未配置或解析失败，回退到默认模型
-      const defaultConfig = await modelManager.getDefault(tenantId);
-      if (defaultConfig) {
-        model = resolveModelProvider(defaultConfig);
-      }
+      model = await modelManager.getDefault(tenantId);
     }
     if (!model) return null;
 

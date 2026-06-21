@@ -1,9 +1,8 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，runTurn 执行。
  */
-import {type ModelMessage, type Tool, type TurnEvent, type TurnResult, type Agent} from '@vico/agent';
+import {type Agent, type ModelMessage, type Tool, type TurnEvent, type TurnResult} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
-import {modelManager} from '../services/model/model-manager.js';
 import logger from '../lib/logger.js';
 import {vico} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
@@ -44,7 +43,7 @@ export async function executeAgentChat(
   if (!agent) {
     const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
     if (!agentConfig) throw new Error('Agent not found');
-    agent = await createAgentWithVico(agentId, tenantId, agentConfig);
+    agent = await createAgentWithVico(agentConfig);
   }
 
   const userMessage: ModelMessage = { role: 'user', content: message };
@@ -67,28 +66,21 @@ export function invalidateAgentCache(_tenantId: string, agentId: string): void {
 // 通过 Vico 创建 Agent
 // ---------------------------------------------------------------------------
 
-async function createAgentWithVico(
-  agentId: string,
-  tenantId: string,
-  runtimeConfig: AgentRuntimeConfig,
-): Promise<Agent> {
-  const { agent } = runtimeConfig;
-
-  const modelConfig = await modelManager.getDefault(tenantId);
-  if (!modelConfig) throw new Error('No LLM model configured');
+async function createAgentWithVico(runtimeConfig: AgentRuntimeConfig): Promise<Agent> {
+  const { agent, model } = runtimeConfig;
 
   // 加载 Agent 绑定的 Skill 工具 + RAG 工具
   const tools = await loadTools(agent);
 
   return vico.createAgent({
-    id: agentId,
+    id: agent.id,
     name: agent.name,
     systemPrompt: agent.system_prompt || '',
     model: {
-      provider: modelConfig.provider,
-      model: modelConfig.model_name,
-      baseUrl: modelConfig.base_url || undefined,
-      apiKey: modelConfig.api_key || undefined,
+      provider: model.provider,
+      model: model.model_name,
+      baseUrl: model.base_url || undefined,
+      apiKey: model.api_key || undefined,
     },
     temperature: agent.temperature ?? 0.7,
     maxTokens: agent.max_tokens ?? 4096,
