@@ -54,6 +54,7 @@ export class AISDKModelClient implements ModelClient {
         abortSignal: request.abortSignal,
       });
 
+
       let usageEmitted = false;
 
       for await (const chunk of result.fullStream) {
