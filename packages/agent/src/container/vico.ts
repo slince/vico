@@ -1,7 +1,6 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import type {AgentConfig} from '../agent-loop/types.js';
-import type {TurnResult} from '../agent-loop/types.js';
-import {Agent, type AgentFactory} from '../agent-loop/types.js';
+import type {AgentConfig, TurnEvent, TurnResult} from '../agent-loop/types.js';
+import {Agent} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import type {ModelClient, ModelClientFactory, ModelMessage} from '../model/types.js';
 import {defaultModelFactory} from '../model/factory.js';
@@ -11,7 +10,6 @@ import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import {createSkillToolSource} from '../skill/skill-tool-source.js';
 import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
-import type {TurnEvent} from '../agent-loop/types.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillCatalogProcessor} from '../skill/skill-catalog-processor.js';
@@ -53,8 +51,8 @@ export interface InvokeOptions {
  * const vico = new Vico({ skillRoots: ['./skills'] });
  * await vico.init();
  *
- * // 创建 Agent 并注册到 Runtime（使用默认 modelFactory）
- * await vico.runtime.createAgent(config);
+ * // 创建 Agent 并注册到 Runtime
+ * await vico.createAgent(config);
  *
  * // 一行对话
  * const result = await vico.invoke(config.id, 'Hello');
@@ -75,7 +73,7 @@ export class Vico {
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.modelFactory = options.modelFactory ?? defaultModelFactory;
-    this.runtime = this.createRuntime(this.modelFactory);
+    this.runtime = new AgentRuntime(this.options.maxCached);
     this.skillManager = new SkillManager(new FSSkillLoader());
 
     if (options.toolSources) {
@@ -101,10 +99,18 @@ export class Vico {
     this.initialized = true;
   }
 
+  /** 构建 Agent 并注册到 Runtime */
+  async createAgent(config: AgentConfig): Promise<Agent> {
+    const mc = this.modelFactory(config.model);
+    const agent = await this.buildAgent(config, mc);
+    this.runtime.register(agent);
+    return agent;
+  }
+
   /**
    * 创建单个 Agent（无缓存），绑定 skills / tools。
    */
-  async createAgent(config: AgentConfig, modelClient: ModelClient): Promise<Agent> {
+  private async buildAgent(config: AgentConfig, modelClient: ModelClient): Promise<Agent> {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
@@ -159,21 +165,12 @@ export class Vico {
     return agent;
   }
 
-  /** 创建 AgentRuntime */
-  private createRuntime(factory: ModelClientFactory): AgentRuntime {
-    const agentFactory: AgentFactory = async (config) => {
-      const mc = factory(config.model);
-      return this.createAgent(config, mc);
-    };
-    return new AgentRuntime(agentFactory, this.options.maxCached);
-  }
-
   /**
    * 一行对话：从 Runtime 中查找 Agent，发送消息并返回结果。
    *
    * @example
    * ```ts
-   * await vico.runtime.createAgent(config);
+   * await vico.createAgent(config);
    * const result = await vico.invoke(config.id, 'Hello!');
    * ```
    */
@@ -181,7 +178,7 @@ export class Vico {
     const agent = this.runtime.getAgent(agentId);
     if (!agent) {
       throw new Error(
-        `Agent "${agentId}" not found in runtime. Create it first via runtime.createAgent().`,
+        `Agent "${agentId}" not found in runtime. Create it first via vico.createAgent().`,
       );
     }
 
@@ -201,7 +198,7 @@ export class Vico {
     const agent = this.runtime.getAgent(agentId);
     if (!agent) {
       throw new Error(
-        `Agent "${agentId}" not found in runtime. Create it first via runtime.createAgent().`,
+        `Agent "${agentId}" not found in runtime. Create it first via vico.createAgent().`,
       );
     }
 

@@ -1,7 +1,5 @@
 // @vico/agent - AgentRuntime: manages Agent lifecycle with LRU cache
-import { Agent, type AgentFactory } from './types.js';
-import type { AgentConfig } from './types.js';
-
+import { Agent } from './types.js';
 
 /** Agent 缓存条目 */
 interface CacheEntry {
@@ -9,61 +7,39 @@ interface CacheEntry {
   lastUsedAt: number;
 }
 
-/** AgentRuntime — LRU 缓存 + 动态 Agent 生命周期 */
+/** AgentRuntime — 负责 Agent 的注册、缓存和 LRU 淘汰 */
 export class AgentRuntime {
   private cache: Map<string, CacheEntry> = new Map();
-  private factory: AgentFactory;
   private maxCached: number;
 
-  constructor(factory: AgentFactory, maxCached = 50) {
-    this.factory = factory;
+  constructor(maxCached = 50) {
     this.maxCached = maxCached;
   }
 
-  /** 缓存键 = agent_id */
-  private cacheKey(config: AgentConfig): string {
-    return config.id;
-  }
-
-  async createAgent(config: AgentConfig): Promise<Agent> {
-    const key = this.cacheKey(config);
+  /** 注册 Agent 并纳入缓存 */
+  register(agent: Agent): void {
+    const key = agent.config.id;
     const existing = this.cache.get(key);
     if (existing) {
+      existing.agent = agent;
       existing.lastUsedAt = Date.now();
-      return existing.agent;
+      return;
     }
 
-    const agent = await this.factory(config);
     this.cache.set(key, { agent, lastUsedAt: Date.now() });
     this.evictIfNeeded();
-    return agent;
   }
 
-  async destroyAgent(agentId: string): Promise<void> {
-    for (const [key, entry] of this.cache) {
-      if (entry.agent.config.id === agentId) {
-        this.cache.delete(key);
-      }
-    }
-  }
-
-  async updateAgent(agentId: string, patch: Partial<AgentConfig>): Promise<Agent> {
-    for (const [key, entry] of this.cache) {
-      if (entry.agent.config.id === agentId) {
-        const newConfig = { ...entry.agent.config, ...patch };
-        this.cache.delete(key);
-        return this.createAgent(newConfig);
-      }
-    }
-    throw new Error(`Agent ${agentId} not found in cache`);
+  /** 销毁（移除）Agent */
+  destroy(agentId: string): void {
+    this.cache.delete(agentId);
   }
 
   getAgent(agentId: string): Agent | undefined {
-    for (const entry of this.cache.values()) {
-      if (entry.agent.config.id === agentId) {
-        entry.lastUsedAt = Date.now();
-        return entry.agent;
-      }
+    const entry = this.cache.get(agentId);
+    if (entry) {
+      entry.lastUsedAt = Date.now();
+      return entry.agent;
     }
     return undefined;
   }
@@ -74,20 +50,6 @@ export class AgentRuntime {
       result.push(entry.agent);
     }
     return result;
-  }
-
-  async reloadAgent(agentId: string): Promise<Agent> {
-    for (const [key, entry] of this.cache) {
-      if (entry.agent.config.id === agentId) {
-        this.cache.delete(key);
-        return this.createAgent(entry.agent.config);
-      }
-    }
-    throw new Error(`Agent ${agentId} not found`);
-  }
-
-  isHealthy(agentId: string): boolean {
-    return this.getAgent(agentId) !== undefined;
   }
 
   /** LRU 淘汰：超过 maxCached 时移除最久未使用的条目 */

@@ -1,7 +1,7 @@
-// agent-runtime.test.ts — tests for AgentRuntime: create, cache, LRU eviction, lifecycle
+// agent-runtime.test.ts — tests for AgentRuntime: register, destroy, LRU eviction
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AgentRuntime } from '../agent-loop/agent-runtime.js';
-import { Agent, type AgentFactory } from '../agent-loop/types.js';
+import { Agent } from '../agent-loop/types.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 
 function makeConfig(id: string): AgentConfig {
@@ -16,75 +16,74 @@ function makeConfig(id: string): AgentConfig {
   };
 }
 
+function makeAgent(id: string): Agent {
+  return new Agent({ config: makeConfig(id), loopFactory: () => ({} as any) });
+}
+
 describe('AgentRuntime', () => {
-  let factoryCallCount = 0;
   let runtime: AgentRuntime;
 
-  const factory: AgentFactory = async (config) => {
-    factoryCallCount++;
-    return new Agent({ config, loopFactory: () => ({} as any) });
-  };
-
   beforeEach(() => {
-    factoryCallCount = 0;
-    runtime = new AgentRuntime(factory, 10);
+    runtime = new AgentRuntime(10);
   });
 
-  it('creates agent via factory', async () => {
-    const agent = await runtime.createAgent(makeConfig('agent-1'));
-    expect(agent.config.name).toBe('agent-agent-1');
-    expect(factoryCallCount).toBe(1);
+  it('registers and retrieves agent', () => {
+    const agent = makeAgent('agent-1');
+    runtime.register(agent);
+    expect(runtime.getAgent('agent-1')?.config.name).toBe('agent-agent-1');
   });
 
-  it('returns cached agent on second create', async () => {
-    await runtime.createAgent(makeConfig('agent-1'));
-    await runtime.createAgent(makeConfig('agent-1'));
-    expect(factoryCallCount).toBe(1); // factory only called once
+  it('re-register replaces existing agent', () => {
+    const agent1 = makeAgent('agent-1');
+    runtime.register(agent1);
+    const agent2 = makeAgent('agent-1');
+    agent2.config.name = 'updated-name';
+    runtime.register(agent2);
+    expect(runtime.getAgent('agent-1')?.config.name).toBe('updated-name');
   });
 
-  it('lists all agents', async () => {
-    await runtime.createAgent(makeConfig('agent-1'));
-    await runtime.createAgent(makeConfig('agent-2'));
-    await runtime.createAgent(makeConfig('agent-3'));
+  it('lists all registered agents', () => {
+    runtime.register(makeAgent('agent-1'));
+    runtime.register(makeAgent('agent-2'));
+    runtime.register(makeAgent('agent-3'));
 
     const agents = runtime.listAgents();
     expect(agents).toHaveLength(3);
   });
 
-  it('destroys agent', async () => {
-    await runtime.createAgent(makeConfig('agent-1'));
-    await runtime.destroyAgent('agent-1');
+  it('destroys agent', () => {
+    runtime.register(makeAgent('agent-1'));
+    runtime.destroy('agent-1');
     expect(runtime.getAgent('agent-1')).toBeUndefined();
   });
 
-  it('updates agent config', async () => {
-    await runtime.createAgent(makeConfig('agent-1'));
-    const updated = await runtime.updateAgent('agent-1', { name: 'new-name' });
-    expect(updated.config.name).toBe('new-name');
-    expect(factoryCallCount).toBe(2); // re-created via factory
-  });
+  it('evicts LRU when over capacity', () => {
+    const smallRuntime = new AgentRuntime(3);
+    smallRuntime.register(makeAgent('agent-1'));
+    smallRuntime.register(makeAgent('agent-2'));
+    smallRuntime.register(makeAgent('agent-3'));
 
-  it('reloads agent', async () => {
-    await runtime.createAgent(makeConfig('agent-1'));
-    await runtime.reloadAgent('agent-1');
-    expect(factoryCallCount).toBe(2);
-  });
+    // touch agent-2, agent-3 so agent-1 becomes oldest
+    smallRuntime.getAgent('agent-2');
+    smallRuntime.getAgent('agent-3');
 
-  it('evicts LRU when over capacity', async () => {
-    const smallRuntime = new AgentRuntime(factory, 3);
-    await smallRuntime.createAgent(makeConfig('agent-1'));
-    await smallRuntime.createAgent(makeConfig('agent-2'));
-    await smallRuntime.createAgent(makeConfig('agent-3'));
-    await smallRuntime.createAgent(makeConfig('agent-4')); // triggers eviction
+    smallRuntime.register(makeAgent('agent-4')); // triggers eviction
 
     // agent-1 should be evicted (oldest)
     expect(smallRuntime.getAgent('agent-1')).toBeUndefined();
     expect(smallRuntime.getAgent('agent-4')).toBeDefined();
   });
 
-  it('isHealthy returns true for cached agent', async () => {
-    await runtime.createAgent(makeConfig('agent-1'));
-    expect(runtime.isHealthy('agent-1')).toBe(true);
-    expect(runtime.isHealthy('agent-nonexistent')).toBe(false);
+  it('getAgent updates lastUsedAt (LRU tracking)', () => {
+    const smallRuntime = new AgentRuntime(2);
+    smallRuntime.register(makeAgent('agent-1'));
+    smallRuntime.register(makeAgent('agent-2'));
+
+    // Touch agent-1 so agent-2 becomes the LRU target
+    smallRuntime.getAgent('agent-1');
+    smallRuntime.register(makeAgent('agent-3'));
+
+    expect(smallRuntime.getAgent('agent-1')).toBeDefined();
+    expect(smallRuntime.getAgent('agent-2')).toBeUndefined();
   });
 });
