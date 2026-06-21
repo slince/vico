@@ -19,6 +19,8 @@ import type {MemoryStore} from '../memory/memory-store.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
+import {createMemoryToolSource} from "../memory/memory-tool-source.js";
+import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 
 export type { ModelClientFactory } from '../model/types.js';
 
@@ -146,23 +148,37 @@ export class Vico {
   private buildLoop(agent: Agent, modelClient: ModelClient, skills: Skill[]): AgentLoop {
     const memoryStore = agent.memory ?? this.options.memoryStore;
 
+    // prompt context processor
     const processors: ContextProcessor[] = [
       new SystemPromptProcessor(),
       new SkillProcessor(skills),
     ];
+
+    const toolBroker = new ToolBroker();
+
     if (memoryStore) {
       processors.push(new MemoryProcessor(memoryStore));
+      toolBroker.addSource(createMemoryToolSource(memoryStore))
     }
 
+    // 注册自定义的tool
+    if (agent.tools) {
+      toolBroker.addSource({
+        name: "primary",
+        list: async () => agent.tools
+      })
+    }
+
+    toolBroker.addSource(createBuiltInToolSource())
+    
     return new AgentLoop({
       agent,
       model: modelClient,
-      toolBroker: this.toolBroker,
+      toolBroker,
       processors,
       events: this.events,
       spanTracker: this.spanTracker,
       hooks: this.hooks,
-      workingMemory: memoryStore?.working,
     });
   }
 
