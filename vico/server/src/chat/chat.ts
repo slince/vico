@@ -1,12 +1,13 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，runTurn 执行。
  */
-import {type ModelMessage, type Tool, type TurnEvent, type TurnResult,} from '@vico/agent';
+import {type ModelMessage, type Tool, type TurnEvent, type TurnResult, type Agent} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
 import {modelManager} from '../services/model/model-manager.js';
 import logger from '../lib/logger.js';
 import {vico} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
+import {createRagSearchTool} from '../agent/tools/rag-tool.js';
 
 // ---------------------------------------------------------------------------
 // 类型
@@ -70,7 +71,7 @@ async function createAgentWithVico(
   agentId: string,
   tenantId: string,
   runtimeConfig: AgentRuntimeConfig,
-): Promise<import('@vico/agent').Agent> {
+): Promise<Agent> {
   const { agent } = runtimeConfig;
 
   const modelConfig = await modelManager.getDefault(tenantId);
@@ -108,7 +109,6 @@ async function loadTools(agent: any): Promise<Tool[]> {
   // RAG 工具
   if (agent.rag_mode !== 'disabled') {
     try {
-      const { createRagSearchTool } = await import('../agent/tools/rag-tool.js');
       const ragTool = await createRagSearchTool(agent);
       if (ragTool) tools.push(ragTool as unknown as Tool);
     } catch (err) {
