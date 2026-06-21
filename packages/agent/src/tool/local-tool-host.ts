@@ -1,7 +1,7 @@
 // src/tool/local-tool-host.ts
 import type { ToolSpec, ToolCall, ToolResult } from './types.js';
 import type { ToolHandler, ToolSource } from './types.js';
-import type { ToolHost, ToolExecutionContext } from './tool-host.js';
+import type { ToolHost, ToolExecutionContext } from './types.js';
 import { CapabilityRegistry } from './capability-registry.js';
 import { resolvePolicy } from './tool-policy.js';
 import { StormBreaker } from './storm-breaker.js';

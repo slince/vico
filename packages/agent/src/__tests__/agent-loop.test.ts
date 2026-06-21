@@ -1,7 +1,7 @@
 // agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
 import { describe, it, expect, vi } from 'vitest';
 import { AgentLoop, type AgentLoopOptions } from '../agent-loop/agent-loop.js';
-import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/model-client.js';
+import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/types.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';

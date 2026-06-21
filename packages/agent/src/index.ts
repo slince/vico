@@ -24,7 +24,7 @@ export {
   type ModelStreamChunk,
   type MessageRole,
   type ModelClientFactory,
-} from './model/model-client.js';
+} from './model/types.js';
 export { AISDKModelClient } from './model/ai-sdk-adapter.js';
 export { defaultModelFactory } from './model/factory.js';
 
@@ -59,7 +59,7 @@ export {
   type ToolExecutionContext,
   type ApprovalDecision,
   type ToolStore,
-} from './tool/tool-host.js';
+} from './tool/types.js';
 
 // Tool system
 export { LocalToolHost, type ToolSource, type ToolHandler } from './tool/local-tool-host.js';
@@ -95,7 +95,7 @@ export {
   type Thread,
   type Turn,
   type Message,
-} from './session/session-store.js';
+} from './session/types.js';
 export { InMemorySessionStore } from './session/memory-session-store.js';
 export { FileSessionStore, type FileSessionStoreOptions } from './session/file-session-store.js';
 
@@ -106,7 +106,7 @@ export { ContextCompactor } from './agent-loop/context-compactor.js';
 export {
   type HookEvent,
   type HookResult,
-} from './hook/hook-types.js';
+} from './hook/types.js';
 export { HookRunner, CompositeHookRunner } from './hook/hook-runner.js';
 
 // Observable

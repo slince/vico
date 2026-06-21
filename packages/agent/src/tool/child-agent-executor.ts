@@ -1,9 +1,9 @@
 // src/tool/child-agent-executor.ts
 import type { ToolSpec, ToolCall, ToolResult } from './types.js';
-import type { ToolExecutionContext } from './tool-host.js';
+import type { ToolExecutionContext } from './types.js';
 import type { DelegateStrategy, ChildAgentRef } from './types.js';
 import type { AgentLoop } from '../agent-loop/agent-loop.js';
-import type { ModelMessage } from '../model/model-client.js';
+import type { ModelMessage } from '../model/types.js';
 
 export type { DelegateStrategy, ChildAgentRef } from './types.js';
 

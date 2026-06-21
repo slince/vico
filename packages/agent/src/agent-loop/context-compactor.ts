@@ -1,5 +1,5 @@
 // src/agent-loop/context-compactor.ts
-import type { ModelMessage, ModelClient } from '../model/model-client.js';
+import type { ModelMessage, ModelClient } from '../model/types.js';
 
 /** 简单的 Token 估算（4 字符 ≈ 1 token） */
 function estimateTokens(messages: ModelMessage[]): number {

@@ -3,7 +3,7 @@ import type {AgentConfig} from '../agent-loop/types.js';
 import type {TurnResult} from '../agent-loop/types.js';
 import {Agent, type AgentFactory} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import type {ModelClient, ModelClientFactory, ModelMessage} from '../model/model-client.js';
+import type {ModelClient, ModelClientFactory, ModelMessage} from '../model/types.js';
 import {defaultModelFactory} from '../model/factory.js';
 import type {ToolSource} from '../tool/types.js';
 import {LocalToolHost} from '../tool/local-tool-host.js';
