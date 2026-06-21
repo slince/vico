@@ -4,15 +4,14 @@ import type { MySql2Database } from 'drizzle-orm/mysql2';
 import type * as schema from './schema.js';
 
 /**
- * Ensure all tables exist (CREATE TABLE IF NOT EXISTS).
- * Callers should call this once at application startup; idempotent and safe.
+ * 确保所有表存在（CREATE TABLE IF NOT EXISTS）。
+ * 调用方在应用启动时调用一次即可，幂等安全。
  *
- * Note: This only guarantees table/index existence; it does NOT handle
- * column changes. Production environments should use drizzle-kit generate
- * + migrate() for complete migration management.
+ * 注意：这仅保证表/索引存在，不处理列变更。
+ * 生产环境建议用 drizzle-kit generate + migrate() 管理完整迁移。
  *
- * MySQL does not support CREATE INDEX IF NOT EXISTS, so index creation
- * catches ER_DUP_KEYNAME (error 1061) to keep the call idempotent.
+ * MySQL 不支持 CREATE INDEX IF NOT EXISTS / ALTER TABLE ADD CONSTRAINT IF NOT EXISTS，
+ * 外键和索引的幂等通过 catch 对应错误码实现。
  *
  * @example
  * ```ts
@@ -23,9 +22,9 @@ import type * as schema from './schema.js';
 export async function ensureTables(
   db: MySql2Database<typeof schema>,
 ): Promise<void> {
-  // Session threads table — one record per conversation session
+  // Threads table — one record per conversation thread
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS vico_session_threads (
+    CREATE TABLE IF NOT EXISTS vico_threads (
       id VARCHAR(36) PRIMARY KEY,
       agent_id VARCHAR(36) NOT NULL,
       title TEXT,
@@ -36,19 +35,18 @@ export async function ensureTables(
 
   // Conversation turns table — one Agent interaction = one turn
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS vico_session_turns (
+    CREATE TABLE IF NOT EXISTS vico_turns (
       id VARCHAR(36) PRIMARY KEY,
       thread_id VARCHAR(36) NOT NULL,
       status VARCHAR(36) NOT NULL DEFAULT 'running',
       steps INT NOT NULL DEFAULT 0,
-      created_at BIGINT NOT NULL,
-      FOREIGN KEY (thread_id) REFERENCES vico_session_threads(id) ON DELETE CASCADE
+      created_at BIGINT NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
   // Messages table — single conversation record (user/assistant/tool)
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS vico_session_messages (
+    CREATE TABLE IF NOT EXISTS vico_messages (
       id VARCHAR(36) PRIMARY KEY,
       thread_id VARCHAR(36) NOT NULL,
       turn_id VARCHAR(36) NOT NULL,
@@ -57,19 +55,9 @@ export async function ensureTables(
       tool_call_id VARCHAR(255),
       tool_calls JSON,
       tool_results JSON,
-      created_at BIGINT NOT NULL,
-      FOREIGN KEY (thread_id) REFERENCES vico_session_threads(id) ON DELETE CASCADE,
-      FOREIGN KEY (turn_id) REFERENCES vico_session_turns(id) ON DELETE CASCADE
+      created_at BIGINT NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
-
-  // Index for message retrieval by thread_id
-  await _addIndexIfNotExists(
-    db,
-    'vico_session_messages',
-    'idx_sm_thread',
-    'thread_id',
-  );
 
   // Memory entries table — type='working' for working memory,
   // type='semantic' for semantic memory
@@ -88,33 +76,31 @@ export async function ensureTables(
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
-  // Index for memory retrieval by (scope_type, scope_id, type)
-  await _addIndexIfNotExists(
-    db,
-    'vico_memory_entries',
-    'idx_me_scope',
-    'scope_type, scope_id, type',
-  );
+  // --- Foreign keys ---
 
-  // Index for ordering by type + importance
-  await _addIndexIfNotExists(
-    db,
-    'vico_memory_entries',
-    'idx_me_type_imp',
-    'type, importance',
-  );
+  await _addFKIfNotExists(db, 'vico_turns',
+    'fk_turns_thread', 'FOREIGN KEY (thread_id) REFERENCES vico_threads(id) ON DELETE CASCADE');
 
-  // Index for tracing associated memory by thread_id
-  await _addIndexIfNotExists(
-    db,
-    'vico_memory_entries',
-    'idx_me_thread',
-    'thread_id',
-  );
+  await _addFKIfNotExists(db, 'vico_messages',
+    'fk_messages_thread', 'FOREIGN KEY (thread_id) REFERENCES vico_threads(id) ON DELETE CASCADE');
+
+  await _addFKIfNotExists(db, 'vico_messages',
+    'fk_messages_turn', 'FOREIGN KEY (turn_id) REFERENCES vico_turns(id) ON DELETE CASCADE');
+
+  // --- Indexes ---
+
+  await _addIndexIfNotExists(db, 'vico_messages', 'idx_msg_thread', 'thread_id');
+
+  await _addIndexIfNotExists(db, 'vico_memory_entries', 'idx_me_scope', 'scope_type, scope_id, type');
+
+  await _addIndexIfNotExists(db, 'vico_memory_entries', 'idx_me_type_imp', 'type, importance');
+
+  await _addIndexIfNotExists(db, 'vico_memory_entries', 'idx_me_thread', 'thread_id');
 }
 
-/** MySQL error code for duplicate index / key name */
+/** MySQL error codes for duplicate key/index name */
 const ER_DUP_KEYNAME = 1061;
+const ER_DUP_KEY = 1022;
 
 /**
  * 创建索引，MySQL 不支持 IF NOT EXISTS，通过 catch ER_DUP_KEYNAME 实现幂等
@@ -134,6 +120,26 @@ async function _addIndexIfNotExists(
   } catch (e: unknown) {
     const err = e as { errno?: number };
     if (err.errno !== ER_DUP_KEYNAME) throw e;
-    // Index already exists — silently skip
+  }
+}
+
+/**
+ * 添加外键约束，MySQL 不支持 IF NOT EXISTS，通过 catch ER_DUP_KEY 实现幂等
+ */
+async function _addFKIfNotExists(
+  db: MySql2Database<typeof schema>,
+  tableName: string,
+  fkName: string,
+  fkBody: string,
+): Promise<void> {
+  try {
+    await db.execute(
+      sql.raw(
+        `ALTER TABLE ${tableName} ADD CONSTRAINT ${fkName} ${fkBody}`,
+      ),
+    );
+  } catch (e: unknown) {
+    const err = e as { errno?: number };
+    if (err.errno !== ER_DUP_KEY) throw e;
   }
 }

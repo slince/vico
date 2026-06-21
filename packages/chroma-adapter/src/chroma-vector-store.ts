@@ -1,6 +1,6 @@
 // @vico/chroma — Chroma-backed VectorStore (implements @vico/rag VectorStore)
-import type { ChromaClient, Collection, Metadata, Where } from 'chromadb';
-import type { VectorStore, DistanceMetric, VectorQueryResult } from '@vico/rag';
+import type {ChromaClient, Collection, Metadata, Where} from 'chromadb';
+import type {DistanceMetric, VectorQueryResult, VectorStore} from '@vico/rag';
 
 /** ChromaVectorStore 构造选项 */
 export interface ChromaVectorStoreOptions {
@@ -23,7 +23,6 @@ interface IndexEntry {
  * 支持 lazily 创建和缓存的 collection 管理。
  *
  * @example
- * ```ts
  * import { ChromaClient } from 'chromadb';
  * import { ChromaVectorStore } from '@vico/chroma-adapter';
  *
