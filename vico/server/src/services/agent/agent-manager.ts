@@ -1,7 +1,6 @@
 import { eq, and, desc, inArray, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
-import { agentToolStore } from '../../agent/tools/agent-tool-store.js';
 import { modelManager } from '../model/model-manager.js';
 import { skillManager } from '../../skill/manager.js';
 import {
@@ -181,8 +180,6 @@ class AgentManager {
       created_at: now,
       updated_at: now,
     }).run();
-
-    agentToolStore.invalidate(tenantId);
     return (await this.getById(tenantId, id))!;
   }
 
@@ -227,8 +224,6 @@ class AgentManager {
     await db.update(agents).set(updateData)
       .where(and(eq(agents.tenant_id, tenantId), eq(agents.id, id)))
       .run();
-
-    agentToolStore.invalidate(tenantId);
   }
 
   /**
@@ -245,9 +240,7 @@ class AgentManager {
       throw new Error('Cannot delete the default agent');
     }
     await db.delete(agent_skills).where(eq(agent_skills.agent_id, id)).run();
-    await db.delete(agents).where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId))).run();
-    agentToolStore.invalidate(tenantId);
-  }
+    await db.delete(agents).where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId))).run();  }
 
   /**
    * 获取租户的默认 Agent（is_default=1），不存在时返回 null。
@@ -278,9 +271,7 @@ class AgentManager {
         target: [agent_skills.agent_id, agent_skills.skill_name],
         set: { config: JSON.stringify(s.config || {}) },
       }).run();
-    }
-    agentToolStore.invalidate(tenantId);
-  }
+    }  }
 
   /**
    * 设置 Agent 绑定的知识库（单 KB）。
@@ -294,8 +285,6 @@ class AgentManager {
       .set({ kb_id: kb_id ?? null, updated_at: Date.now() })
       .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
       .run();
-
-    agentToolStore.invalidate(tenantId);
   }
 }
 

@@ -2,9 +2,7 @@ import { eq, and } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
 import { encryptApiKey, decryptApiKey } from '../../lib/crypto.js';
-import { resolveModelProvider } from '../../agent/bridges/model-bridge.js';
 import type { ModelConfigRow } from './types.js';
-import type { LanguageModel } from 'ai';
 
 const { model_configs } = schema;
 
@@ -49,20 +47,6 @@ class ModelManager {
       .get();
     if (!row) return null;
     return { ...row, api_key: decryptApiKey(row.api_key) } as ModelConfigRow;
-  }
-
-  /**
-   * 根据模型 ID 查询配置并转换为 Mastra 可用的模型实例。
-   *
-   * 组合 getById + resolveModelProvider，调用方只需传入 model_id 即可获得
-   * 可直接注入 Mastra Agent 的模型对象。
-   *
-   * @returns MastraModelConfig 实例，未找到时返回 null
-   */
-  async resolveModelConfig(tenantId: string, modelId: string): Promise<LanguageModel | null> {
-    const config = await this.getById(tenantId, modelId);
-    if (!config) return null;
-    return resolveModelProvider(config);
   }
 
   /** 新增模型配置，若设为默认则先取消其他默认 */
