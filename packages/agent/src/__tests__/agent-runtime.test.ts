@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { AgentRuntime } from '../agent-loop/agent-runtime.js';
 import { Agent } from '../agent-loop/types.js';
 import type { AgentConfig } from '../agent-loop/types.js';
+import { MemoryStore } from '../memory/memory-store.js';
+import { InMemorySessionStore } from '../session/memory-session-store.js';
 
 function makeConfig(id: string): AgentConfig {
   return {
@@ -17,7 +19,11 @@ function makeConfig(id: string): AgentConfig {
 }
 
 function makeAgent(id: string): Agent {
-  return new Agent({ config: makeConfig(id) });
+  return new Agent({
+    config: makeConfig(id),
+    memory: new MemoryStore(),
+    session: new InMemorySessionStore(),
+  });
 }
 
 describe('AgentRuntime', () => {

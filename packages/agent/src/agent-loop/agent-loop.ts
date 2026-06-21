@@ -71,8 +71,8 @@ export class AgentLoop {
 
     // 确保 session 中的 thread 和 turn 存在
     const session = this.agent.session;
-    let thread = await session?.getThread(threadId);
-    if (!thread && session) {
+    let thread = await session.getThread(threadId);
+    if (!thread) {
       const title = typeof userMessage.content === 'string'
         ? userMessage.content.slice(0, 50)
         : 'New thread';

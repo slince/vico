@@ -97,8 +97,8 @@ export class Agent {
   readonly config: AgentConfig;
   readonly skills: Skill[];
   readonly tools: Tool[];
-  readonly memory?: MemoryStore;
-  readonly session?: SessionStore;
+  readonly memory: MemoryStore;
+  readonly session: SessionStore;
 
   /** AgentLoop 实例，由容器在构建时注入 */
   loop?: AgentLoop;
@@ -107,8 +107,8 @@ export class Agent {
     config: AgentConfig;
     skills?: Skill[];
     tools?: Tool[];
-    memory?: MemoryStore;
-    session?: SessionStore;
+    memory: MemoryStore;
+    session: SessionStore;
   }) {
     this.config = params.config;
     this.skills = params.skills ?? [];

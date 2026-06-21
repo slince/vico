@@ -7,6 +7,8 @@ import type { AgentConfig } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
 import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
+import { MemoryStore } from '../memory/memory-store.js';
+import { InMemorySessionStore } from '../session/memory-session-store.js';
 
 function makeConfig(): AgentConfig {
   return {
@@ -18,6 +20,14 @@ function makeConfig(): AgentConfig {
     maxTokens: 4096,
     maxSteps: 3,
   };
+}
+
+function makeAgent() {
+  return new Agent({
+    config: makeConfig(),
+    memory: new MemoryStore(),
+    session: new InMemorySessionStore(),
+  });
 }
 
 /** 创建一个返回预设 chunks 的 mock ModelClient */
@@ -51,7 +61,7 @@ describe('AgentLoop', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const agent = new Agent({ config: makeConfig() });
+    const agent = makeAgent();
 
     const loop = new AgentLoop({
       agent,
@@ -87,7 +97,7 @@ describe('AgentLoop', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const agent = new Agent({ config: makeConfig() });
+    const agent = makeAgent();
 
     const loop = new AgentLoop({
       agent,
@@ -138,7 +148,7 @@ describe('AgentLoop', () => {
       },
     };
 
-    const agent = new Agent({ config: makeConfig() });
+    const agent = makeAgent();
 
     const loop = new AgentLoop({
       agent,
