@@ -12,7 +12,7 @@ import type {AgentLoop} from './agent-loop.js';
 import type {Skill, SkillStore} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {WorkingMemory} from '../memory/types.js';
-import type {SessionStore} from '../session/types.js';
+import type {ThreadStore} from '../thread/types.js';
 
 /** 模型引用 */
 export const ModelRefSchema = z.object({
@@ -40,8 +40,8 @@ export type AgentConfig = z.infer<typeof AgentConfigSchema> & {
   skills?: SkillStore;
   /** Agent 自身 memory（优先于容器 memoryStore） */
   memory?: MemoryStore;
-  /** Agent 自身 session（优先于容器 sessionStore） */
-  session?: SessionStore;
+  /** Agent 自身 thread（优先于容器 threadStore） */
+  thread?: ThreadStore;
 };
 export type ModelRef = z.infer<typeof ModelRefSchema>;
 
@@ -87,14 +87,14 @@ export interface AgentLoopOptions {
   workingMemory?: WorkingMemory;
 }
 
-/** Agent — 配置 + 运行时 loop + 绑定（memory/session/skills/tools） */
+/** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
 export class Agent {
   readonly config: AgentConfig;
   readonly model: ModelClient;
   readonly skills: Skill[];
   readonly tools: Tool[];
   readonly memory: MemoryStore;
-  readonly session: SessionStore;
+  readonly thread: ThreadStore;
 
   /** AgentLoop 实例，由容器在构建时注入 */
   loop?: AgentLoop;
@@ -105,14 +105,14 @@ export class Agent {
     skills?: Skill[];
     tools?: Tool[];
     memory: MemoryStore;
-    session: SessionStore;
+    thread: ThreadStore;
   }) {
     this.config = params.config;
     this.model = params.model;
     this.skills = params.skills ?? [];
     this.tools = params.tools ?? [];
     this.memory = params.memory;
-    this.session = params.session;
+    this.thread = params.thread;
   }
 
   getLoop(): AgentLoop {

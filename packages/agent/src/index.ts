@@ -101,15 +101,15 @@ export { createSkillToolSource } from './skill/skill-tool-source.js';
 export { formatSkillCatalog } from './skill/skills-processor.js';
 export { ManagedSkillStore } from './skill/managed-skill-store.js';
 
-/** Ports — SessionStore */
+/** Ports — ThreadStore */
 export {
-  type SessionStore,
+  type ThreadStore,
   type Thread,
   type Turn,
   type Message,
-} from './session/types.js';
-export { InMemorySessionStore } from './session/memory-session-store.js';
-export { FileSessionStore, type FileSessionStoreOptions } from './session/file-session-store.js';
+} from './thread/types.js';
+export { InMemoryThreadStore } from './thread/memory-thread-store.js';
+export { FileThreadStore, type FileThreadStoreOptions } from './thread/file-thread-store.js';
 
 // ContextCompactor
 export { ContextCompactor } from './agent-loop/context-compactor.js';

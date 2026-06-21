@@ -8,7 +8,7 @@ import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
 import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
 import { MemoryStore } from '../memory/memory-store.js';
-import { InMemorySessionStore } from '../session/memory-session-store.js';
+import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
 
 function makeConfig(): AgentConfig {
   return {
@@ -27,7 +27,7 @@ function makeAgent(model: ModelClient) {
     config: makeConfig(),
     model,
     memory: new MemoryStore(),
-    session: new InMemorySessionStore(),
+    thread: new InMemoryThreadStore(),
   });
 }
 

@@ -4,7 +4,7 @@ import { AgentRuntime } from '../agent-loop/agent-runtime.js';
 import { Agent } from '../agent-loop/types.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MemoryStore } from '../memory/memory-store.js';
-import { InMemorySessionStore } from '../session/memory-session-store.js';
+import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
 import type { ModelClient } from '../model/types.js';
 
 const mockModel: ModelClient = {
@@ -30,7 +30,7 @@ function makeAgent(id: string): Agent {
     config: makeConfig(id),
     model: mockModel,
     memory: new MemoryStore(),
-    session: new InMemorySessionStore(),
+    thread: new InMemoryThreadStore(),
   });
 }
 

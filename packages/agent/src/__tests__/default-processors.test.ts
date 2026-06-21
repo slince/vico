@@ -40,7 +40,7 @@ function makeMemoryStore(overrides?: Record<string, unknown>) {
   return {
     semanticEnabled: false,
     conversationWindow: 20,
-    conversation: { sessionStore: {} as any, get: vi.fn(async () => []) },
+    conversation: { threadStore: {} as any, get: vi.fn(async () => []) },
     semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     working: {
       scope: 'user' as const,
@@ -103,7 +103,7 @@ describe('SkillProcessor', () => {
 describe('MemoryProcessor', () => {
   it('injects conversation history', async () => {
     const memoryStore = makeMemoryStore({
-      conversation: { sessionStore: {} as any, get: vi.fn(async () => [{ role: 'user' as const, content: 'previous msg' }]) },
+      conversation: { threadStore: {} as any, get: vi.fn(async () => [{ role: 'user' as const, content: 'previous msg' }]) },
     });
     const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();

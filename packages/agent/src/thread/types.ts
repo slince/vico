@@ -1,4 +1,4 @@
-// @vico/agent - Session module type definitions
+// @vico/agent - Thread module type definitions
 import type { ModelMessage } from '../model/types.js';
 
 /** 会话线程 */
@@ -33,7 +33,7 @@ export interface Message {
 }
 
 /** 会话持久化端口 */
-export interface SessionStore {
+export interface ThreadStore {
   /** Thread 操作 */
 
   /** 创建新线程 */

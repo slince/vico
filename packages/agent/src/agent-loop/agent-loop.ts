@@ -64,21 +64,21 @@ export class AgentLoop {
     const toolUserId = opts?.userId ?? '';
     const toolWorkspace = opts?.workspace ?? '';
 
-    // 确保 session 中的 thread 和 turn 存在
-    const session = this.agent.session;
-    let thread = await session.getThread(threadId);
+    // 确保 threadStore 中的 thread 和 turn 存在
+    const threadStore = this.agent.thread;
+    let thread = await threadStore.getThread(threadId);
     if (!thread) {
       const title = typeof userMessage.content === 'string'
         ? userMessage.content.slice(0, 50)
         : 'New thread';
-      thread = await session.createThread(this.agent.config.id, title, threadId);
+      thread = await threadStore.createThread(this.agent.config.id, title, threadId);
     }
-    const turn = await session?.createTurn(threadId);
+    const turn = await threadStore?.createTurn(threadId);
     this.currentTurnId = turn?.id ?? '';
 
     // 记录用户消息
-    if (session && this.currentTurnId) {
-      await session.appendEntry({
+    if (threadStore && this.currentTurnId) {
+      await threadStore.appendEntry({
         threadId,
         turnId: this.currentTurnId,
         role: userMessage.role,
@@ -91,8 +91,8 @@ export class AgentLoop {
 
       while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
-          if (session && this.currentTurnId) {
-            await session.updateTurn(this.currentTurnId, { status: 'aborted', steps });
+          if (threadStore && this.currentTurnId) {
+            await threadStore.updateTurn(this.currentTurnId, { status: 'aborted', steps });
           }
           turnSpan.end({ status: 'aborted' });
           return { status: 'aborted', steps, usage, messages };
@@ -109,10 +109,10 @@ export class AgentLoop {
 
         yield* this.callModel(messages, threadId, scopeId, signal, usage, steps);
 
-        // 记录 assistant 消息到 session
+        // 记录 assistant 消息到 threadStore
         const assistantMsg = messages.at(-1);
-        if (session && this.currentTurnId && assistantMsg?.role === 'assistant') {
-          await session.appendEntry({
+        if (threadStore && this.currentTurnId && assistantMsg?.role === 'assistant') {
+          await threadStore.appendEntry({
             threadId,
             turnId: this.currentTurnId,
             role: assistantMsg.role,
@@ -129,11 +129,11 @@ export class AgentLoop {
 
         yield* this.executeToolCalls(toolCalls, messages, threadId, toolUserId, toolWorkspace);
 
-        // 记录 tool 消息到 session
-        if (session && this.currentTurnId) {
+        // 记录 tool 消息到 threadStore
+        if (threadStore && this.currentTurnId) {
           for (const msg of messages.slice(-toolCalls.length)) {
             if (msg.role === 'tool') {
-              await session.appendEntry({
+              await threadStore.appendEntry({
                 threadId,
                 turnId: this.currentTurnId,
                 role: msg.role,
@@ -158,9 +158,9 @@ export class AgentLoop {
         }),
       );
 
-      if (session && this.currentTurnId) {
+      if (threadStore && this.currentTurnId) {
         const finalStatus = this.interrupted ? 'aborted' : 'completed';
-        await session.updateTurn(this.currentTurnId, { status: finalStatus, steps });
+        await threadStore.updateTurn(this.currentTurnId, { status: finalStatus, steps });
       }
 
       turnSpan.end({ status: 'completed', steps });
@@ -173,8 +173,8 @@ export class AgentLoop {
         messages,
       };
     } catch (err) {
-      if (session && this.currentTurnId) {
-        await session.updateTurn(this.currentTurnId, { status: 'failed', steps });
+      if (threadStore && this.currentTurnId) {
+        await threadStore.updateTurn(this.currentTurnId, { status: 'failed', steps });
       }
       const message = err instanceof Error ? err.message : String(err);
       turnSpan.error(err as Error);

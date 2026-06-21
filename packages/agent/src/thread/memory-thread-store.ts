@@ -1,7 +1,7 @@
-/** src/session/memory-session-store.ts */
-import type { SessionStore, Thread, Turn, Message } from './types.js';
-/** 内存版 SessionStore — 所有数据存于 Map，进程重启后丢失 */
-export class InMemorySessionStore implements SessionStore {
+/** src/thread/memory-thread-store.ts */
+import type { ThreadStore, Thread, Turn, Message } from './types.js';
+/** 内存版 ThreadStore — 所有数据存于 Map，进程重启后丢失 */
+export class InMemoryThreadStore implements ThreadStore {
   private threads: Map<string, Thread> = new Map();
   private turns: Map<string, Turn> = new Map();
   private messages: Map<string, Message[]> = new Map();

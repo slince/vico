@@ -1,21 +1,21 @@
-/** src/session/file-session-store.ts */
-import type { SessionStore, Thread, Turn, Message } from './types.js';
+/** src/thread/file-thread-store.ts */
+import type { ThreadStore, Thread, Turn, Message } from './types.js';
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
-/** FileSessionStore 配置 */
-export interface FileSessionStoreOptions {
+/** FileThreadStore 配置 */
+export interface FileThreadStoreOptions {
   /** 数据存储目录 */
   dir: string;
 }
 
-/** 文件版 SessionStore — 每个实体存储为独立 JSON 文件 */
-export class FileSessionStore implements SessionStore {
+/** 文件版 ThreadStore — 每个实体存储为独立 JSON 文件 */
+export class FileThreadStore implements ThreadStore {
   private threadsDir: string;
   private turnsDir: string;
   private messagesDir: string;
 
-  constructor(private readonly options: FileSessionStoreOptions) {
+  constructor(private readonly options: FileThreadStoreOptions) {
     this.threadsDir = join(options.dir, 'threads');
     this.turnsDir = join(options.dir, 'turns');
     this.messagesDir = join(options.dir, 'messages');

@@ -17,8 +17,8 @@ import {SkillProcessor} from '../skill/skill-processor.js';
 import type {SkillStore} from '../skill/types.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
 import {MemoryStore} from '../memory/memory-store.js';
-import type {SessionStore} from '../session/types.js';
-import {InMemorySessionStore} from '../session/memory-session-store.js';
+import type {ThreadStore} from '../thread/types.js';
+import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {createMemoryToolSource} from "../memory/memory-tool-source.js";
@@ -72,8 +72,8 @@ export interface VicoOptions {
   maxCached?: number;
   /** 全局 MemoryStore（agent 自身未配置时使用） */
   memory?: MemoryStore;
-  /** 全局 SessionStore（agent 自身未配置时使用） */
-  session?: SessionStore;
+  /** 全局 ThreadStore（agent 自身未配置时使用） */
+  thread?: ThreadStore;
 }
 
 /** invoke 调用选项 */
@@ -107,14 +107,14 @@ export class Vico {
   private readonly modelFactory: ModelClientFactory;
   readonly runtime: AgentRuntime;
   readonly memory: MemoryStore;
-  readonly session: SessionStore;
+  readonly thread: ThreadStore;
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.modelFactory = options.modelFactory ?? defaultModelFactory;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory ?? new MemoryStore();
-    this.session = options.session ?? new InMemorySessionStore();
+    this.thread = options.thread ?? new InMemoryThreadStore();
     this.skillManager = new SkillManager(new FSSkillLoader());
   }
 
@@ -151,7 +151,7 @@ export class Vico {
     const skills = config.skills ? await config.skills.load() : []
 
     const memory = config.memory ?? this.memory;
-    const session = config.session ?? this.session;
+    const thread = config.thread ?? this.thread;
 
     const agent = new Agent({
       config,
@@ -159,7 +159,7 @@ export class Vico {
       skills,
       tools,
       memory,
-      session,
+      thread,
     });
 
     agent.loop = this.buildLoop(agent);

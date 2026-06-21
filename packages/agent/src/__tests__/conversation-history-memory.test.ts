@@ -1,20 +1,20 @@
 // src/__tests__/conversation-history-memory.test.ts
 import { describe, it, beforeEach, expect } from 'vitest';
 import { ConversationHistoryMemory } from '../memory/conversation-history-memory.js';
-import { InMemorySessionStore } from '../session/memory-session-store.js';
+import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
 
 describe('ConversationHistoryMemory', () => {
-  let sessionStore: InMemorySessionStore;
+  let threadStore: InMemoryThreadStore;
   let historyStore: ConversationHistoryMemory;
 
   beforeEach(() => {
-    sessionStore = new InMemorySessionStore();
-    historyStore = new ConversationHistoryMemory(sessionStore);
+    threadStore = new InMemoryThreadStore();
+    historyStore = new ConversationHistoryMemory(threadStore);
   });
 
   async function seedMessages(threadId: string, count: number) {
     for (let i = 0; i < count; i++) {
-      await sessionStore.appendEntry({
+      await threadStore.appendEntry({
         threadId,
         turnId: 't1',
         role: 'user',
@@ -23,7 +23,7 @@ describe('ConversationHistoryMemory', () => {
     }
   }
 
-  it('reads messages via session store', async () => {
+  it('reads messages via thread store', async () => {
     await seedMessages('t1', 3);
     const msgs = await historyStore.get('t1', 10);
     expect(msgs).toHaveLength(3);
