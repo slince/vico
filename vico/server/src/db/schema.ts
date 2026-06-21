@@ -185,51 +185,6 @@ export const exec_approvals = sqliteTable('exec_approvals', {
   tenantStatusIdx: index('idx_ea_tenant_status').on(table.tenant_id, table.status),
 }));
 
-/** 评估数据集表 */
-export const eval_datasets = sqliteTable('eval_datasets', {
-  id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
-  name: text('name').notNull(),
-  agent_id: text('agent_id').notNull(),
-  created_at: integer('created_at').notNull(),
-});
-
-/** 评估测试用例表 */
-export const eval_test_cases = sqliteTable('eval_test_cases', {
-  id: text('id').primaryKey(),
-  dataset_id: text('dataset_id').notNull().references(() => eval_datasets.id, { onDelete: 'cascade' }),
-  input: text('input').notNull(),
-  expected_tools: text('expected_tools'),
-  reference_answer: text('reference_answer'),
-  created_at: integer('created_at').notNull(),
-});
-
-/** 评估运行记录表 */
-export const eval_runs = sqliteTable('eval_runs', {
-  id: text('id').primaryKey(),
-  dataset_id: text('dataset_id').notNull().references(() => eval_datasets.id, { onDelete: 'cascade' }),
-  status: text('status').notNull(),
-  total_cases: integer('total_cases').notNull().default(0),
-  completed_cases: integer('completed_cases').notNull().default(0),
-  overall_score: real('overall_score'),
-  scorer_scores: text('scorer_scores'),
-  created_at: integer('created_at').notNull(),
-  completed_at: integer('completed_at'),
-});
-
-/** 单条用例评估结果表 */
-export const eval_case_results = sqliteTable('eval_case_results', {
-  id: text('id').primaryKey(),
-  run_id: text('run_id').notNull().references(() => eval_runs.id, { onDelete: 'cascade' }),
-  case_id: text('case_id').notNull(),
-  input: text('input').notNull(),
-  actual_output: text('actual_output').notNull(),
-  scores: text('scores').notNull(),
-  details: text('details'),
-  tool_calls: text('tool_calls'),
-  latency: integer('latency').notNull().default(0),
-});
-
 /** Thread — 会话线程表 */
 export const threads = sqliteTable('threads', {
   id: text('id').primaryKey(),

@@ -49,6 +49,14 @@ export interface SkillToolImpl {
   handler: (args: Record<string, unknown>, ctx: Record<string, unknown>) => Promise<unknown>;
 }
 
+/** 合并工具定义与实现的完整描述 */
+export interface AgentSkillTool {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  handler: (args: Record<string, unknown>, ctx: Record<string, unknown>) => Promise<unknown>;
+}
+
 class SkillManagerService {
   /** 获取 Vico 的 SkillManager 实例（文件系统发现） */
   private vsm() {
@@ -178,6 +186,42 @@ class SkillManagerService {
       }
     }
     return defs;
+  }
+
+  /** 获取 Agent 绑定的 Skill 工具（合并定义 + 实现，单次查询） */
+  async getAgentSkillTools(agentId: string): Promise<AgentSkillTool[]> {
+    const db = getDb();
+    const bindings = await db.select({ skill_name: agent_skills.skill_name })
+      .from(agent_skills)
+      .where(eq(agent_skills.agent_id, agentId))
+      .all();
+
+    if (bindings.length === 0) return [];
+
+    const result: AgentSkillTool[] = [];
+    for (const b of bindings) {
+      const skill = this.vsm().get(b.skill_name);
+      if (!skill) continue;
+
+      try {
+        const toolsPath = `${skill.path}/tools.ts`;
+        const mod = await import(`${toolsPath}?update=${Date.now()}`);
+        if (!mod.tools && !mod.default) continue;
+        const toolExports = mod.tools || mod.default || [];
+        const tools = Array.isArray(toolExports) ? toolExports : [toolExports];
+        for (const t of tools) {
+          result.push({
+            name: t.definition?.name || t.name || 'unknown',
+            description: t.definition?.description || t.description || '',
+            parameters: t.definition?.parameters || t.definition?.inputSchema || {},
+            handler: t.execute || t.handler || (async () => ''),
+          });
+        }
+      } catch (err) {
+        logger.warn({ skillName: b.skill_name, err }, 'Failed to load tools from skill');
+      }
+    }
+    return result;
   }
 
   /** 获取 Agent 绑定的 Skill 工具实现 */

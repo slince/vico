@@ -38,13 +38,6 @@
       "breakpoints": true
     },
     {
-      "idx": 5,
-      "version": "6",
-      "when": 1782000000000,
-      "tag": "0005_eval_tables",
-      "breakpoints": true
-    },
-    {
       "idx": 6,
       "version": "6",
       "when": 1782864000000,
