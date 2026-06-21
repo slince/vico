@@ -1,14 +1,11 @@
 // @vico/libsql-adapter — LibSQL 原生向量存储（基于 F32_BLOB + vector_distance_cos）
-import {eq, sql} from 'drizzle-orm';
-import type {LibSQLDatabase} from 'drizzle-orm/libsql';
-import type {DistanceMetric, VectorQueryResult, VectorStore} from '@vico/rag';
-import type * as schema from './schema.js';
-import {memoryEntries} from './schema.js';
+import type { Client } from '@libsql/client';
+import type { DistanceMetric, VectorQueryResult, VectorStore } from '@vico/rag';
 
 /** LibSQLVectorStore 构造选项 */
 export interface LibSQLVectorStoreOptions {
-  /** Drizzle libSQL 数据库实例 */
-  db: LibSQLDatabase<typeof schema>;
+  /** LibSQL 原生客户端，通过 createClient() 创建 */
+  client: Client;
 }
 
 /**
@@ -21,20 +18,35 @@ export interface LibSQLVectorStoreOptions {
  * @example
  * ```ts
  * import { createClient } from '@libsql/client';
- * import { drizzle } from 'drizzle-orm/libsql';
  * import { LibSQLVectorStore } from '@vico/libsql-adapter';
  *
  * const client = createClient({ url: 'file:data.db' });
- * const db = drizzle(client);
- * const store = new LibSQLVectorStore({ db });
+ * const store = new LibSQLVectorStore({ client });
  * ```
  */
 export class LibSQLVectorStore implements VectorStore {
-  private db: LibSQLDatabase<typeof schema>;
+  private client: Client;
   private metrics: Map<string, DistanceMetric> = new Map();
 
   constructor(options: LibSQLVectorStoreOptions) {
-    this.db = options.db;
+    this.client = options.client;
+  }
+
+  /** 确保指标配置持久化表存在并加载已有配置 */
+  private async ensureLoaded(): Promise<void> {
+    await this.client.execute({
+      sql: `CREATE TABLE IF NOT EXISTS vico_index_config (index_name TEXT PRIMARY KEY, metric TEXT NOT NULL, dimension INTEGER NOT NULL)`,
+      args: [],
+    });
+    const { rows } = await this.client.execute({
+      sql: `SELECT index_name, metric FROM vico_index_config`,
+      args: [],
+    });
+    for (const row of rows as unknown as { index_name: string; metric: string }[]) {
+      if (!this.metrics.has(row.index_name)) {
+        this.metrics.set(row.index_name, row.metric as DistanceMetric);
+      }
+    }
   }
 
   async createIndex(params: {
@@ -42,17 +54,19 @@ export class LibSQLVectorStore implements VectorStore {
     dimension: number;
     metric: DistanceMetric;
   }): Promise<void> {
-    // 记录 metric，供 query 选择距离函数
     this.metrics.set(params.indexName, params.metric);
 
-    // 创建 ANN 向量索引（libsql_vector_idx）
-    // 用 try/catch 处理索引已存在的场景
+    // 持久化 metric，防止重启丢失
+    await this.client.execute({
+      sql: `INSERT OR REPLACE INTO vico_index_config (index_name, metric, dimension) VALUES (?, ?, ?)`,
+      args: [params.indexName, params.metric, params.dimension],
+    });
+
     try {
-      await this.db.run(sql`
-        CREATE INDEX IF NOT EXISTS ${sql.raw(`idx_vec_${params.indexName}`)}
-        ON vico_memory_entries (libsql_vector_idx(embedding, ${sql.raw(`'metric=${params.metric}'`)}))
-        WHERE type = 'semantic' AND scope_type = ${params.indexName}
-      `);
+      await this.client.execute({
+        sql: `CREATE INDEX IF NOT EXISTS idx_vec_${params.indexName} ON vico_memory_entries (libsql_vector_idx(embedding, 'metric=${params.metric}')) WHERE type = 'semantic' AND scope_type = '${params.indexName}'`,
+        args: [],
+      });
     } catch {
       // 索引已存在，忽略
     }
@@ -68,7 +82,10 @@ export class LibSQLVectorStore implements VectorStore {
 
     // 先批量删除同 ID 旧记录
     for (const id of params.ids) {
-      await this.db.delete(memoryEntries).where(eq(memoryEntries.id, id));
+      await this.client.execute({
+        sql: `DELETE FROM vico_memory_entries WHERE id = ?`,
+        args: [id],
+      });
     }
 
     // 使用原生 vector32() 批量插入
@@ -77,13 +94,18 @@ export class LibSQLVectorStore implements VectorStore {
       const vecStr = JSON.stringify(params.vectors[i]);
       const metaStr = JSON.stringify(meta);
 
-      await this.db.run(sql`
-        INSERT INTO vico_memory_entries
-          (id, thread_id, scope_type, scope_id, type, content, embedding, metadata, importance, created_at)
-        VALUES
-          (${params.ids[i]}, ${(meta.threadId as string) ?? null}, ${params.indexName}, '', 'semantic',
-           ${(meta.content as string) ?? ''}, vector32(${vecStr}), ${metaStr}, 0, ${(meta.createdAt as number) ?? now})
-      `);
+      await this.client.execute({
+        sql: `INSERT INTO vico_memory_entries (id, thread_id, scope_type, scope_id, type, content, embedding, metadata, importance, created_at) VALUES (?, ?, ?, '', 'semantic', ?, vector32(?), ?, 0, ?)`,
+        args: [
+          params.ids[i],
+          (meta.threadId as string) ?? null,
+          params.indexName,
+          (meta.content as string) ?? '',
+          vecStr,
+          metaStr,
+          (meta.createdAt as number) ?? now,
+        ],
+      });
     }
   }
 
@@ -93,25 +115,19 @@ export class LibSQLVectorStore implements VectorStore {
     topK: number;
     filter?: Record<string, unknown>;
   }): Promise<VectorQueryResult[]> {
+    await this.ensureLoaded();
     const vecStr = JSON.stringify(params.queryVector);
     const metric = this.metrics.get(params.indexName) ?? 'cosine';
     const distFn = metric === 'euclidean'
-      ? sql`vector_distance_l2`
-      : sql`vector_distance_cos`;
+      ? 'vector_distance_l2'
+      : 'vector_distance_cos';
 
-    // 使用原生向量距离函数，在 SQL 层排序
-    const rows = this.db.all(sql`
-      SELECT id, content, metadata, thread_id, scope_type, created_at,
-        ${distFn}(embedding, vector32(${vecStr})) AS _distance
-      FROM vico_memory_entries
-      WHERE scope_type = ${params.indexName}
-        AND type = 'semantic'
-        AND embedding IS NOT NULL
-      ORDER BY _distance ASC
-      LIMIT ${params.topK}
-    `) as unknown as Record<string, unknown>[];
+    const { rows } = await this.client.execute({
+      sql: `SELECT id, content, metadata, thread_id, scope_type, created_at, ${distFn}(embedding, vector32(?)) AS _distance FROM vico_memory_entries WHERE scope_type = ? AND type = 'semantic' AND embedding IS NOT NULL ORDER BY _distance ASC LIMIT ?`,
+      args: [vecStr, params.indexName, params.topK],
+    });
 
-    return rows
+    return (rows as unknown as Record<string, unknown>[])
       .map((r) => {
         let meta: Record<string, unknown> = {};
         try {
@@ -139,17 +155,23 @@ export class LibSQLVectorStore implements VectorStore {
     ids: string[];
   }): Promise<void> {
     for (const id of params.ids) {
-      await this.db
-        .delete(memoryEntries)
-        .where(sql`${memoryEntries.id} = ${id} AND ${memoryEntries.scope_type} = ${params.indexName}`);
+      await this.client.execute({
+        sql: `DELETE FROM vico_memory_entries WHERE id = ? AND scope_type = ?`,
+        args: [id, params.indexName],
+      });
     }
   }
 
   async dropIndex(indexName: string): Promise<void> {
     this.metrics.delete(indexName);
-    await this.db
-      .delete(memoryEntries)
-      .where(eq(memoryEntries.scope_type, indexName));
+    await this.client.execute({
+      sql: `DELETE FROM vico_index_config WHERE index_name = ?`,
+      args: [indexName],
+    });
+    await this.client.execute({
+      sql: `DELETE FROM vico_memory_entries WHERE scope_type = ?`,
+      args: [indexName],
+    });
   }
 }
 
