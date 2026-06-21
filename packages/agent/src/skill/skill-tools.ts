@@ -1,10 +1,10 @@
 // src/skill/skill-tools.ts
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ToolSpec } from '../tool/types.js';
+import type { Tool } from '../tool/types.js';
 import type { SkillManager } from './skill-manager.js';
 
-export function createSkillTools(manager: SkillManager): ToolSpec[] {
+export function createSkillTools(manager: SkillManager): Tool[] {
   return [
     {
       name: 'skill',
@@ -19,6 +19,19 @@ export function createSkillTools(manager: SkillManager): ToolSpec[] {
       },
       policy: 'auto',
       kind: 'readonly',
+      tags: ['skill'],
+      execute: async (call: { name: string }) => {
+        const skill = manager.get(call.name);
+        if (!skill) return `Skill "${call.name}" not found. Available: ${manager.listAll().map((s) => s.name).join(', ')}`;
+        return JSON.stringify({
+          name: skill.name,
+          description: skill.description,
+          instructions: skill.instructions,
+          references: skill.references,
+          scripts: skill.scripts,
+          assets: skill.assets,
+        });
+      },
     },
     {
       name: 'skill_search',
@@ -33,6 +46,11 @@ export function createSkillTools(manager: SkillManager): ToolSpec[] {
       },
       policy: 'auto',
       kind: 'readonly',
+      tags: ['skill'],
+      execute: async (call: { query: string; limit?: number }) => {
+        const results = manager.search(call.query, call.limit ?? 10);
+        return JSON.stringify(results);
+      },
     },
     {
       name: 'skill_read',
@@ -47,34 +65,7 @@ export function createSkillTools(manager: SkillManager): ToolSpec[] {
       },
       policy: 'auto',
       kind: 'readonly',
-    },
-  ];
-}
-
-/** 创建 skill 工具的 handler */
-export function createSkillToolHandlers(manager: SkillManager) {
-  return {
-    skill: {
-      execute: async (call: { name: string }) => {
-        const skill = manager.get(call.name);
-        if (!skill) return `Skill "${call.name}" not found. Available: ${manager.listAll().map((s) => s.name).join(', ')}`;
-        return JSON.stringify({
-          name: skill.name,
-          description: skill.description,
-          instructions: skill.instructions,
-          references: skill.references,
-          scripts: skill.scripts,
-          assets: skill.assets,
-        });
-      },
-    },
-    skill_search: {
-      execute: async (call: { query: string; limit?: number }) => {
-        const results = manager.search(call.query, call.limit ?? 10);
-        return JSON.stringify(results);
-      },
-    },
-    skill_read: {
+      tags: ['skill'],
       execute: async (call: { skillName: string; filePath: string }) => {
         const skill = manager.get(call.skillName);
         if (!skill) return `Skill "${call.skillName}" not found`;
@@ -87,5 +78,5 @@ export function createSkillToolHandlers(manager: SkillManager) {
         }
       },
     },
-  };
+  ];
 }

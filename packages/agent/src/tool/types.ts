@@ -11,15 +11,18 @@ export type ToolPolicy = z.infer<typeof ToolPolicySchema>;
 export const ToolKindSchema = z.enum(['readonly', 'command', 'file_change', 'delegate', 'mutation']);
 export type ToolKind = z.infer<typeof ToolKindSchema>;
 
-/** 工具规格定义（发给 LLM 的 tool description） */
-export const ToolSpecSchema = z.object({
-  name: z.string().min(1),
-  description: z.string(),
-  inputSchema: z.record(z.string(), z.unknown()),
-  policy: ToolPolicySchema.default('auto'),
-  kind: ToolKindSchema.default('readonly'),
-});
-export type ToolSpec = z.infer<typeof ToolSpecSchema>;
+/** 工具 — 规格定义 + 执行逻辑 */
+export interface Tool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  policy: ToolPolicy;
+  kind: ToolKind;
+  /** 来源标签（如 "builtin", "skill", "agent:xxx"） */
+  tags: string[];
+  /** 执行工具调用 */
+  execute(call: ToolCall, ctx: ToolExecutionContext): Promise<unknown>;
+}
 
 /** LLM 返回的工具调用 */
 export const ToolCallSchema = z.object({
@@ -57,19 +60,13 @@ export interface ApprovalDecision {
 
 /** 工具存储端口 — 加载工具列表 */
 export interface ToolStore {
-  load(): Promise<ToolSpec[]>;
+  load(): Promise<Tool[]>;
 }
 
-/** 工具执行处理器 */
-export interface ToolHandler {
-  execute(call: ToolCall, ctx: ToolExecutionContext): Promise<unknown>;
-}
-
-/** 工具来源 — 提供工具列表和对应处理器 */
+/** 工具来源 — 提供工具列表 */
 export interface ToolSource {
   name: string;
-  list(ctx: ToolExecutionContext): Promise<ToolSpec[]>;
-  getHandler(name: string): ToolHandler | undefined;
+  list(ctx: ToolExecutionContext): Promise<Tool[]>;
 }
 
 /** 审批策略上下文 */

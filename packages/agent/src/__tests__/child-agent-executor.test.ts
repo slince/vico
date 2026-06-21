@@ -3,17 +3,17 @@ import { describe, it, expect } from 'vitest';
 import { ChildAgentExecutor } from '../tool/child-agent-executor.js';
 
 describe('ChildAgentExecutor', () => {
-  it('creates delegate tool spec', () => {
+  it('creates delegate tool', () => {
     const executor = new ChildAgentExecutor();
-    const spec = executor.createDelegateToolSpec('agent-1', 'Code Reviewer');
-    expect(spec.name).toBe('delegate_agent-1');
-    expect(spec.kind).toBe('delegate');
-    expect(spec.description).toContain('Code Reviewer');
+    const tool = executor.createDelegateTool('agent-1', 'Code Reviewer');
+    expect(tool.name).toBe('delegate_agent-1');
+    expect(tool.kind).toBe('delegate');
+    expect(tool.description).toContain('Code Reviewer');
   });
 
   it('returns error for unknown agent', async () => {
     const executor = new ChildAgentExecutor();
-    const result = await executor.execute(
+    const result = await executor.executeDelegate(
       { id: '1', name: 'delegate_unknown', args: {} },
       { userId: 'u1', agentId: 'a1', threadId: 'th1', workspace: '/', hooks: [], signal: new AbortController().signal, awaitApproval: async () => ({ approved: true }) },
     );

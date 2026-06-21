@@ -1,7 +1,7 @@
 // src/tool/builtin-tools.ts
-import type { ToolSpec } from './types.js';
+import type { Tool } from './types.js';
 
-const UPDATE_WORKING_MEMORY_TOOL: ToolSpec = {
+const UPDATE_WORKING_MEMORY_TOOL: Tool = {
   name: 'updateWorkingMemory',
   description:
     'Update the working memory with user facts and context. Call this whenever you learn new information about the user that might be useful later. Provide the complete updated Markdown content — it will replace the existing working memory.',
@@ -17,11 +17,13 @@ const UPDATE_WORKING_MEMORY_TOOL: ToolSpec = {
   },
   policy: 'auto',
   kind: 'mutation',
+  tags: ['builtin'],
+  execute: async () => 'Working memory update not configured',
 };
 
 /** 框架内置工具集 */
-export const BuiltinTools: { list(): ToolSpec[] } = {
-  list(): ToolSpec[] {
+export const BuiltinTools: { list(): Tool[] } = {
+  list(): Tool[] {
     return [
       {
         name: 'echo',
@@ -33,6 +35,8 @@ export const BuiltinTools: { list(): ToolSpec[] } = {
         },
         policy: 'auto',
         kind: 'readonly',
+        tags: ['builtin'],
+        execute: async (call) => (call.args as any).message ?? '',
       },
       {
         name: 'now',
@@ -40,6 +44,8 @@ export const BuiltinTools: { list(): ToolSpec[] } = {
         inputSchema: { type: 'object', properties: {} },
         policy: 'auto',
         kind: 'readonly',
+        tags: ['builtin'],
+        execute: async () => new Date().toISOString(),
       },
       UPDATE_WORKING_MEMORY_TOOL,
     ];

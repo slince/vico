@@ -1,21 +1,19 @@
 // src/tool/tool-broker.ts
-import type { ToolSpec, ToolCall, ToolResult, ToolExecutionContext } from './types.js';
-import type { ToolHandler, ToolSource } from './types.js';
-import { CapabilityRegistry } from './capability-registry.js';
+import type { Tool, ToolCall, ToolResult, ToolExecutionContext } from './types.js';
+import type { ToolSource } from './types.js';
 import { resolvePolicy } from './tool-policy.js';
 import { StormBreaker } from './storm-breaker.js';
 import { BuiltinTools } from './builtin-tools.js';
 
 /** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
 export class ToolBroker {
-  private registry: CapabilityRegistry = new CapabilityRegistry();
+  private tools: Map<string, Tool> = new Map();
   private sources: ToolSource[] = [];
-  private handlers: Map<string, ToolHandler> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();
   /** 跟踪 on-request 工具的审批状态 */
   private approvalState: Map<string, boolean> = new Map();
-  /** 动态注册的 handler（优先级高于 source handler） */
-  private dynamicHandlers: Map<string, ToolHandler> = new Map();
+  /** 动态注册的 handler（优先级高于 Tool 自身的 execute） */
+  private dynamicHandlers: Map<string, { execute: Tool['execute'] }> = new Map();
 
   constructor() {
     this.addBuiltinSource();
@@ -26,16 +24,12 @@ export class ToolBroker {
     this.sources.push(source);
   }
 
-  async listTools(ctx: ToolExecutionContext): Promise<ToolSpec[]> {
-    // 聚合所有来源
-    const all: ToolSpec[] = [];
+  async listTools(ctx: ToolExecutionContext): Promise<Tool[]> {
+    const all: Tool[] = [];
     for (const source of this.sources) {
       const tools = await source.list(ctx);
       for (const tool of tools) {
-        this.registry.register(tool, [source.name]);
-        this.handlers.set(tool.name, source.getHandler(tool.name) ?? {
-          execute: async () => `Tool ${tool.name}: no handler registered`,
-        });
+        this.tools.set(tool.name, tool);
       }
       all.push(...tools);
     }
@@ -43,7 +37,7 @@ export class ToolBroker {
   }
 
   async execute(call: ToolCall, ctx: ToolExecutionContext): Promise<ToolResult> {
-    const tool = this.registry.get(call.name);
+    const tool = this.tools.get(call.name);
     if (!tool) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `Tool ${call.name} not found` };
     }
@@ -73,11 +67,6 @@ export class ToolBroker {
     }
 
     try {
-      const handler = this.dynamicHandlers.get(call.name) ?? this.handlers.get(call.name);
-      if (!handler) {
-        return { callId: call.id, name: call.name, status: 'error', output: null, error: `No handler for ${call.name}` };
-      }
-
       // PreToolUse hook
       if (ctx.hooks.length > 0) {
         for (const hook of ctx.hooks) {
@@ -88,6 +77,7 @@ export class ToolBroker {
         }
       }
 
+      const handler = this.dynamicHandlers.get(call.name) ?? tool;
       const output = await handler.execute(call, ctx);
       this.stormBreaker.record(call.name, call.args);
 
@@ -107,7 +97,7 @@ export class ToolBroker {
     const sequential: ToolCall[] = [];
 
     for (const call of calls) {
-      const tool = this.registry.get(call.name);
+      const tool = this.tools.get(call.name);
       if (tool?.kind === 'readonly') {
         readonly.push(call);
       } else {
@@ -135,18 +125,11 @@ export class ToolBroker {
     this.addSource({
       name: 'builtin',
       list: async () => BuiltinTools.list(),
-      getHandler: (name: string): ToolHandler => {
-        const handlers: Record<string, ToolHandler> = {
-          echo: { execute: async (call) => (call.args as any).message ?? '' },
-          now: { execute: async () => new Date().toISOString() },
-        };
-        return handlers[name] ?? { execute: async () => `No handler for builtin:${name}` };
-      },
     });
   }
 
-  /** 动态注册工具处理器（覆盖已有同名 handler） */
-  registerHandler(name: string, handler: ToolHandler): void {
+  /** 动态注册工具处理器（覆盖已有同名 Tool 的 execute） */
+  registerHandler(name: string, handler: { execute: Tool['execute'] }): void {
     this.dynamicHandlers.set(name, handler);
   }
 

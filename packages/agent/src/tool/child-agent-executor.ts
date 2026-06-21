@@ -1,5 +1,5 @@
 // src/tool/child-agent-executor.ts
-import type { ToolSpec, ToolCall, ToolResult } from './types.js';
+import type { Tool, ToolCall, ToolResult } from './types.js';
 import type { ToolExecutionContext } from './types.js';
 import type { DelegateStrategy, ChildAgentRef } from './types.js';
 import { type AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
@@ -18,8 +18,8 @@ export class ChildAgentExecutor {
     this.agents.delete(agentId);
   }
 
-  /** 创建委托工具规格 */
-  createDelegateToolSpec(agentId: string, agentName: string): ToolSpec {
+  /** 创建委托工具 */
+  createDelegateTool(agentId: string, agentName: string): Tool {
     return {
       name: `delegate_${agentId}`,
       description: `Delegate a task to the "${agentName}" agent. Use this when the user needs ${agentName}-related capabilities.`,
@@ -33,11 +33,17 @@ export class ChildAgentExecutor {
       },
       policy: 'auto',
       kind: 'delegate',
+      tags: ['delegate', `agent:${agentId}`],
+      execute: async (call: ToolCall, ctx: ToolExecutionContext) => {
+        const result = await this.executeDelegate(call, ctx);
+        if (result.status === 'error') throw new Error(result.error);
+        return result.output;
+      },
     };
   }
 
   /** 执行委托 */
-  async execute(call: ToolCall, ctx: ToolExecutionContext): Promise<ToolResult> {
+  async executeDelegate(call: ToolCall, ctx: ToolExecutionContext): Promise<ToolResult> {
     const agentId = (call.args as any).agentId ?? call.name.replace('delegate_', '');
     const ref = this.agents.get(agentId);
 

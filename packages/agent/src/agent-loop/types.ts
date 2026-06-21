@@ -4,7 +4,7 @@ import type { ModelClient, ModelMessage } from '../model/types.js';
 import type { ContextProcessor } from '../prompt/context-processor.js';
 import type { ToolExecutionContext } from '../tool/types.js';
 import type { ToolBroker } from '../tool/tool-broker.js';
-import type { ToolCall, ToolResult, ToolSpec } from '../tool/types.js';
+import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
 import type { EventRecorder } from '../observable/types.js';
 import type { SpanTracker } from '../observable/types.js';
 import type { CompositeHookRunner } from '../hook/hook-runner.js';
@@ -91,7 +91,7 @@ export interface AgentLoopOptions {
 export class Agent {
   readonly config: AgentConfig;
   readonly skills: Skill[];
-  readonly tools: ToolSpec[];
+  readonly tools: Tool[];
   readonly memory?: MemoryStore;
 
   private _loop?: AgentLoop;
@@ -101,7 +101,7 @@ export class Agent {
     config: AgentConfig;
     loopFactory: () => AgentLoop;
     skills?: Skill[];
-    tools?: ToolSpec[];
+    tools?: Tool[];
     memory?: MemoryStore;
   }) {
     this.config = params.config;

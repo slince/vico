@@ -2,16 +2,16 @@
 import type {LanguageModel} from 'ai';
 import {streamText} from 'ai';
 import type {ModelClient, ModelRequest, ModelStreamChunk,} from './types.js';
-import type {ToolSpec} from '../tool/types.js';
+import type {Tool} from '../tool/types.js';
 
 /**
- * 将框架 ToolSpec 数组转为 AI SDK v6 streamText 可接受的 tools 对象。
+ * 将框架 Tool 数组转为 AI SDK v6 streamText 可接受的 tools 对象。
  *
  * AI SDK v6 的 Tool 类型要求 inputSchema 为 FlexibleSchema（Zod schema、
- * Validator 或 JSONSchema7）。此处 ToolSpec.inputSchema 为无类型的 JSON
+ * Validator 或 JSONSchema7）。此处 Tool.inputSchema 为无类型的 JSON
  * 对象，通过类型断言传入——不参与工具执行侧的校验，仅用于 LLM tool definition。
  */
-function toAISDKTools(tools: ToolSpec[]): Record<string, unknown> {
+function toAISDKTools(tools: Tool[]): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const tool of tools) {
     result[tool.name] = {

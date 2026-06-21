@@ -58,8 +58,11 @@ describe('ToolBroker', () => {
     const host = new ToolBroker();
     host.addSource({
       name: 'test',
-      list: async () => [{ name: 'dangerous', description: '', inputSchema: {}, policy: 'never', kind: 'command' }],
-      getHandler: () => ({ execute: async () => 'should not run' }),
+      list: async () => [{
+        name: 'dangerous', description: '', inputSchema: {},
+        policy: 'never' as const, kind: 'command' as const, tags: ['test'],
+        execute: async () => 'should not run',
+      }],
     });
     await host.listTools(makeCtx());
     const result = await host.execute({ id: 'x', name: 'dangerous', args: {} }, makeCtx());

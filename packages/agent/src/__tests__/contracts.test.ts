@@ -1,7 +1,7 @@
 // contracts.test.ts — Zod schema validation tests for agent, tool, memory, and event contracts
 import { describe, it, expect } from 'vitest';
 import { AgentConfigSchema } from '../agent-loop/types.js';
-import { ToolSpecSchema } from '../tool/types.js';
+
 import { MemoryRecordSchema } from '../memory/types.js';
 import { SSEEventSchema } from '../observable/types.js';
 
@@ -35,19 +35,6 @@ describe('AgentConfigSchema', () => {
   });
 });
 
-describe('ToolSpecSchema', () => {
-  it('parses valid tool spec', () => {
-    const result = ToolSpecSchema.safeParse({
-      name: 'search',
-      description: 'Search the web',
-      inputSchema: { type: 'object', properties: { q: { type: 'string' } } },
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.policy).toBe('auto');
-    }
-  });
-});
 
 describe('MemoryRecordSchema', () => {
   it('parses valid memory record', () => {

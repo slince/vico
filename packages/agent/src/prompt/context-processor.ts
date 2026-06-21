@@ -1,7 +1,7 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
 import type {AgentConfig} from '../agent-loop/types.js';
 import type {ModelMessage, ModelRequest} from '../model/types.js';
-import type {ToolSpec} from '../tool/types.js';
+import type {Tool} from '../tool/types.js';
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */
 export const Priority = {
@@ -22,7 +22,7 @@ export class ModelRequestContext {
   /** 消息列表 — 处理器可追加 system 消息 */
   messages: ModelMessage[];
   /** 暴露给 LLM 的工具 */
-  tools: ToolSpec[];
+  tools: Tool[];
   /** 当前线程标识 */
   threadId: string;
   /** 工作记忆作用域标识（userId 或 workspace 路径） */
@@ -32,7 +32,7 @@ export class ModelRequestContext {
     agent: AgentConfig;
     systemPrompt?: string;
     messages?: ModelMessage[];
-    tools?: ToolSpec[];
+    tools?: Tool[];
     threadId?: string;
     scopeId?: string;
   }) {

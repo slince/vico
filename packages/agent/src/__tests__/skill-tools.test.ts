@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SkillManager } from '../skill/skill-manager.js';
 import { FSSkillLoader } from '../skill/fs-skill-loader.js';
-import { createSkillTools, createSkillToolHandlers } from '../skill/skill-tools.js';
+import { createSkillTools } from '../skill/skill-tools.js';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -27,23 +27,28 @@ describe('SkillTools', () => {
 
   afterEach(() => rmSync(TMP, { recursive: true, force: true }));
 
+  const makeCtx = () => ({ userId: 'u1', agentId: 'a1', threadId: 't1', workspace: '/', hooks: [], signal: new AbortController().signal, awaitApproval: async () => ({ approved: true }) });
+
   it('skill tool returns instructions', async () => {
-    const handlers = createSkillToolHandlers(manager);
-    const result = await handlers.skill.execute({ name: 'code-review' });
-    const parsed = JSON.parse(result);
+    const tools = createSkillTools(manager);
+    const skill = tools.find((t) => t.name === 'skill')!;
+    const result = await skill.execute({ name: 'code-review' }, makeCtx() as any);
+    const parsed = JSON.parse(result as string);
     expect(parsed.name).toBe('code-review');
     expect(parsed.instructions).toContain('Check for bugs');
   });
 
   it('skill tool returns error for unknown skill', async () => {
-    const handlers = createSkillToolHandlers(manager);
-    const result = await handlers.skill.execute({ name: 'nonexistent' });
+    const tools = createSkillTools(manager);
+    const skill = tools.find((t) => t.name === 'skill')!;
+    const result = await skill.execute({ name: 'nonexistent' }, makeCtx() as any);
     expect(result).toContain('not found');
   });
 
   it('skill_search finds matching skills', async () => {
-    const handlers = createSkillToolHandlers(manager);
-    const result = await handlers.skill_search.execute({ query: 'review' });
+    const tools = createSkillTools(manager);
+    const search = tools.find((t) => t.name === 'skill_search')!;
+    const result = await search.execute({ query: 'review' }, makeCtx() as any) as string;
     const parsed = JSON.parse(result);
     expect(parsed).toHaveLength(1);
     expect(parsed[0].name).toBe('code-review');

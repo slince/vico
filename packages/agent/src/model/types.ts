@@ -1,5 +1,5 @@
 // @vico/agent - Model module type definitions
-import type { ToolSpec } from '../tool/types.js';
+import type { Tool } from '../tool/types.js';
 import type { ModelRef } from '../agent-loop/types.js';
 
 /** ModelClient 工厂 — 从模型引用创建 ModelClient 实例 */
@@ -20,7 +20,7 @@ export interface ModelMessage {
 export interface ModelRequest {
   system?: string;
   messages: ModelMessage[];
-  tools: ToolSpec[];
+  tools: Tool[];
   maxTokens?: number;
   temperature?: number;
   abortSignal: AbortSignal;

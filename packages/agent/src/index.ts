@@ -2,12 +2,11 @@
 
 export { AgentConfigSchema, type AgentConfig, type ModelRef } from './agent-loop/types.js';
 export {
-  ToolSpecSchema,
   ToolCallSchema,
   ToolResultSchema,
   ToolPolicySchema,
   ToolKindSchema,
-  type ToolSpec,
+  type Tool,
   type ToolCall,
   type ToolResult,
   type ToolPolicy,
@@ -60,10 +59,9 @@ export {
   type ApprovalDecision,
   type ToolStore,
 } from './tool/types.js';
-export { type ToolSource, type ToolHandler } from './tool/types.js';
+export { type ToolSource } from './tool/types.js';
 export { ChildAgentExecutor } from './tool/child-agent-executor.js';
 export { type ChildAgentRef, type DelegateStrategy } from './tool/types.js';
-export { CapabilityRegistry } from './tool/capability-registry.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/tool-policy.js';
 export { type PolicyContext } from './tool/types.js';
@@ -85,7 +83,7 @@ export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js'
 // Skill system
 export { FSSkillLoader } from './skill/fs-skill-loader.js';
 export { SkillManager } from './skill/skill-manager.js';
-export { createSkillTools, createSkillToolHandlers } from './skill/skill-tools.js';
+export { createSkillTools } from './skill/skill-tools.js';
 export { formatSkillCatalog } from './skill/skills-processor.js';
 export { ManagedSkillStore } from './skill/managed-skill-store.js';
 
