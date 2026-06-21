@@ -44,6 +44,10 @@ export { InMemoryVectorStore } from './vector-store/in-memory.js';
 export { DefaultParserRegistry } from './parsing/registry.js';
 export { TextParser } from './parsing/text-parser.js';
 export { MarkdownParser } from './parsing/markdown-parser.js';
+export { PdfParser } from './parsing/pdf-parser.js';
+export { DocxParser } from './parsing/docx-parser.js';
+export { CsvParser } from './parsing/csv-parser.js';
+export { HtmlParser } from './parsing/html-parser.js';
 
 // Retrieval
 export { dedup } from './retrieval/dedup.js';

@@ -12,6 +12,8 @@ import { DEFAULT_RAG_CONFIG } from '../types/config.js';
 import { DefaultParserRegistry } from '../parsing/registry.js';
 import { TextParser } from '../parsing/text-parser.js';
 import { MarkdownParser } from '../parsing/markdown-parser.js';
+import { CsvParser } from '../parsing/csv-parser.js';
+import { HtmlParser } from '../parsing/html-parser.js';
 
 describe('RecursiveChunker', () => {
   it('chunks text into pieces', async () => {
@@ -233,5 +235,37 @@ describe('DefaultParserRegistry', () => {
 
     const txt = registry.findParser('script.py');
     expect(txt?.name).toBe('text');
+  });
+
+  it('HtmlParser strips tags and extracts text', async () => {
+    const parser = new HtmlParser();
+    const html = '<html><head><script>alert(1)</script><style>body{}</style></head><body><p>Hello <b>World</b></p></body></html>';
+    const result = await parser.parse(html);
+    expect(result.text).toContain('Hello');
+    expect(result.text).toContain('World');
+    expect(result.text).not.toContain('alert');
+    expect(result.text).not.toContain('<script>');
+  });
+
+  it('CsvParser reads CSV content', async () => {
+    const parser = new CsvParser();
+    const csv = 'name,age,city\nAlice,30,NYC\nBob,25,LA';
+    const result = await parser.parse(csv);
+    expect(result.text).toContain('name,age,city');
+    expect(result.text).toContain('Alice');
+  });
+
+  it('CsvParser accepts Buffer', async () => {
+    const parser = new CsvParser();
+    const buf = Buffer.from('col1,col2\nval1,val2');
+    const result = await parser.parse(buf);
+    expect(result.text).toContain('col1,col2');
+  });
+
+  it('HtmlParser accepts Buffer', async () => {
+    const parser = new HtmlParser();
+    const buf = Buffer.from('<div>Test</div>');
+    const result = await parser.parse(buf);
+    expect(result.text).toBe('Test');
   });
 });
