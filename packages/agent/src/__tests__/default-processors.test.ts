@@ -38,10 +38,9 @@ function makeCtx(overrides?: Partial<ModelRequestContext>): ModelRequestContext 
 
 function makeMemoryStore(overrides?: Record<string, unknown>) {
   return {
-    semanticEnabled: false,
     conversationWindow: 20,
     conversation: { threadStore: {} as any, get: vi.fn(async () => []) },
-    semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    semantic: { search: vi.fn(async () => []), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     working: {
       scope: 'user' as const,
       getTemplate: () => '# User Facts\n- **Name**:\n',
@@ -126,7 +125,6 @@ describe('MemoryProcessor', () => {
 
   it('appends memory results as system message', async () => {
     const memoryStore = makeMemoryStore({
-      semanticEnabled: true,
       semantic: {
         search: vi.fn(async () => [
           { id: 'm1', content: 'user prefers dark mode', createdAt: 1 },
@@ -142,17 +140,8 @@ describe('MemoryProcessor', () => {
     expect(memoryStore.semantic.search).toHaveBeenCalledWith('what theme do I use?', 5);
   });
 
-  it('no-op when semantic recall is disabled', async () => {
-    const memoryStore = makeMemoryStore({ semanticEnabled: false });
-    const p = new MemoryProcessor(memoryStore);
-    const ctx = makeCtx();
-    ctx.messages = [{ role: 'user', content: 'hello' }];
-    await p.process(ctx);
-    expect(memoryStore.semantic.search).not.toHaveBeenCalled();
-  });
-
   it('no-op when no user message found for semantic search', async () => {
-    const memoryStore = makeMemoryStore({ semanticEnabled: true });
+    const memoryStore = makeMemoryStore();
     const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     ctx.messages = [{ role: 'system', content: 'system only' }];
@@ -207,7 +196,6 @@ describe('MemoryProcessor', () => {
 
   it('resolve() extracts facts from assistant messages into semantic memory', async () => {
     const memoryStore = makeMemoryStore({
-      semanticEnabled: true,
       semantic: { search: vi.fn(async () => []), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     });
     const p = new MemoryProcessor(memoryStore);
@@ -232,7 +220,6 @@ describe('MemoryProcessor', () => {
 
   it('resolve() skips non-assistant and short messages', async () => {
     const memoryStore = makeMemoryStore({
-      semanticEnabled: true,
       semantic: { search: vi.fn(async () => []), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     });
     const p = new MemoryProcessor(memoryStore);

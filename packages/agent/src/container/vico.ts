@@ -106,14 +106,14 @@ export class Vico {
   private options: VicoOptions;
   private readonly modelFactory: ModelClientFactory;
   readonly runtime: AgentRuntime;
-  readonly memory: MemoryStore;
+  readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.modelFactory = options.modelFactory ?? defaultModelFactory;
     this.runtime = new AgentRuntime(this.options.maxCached);
-    this.memory = options.memory ?? new MemoryStore();
+    this.memory = options.memory;
     this.thread = options.thread ?? new InMemoryThreadStore();
     this.skillManager = new SkillManager(new FSSkillLoader());
   }

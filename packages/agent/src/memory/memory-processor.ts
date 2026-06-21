@@ -64,8 +64,6 @@ export class MemoryProcessor implements ContextProcessor {
 
   /** 语义召回长期记忆 */
   private async injectSemanticRecall(ctx: ModelRequestContext): Promise<void> {
-    if (!this.memoryStore.semanticEnabled) return;
-
     const query = ctx.getLastUserMessage();
     if (!query) return;
 

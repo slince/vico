@@ -93,7 +93,7 @@ export class Agent {
   readonly model: ModelClient;
   readonly skills: Skill[];
   readonly tools: Tool[];
-  readonly memory: MemoryStore;
+  readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
 
   /** AgentLoop 实例，由容器在构建时注入 */
@@ -104,7 +104,7 @@ export class Agent {
     model: ModelClient,
     skills?: Skill[];
     tools?: Tool[];
-    memory: MemoryStore;
+    memory?: MemoryStore;
     thread: ThreadStore;
   }) {
     this.config = params.config;
