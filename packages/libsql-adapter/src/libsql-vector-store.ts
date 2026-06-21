@@ -1,12 +1,12 @@
 // @vico/libsql-adapter — LibSQL 原生向量存储（基于 F32_BLOB + vector_distance_cos）
-import { eq, sql } from 'drizzle-orm';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import type { VectorStore, DistanceMetric, VectorQueryResult } from '@vico/rag';
-import { memoryEntries } from './schema.js';
+import {eq, sql} from 'drizzle-orm';
+import type {LibSQLDatabase} from 'drizzle-orm/libsql';
+import type {DistanceMetric, VectorQueryResult, VectorStore} from '@vico/rag';
 import type * as schema from './schema.js';
+import {memoryEntries} from './schema.js';
 
-/** DrizzleVectorStore 构造选项 */
-export interface DrizzleVectorStoreOptions {
+/** LibSQLVectorStore 构造选项 */
+export interface LibSQLVectorStoreOptions {
   /** Drizzle libSQL 数据库实例 */
   db: LibSQLDatabase<typeof schema>;
 }
@@ -22,18 +22,18 @@ export interface DrizzleVectorStoreOptions {
  * ```ts
  * import { createClient } from '@libsql/client';
  * import { drizzle } from 'drizzle-orm/libsql';
- * import { DrizzleVectorStore } from '@vico/libsql-adapter';
+ * import { LibSQLVectorStore } from '@vico/libsql-adapter';
  *
  * const client = createClient({ url: 'file:data.db' });
  * const db = drizzle(client);
- * const store = new DrizzleVectorStore({ db });
+ * const store = new LibSQLVectorStore({ db });
  * ```
  */
-export class DrizzleVectorStore implements VectorStore {
+export class LibSQLVectorStore implements VectorStore {
   private db: LibSQLDatabase<typeof schema>;
   private metrics: Map<string, DistanceMetric> = new Map();
 
-  constructor(options: DrizzleVectorStoreOptions) {
+  constructor(options: LibSQLVectorStoreOptions) {
     this.db = options.db;
   }
 

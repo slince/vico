@@ -5,10 +5,8 @@
  * - getVector() — 基于 @libsql/client 的向量存储
  * - getStorage() — 存储单例（兼容旧接口，返回 null）
  */
-import { createClient } from '@libsql/client';
-import { getDatabaseUrl } from '../db/init-libsql.js';
-import { config } from '../config.js';
-import logger from '../lib/logger.js';
+import {createClient} from '@libsql/client';
+import {getDatabaseUrl} from '../db/init-libsql.js';
 
 let _vectorStore: any;
 
@@ -82,14 +80,4 @@ export function getVector(): any {
     };
   }
   return _vectorStore;
-}
-
-// 不再需要 Mastra 的 embedder，由调用方自行处理
-export function getStorage(): null {
-  return null;
-}
-
-export function getMemory(): null {
-  logger.warn('Mastra Memory removed — use @vico/agent MemoryStore + ConversationHistoryMemory');
-  return null;
 }

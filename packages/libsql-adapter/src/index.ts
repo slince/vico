@@ -22,9 +22,9 @@ export {
 
 // VectorStore adapter
 export {
-  DrizzleVectorStore,
-  type DrizzleVectorStoreOptions,
-} from './drizzle-vector-store.js';
+  LibSQLVectorStore,
+  type LibSQLVectorStoreOptions,
+} from './libsql-vector-store.js';
 
 // 启动时自动建表
 export { ensureTables } from './migrate.js';

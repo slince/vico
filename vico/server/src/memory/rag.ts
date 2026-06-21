@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
-import { RecursiveChunker, createEmbedder } from '@vico/rag';
+import { RecursiveChunker, createEmbedder, DefaultParserRegistry } from '@vico/rag';
 import { config, DEFAULT_RAG_CONFIG } from '../config.js';
 import { getVector } from '../agent/memory-setup.js';
 import logger from '../lib/logger.js';
@@ -9,13 +9,8 @@ import { getDb, schema } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
 import { kbIndexName } from '../lib/resource.js';
 import { getClient } from '../db/init-libsql.js';
-import { parserRegistry } from './parsers/registry.js';
-import './parsers/txt-parser.js';
-import './parsers/md-parser.js';
-import './parsers/pdf-parser.js';
-import './parsers/csv-parser.js';
-import './parsers/html-parser.js';
-import './parsers/docx-parser.js';
+
+const parserRegistry = new DefaultParserRegistry();
 
 class RAGManager {
   /**
