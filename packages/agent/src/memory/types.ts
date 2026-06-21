@@ -1,6 +1,9 @@
 // @vico/agent - Memory module type definitions
 import type { MemoryRecord } from '../contracts/memory.js';
 
+/** 嵌入器 — 将文本转换为向量 */
+export type Embedder = (text: string) => Promise<number[]>;
+
 /** RAG 检索结果 */
 export interface RagChunk {
   content: string;
@@ -22,6 +25,18 @@ export interface SemanticRecallMemory {
   /** 更新记忆记录 */
   update(id: string, patch: Partial<MemoryRecord>): Promise<void>;
   /** 删除记忆记录 */
+  delete(id: string): Promise<void>;
+}
+
+/** 向量存储适配器 — 按向量进行相似度检索与持久化 */
+export interface VectorStore {
+  /** 添加一条带向量的记忆记录 */
+  add(record: MemoryRecord): Promise<void>;
+  /** 按向量相似度检索 limit 条记录 */
+  search(embedding: number[], limit: number): Promise<MemoryRecord[]>;
+  /** 更新记录 */
+  update(id: string, patch: Partial<MemoryRecord>): Promise<void>;
+  /** 删除记录 */
   delete(id: string): Promise<void>;
 }
 

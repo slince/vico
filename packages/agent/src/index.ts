@@ -48,8 +48,10 @@ export { type SkillCatalogEntry } from './skill/types.js';
 export {
   type RagChunk,
   type RagProvider,
+  type Embedder,
   type SemanticRecallMemory,
   type WorkingMemory,
+  type VectorStore,
 } from './memory/types.js';
 
 // Ports — ToolHost
@@ -75,6 +77,8 @@ export { InMemorySemanticRecall } from './memory/in-memory-semantic-recall.js';
 export { InMemoryWorkingMemory } from './memory/in-memory-working-memory.js';
 export { InMemoryRagProvider } from './memory/in-memory-rag-provider.js';
 export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/file-working-memory.js';
+export { InMemoryVectorStore } from './memory/in-memory-vector-store.js';
+export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/vector-semantic-recall.js';
 
 // Ports — SkillLoader
 export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js';
