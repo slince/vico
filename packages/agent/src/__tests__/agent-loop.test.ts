@@ -51,10 +51,7 @@ describe('AgentLoop', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const agent = new Agent({
-      config: makeConfig(),
-      loopFactory: () => { throw new Error('not used'); },
-    });
+    const agent = new Agent({ config: makeConfig() });
 
     const loop = new AgentLoop({
       agent,
@@ -90,10 +87,7 @@ describe('AgentLoop', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const agent = new Agent({
-      config: makeConfig(),
-      loopFactory: () => { throw new Error('not used'); },
-    });
+    const agent = new Agent({ config: makeConfig() });
 
     const loop = new AgentLoop({
       agent,
@@ -144,10 +138,7 @@ describe('AgentLoop', () => {
       },
     };
 
-    const agent = new Agent({
-      config: makeConfig(),
-      loopFactory: () => { throw new Error('not used'); },
-    });
+    const agent = new Agent({ config: makeConfig() });
 
     const loop = new AgentLoop({
       agent,

@@ -10,7 +10,7 @@ import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
 import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
-import { createWorkingMemoryHandler } from '../memory/working-memory-tool.js';
+import { createUpdateWorkingMemoryTool } from '../memory/working-memory-tool.js';
 
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
@@ -48,9 +48,12 @@ export class AgentLoop {
     });
     this.pipeline = new ProcessorPipeline([...userProcessors, steerProcessor]);
 
-    // 注册 updateWorkingMemory 工具 handler
+    // 注册 updateWorkingMemory 工具
     if (options.workingMemory) {
-      this.toolBroker.registerHandler('updateWorkingMemory', createWorkingMemoryHandler(options.workingMemory));
+      this.toolBroker.addSource({
+        name: 'working-memory',
+        list: async () => [createUpdateWorkingMemoryTool(options.workingMemory!)],
+      });
     }
   }
 

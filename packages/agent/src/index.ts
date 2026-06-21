@@ -87,8 +87,7 @@ export { InMemorySemanticRecall } from './memory/in-memory-semantic-recall.js';
 export { InMemoryWorkingMemory } from './memory/in-memory-working-memory.js';
 export { InMemoryRagProvider } from './memory/in-memory-rag-provider.js';
 export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/file-working-memory.js';
-export { UPDATE_WORKING_MEMORY_TOOL, createWorkingMemoryHandler } from './memory/working-memory-tool.js';
-export { createMemoryToolSource } from './memory/memory-tool-source.js';
+export { createUpdateWorkingMemoryTool } from './memory/working-memory-tool.js';
 export { InMemoryVectorStore } from './memory/in-memory-vector-store.js';
 export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/vector-semantic-recall.js';
 
@@ -130,7 +129,7 @@ export { type SpanTracker, type Span } from './observable/types.js';
 
 // AgentRuntime
 export { AgentRuntime } from './agent-loop/agent-runtime.js';
-export { Agent, type AgentFactory } from './agent-loop/types.js';
+export { Agent } from './agent-loop/types.js';
 
 // AgentLoop
 export { AgentLoop, collectTurnResult } from './agent-loop/agent-loop.js';

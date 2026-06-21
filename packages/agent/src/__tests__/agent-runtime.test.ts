@@ -17,7 +17,7 @@ function makeConfig(id: string): AgentConfig {
 }
 
 function makeAgent(id: string): Agent {
-  return new Agent({ config: makeConfig(id), loopFactory: () => ({} as any) });
+  return new Agent({ config: makeConfig(id) });
 }
 
 describe('AgentRuntime', () => {

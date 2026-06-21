@@ -13,6 +13,7 @@ import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillProcessor} from '../skill/skill-processor.js';
+import type {Skill} from '../skill/types.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
@@ -130,33 +131,39 @@ export class Vico {
       ? await config.skills.load()
       : this.skillManager.listAll();
 
-    const agent: Agent = new Agent({
+    const agent = new Agent({
       config,
-      loopFactory: (): AgentLoop => {
-        const processors: ContextProcessor[] = [
-          new SystemPromptProcessor(),
-          new SkillProcessor(boundSkills),
-        ];
-        if (this.options.memoryStore) {
-          processors.push(new MemoryProcessor(this.options.memoryStore));
-        }
-
-        return new AgentLoop({
-          agent,
-          model: modelClient,
-          toolBroker: this.toolBroker,
-          processors,
-          events: this.events,
-          spanTracker: this.spanTracker,
-          hooks: this.hooks,
-          workingMemory: this.options.memoryStore?.working,
-        });
-      },
       skills: boundSkills,
       tools: boundTools,
     });
 
+    agent.loop = this.buildLoop(agent, modelClient, boundSkills);
+
     return agent;
+  }
+
+  /** 为 Agent 构建 AgentLoop */
+  private buildLoop(agent: Agent, modelClient: ModelClient, skills: Skill[]): AgentLoop {
+    const memoryStore = agent.memory ?? this.options.memoryStore;
+
+    const processors: ContextProcessor[] = [
+      new SystemPromptProcessor(),
+      new SkillProcessor(skills),
+    ];
+    if (memoryStore) {
+      processors.push(new MemoryProcessor(memoryStore));
+    }
+
+    return new AgentLoop({
+      agent,
+      model: modelClient,
+      toolBroker: this.toolBroker,
+      processors,
+      events: this.events,
+      spanTracker: this.spanTracker,
+      hooks: this.hooks,
+      workingMemory: memoryStore?.working,
+    });
   }
 
   /**

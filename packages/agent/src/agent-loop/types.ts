@@ -87,38 +87,29 @@ export interface AgentLoopOptions {
   workingMemory?: WorkingMemory;
 }
 
-/** Agent — 配置 + 运行时 loop（延迟构建）+ 绑定（memory/skills/tools） */
+/** Agent — 配置 + 运行时 loop + 绑定（memory/skills/tools） */
 export class Agent {
   readonly config: AgentConfig;
   readonly skills: Skill[];
   readonly tools: Tool[];
   readonly memory?: MemoryStore;
 
-  private _loop?: AgentLoop;
-  private loopFactory: () => AgentLoop;
+  /** AgentLoop 实例，由容器在构建时注入 */
+  loop?: AgentLoop;
 
   constructor(params: {
     config: AgentConfig;
-    loopFactory: () => AgentLoop;
     skills?: Skill[];
     tools?: Tool[];
     memory?: MemoryStore;
   }) {
     this.config = params.config;
-    this.loopFactory = params.loopFactory;
     this.skills = params.skills ?? [];
     this.tools = params.tools ?? [];
     this.memory = params.memory;
   }
 
-  /** 获取 AgentLoop（首次调用时构建并缓存） */
   getLoop(): AgentLoop {
-    if (!this._loop) {
-      this._loop = this.loopFactory();
-    }
-    return this._loop;
+    return this.loop!;
   }
 }
-
-/** Agent 工厂函数 — 由外部注入，负责按配置组装 Agent */
-export type AgentFactory = (config: AgentConfig) => Promise<Agent>;

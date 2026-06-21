@@ -3,7 +3,6 @@ import type {Tool, ToolCall, ToolExecutionContext, ToolResult, ToolSource} from 
 import {resolvePolicy} from './tool-policy.js';
 import {StormBreaker} from './storm-breaker.js';
 import {createBuiltInToolSource} from './builtin-tools-source.js';
-import {createMemoryToolSource} from '../memory/memory-tool-source.js';
 
 /** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
 export class ToolBroker {
@@ -12,12 +11,9 @@ export class ToolBroker {
   private stormBreaker: StormBreaker = new StormBreaker();
   /** 跟踪 on-request 工具的审批状态 */
   private approvalState: Map<string, boolean> = new Map();
-  /** 动态注册的 handler（优先级高于 Tool 自身的 execute） */
-  private dynamicHandlers: Map<string, { execute: Tool['execute'] }> = new Map();
 
   constructor() {
     this.addBuiltinSource();
-    this.addMemorySource();
   }
 
   /** 注册工具来源 */
@@ -78,8 +74,7 @@ export class ToolBroker {
         }
       }
 
-      const handler = this.dynamicHandlers.get(call.name) ?? tool;
-      const output = await handler.execute(call, ctx);
+      const output = await tool.execute(call, ctx);
       this.stormBreaker.record(call.name, call.args);
 
       return { callId: call.id, name: call.name, status: 'success', output };
@@ -124,15 +119,6 @@ export class ToolBroker {
 
   private addBuiltinSource(): void {
     this.addSource(createBuiltInToolSource());
-  }
-
-  private addMemorySource(): void {
-    this.addSource(createMemoryToolSource());
-  }
-
-  /** 动态注册工具处理器（覆盖已有同名 Tool 的 execute） */
-  registerHandler(name: string, handler: { execute: Tool['execute'] }): void {
-    this.dynamicHandlers.set(name, handler);
   }
 
   /** 暴露 storm breaker 供外部重置 */
