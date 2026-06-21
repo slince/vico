@@ -1,4 +1,4 @@
-// @vico/db-adapter — Drizzle-backed SessionStore implementation
+// @vico/libsql — Drizzle-backed SessionStore implementation
 import { eq, desc } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type { SessionStore, Thread, Turn, Message } from '@vico/agent';

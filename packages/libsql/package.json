@@ -1,5 +1,5 @@
 {
-  "name": "@vico/db-adapter",
+  "name": "@vico/libsql",
   "version": "0.1.0",
   "private": true,
   "type": "module",

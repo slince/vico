@@ -1,4 +1,4 @@
-// @vico/db-adapter — Drizzle table definitions for session and memory persistence
+// @vico/libsql — Drizzle table definitions for session and memory persistence
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 
 // --- Session tables ---

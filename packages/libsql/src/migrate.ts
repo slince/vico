@@ -1,4 +1,4 @@
-// @vico/db-adapter — 启动时按 schema 自动建表/更新索引
+// @vico/libsql — 启动时按 schema 自动建表/更新索引
 import { sql } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type * as schema from './schema.js';
@@ -12,7 +12,7 @@ import type * as schema from './schema.js';
  *
  * @example
  * ```ts
- * import { ensureTables } from '@vico/db-adapter';
+ * import { ensureTables } from '@vico/libsql';
  * await ensureTables(db); // 启动时调用一次
  * ```
  */
