@@ -1,5 +1,5 @@
-// @vico/rag — FastEmbed local ONNX embedder (stub)
-// Requires: pnpm add @xenova/transformers or similar ONNX runtime
+// @vico/rag — FastEmbed local ONNX embedder
+// Requires: pnpm add @huggingface/transformers
 // Gracefully degrades if not installed.
 
 import type { BatchEmbedder, BatchEmbedOptions, BatchEmbedResult } from '../types/embedder.js';
@@ -11,7 +11,7 @@ export interface FastEmbedOptions {
 /**
  * FastEmbedEmbedder — 本地 ONNX 嵌入。
  *
- * 依赖 @xenova/transformers（peerDependency）。
+ * 依赖 @huggingface/transformers（peerDependency）。
  * 未安装时 doEmbed 抛出明确错误。
  */
 export class FastEmbedEmbedder implements BatchEmbedder {
@@ -23,8 +23,8 @@ export class FastEmbedEmbedder implements BatchEmbedder {
 
   async doEmbed(options: BatchEmbedOptions): Promise<BatchEmbedResult> {
     try {
-      // @ts-ignore — @xenova/transformers is an optional peerDependency, may not be installed
-      const { pipeline } = await import('@xenova/transformers');
+      // @ts-ignore — @huggingface/transformers is an optional peerDependency, may not be installed
+      const { pipeline } = await import('@huggingface/transformers');
       const extractor = await pipeline('feature-extraction', this.model);
       const embeddings: number[][] = [];
 
@@ -37,8 +37,8 @@ export class FastEmbedEmbedder implements BatchEmbedder {
     } catch (err: any) {
       if (err?.code === 'ERR_MODULE_NOT_FOUND') {
         throw new Error(
-          'FastEmbedEmbedder requires @xenova/transformers.\n' +
-          'Install: pnpm add @xenova/transformers'
+          'FastEmbedEmbedder requires @huggingface/transformers.\n' +
+          'Install: pnpm add @huggingface/transformers'
         );
       }
       throw err;

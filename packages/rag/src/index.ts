@@ -29,6 +29,8 @@ export { DEFAULT_RAG_CONFIG } from './types/config.js';
 // Chunking
 export { RecursiveChunker } from './chunking/recursive.js';
 export { SentenceChunker } from './chunking/sentence.js';
+export { MarkdownChunker } from './chunking/markdown.js';
+export { CodeChunker } from './chunking/code.js';
 
 // Embedding
 export { createEmbedder } from './embedding/index.js';

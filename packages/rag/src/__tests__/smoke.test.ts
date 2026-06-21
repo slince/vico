@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { RecursiveChunker } from '../chunking/recursive.js';
 import { SentenceChunker } from '../chunking/sentence.js';
+import { MarkdownChunker } from '../chunking/markdown.js';
+import { CodeChunker } from '../chunking/code.js';
 import { InMemoryVectorStore } from '../vector-store/in-memory.js';
 import { dedup } from '../retrieval/dedup.js';
 import { formatResults, joinResults } from '../retrieval/formatter.js';
@@ -161,6 +163,66 @@ describe('DEFAULT_RAG_CONFIG', () => {
 });
 
 describe('DefaultParserRegistry', () => {
+  it('MarkdownChunker splits by headings', async () => {
+    const chunker = new MarkdownChunker();
+    const text = '# Intro\n\nThis is the intro.\n\n## Section 1\n\nContent of section 1.\n\n### Sub 1.1\n\nDeeper content.\n\n## Section 2\n\nFinal section.';
+    const chunks = await chunker.chunk(text, { strategy: 'markdown', size: 200, overlap: 0 });
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+    // 应该包含标题路径
+    const hasSection2 = chunks.some((c) => c.text.includes('Section 2'));
+    expect(hasSection2).toBe(true);
+  });
+
+  it('MarkdownChunker preserves heading path in metadata', async () => {
+    const chunker = new MarkdownChunker();
+    const text = '# Top\n\nIntro text.\n\n## Child\n\nChild content that is quite long and detailed here.';
+    const chunks = await chunker.chunk(text, { strategy: 'markdown', size: 100, overlap: 0 });
+    expect(chunks.length).toBeGreaterThan(0);
+    expect(chunks[0].metadata.headingPath).toBeDefined();
+  });
+
+  it('CodeChunker splits by function/class boundaries', async () => {
+    const chunker = new CodeChunker();
+    const code = [
+      'import { foo } from "bar";',
+      '',
+      'export function add(a: number, b: number): number {',
+      '  return a + b;',
+      '}',
+      '',
+      'export function multiply(a: number, b: number): number {',
+      '  return a * b;',
+      '}',
+      '',
+      'export class Calculator {',
+      '  private value = 0;',
+      '  add(n: number) { this.value += n; }',
+      '  get() { return this.value; }',
+      '}',
+    ].join('\n');
+    const chunks = await chunker.chunk(code, { strategy: 'code', size: 60, overlap: 0 });
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+    // 应该包含 preamble block 和至少一个函数/类 block
+    const hasImport = chunks.some((c) => c.text.includes('import'));
+    const hasAdd = chunks.some((c) => c.text.includes('function add'));
+    expect(hasImport).toBe(true);
+    expect(hasAdd).toBe(true);
+  });
+
+  it('CodeChunker handles large blocks', async () => {
+    const chunker = new CodeChunker();
+    // 构造一个超长函数
+    const lines = ['function compute() {'];
+    for (let i = 0; i < 100; i++) {
+      lines.push(`  const x${i} = ${i} * 2;`);
+    }
+    lines.push('  return x0;');
+    lines.push('}');
+    const code = lines.join('\n');
+    const chunks = await chunker.chunk(code, { strategy: 'code', size: 200, overlap: 0 });
+    expect(chunks.length).toBeGreaterThan(1);
+  });
+
   it('registers and finds parser by extension', () => {
     const registry = new DefaultParserRegistry();
     registry.register(new MarkdownParser());
