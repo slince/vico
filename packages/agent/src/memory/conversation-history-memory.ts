@@ -6,13 +6,13 @@ import type {ConversationHistoryMemory} from './types.js';
 export class ConversationHistoryMemoryStore implements ConversationHistoryMemory {
   private threads: Map<string, ModelMessage[]> = new Map();
 
-  push(threadId: string, message: ModelMessage): void {
+  async push(threadId: string, message: ModelMessage): Promise<void> {
     const msgs = this.threads.get(threadId) ?? [];
     msgs.push(message);
     this.threads.set(threadId, msgs);
   }
 
-  get(threadId: string, window: number): ModelMessage[] {
+  async get(threadId: string, window: number): Promise<ModelMessage[]> {
     const msgs = this.threads.get(threadId) ?? [];
     if (msgs.length <= window) return [...msgs];
     return msgs.slice(msgs.length - window);

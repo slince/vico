@@ -14,14 +14,14 @@ export class MemoryProcessor implements ContextProcessor {
   ) {}
 
   async process(ctx: ModelRequestContext): Promise<void> {
-    this.injectConversationHistory(ctx);
+    await this.injectConversationHistory(ctx);
     await this.injectWorkingMemory(ctx);
     await this.injectSemanticRecall(ctx);
   }
 
   /** 注入会话历史（FIFO 滑动窗口） */
-  private injectConversationHistory(ctx: ModelRequestContext): void {
-    const history = this.memoryStore.conversation.get(
+  private async injectConversationHistory(ctx: ModelRequestContext): Promise<void> {
+    const history = await this.memoryStore.conversation.get(
       this.threadId,
       this.memoryStore.conversationWindow,
     );

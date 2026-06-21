@@ -3,34 +3,34 @@ import { describe, it, expect } from 'vitest';
 import { ConversationHistoryMemoryStore } from '../memory/conversation-history-memory.js';
 
 describe('ConversationHistoryMemoryStore', () => {
-  it('stores and retrieves messages', () => {
+  it('stores and retrieves messages', async () => {
     const store = new ConversationHistoryMemoryStore();
-    store.push('t1', { role: 'user', content: 'hi' });
-    expect(store.get('t1', 10)).toHaveLength(1);
+    await store.push('t1', { role: 'user', content: 'hi' });
+    expect(await store.get('t1', 10)).toHaveLength(1);
   });
 
-  it('enforces FIFO window', () => {
+  it('enforces FIFO window', async () => {
     const store = new ConversationHistoryMemoryStore();
-    for (let i = 0; i < 10; i++) store.push('t1', { role: 'user', content: `msg${i}` });
-    expect(store.get('t1', 3)).toHaveLength(3);
-    expect(store.get('t1', 3)[2].content).toBe('msg9');
+    for (let i = 0; i < 10; i++) await store.push('t1', { role: 'user', content: `msg${i}` });
+    expect(await store.get('t1', 3)).toHaveLength(3);
+    expect((await store.get('t1', 3))[2].content).toBe('msg9');
   });
 
-  it('clears a specific thread', () => {
+  it('clears a specific thread', async () => {
     const store = new ConversationHistoryMemoryStore();
-    store.push('t1', { role: 'user', content: 'hi' });
-    store.push('t2', { role: 'user', content: 'hello' });
+    await store.push('t1', { role: 'user', content: 'hi' });
+    await store.push('t2', { role: 'user', content: 'hello' });
     store.clear('t1');
-    expect(store.get('t1', 10)).toHaveLength(0);
-    expect(store.get('t2', 10)).toHaveLength(1);
+    expect(await store.get('t1', 10)).toHaveLength(0);
+    expect(await store.get('t2', 10)).toHaveLength(1);
   });
 
-  it('clears all threads', () => {
+  it('clears all threads', async () => {
     const store = new ConversationHistoryMemoryStore();
-    store.push('t1', { role: 'user', content: 'hi' });
-    store.push('t2', { role: 'user', content: 'hello' });
+    await store.push('t1', { role: 'user', content: 'hi' });
+    await store.push('t2', { role: 'user', content: 'hello' });
     store.clearAll();
-    expect(store.get('t1', 10)).toHaveLength(0);
-    expect(store.get('t2', 10)).toHaveLength(0);
+    expect(await store.get('t1', 10)).toHaveLength(0);
+    expect(await store.get('t2', 10)).toHaveLength(0);
   });
 });
