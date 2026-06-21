@@ -1,6 +1,6 @@
 // src/memory/working-memory-tool.ts
-import type {Tool, ToolCall, ToolExecutionContext} from '../tool/types.js';
-import type {WorkingMemory} from './types.js';
+import type {Tool, ToolCall, ToolExecutionContext} from '../../tool/types.js';
+import type {WorkingMemory} from '../types.js';
 
 /** 创建 updateWorkingMemory 工具，绑定 WorkingMemory 实例 */
 export function createUpdateWorkingMemoryTool(wm: WorkingMemory): Tool {

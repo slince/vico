@@ -39,7 +39,7 @@ export {
 export { SystemPromptProcessor } from './prompt/system-prompt-processor.js';
 export { SkillProcessor } from './skill/skill-processor.js';
 export { MemoryProcessor } from './memory/memory-processor.js';
-export { RagProcessor } from './memory/rag-processor.js';
+export { RagProcessor } from './memory/rag/rag-processor.js';
 export { DynamicInstructionProcessor } from './agent-loop/dynamic-instruction-processor.js';
 
 export { type SkillCatalogEntry } from './skill/types.js';
@@ -83,13 +83,13 @@ export {
 // Ports — MemoryStore
 export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
 export { ConversationHistoryMemory } from './memory/conversation-history-memory.js';
-export { InMemorySemanticRecall } from './memory/in-memory-semantic-recall.js';
-export { InMemoryWorkingMemory } from './memory/in-memory-working-memory.js';
-export { InMemoryRagProvider } from './memory/in-memory-rag-provider.js';
-export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/file-working-memory.js';
-export { createUpdateWorkingMemoryTool } from './memory/working-memory-tool.js';
-export { InMemoryVectorStore } from './memory/in-memory-vector-store.js';
-export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/vector-semantic-recall.js';
+export { InMemorySemanticRecall } from './memory/semantic/in-memory-semantic-recall.js';
+export { InMemoryWorkingMemory } from './memory/working/in-memory-working-memory.js';
+export { InMemoryRagProvider } from './memory/rag/in-memory-rag-provider.js';
+export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/working/file-working-memory.js';
+export { createUpdateWorkingMemoryTool } from './memory/working/working-memory-tool.js';
+export { InMemoryVectorStore } from './memory/semantic/in-memory-vector-store.js';
+export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/semantic/vector-semantic-recall.js';
 
 // Ports — SkillLoader
 export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js';

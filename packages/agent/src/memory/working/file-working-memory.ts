@@ -1,7 +1,7 @@
 // src/memory/file-working-memory.ts
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { WorkingMemory } from './types.js';
+import type { WorkingMemory } from '../types.js';
 
 const DEFAULT_TEMPLATE = `# User Facts
 - **Name**:

@@ -3,7 +3,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillProcessor} from '../skill/skill-processor.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
-import {RagProcessor} from '../memory/rag-processor.js';
+import {RagProcessor} from '../memory/rag/rag-processor.js';
 import {DynamicInstructionProcessor} from '../agent-loop/dynamic-instruction-processor.js';
 import {
   buildModelRequest,

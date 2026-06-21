@@ -21,7 +21,7 @@ import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
-import {createMemoryToolSource} from "../memory/memory-tool-source.js";
+import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 import {createSkillToolSource} from "../skill/skill-tool-source.js";
 

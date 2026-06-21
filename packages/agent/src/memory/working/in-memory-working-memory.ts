@@ -1,5 +1,5 @@
 // src/memory/in-memory-working-memory.ts
-import type { WorkingMemory } from './types.js';
+import type { WorkingMemory } from '../types.js';
 
 const DEFAULT_TEMPLATE = `# User Facts
 - **Name**:

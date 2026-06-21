@@ -6,11 +6,11 @@ import type {
   WorkingMemory,
   RagProvider,
 } from './types.js';
-import { InMemorySemanticRecall } from './in-memory-semantic-recall.js';
-import { InMemoryWorkingMemory } from './in-memory-working-memory.js';
-import { InMemoryRagProvider } from './in-memory-rag-provider.js';
-import { VectorSemanticRecall } from './vector-semantic-recall.js';
-import { InMemoryVectorStore } from './in-memory-vector-store.js';
+import { InMemorySemanticRecall } from './semantic/in-memory-semantic-recall.js';
+import { InMemoryWorkingMemory } from './working/in-memory-working-memory.js';
+import { InMemoryRagProvider } from './rag/in-memory-rag-provider.js';
+import { VectorSemanticRecall } from './semantic/vector-semantic-recall.js';
+import { InMemoryVectorStore } from './semantic/in-memory-vector-store.js';
 
 /** MemoryStore 构造选项 — 各层均可选，未提供时使用内存默认实现 */
 export interface MemoryStoreOptions {
