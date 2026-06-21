@@ -1,5 +1,5 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import type {AgentConfig} from '../contracts/agent.js';
+import type {AgentConfig} from '../agent-loop/types.js';
 import type {TurnResult} from '../agent-loop/types.js';
 import {Agent, type AgentFactory} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';

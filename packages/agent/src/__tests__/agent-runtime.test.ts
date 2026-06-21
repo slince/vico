@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AgentRuntime } from '../agent-loop/agent-runtime.js';
 import { Agent, type AgentFactory } from '../agent-loop/types.js';
-import type { AgentConfig } from '../contracts/agent.js';
+import type { AgentConfig } from '../agent-loop/types.js';
 
 function makeConfig(id: string): AgentConfig {
   return {

@@ -1,7 +1,6 @@
 // src/index.ts — @vico/agent public API
 
-// Contracts
-export { AgentConfigSchema, type AgentConfig, type ModelRef } from './contracts/agent.js';
+export { AgentConfigSchema, type AgentConfig, type ModelRef } from './agent-loop/types.js';
 export {
   ToolSpecSchema,
   ToolCallSchema,
@@ -13,9 +12,9 @@ export {
   type ToolResult,
   type ToolPolicy,
   type ToolKind,
-} from './contracts/tool.js';
-export { MemoryRecordSchema, type MemoryRecord } from './contracts/memory.js';
-export { SSEEventSchema, SpanTypeSchema, type SSEEvent, type SpanType } from './contracts/events.js';
+} from './tool/types.js';
+export { MemoryRecordSchema, type MemoryRecord } from './memory/types.js';
+export { SSEEventSchema, SpanTypeSchema, type SSEEvent, type SpanType } from './observable/types.js';
 
 // Ports — ModelClient
 export {

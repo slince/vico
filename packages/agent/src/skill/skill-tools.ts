@@ -1,7 +1,7 @@
 // src/skill/skill-tools.ts
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ToolSpec } from '../contracts/tool.js';
+import type { ToolSpec } from '../tool/types.js';
 import type { SkillManager } from './skill-manager.js';
 
 export function createSkillTools(manager: SkillManager): ToolSpec[] {

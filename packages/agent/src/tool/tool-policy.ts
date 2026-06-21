@@ -1,5 +1,5 @@
 // src/tool/tool-policy.ts
-import type { ToolPolicy, ToolCall } from '../contracts/tool.js';
+import type { ToolPolicy, ToolCall } from './types.js';
 import type { ApprovalDecision, PolicyContext } from './types.js';
 
 export type { PolicyContext } from './types.js';

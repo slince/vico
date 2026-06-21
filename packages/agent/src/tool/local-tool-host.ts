@@ -1,5 +1,5 @@
 // src/tool/local-tool-host.ts
-import type { ToolSpec, ToolCall, ToolResult } from '../contracts/tool.js';
+import type { ToolSpec, ToolCall, ToolResult } from './types.js';
 import type { ToolHandler, ToolSource } from './types.js';
 import type { ToolHost, ToolExecutionContext } from './tool-host.js';
 import { CapabilityRegistry } from './capability-registry.js';

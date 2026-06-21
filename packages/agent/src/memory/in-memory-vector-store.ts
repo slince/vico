@@ -1,6 +1,6 @@
 // @vico/agent - InMemoryVectorStore: 基于数组和余弦相似度的内存版向量存储
 import type { VectorStore } from './types.js';
-import type { MemoryRecord } from '../contracts/memory.js';
+import type { MemoryRecord } from './types.js';
 
 /** 基于数组和余弦相似度的内存版向量存储 */
 export class InMemoryVectorStore implements VectorStore {

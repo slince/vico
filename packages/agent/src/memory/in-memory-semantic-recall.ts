@@ -1,6 +1,6 @@
 // src/memory/in-memory-semantic-recall.ts
 import type { SemanticRecallMemory } from './types.js';
-import type { MemoryRecord } from '../contracts/memory.js';
+import type { MemoryRecord } from './types.js';
 
 /** 基于数组关键词匹配的内存版语义召回 */
 export class InMemorySemanticRecall implements SemanticRecallMemory {

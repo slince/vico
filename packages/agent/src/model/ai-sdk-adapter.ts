@@ -2,7 +2,7 @@
 import type {LanguageModel} from 'ai';
 import {streamText} from 'ai';
 import type {ModelClient, ModelRequest, ModelStreamChunk,} from './types.js';
-import type {ToolSpec} from '../contracts/tool.js';
+import type {ToolSpec} from '../tool/types.js';
 
 /**
  * 将框架 ToolSpec 数组转为 AI SDK v6 streamText 可接受的 tools 对象。

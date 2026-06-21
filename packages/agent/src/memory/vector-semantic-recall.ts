@@ -1,6 +1,6 @@
 // @vico/agent - VectorSemanticRecall: 基于 Embedder + VectorStore 的语义召回实现
 import type {Embedder, SemanticRecallMemory, VectorStore} from './types.js';
-import type {MemoryRecord} from '../contracts/memory.js';
+import type {MemoryRecord} from './types.js';
 import {InMemoryVectorStore} from './in-memory-vector-store.js';
 
 /** VectorSemanticRecall 构造选项 */

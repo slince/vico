@@ -3,7 +3,7 @@ import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
 import {AISDKModelClient} from './ai-sdk-adapter.js';
 import type {ModelClient, ModelClientFactory} from './types.js';
-import type {ModelRef} from '../contracts/agent.js';
+import type {ModelRef} from '../agent-loop/types.js';
 import {LanguageModel} from "ai";
 
 /**

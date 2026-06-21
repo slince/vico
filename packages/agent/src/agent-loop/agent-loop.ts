@@ -2,7 +2,7 @@
 import type { TurnResult, AgentLoopOptions } from './types.js';
 import type { ModelClient, ModelMessage } from '../model/model-client.js';
 import type { ToolHost, ToolExecutionContext } from '../tool/tool-host.js';
-import type { ToolCall, ToolResult, ToolSpec } from '../contracts/tool.js';
+import type { ToolCall, ToolResult, ToolSpec } from '../tool/types.js';
 import type { EventRecorder } from '../observable/event-recorder.js';
 import type { SpanTracker } from '../observable/span-tracker.js';
 import type { CompositeHookRunner } from '../hook/hook-runner.js';

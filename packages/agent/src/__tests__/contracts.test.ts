@@ -1,9 +1,9 @@
 // contracts.test.ts — Zod schema validation tests for agent, tool, memory, and event contracts
 import { describe, it, expect } from 'vitest';
-import { AgentConfigSchema } from '../contracts/agent.js';
-import { ToolSpecSchema } from '../contracts/tool.js';
-import { MemoryRecordSchema } from '../contracts/memory.js';
-import { SSEEventSchema } from '../contracts/events.js';
+import { AgentConfigSchema } from '../agent-loop/types.js';
+import { ToolSpecSchema } from '../tool/types.js';
+import { MemoryRecordSchema } from '../memory/types.js';
+import { SSEEventSchema } from '../observable/types.js';
 
 describe('AgentConfigSchema', () => {
   it('parses valid config', () => {

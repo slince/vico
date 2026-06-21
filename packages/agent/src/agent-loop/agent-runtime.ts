@@ -1,6 +1,6 @@
 // @vico/agent - AgentRuntime: manages Agent lifecycle with LRU cache
 import { Agent, type AgentFactory } from './types.js';
-import type { AgentConfig } from '../contracts/agent.js';
+import type { AgentConfig } from './types.js';
 
 export { Agent, type AgentFactory } from './types.js';
 

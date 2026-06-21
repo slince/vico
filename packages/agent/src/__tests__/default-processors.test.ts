@@ -12,7 +12,7 @@ import {
   ModelRequestContext,
   type ContextProcessor,
 } from '../prompt/context-processor.js';
-import type { AgentConfig } from '../contracts/agent.js';
+import type { AgentConfig } from '../agent-loop/types.js';
 
 function makeConfig(): AgentConfig {
   return {

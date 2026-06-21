@@ -1,5 +1,5 @@
 // src/tool/capability-registry.ts
-import type { ToolSpec } from '../contracts/tool.js';
+import type { ToolSpec } from './types.js';
 
 /** 按 capability 标签管理工具注册与过滤 */
 export class CapabilityRegistry {

@@ -1,6 +1,6 @@
 // @vico/agent - Model module type definitions
-import type { ToolSpec } from '../contracts/tool.js';
-import type { ModelRef } from '../contracts/agent.js';
+import type { ToolSpec } from '../tool/types.js';
+import type { ModelRef } from '../agent-loop/types.js';
 
 /** ModelClient 工厂 — 从模型引用创建 ModelClient 实例 */
 export type ModelClientFactory = (ref: ModelRef) => ModelClient;

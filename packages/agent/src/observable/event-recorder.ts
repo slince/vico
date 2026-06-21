@@ -1,7 +1,7 @@
 // @vico/agent - EventRecorder port interface + Mitt-based implementation
 import mitt, { type Emitter } from 'mitt';
 import type { EventRecorder } from './types.js';
-import type { SSEEvent } from '../contracts/events.js';
+import type { SSEEvent } from './types.js';
 
 export type { EventRecorder } from './types.js';
 

@@ -1,5 +1,5 @@
 // src/agent-loop/approval-gate.ts
-import type { ToolCall } from '../contracts/tool.js';
+import type { ToolCall } from '../tool/types.js';
 import type { ApprovalDecision } from '../tool/tool-host.js';
 import type { EventRecorder } from '../observable/event-recorder.js';
 

@@ -1,5 +1,15 @@
 // @vico/agent - Memory module type definitions
-import type { MemoryRecord } from '../contracts/memory.js';
+import { z } from 'zod';
+
+export const MemoryRecordSchema = z.object({
+  id: z.string().uuid(),
+  threadId: z.string().optional(),
+  content: z.string(),
+  embedding: z.array(z.number()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  createdAt: z.number(),
+});
+export type MemoryRecord = z.infer<typeof MemoryRecordSchema>;
 
 /** 嵌入器 — 将文本转换为向量 */
 export type Embedder = (text: string) => Promise<number[]>;

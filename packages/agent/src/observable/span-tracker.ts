@@ -1,6 +1,6 @@
 // @vico/agent - SpanTracker port interface + InMemory implementation
 import type { Span, SpanTracker } from './types.js';
-import type { SpanType } from '../contracts/events.js';
+import type { SpanType } from './types.js';
 import { randomUUID } from 'node:crypto';
 
 export type { Span, SpanTracker } from './types.js';

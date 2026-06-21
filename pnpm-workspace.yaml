@@ -1,4 +1,4 @@
 packages:
-  - "vico/*"
-  - "vico/*"
+  - "packages/*"
   - "examples/*"
+  - "vico/*"

@@ -1,7 +1,7 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
-import type { AgentConfig } from '../contracts/agent.js';
+import type { AgentConfig } from '../agent-loop/types.js';
 import type { ModelMessage, ModelRequest } from '../model/types.js';
-import type { ToolSpec } from '../contracts/tool.js';
+import type { ToolSpec } from '../tool/types.js';
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */
 export const Priority = {

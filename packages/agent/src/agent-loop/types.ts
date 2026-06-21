@@ -1,19 +1,46 @@
 // @vico/agent - AgentLoop module type definitions
+import { z } from 'zod';
 import type { ModelClient, ModelMessage } from '../model/types.js';
 import type { ContextProcessor } from '../prompt/context-processor.js';
 import type { ToolHost, ToolExecutionContext } from '../tool/types.js';
-import type { ToolCall, ToolResult, ToolSpec } from '../contracts/tool.js';
+import type { ToolCall, ToolResult, ToolSpec } from '../tool/types.js';
 import type { EventRecorder } from '../observable/types.js';
 import type { SpanTracker } from '../observable/types.js';
 import type { CompositeHookRunner } from '../hook/hook-runner.js';
 import type { ContextCompactor } from './context-compactor.js';
 import type { TokenEconomy } from './token-economy.js';
 import type { ApprovalGate } from './approval-gate.js';
-import type { AgentConfig } from '../contracts/agent.js';
 import type { AgentLoop } from './agent-loop.js';
 import type { Skill } from '../skill/types.js';
 import type { MemoryStore } from '../memory/memory-store.js';
 import type { WorkingMemory } from '../memory/types.js';
+
+/** 模型引用 */
+export const ModelRefSchema = z.object({
+  provider: z.string().min(1),
+  model: z.string().min(1),
+  baseUrl: z.string().url().optional(),
+  apiKey: z.string().optional(),
+});
+
+/** Agent 配置（从 DB 加载） */
+export const AgentConfigSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1).max(128),
+  systemPrompt: z.string().default(''),
+  model: ModelRefSchema,
+  temperature: z.number().min(0).max(2).default(0.7),
+  maxTokens: z.number().int().positive().default(4096),
+  maxSteps: z.number().int().min(1).max(100).default(10),
+});
+
+export type AgentConfig = z.infer<typeof AgentConfigSchema> & {
+  /** 工具存储 — 加载该 Agent 绑定的工具 */
+  tools?: import('../tool/types.js').ToolStore;
+  /** Skill 存储 — 加载该 Agent 绑定的 Skill */
+  skills?: import('../skill/types.js').SkillStore;
+};
+export type ModelRef = z.infer<typeof ModelRefSchema>;
 
 /** 一次 turn 的执行结果 */
 export interface TurnResult {

@@ -1,5 +1,5 @@
 // src/tool/builtin-tools.ts
-import type { ToolSpec } from '../contracts/tool.js';
+import type { ToolSpec } from './types.js';
 
 const UPDATE_WORKING_MEMORY_TOOL: ToolSpec = {
   name: 'updateWorkingMemory',
