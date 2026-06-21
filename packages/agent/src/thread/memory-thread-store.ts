@@ -8,12 +8,14 @@ export class InMemoryThreadStore implements ThreadStore {
 
   // Thread 操作
 
-  async createThread(agentId: string, title: string, id: string): Promise<Thread> {
+  async createThread(agentId: string, title: string, id: string, opts?: { userId?: string; metadata?: Record<string, unknown> }): Promise<Thread> {
     const now = Date.now();
     const thread: Thread = {
       id,
       agentId,
+      userId: opts?.userId,
       title,
+      metadata: opts?.metadata,
       createdAt: now,
       updatedAt: now,
     };
@@ -25,10 +27,13 @@ export class InMemoryThreadStore implements ThreadStore {
     return this.threads.get(threadId);
   }
 
-  async listThreads(agentId?: string): Promise<Thread[]> {
+  async listThreads(filter?: { agentId?: string; userId?: string }): Promise<Thread[]> {
     const all = [...this.threads.values()];
-    if (agentId) return all.filter((t) => t.agentId === agentId);
-    return all;
+    return all.filter((t) => {
+      if (filter?.agentId && t.agentId !== filter.agentId) return false;
+      if (filter?.userId && t.userId !== filter.userId) return false;
+      return true;
+    });
   }
 
   // Turn 操作

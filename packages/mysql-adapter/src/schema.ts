@@ -7,7 +7,9 @@ import { mysqlTable, varchar, text, bigint, int, json } from 'drizzle-orm/mysql-
 export const threads = mysqlTable('vico_threads', {
   id: varchar('id', { length: 36 }).primaryKey(),
   agent_id: varchar('agent_id', { length: 36 }).notNull(),
+  user_id: varchar('user_id', { length: 36 }),
   title: text('title'),
+  metadata: json('metadata'),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
 });
@@ -31,6 +33,7 @@ export const messages = mysqlTable('vico_messages', {
   tool_call_id: varchar('tool_call_id', { length: 255 }),
   tool_calls: json('tool_calls'),
   tool_results: json('tool_results'),
+  metadata: json('metadata'),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
 

@@ -5,7 +5,10 @@ import type { ModelMessage } from '../model/types.js';
 export interface Thread {
   id: string;
   agentId: string;
+  userId?: string;
   title?: string;
+  /** 自定义上下文字段（JSON 可序列化） */
+  metadata?: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
 }
@@ -29,6 +32,8 @@ export interface Message {
   toolCallId?: string;
   toolCalls?: unknown;
   toolResults?: unknown;
+  /** 自定义上下文字段（JSON 可序列化） */
+  metadata?: Record<string, unknown>;
   createdAt: number;
 }
 
@@ -37,11 +42,11 @@ export interface ThreadStore {
   /** Thread 操作 */
 
   /** 创建新线程 */
-  createThread(agentId: string, title: string, id: string): Promise<Thread>;
+  createThread(agentId: string, title: string, id: string, opts?: { userId?: string; metadata?: Record<string, unknown> }): Promise<Thread>;
   /** 获取线程详情 */
   getThread(threadId: string): Promise<Thread | undefined>;
-  /** 列出指定 Agent 的所有线程 */
-  listThreads(agentId?: string): Promise<Thread[]>;
+  /** 列出线程（可按 agentId / userId 筛选） */
+  listThreads(filter?: { agentId?: string; userId?: string }): Promise<Thread[]>;
 
   /** Turn 操作 */
 

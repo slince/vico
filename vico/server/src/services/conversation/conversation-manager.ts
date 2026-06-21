@@ -42,7 +42,7 @@ class ConversationManager {
       id: thread.id,
       tenant_id: (thread.resourceId as string)?.split(':')[0] ?? '',
       agent_id: thread.agentId || (meta.agent_id as string) || '',
-      user_id: (meta.user_id as string) || '',
+      user_id: thread.userId || (meta.user_id as string) || '',
       title: thread.title || '',
       model_name: (meta.model_name as string) || '',
       message_count: 0,
@@ -60,12 +60,11 @@ class ConversationManager {
     const search = filters?.search?.toLowerCase();
     const agentIdFilter = filters?.agent_id;
     const store = await getThreadStore();
-    const threads = await store.listThreads();
+    const threads = await store.listThreads({ userId, agentId: agentIdFilter || undefined });
 
     let convs: ConversationItem[] = [];
     for (const thread of threads) {
       const conv = this.threadToConversation(thread);
-      if (agentIdFilter && conv.agent_id !== agentIdFilter) continue;
 
       try {
         const entries = await store.getEntries(thread.id);
@@ -114,13 +113,13 @@ class ConversationManager {
 
   async count(tenantId: string, userId: string): Promise<number> {
     const store = await getThreadStore();
-    const threads = await store.listThreads();
+    const threads = await store.listThreads({ userId });
     return threads.length;
   }
 
   async recent(tenantId: string, userId: string, limit = 5): Promise<RecentConversation[]> {
     const store = await getThreadStore();
-    const threads = (await store.listThreads()).slice(0, limit);
+    const threads = (await store.listThreads({ userId })).slice(0, limit);
 
     const items: RecentConversation[] = [];
     for (const thread of threads) {
@@ -168,9 +167,9 @@ class ConversationManager {
     if (!thread) return false;
 
     try {
-      await (db as any).run('DELETE FROM messages WHERE thread_id = ?', [id]);
-      await (db as any).run('DELETE FROM turns WHERE thread_id = ?', [id]);
-      await (db as any).run('DELETE FROM threads WHERE id = ?', [id]);
+      await (db as any).run('DELETE FROM vico_messages WHERE thread_id = ?', [id]);
+      await (db as any).run('DELETE FROM vico_turns WHERE thread_id = ?', [id]);
+      await (db as any).run('DELETE FROM vico_threads WHERE id = ?', [id]);
       return true;
     } catch {
       return false;

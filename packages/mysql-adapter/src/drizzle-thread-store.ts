@@ -29,17 +29,19 @@ export class DrizzleThreadStore implements ThreadStore {
 
   // --- Thread ---
 
-  async createThread(agentId: string, title?: string): Promise<Thread> {
-    const id = crypto.randomUUID();
+  async createThread(agentId: string, title: string, id: string, opts?: { userId?: string; metadata?: Record<string, unknown> }): Promise<Thread> {
+    const threadId = id || crypto.randomUUID();
     const now = Date.now();
     await this.db.insert(threads).values({
-      id,
+      id: threadId,
       agent_id: agentId,
+      user_id: opts?.userId ?? null,
       title: title ?? null,
+      metadata: opts?.metadata ?? null,
       created_at: now,
       updated_at: now,
     });
-    return { id, agentId, title, createdAt: now, updatedAt: now };
+    return { id: threadId, agentId, userId: opts?.userId, title: title || undefined, metadata: opts?.metadata, createdAt: now, updatedAt: now };
   }
 
   async getThread(threadId: string): Promise<Thread | undefined> {
@@ -51,14 +53,18 @@ export class DrizzleThreadStore implements ThreadStore {
     return rows.length === 0 ? undefined : this._toThread(rows[0]);
   }
 
-  async listThreads(agentId?: string): Promise<Thread[]> {
-    const base = this.db
+  async listThreads(filter?: { agentId?: string; userId?: string }): Promise<Thread[]> {
+    let base = this.db
       .select()
       .from(threads)
       .orderBy(desc(threads.updated_at));
-    const rows = await (agentId
-      ? base.where(eq(threads.agent_id, agentId))
-      : base);
+    if (filter?.agentId) {
+      base = base.where(eq(threads.agent_id, filter.agentId)) as typeof base;
+    }
+    if (filter?.userId) {
+      base = base.where(eq(threads.user_id, filter.userId)) as typeof base;
+    }
+    const rows = await base;
     return rows.map((r) => this._toThread(r));
   }
 
@@ -113,6 +119,7 @@ export class DrizzleThreadStore implements ThreadStore {
       tool_call_id: entry.toolCallId ?? null,
       tool_calls: entry.toolCalls,
       tool_results: entry.toolResults,
+      metadata: entry.metadata ?? null,
       created_at: now,
     });
     return { ...entry, id, createdAt: now };
@@ -154,7 +161,9 @@ export class DrizzleThreadStore implements ThreadStore {
     return {
       id: r.id,
       agentId: r.agent_id,
+      userId: r.user_id ?? undefined,
       title: r.title ?? undefined,
+      metadata: r.metadata as Record<string, unknown> | undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     };
@@ -180,6 +189,7 @@ export class DrizzleThreadStore implements ThreadStore {
       toolCallId: r.tool_call_id ?? undefined,
       toolCalls: r.tool_calls as unknown,
       toolResults: r.tool_results as unknown,
+      metadata: r.metadata as Record<string, unknown> | undefined,
       createdAt: r.created_at,
     };
   }

@@ -235,7 +235,9 @@ export const threads = sqliteTable('threads', {
   id: text('id').primaryKey(),
   tenant_id: text('tenant_id').notNull().references(() => organization.id),
   agent_id: text('agent_id').notNull(),
+  user_id: text('user_id'),
   title: text('title'),
+  metadata: text('metadata'),
   created_at: integer('created_at').notNull(),
   updated_at: integer('updated_at').notNull(),
 });
@@ -258,5 +260,6 @@ export const thread_messages = sqliteTable('thread_messages', {
   content: text('content').notNull(),
   tool_calls: text('tool_calls'),
   tool_results: text('tool_results'),
+  metadata: text('metadata'),
   created_at: integer('created_at').notNull(),
 });

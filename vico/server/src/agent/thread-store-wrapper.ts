@@ -13,16 +13,16 @@ export class TenantThreadStore implements ThreadStore {
     return `t:${this.tenantId}:${threadId}`;
   }
 
-  async createThread(agentId: string, title: string, id: string): Promise<Thread> {
-    return this.delegate.createThread(agentId, title, this.key(id));
+  async createThread(agentId: string, title: string, id: string, opts?: { userId?: string; metadata?: Record<string, unknown> }): Promise<Thread> {
+    return this.delegate.createThread(agentId, title, this.key(id), opts);
   }
 
   async getThread(threadId: string): Promise<Thread | undefined> {
     return this.delegate.getThread(this.key(threadId));
   }
 
-  async listThreads(agentId?: string): Promise<Thread[]> {
-    return this.delegate.listThreads(agentId);
+  async listThreads(filter?: { agentId?: string; userId?: string }): Promise<Thread[]> {
+    return this.delegate.listThreads(filter);
   }
 
   async createTurn(threadId: string): Promise<Turn> {

@@ -24,7 +24,9 @@ export async function ensureTables(
     CREATE TABLE IF NOT EXISTS vico_threads (
       id TEXT PRIMARY KEY,
       agent_id TEXT NOT NULL,
+      user_id TEXT,
       title TEXT,
+      metadata TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
@@ -52,6 +54,7 @@ export async function ensureTables(
       tool_call_id TEXT,
       tool_calls TEXT,
       tool_results TEXT,
+      metadata TEXT,
       created_at INTEGER NOT NULL
     )
   `);

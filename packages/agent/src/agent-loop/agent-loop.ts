@@ -71,7 +71,7 @@ export class AgentLoop {
       const title = typeof userMessage.content === 'string'
         ? userMessage.content.slice(0, 50)
         : 'New thread';
-      thread = await threadStore.createThread(this.agent.config.id, title, threadId);
+      thread = await threadStore.createThread(this.agent.config.id, title, threadId, { userId: toolUserId || undefined });
     }
     const turn = await threadStore?.createTurn(threadId);
     this.currentTurnId = turn?.id ?? '';
