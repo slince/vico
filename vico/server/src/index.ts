@@ -1,10 +1,9 @@
-import { serve } from '@hono/node-server';
-import { config } from './config.js';
-import { skillManager } from './skill/manager.js';
-import { runMigrations } from './db/run-migrations.js';
-import { seedDefaultOrgAndAdmin, seedMainAgent } from './auth/seed.js';
-import { app, initVico } from './mastra.js';
-import { auth } from './auth';
+import {serve} from '@hono/node-server';
+import {config} from './config.js';
+import {runMigrations} from './db/run-migrations.js';
+import {seedDefaultOrgAndAdmin, seedMainAgent} from './auth/seed.js';
+import {app, initVico} from './vico.js';
+import {auth} from './auth';
 import logger from './lib/logger.js';
 
 /** better-auth session 扩展类型 */
@@ -18,7 +17,6 @@ export type Variables = {
 
 async function main() {
   runMigrations();
-  await skillManager.init();
   await seedDefaultOrgAndAdmin();
   await seedMainAgent();
   await initVico();

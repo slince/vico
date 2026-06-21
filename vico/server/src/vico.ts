@@ -1,15 +1,14 @@
 /**
  * Vico Agent 框架初始化 — 替代 Mastra。
  */
-import { Vico, AISDKModelClient } from '@vico/agent';
-import { createApp } from './app.js';
-import { config } from './config.js';
+import {Vico} from '@vico/agent';
+import {createApp} from './app.js';
 import logger from './lib/logger.js';
 
 /** 全局 Vico 容器单例 */
 export const vico = new Vico({
   maxCached: 100,
-  skills: { skillDirs: [] },
+  skills: { skillDirs: ["~/.vico/skills"], compatible: true },
 });
 
 /** 创建 Hono app 实例 */
