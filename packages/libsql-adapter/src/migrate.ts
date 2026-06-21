@@ -56,13 +56,12 @@ export async function ensureTables(
     )
   `);
 
-  // 消息按 thread_id 检索索引
   await db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_msg_thread
     ON vico_messages(thread_id)
   `);
 
-  // 记忆条目表
+  // 记忆条目表 — embedding 使用 libsql 原生 F32_BLOB 向量类型
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_memory_entries (
       id TEXT PRIMARY KEY,
@@ -71,26 +70,23 @@ export async function ensureTables(
       scope_id TEXT NOT NULL,
       type TEXT NOT NULL,
       content TEXT NOT NULL,
-      embedding TEXT,
+      embedding F32_BLOB(1536),
       metadata TEXT NOT NULL DEFAULT '{}',
       importance INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     )
   `);
 
-  // 按 (scope_type, scope_id, type) 检索记忆
   await db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_me_scope
     ON vico_memory_entries(scope_type, scope_id, type)
   `);
 
-  // 按类型 + 重要度排序
   await db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_me_type_imp
     ON vico_memory_entries(type, importance)
   `);
 
-  // 按 thread_id 回溯关联记忆
   await db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_me_thread
     ON vico_memory_entries(thread_id)

@@ -20,11 +20,5 @@ export {
   type DrizzleWorkingMemoryOptions,
 } from './drizzle-working-memory.js';
 
-// VectorStore adapter
-export {
-  DrizzleVectorStore,
-  type DrizzleVectorStoreOptions,
-} from './drizzle-vector-store.js';
-
 // Auto-create tables at startup
 export { ensureTables } from './migrate.js';

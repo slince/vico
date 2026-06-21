@@ -1,5 +1,5 @@
-// @vico/libsql-adapter — LibSQL/Drizzle-backed VectorStore (implements @vico/rag VectorStore)
-import { eq, and, desc } from 'drizzle-orm';
+// @vico/libsql-adapter — LibSQL 原生向量存储（基于 F32_BLOB + vector_distance_cos）
+import { eq, sql } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type { VectorStore, DistanceMetric, VectorQueryResult } from '@vico/rag';
 import { memoryEntries } from './schema.js';
@@ -7,15 +7,16 @@ import type * as schema from './schema.js';
 
 /** DrizzleVectorStore 构造选项 */
 export interface DrizzleVectorStoreOptions {
-  /** Drizzle libSQL 数据库实例（schema 需包含本包的 memoryEntries 表） */
+  /** Drizzle libSQL 数据库实例 */
   db: LibSQLDatabase<typeof schema>;
 }
 
 /**
- * 基于 LibSQL/Drizzle 的向量存储实现，实现 @vico/rag 的 VectorStore 接口。
+ * 基于 LibSQL 原生向量检索的 VectorStore 实现。
  *
- * 每个 RAG indexName 映射为 memoryEntries 表中 scope_type 字段的一个取值。
- * 向量以 JSON 文本存储在 embedding 列，查询时在 JS 侧计算余弦/欧氏/内积相似度。
+ * - 存储: F32_BLOB(1536) + vector32() 函数
+ * - 精确检索: vector_distance_cos / vector_distance_l2
+ * - 近似检索: vector_top_k + libsql_vector_idx 索引（可选）
  *
  * @example
  * ```ts
@@ -30,26 +31,30 @@ export interface DrizzleVectorStoreOptions {
  */
 export class DrizzleVectorStore implements VectorStore {
   private db: LibSQLDatabase<typeof schema>;
-  /** 记录每个 index 使用的相似度度量，供 distance→score 转换 */
   private metrics: Map<string, DistanceMetric> = new Map();
 
   constructor(options: DrizzleVectorStoreOptions) {
     this.db = options.db;
   }
 
-  /** 候选集上限，控制相似度计算开销 */
-  private static readonly CANDIDATE_LIMIT = 500;
-
-  // ---- VectorStore 接口实现 ----
-
   async createIndex(params: {
     indexName: string;
     dimension: number;
     metric: DistanceMetric;
   }): Promise<void> {
-    // 表已通过 migration 存在，仅记录 metric 供后续查询使用
-    if (!this.metrics.has(params.indexName)) {
-      this.metrics.set(params.indexName, params.metric);
+    // 记录 metric，供 query 选择距离函数
+    this.metrics.set(params.indexName, params.metric);
+
+    // 创建 ANN 向量索引（libsql_vector_idx）
+    // 用 try/catch 处理索引已存在的场景
+    try {
+      await this.db.run(sql`
+        CREATE INDEX IF NOT EXISTS ${sql.raw(`idx_vec_${params.indexName}`)}
+        ON vico_memory_entries (libsql_vector_idx(embedding, ${sql.raw(`'metric=${params.metric}'`)}))
+        WHERE type = 'semantic' AND scope_type = ${params.indexName}
+      `);
+    } catch {
+      // 索引已存在，忽略
     }
   }
 
@@ -61,29 +66,24 @@ export class DrizzleVectorStore implements VectorStore {
   }): Promise<void> {
     const now = Date.now();
 
-    // 先批量删除同 ID 旧记录，再批量插入
+    // 先批量删除同 ID 旧记录
     for (const id of params.ids) {
       await this.db.delete(memoryEntries).where(eq(memoryEntries.id, id));
     }
 
-    const rows = params.ids.map((id, i) => {
+    // 使用原生 vector32() 批量插入
+    for (let i = 0; i < params.ids.length; i++) {
       const meta = params.metadata[i] ?? {};
-      return {
-        id,
-        thread_id: (meta.threadId as string) ?? null,
-        scope_type: params.indexName,
-        scope_id: '',
-        type: 'semantic' as const,
-        content: (meta.content as string) ?? '',
-        embedding: JSON.stringify(params.vectors[i]),
-        metadata: JSON.stringify(meta),
-        importance: 0,
-        created_at: (meta.createdAt as number) ?? now,
-      };
-    });
+      const vecStr = JSON.stringify(params.vectors[i]);
+      const metaStr = JSON.stringify(meta);
 
-    if (rows.length > 0) {
-      await this.db.insert(memoryEntries).values(rows);
+      await this.db.run(sql`
+        INSERT INTO vico_memory_entries
+          (id, thread_id, scope_type, scope_id, type, content, embedding, metadata, importance, created_at)
+        VALUES
+          (${params.ids[i]}, ${(meta.threadId as string) ?? null}, ${params.indexName}, '', 'semantic',
+           ${(meta.content as string) ?? ''}, vector32(${vecStr}), ${metaStr}, 0, ${(meta.createdAt as number) ?? now})
+      `);
     }
   }
 
@@ -93,46 +93,45 @@ export class DrizzleVectorStore implements VectorStore {
     topK: number;
     filter?: Record<string, unknown>;
   }): Promise<VectorQueryResult[]> {
-    const rows = await this.db
-      .select()
-      .from(memoryEntries)
-      .where(
-        and(
-          eq(memoryEntries.scope_type, params.indexName),
-          eq(memoryEntries.type, 'semantic'),
-        ),
-      )
-      .orderBy(desc(memoryEntries.created_at))
-      .limit(DrizzleVectorStore.CANDIDATE_LIMIT);
-
+    const vecStr = JSON.stringify(params.queryVector);
     const metric = this.metrics.get(params.indexName) ?? 'cosine';
+    const distFn = metric === 'euclidean'
+      ? sql`vector_distance_l2`
+      : sql`vector_distance_cos`;
+
+    // 使用原生向量距离函数，在 SQL 层排序
+    const rows = this.db.all<Record<string, unknown>>(sql`
+      SELECT id, content, metadata, thread_id, scope_type, created_at,
+        ${distFn}(embedding, vector32(${vecStr})) AS _distance
+      FROM vico_memory_entries
+      WHERE scope_type = ${params.indexName}
+        AND type = 'semantic'
+        AND embedding IS NOT NULL
+      ORDER BY _distance ASC
+      LIMIT ${params.topK}
+    `);
 
     return rows
-      .filter((r): r is typeof memoryEntries.$inferSelect & { embedding: string } => r.embedding !== null)
       .map((r) => {
-        let vector: number[];
+        let meta: Record<string, unknown> = {};
         try {
-          vector = JSON.parse(r.embedding) as number[];
-        } catch {
-          return null;
-        }
-        let meta: Record<string, unknown>;
-        try {
-          meta = JSON.parse(r.metadata) as Record<string, unknown>;
-        } catch {
-          meta = {};
-        }
-        // 元数据过滤
+          meta = typeof r.metadata === 'string'
+            ? JSON.parse(r.metadata as string)
+            : (r.metadata as Record<string, unknown>);
+        } catch { /* keep empty */ }
+
+        // 元数据过滤（post-filter）
         if (params.filter && !matchFilter(meta, params.filter)) return null;
-        return {
-          id: r.id,
-          score: similarity(params.queryVector, vector, metric),
-          metadata: meta,
-        };
+
+        // 距离转相似度分数（距离越小 → 分数越高）
+        const distance = r._distance as number;
+        const score = metric === 'euclidean'
+          ? 1 / (1 + distance)
+          : 1 - distance;
+
+        return { id: r.id as string, score, metadata: meta };
       })
-      .filter((v): v is VectorQueryResult => v !== null)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, params.topK);
+      .filter((v): v is VectorQueryResult => v !== null);
   }
 
   async deleteVectors(params: {
@@ -140,9 +139,9 @@ export class DrizzleVectorStore implements VectorStore {
     ids: string[];
   }): Promise<void> {
     for (const id of params.ids) {
-      await this.db.delete(memoryEntries).where(
-        and(eq(memoryEntries.id, id), eq(memoryEntries.scope_type, params.indexName)),
-      );
+      await this.db
+        .delete(memoryEntries)
+        .where(sql`${memoryEntries.id} = ${id} AND ${memoryEntries.scope_type} = ${params.indexName}`);
     }
   }
 
@@ -152,49 +151,6 @@ export class DrizzleVectorStore implements VectorStore {
       .delete(memoryEntries)
       .where(eq(memoryEntries.scope_type, indexName));
   }
-}
-
-// ---- 内部工具函数 ----
-
-/** 计算两个向量的相似度 */
-function similarity(a: number[], b: number[], metric: DistanceMetric): number {
-  switch (metric) {
-    case 'cosine':
-      return cosineSim(a, b);
-    case 'euclidean':
-      return 1 / (1 + euclideanDist(a, b));
-    case 'dot_product':
-      return dotProduct(a, b);
-    default:
-      return 0;
-  }
-}
-
-function cosineSim(a: number[], b: number[]): number {
-  let dot = 0, magA = 0, magB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    magA += a[i] ** 2;
-    magB += b[i] ** 2;
-  }
-  const denom = Math.sqrt(magA) * Math.sqrt(magB);
-  return denom === 0 ? 0 : dot / denom;
-}
-
-function euclideanDist(a: number[], b: number[]): number {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) {
-    sum += (a[i] - b[i]) ** 2;
-  }
-  return Math.sqrt(sum);
-}
-
-function dotProduct(a: number[], b: number[]): number {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) {
-    sum += a[i] * b[i];
-  }
-  return sum;
 }
 
 /** 精确匹配元数据过滤 */

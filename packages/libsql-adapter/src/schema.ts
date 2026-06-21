@@ -1,5 +1,5 @@
 // @vico/libsql-adapter — Drizzle table definitions for thread and memory persistence
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
 
 // --- Thread tables ---
 
@@ -45,8 +45,8 @@ export const memoryEntries = sqliteTable('vico_memory_entries', {
   /** 'working' | 'semantic' */
   type: text('type').notNull(),
   content: text('content').notNull(),
-  /** JSON 数组文本，如 [0.1, 0.2, ...] */
-  embedding: text('embedding'),
+  /** F32_BLOB 向量 */
+  embedding: blob('embedding'),
   /** JSON 对象文本，默认 '{}' */
   metadata: text('metadata').notNull().default('{}'),
   importance: integer('importance').notNull().default(0),
