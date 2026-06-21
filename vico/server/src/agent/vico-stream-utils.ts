@@ -102,70 +102,88 @@ export async function turnEventsToAISDK(
 
       try {
         let inStep = false;
+        let textId: string | null = null;
+        let reasoningId: string | null = null;
+
+        const closeText = () => {
+          if (textId) {
+            enqueue({ type: 'text-end', id: textId });
+            textId = null;
+          }
+        };
+        const closeReasoning = () => {
+          if (reasoningId) {
+            enqueue({ type: 'reasoning-end', id: reasoningId });
+            reasoningId = null;
+          }
+        };
+        const closeBlocks = () => {
+          closeText();
+          closeReasoning();
+        };
 
         while (true) {
           const { done, value } = await generator.next();
           if (done) {
+            closeBlocks();
             const result = value as TurnResult;
-            const totalUsage = result?.usage;
-            const finishPayload: Record<string, unknown> = {
-              type: 'finish',
-              finishReason: result?.status === 'completed' ? 'stop' : 'error',
-            };
-            if (totalUsage) {
-              finishPayload.totalUsage = {
-                inputTokens: totalUsage.input,
-                outputTokens: totalUsage.output,
-              };
-            }
-            if (options?.doneMetadata) {
-              finishPayload.messageMetadata = options.doneMetadata;
-            }
+
             if (inStep) {
               enqueue({ type: 'finish-step' });
             }
-            enqueue(finishPayload);
+            enqueue({
+              type: 'finish',
+              finishReason: result?.status === 'completed' ? 'stop' : 'error',
+            });
             break;
           }
 
           const event = value as TurnEvent;
           switch (event.type) {
             case 'text_delta':
+              closeReasoning();
               if (!inStep) {
                 enqueue({ type: 'start-step' });
                 inStep = true;
               }
+              if (!textId) {
+                textId = crypto.randomUUID();
+                enqueue({ type: 'text-start', id: textId });
+              }
               fullText += event.content;
-              enqueue({ type: 'text-delta', text: event.content });
+              enqueue({ type: 'text-delta', id: textId, delta: event.content });
               break;
 
             case 'reasoning_delta':
-              enqueue({ type: 'reasoning-delta', text: event.content });
+              closeText();
+              if (!reasoningId) {
+                reasoningId = crypto.randomUUID();
+                enqueue({ type: 'reasoning-start', id: reasoningId });
+              }
+              enqueue({ type: 'reasoning-delta', id: reasoningId, delta: event.content });
               break;
 
             case 'tool_call_start':
+              closeBlocks();
               if (!inStep) {
                 enqueue({ type: 'start-step' });
                 inStep = true;
               }
-              enqueue({
-                type: 'tool-call',
-                toolCallId: event.id,
-                toolName: event.name,
-                input: event.args,
-              });
+              enqueue({ type: 'tool-input-start', toolCallId: event.id, toolName: event.name });
+              enqueue({ type: 'tool-input-delta', toolCallId: event.id, inputTextDelta: JSON.stringify(event.args) });
+              enqueue({ type: 'tool-input-available', toolCallId: event.id, toolName: event.name });
               break;
 
             case 'tool_result':
-              enqueue({
-                type: 'tool-result',
-                toolCallId: event.id,
-                toolName: event.name,
-                result: event.status === 'success' ? String(event.output) : `Error: ${String(event.output)}`,
-              });
+              if (event.status === 'success') {
+                enqueue({ type: 'tool-output-available', toolCallId: event.id });
+              } else {
+                enqueue({ type: 'tool-output-error', toolCallId: event.id, errorText: String(event.output) });
+              }
               break;
 
             case 'step_end':
+              closeBlocks();
               if (inStep) {
                 enqueue({ type: 'finish-step' });
                 inStep = false;
@@ -173,7 +191,7 @@ export async function turnEventsToAISDK(
               break;
 
             case 'error':
-              enqueue({ type: 'error', error: event.message });
+              enqueue({ type: 'error', errorText: event.message });
               break;
 
             case 'step_start':
@@ -183,7 +201,7 @@ export async function turnEventsToAISDK(
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        enqueue({ type: 'error', error: message });
+        enqueue({ type: 'error', errorText: message });
       } finally {
         controller.close();
       }

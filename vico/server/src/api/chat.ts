@@ -49,9 +49,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         userId: auth.userId,
       });
 
-      return turnEventsToAISDK(stream, {
-        doneMetadata: { threadId },
-      });
+      return turnEventsToAISDK(stream);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'An internal error occurred';
       logger.error({ err: error, agentId, tenantId: auth.tenantId }, 'Chat stream error');
