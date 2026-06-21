@@ -32,7 +32,7 @@ export { defaultModelFactory } from './model/factory.js';
 export {
   type ContextProcessor,
   type ModelRequestContext,
-  OnionPipeline,
+  ProcessorPipeline,
   buildModelRequest,
   Priority,
 } from './prompt/context-processor.js';

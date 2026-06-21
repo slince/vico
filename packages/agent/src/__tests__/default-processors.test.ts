@@ -1,18 +1,18 @@
 // default-processors.test.ts — tests for context processors and onion pipeline
-import { describe, it, expect, vi } from 'vitest';
-import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
-import { SkillCatalogProcessor } from '../skill/skill-catalog-processor.js';
-import { MemoryProcessor } from '../memory/memory-processor.js';
-import { RagProcessor } from '../memory/rag-processor.js';
-import { DynamicInstructionProcessor } from '../agent-loop/dynamic-instruction-processor.js';
+import {describe, expect, it, vi} from 'vitest';
+import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
+import {SkillCatalogProcessor} from '../skill/skill-catalog-processor.js';
+import {MemoryProcessor} from '../memory/memory-processor.js';
+import {RagProcessor} from '../memory/rag-processor.js';
+import {DynamicInstructionProcessor} from '../agent-loop/dynamic-instruction-processor.js';
 import {
-  OnionPipeline,
   buildModelRequest,
-  Priority,
-  ModelRequestContext,
   type ContextProcessor,
+  ModelRequestContext,
+  Priority,
+  ProcessorPipeline,
 } from '../prompt/context-processor.js';
-import type { AgentConfig } from '../agent-loop/types.js';
+import type {AgentConfig} from '../agent-loop/types.js';
 
 function makeConfig(): AgentConfig {
   return {
@@ -294,7 +294,7 @@ describe('OnionPipeline', () => {
       process: async () => { order.push(name); },
     });
 
-    const pipeline = new OnionPipeline([
+    const pipeline = new ProcessorPipeline([
       makeProcessor('c', 100),
       makeProcessor('a', -100),
       makeProcessor('b', 0),
@@ -316,13 +316,13 @@ describe('OnionPipeline', () => {
       process: async () => { order.push('good'); },
     };
 
-    const pipeline = new OnionPipeline([throwing, good]);
+    const pipeline = new ProcessorPipeline([throwing, good]);
     await pipeline.run(makeCtx());
     expect(order).toEqual(['good']);
   });
 
   it('empty pipeline is a no-op', async () => {
-    const pipeline = new OnionPipeline([]);
+    const pipeline = new ProcessorPipeline([]);
     const ctx = makeCtx();
     ctx.systemPrompt = 'original';
     await pipeline.run(ctx);

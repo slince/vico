@@ -1,7 +1,7 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
-import type { AgentConfig } from '../agent-loop/types.js';
-import type { ModelMessage, ModelRequest } from '../model/types.js';
-import type { ToolSpec } from '../tool/types.js';
+import type {AgentConfig} from '../agent-loop/types.js';
+import type {ModelMessage, ModelRequest} from '../model/types.js';
+import type {ToolSpec} from '../tool/types.js';
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */
 export const Priority = {
@@ -69,7 +69,7 @@ export interface ContextProcessor {
 }
 
 /** 洋葱管道 — 按优先级排序后依次执行所有处理器 */
-export class OnionPipeline {
+export class ProcessorPipeline {
   constructor(private readonly processors: ContextProcessor[]) {}
 
   /** 进入阶段：按优先级升序依次执行 process()。单个处理器异常不阻塞后续处理器。 */

@@ -7,7 +7,7 @@ import type {CompositeHookRunner} from '../hook/hook-runner.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
-import {buildModelRequest, ModelRequestContext, OnionPipeline} from '../prompt/context-processor.js';
+import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
 
 
@@ -25,7 +25,7 @@ export class AgentLoop {
   private steerBuffer: string[] = [];
   private interrupted = false;
 
-  private pipeline: OnionPipeline;
+  private pipeline: ProcessorPipeline;
 
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
@@ -44,7 +44,7 @@ export class AgentLoop {
       const text = this.drainSteerBuffer();
       return text ? [text] : [];
     });
-    this.pipeline = new OnionPipeline([...userProcessors, steerProcessor]);
+    this.pipeline = new ProcessorPipeline([...userProcessors, steerProcessor]);
 
     // 注册 updateWorkingMemory 工具 handler
     if (options.workingMemory) {
