@@ -1,4 +1,4 @@
-// @vico/libsql — Drizzle-backed WorkingMemory implementation
+// @vico/libsql-adapter — Drizzle-backed WorkingMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type { WorkingMemory } from '@vico/agent';

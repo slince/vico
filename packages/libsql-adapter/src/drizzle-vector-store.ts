@@ -1,4 +1,4 @@
-// @vico/libsql — Drizzle-backed VectorStore implementation
+// @vico/libsql-adapter — Drizzle-backed VectorStore implementation
 import { eq, desc, and } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type { VectorStore, MemoryRecord } from '@vico/agent';

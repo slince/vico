@@ -1,4 +1,4 @@
-// @vico/libsql — Public API barrel exports
+// @vico/libsql-adapter — Public API barrel exports
 
 // Schema — 供调用方纳入 drizzle-kit 生成迁移
 export {
