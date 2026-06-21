@@ -1,11 +1,10 @@
 // @vico/agent - MemoryStore: memory processing class wrapping three-layer memory + RAG
+import type { ConversationHistoryMemory } from './conversation-history-memory.js';
 import type {
-  ConversationHistoryMemory,
   SemanticRecallMemory,
   WorkingMemory,
   RagProvider,
 } from './types.js';
-import { ConversationHistoryMemoryStore } from './conversation-history-memory.js';
 import { InMemorySemanticRecall } from './in-memory-semantic-recall.js';
 import { InMemoryWorkingMemory } from './in-memory-working-memory.js';
 import { InMemoryRagProvider } from './in-memory-rag-provider.js';
@@ -24,7 +23,7 @@ export interface MemoryStoreOptions {
 
 /** 三层记忆处理类 — 包装 conversation/semantic/working/rag 并提供统一访问入口 */
 export class MemoryStore {
-  readonly conversation: ConversationHistoryMemory;
+  readonly conversation?: ConversationHistoryMemory;
   readonly semantic: SemanticRecallMemory;
   readonly working: WorkingMemory;
   readonly rag: RagProvider;
@@ -36,7 +35,7 @@ export class MemoryStore {
   constructor(options: MemoryStoreOptions = {}) {
     this.semanticEnabled = options.semanticEnabled ?? true;
     this.conversationWindow = options.conversationWindow ?? 20;
-    this.conversation = options.conversation ?? new ConversationHistoryMemoryStore();
+    this.conversation = options.conversation;
 
     this.semantic = options.semantic ?? new InMemorySemanticRecall();
 

@@ -48,7 +48,6 @@ export { type SkillCatalogEntry } from './skill/types.js';
 export {
   type RagChunk,
   type RagProvider,
-  type ConversationHistoryMemory,
   type SemanticRecallMemory,
   type WorkingMemory,
 } from './memory/types.js';
@@ -71,7 +70,7 @@ export { BuiltinTools } from './tool/builtin-tools.js';
 
 // Ports — MemoryStore
 export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
-export { ConversationHistoryMemoryStore } from './memory/conversation-history-memory.js';
+export { ConversationHistoryMemory } from './memory/conversation-history-memory.js';
 export { InMemorySemanticRecall } from './memory/in-memory-semantic-recall.js';
 export { InMemoryWorkingMemory } from './memory/in-memory-working-memory.js';
 export { InMemoryRagProvider } from './memory/in-memory-rag-provider.js';

@@ -26,6 +26,7 @@ export interface Message {
   turnId: string;
   role: string;
   content: string;
+  toolCallId?: string;
   toolCalls?: unknown;
   toolResults?: unknown;
   createdAt: number;

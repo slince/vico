@@ -21,6 +21,7 @@ export class MemoryProcessor implements ContextProcessor {
 
   /** 注入会话历史（FIFO 滑动窗口） */
   private async injectConversationHistory(ctx: ModelRequestContext): Promise<void> {
+    if (!this.memoryStore.conversation) return;
     const history = await this.memoryStore.conversation.get(
       this.threadId,
       this.memoryStore.conversationWindow,

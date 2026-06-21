@@ -1,5 +1,4 @@
 // @vico/agent - Memory module type definitions
-import type { ModelMessage } from '../model/types.js';
 import type { MemoryRecord } from '../contracts/memory.js';
 
 /** RAG 检索结果 */
@@ -12,14 +11,6 @@ export interface RagChunk {
 /** RAG 知识库检索端口 */
 export interface RagProvider {
   search(query: string, knowledgeBaseId: string, limit?: number): Promise<RagChunk[]>;
-}
-
-/** 会话历史记忆 — 基于 FIFO 滑动窗口的对话历史管理 */
-export interface ConversationHistoryMemory {
-  /** 向线程的会话历史追加一条消息 */
-  push(threadId: string, message: ModelMessage): Promise<void>;
-  /** 获取线程最近 window 条消息（FIFO 滑动窗口） */
-  get(threadId: string, window: number): Promise<ModelMessage[]>;
 }
 
 /** 语义召回记忆 — 基于向量检索的长期记忆 */
