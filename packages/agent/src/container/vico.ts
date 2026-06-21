@@ -216,7 +216,6 @@ export class Vico {
 
     return new AgentLoop({
       agent,
-      model: agent.model,
       toolBroker,
       processors,
       events: this.events,

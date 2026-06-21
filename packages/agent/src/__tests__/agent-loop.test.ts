@@ -22,9 +22,10 @@ function makeConfig(): AgentConfig {
   };
 }
 
-function makeAgent() {
+function makeAgent(model: ModelClient) {
   return new Agent({
     config: makeConfig(),
+    model,
     memory: new MemoryStore(),
     session: new InMemorySessionStore(),
   });
@@ -61,11 +62,10 @@ describe('AgentLoop', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const agent = makeAgent();
+    const agent = makeAgent(model);
 
     const loop = new AgentLoop({
       agent,
-      model,
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,
@@ -97,11 +97,10 @@ describe('AgentLoop', () => {
       { type: 'completed', finishReason: 'stop' },
     ]);
 
-    const agent = makeAgent();
+    const agent = makeAgent(model);
 
     const loop = new AgentLoop({
       agent,
-      model,
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,
@@ -148,11 +147,10 @@ describe('AgentLoop', () => {
       },
     };
 
-    const agent = makeAgent();
+    const agent = makeAgent(model);
 
     const loop = new AgentLoop({
       agent,
-      model,
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,

@@ -76,7 +76,6 @@ export type TurnEvent =
 /** AgentLoop 构造选项 */
 export interface AgentLoopOptions {
   agent: Agent;
-  model: ModelClient;
   toolBroker: ToolBroker;
   /** 上下文处理器列表 — 在 model 调用前按优先级依次执行。缺少时回退到无增强的裸模式 */
   processors?: ContextProcessor[];

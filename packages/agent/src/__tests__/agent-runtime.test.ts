@@ -5,6 +5,13 @@ import { Agent } from '../agent-loop/types.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemorySessionStore } from '../session/memory-session-store.js';
+import type { ModelClient } from '../model/types.js';
+
+const mockModel: ModelClient = {
+  provider: 'mock',
+  model: 'mock',
+  async *stream() {},
+};
 
 function makeConfig(id: string): AgentConfig {
   return {
@@ -21,6 +28,7 @@ function makeConfig(id: string): AgentConfig {
 function makeAgent(id: string): Agent {
   return new Agent({
     config: makeConfig(id),
+    model: mockModel,
     memory: new MemoryStore(),
     session: new InMemorySessionStore(),
   });

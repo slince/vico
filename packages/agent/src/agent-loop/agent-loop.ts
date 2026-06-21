@@ -1,6 +1,6 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {Agent, AgentLoopOptions, RunTurnOptions, TurnEvent, TurnResult} from './types.js';
-import type {ModelClient, ModelMessage} from '../model/types.js';
+import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventRecorder, SpanTracker, SSEEvent} from '../observable/types.js';
@@ -15,7 +15,6 @@ import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {
   private agent: Agent;
-  private model: ModelClient;
   private toolBroker: ToolBroker;
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
@@ -31,7 +30,6 @@ export class AgentLoop {
 
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
-    this.model = options.model;
     this.toolBroker = options.toolBroker;
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
@@ -220,7 +218,7 @@ export class AgentLoop {
   /** 压缩检查 */
   private async *tryCompact(messages: ModelMessage[], signal: AbortSignal): AsyncGenerator<TurnEvent> {
     if (!this.compactor) return;
-    const result = await this.compactor.compactIfNeeded(messages, this.model, signal);
+    const result = await this.compactor.compactIfNeeded(messages, this.agent.model, signal);
     if (result.wasCompacted) {
       messages.length = 0;
       messages.push(...result.compacted);
@@ -252,7 +250,7 @@ export class AgentLoop {
     const toolCalls: ToolCall[] = [];
     const modelSpan = this.spanTracker.startSpan('model_step', { step: step + 1 });
 
-    for await (const chunk of this.model.stream(request)) {
+    for await (const chunk of this.agent.model.stream(request)) {
       switch (chunk.type) {
         case 'text_delta':
           fullText += chunk.content;
