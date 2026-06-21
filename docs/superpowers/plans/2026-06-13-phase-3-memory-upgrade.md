@@ -204,7 +204,7 @@ Expected: no errors.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/server/src/memory/long-term.ts packages/server/src/memory/__tests__/long-term-upgrade.test.ts
+git add vico/server/src/memory/long-term.ts vico/server/src/memory/__tests__/long-term-upgrade.test.ts
 git commit -m "feat: add searchByType and upsertByContent to LongTermMemory for Phase 3"
 ```
 
@@ -364,7 +364,7 @@ Expected: 3 tests pass (WorkingMemory tests).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/server/src/agent/memory/working-memory.ts packages/server/src/agent/memory/__tests__/working-memory.test.ts
+git add vico/server/src/agent/memory/working-memory.ts vico/server/src/agent/memory/__tests__/working-memory.test.ts
 git commit -m "feat: add WorkingMemory for user fact extraction and type-filtered retrieval"
 ```
 
@@ -568,7 +568,7 @@ Expected: all 4 observational memory tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/server/src/agent/memory/observational-memory.ts packages/server/src/agent/memory/__tests__/observational-memory.test.ts
+git add vico/server/src/agent/memory/observational-memory.ts vico/server/src/agent/memory/__tests__/observational-memory.test.ts
 git commit -m "feat: add ObservationalMemory for long conversation summary compression"
 ```
 
@@ -715,7 +715,7 @@ Expected: all tests pass across all modules.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/agent-factory.ts packages/server/src/agent/mastra/__tests__/
+git add vico/server/src/agent/mastra/agent-factory.ts vico/server/src/agent/mastra/__tests__/
 git commit -m "feat: integrate WorkingMemory and ObservationalMemory into enhanced agent pipeline"
 ```
 
@@ -772,7 +772,7 @@ Expected: all tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/server/src/memory/short-term.ts packages/server/src/memory/long-term.ts
+git add vico/server/src/memory/short-term.ts vico/server/src/memory/long-term.ts
 git commit -m "docs: add phase annotations to legacy memory modules"
 ```
 

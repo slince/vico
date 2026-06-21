@@ -67,7 +67,7 @@ metadata:                   # 可选，任意键值对
 ### 2.3 资源限制
 
 ```typescript
-// packages/core/src/workspace/skills/schemas.ts
+// vico/core/src/workspace/skills/schemas.ts
 const SKILL_LIMITS = {
   MAX_INSTRUCTION_TOKENS: 5000,   // 警告阈值
   MAX_INSTRUCTION_LINES: 500,     // 警告阈值
@@ -80,7 +80,7 @@ const SKILL_LIMITS = {
 ### 2.4 TypeScript 类型定义
 
 ```typescript
-// packages/core/src/workspace/skills/types.ts
+// vico/core/src/workspace/skills/types.ts
 
 // 前置元数据
 interface SkillMetadata {

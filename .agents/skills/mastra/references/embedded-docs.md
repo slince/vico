@@ -73,7 +73,7 @@ cat node_modules/@mastra/core/dist/agent/agent.d.ts
 ## Quick commands reference
 
 ```bash
-# List installed @mastra packages
+# List installed @mastra vico
 ls node_modules/@mastra/
 
 # List available topic documentation

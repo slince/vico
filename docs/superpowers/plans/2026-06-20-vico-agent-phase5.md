@@ -26,7 +26,7 @@
 - [ ] **Step 1: Add agent dependency and install**
 
 ```bash
-cd /Users/taosikai/www/js/vico/packages/server && pnpm add @vico/agent@workspace:*
+cd /Users/taosikai/www/js/vico/vico/server && pnpm add @vico/agent@workspace:*
 ```
 
 - [ ] **Step 2: Write vico-bootstrap.ts**
@@ -121,13 +121,13 @@ export const vicoBootstrap = new VicoBootstrap();
 - [ ] **Step 3: Verify server compilation**
 
 ```bash
-cd packages/server && npx tsc --noEmit
+cd vico/server && npx tsc --noEmit
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/package.json pnpm-lock.yaml packages/server/src/agent/vico-bootstrap.ts
+git add vico/server/package.json pnpm-lock.yaml vico/server/src/agent/vico-bootstrap.ts
 git commit -m "feat(server): wire @vico/agent bootstrap into server package"
 ```
 
@@ -217,13 +217,13 @@ chatV2Routes(app);
 - [ ] **Step 3: Verify compilation**
 
 ```bash
-cd packages/server && npx tsc --noEmit
+cd vico/server && npx tsc --noEmit
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/api/chat-v2.ts packages/server/src/api/router.ts
+git add vico/server/src/api/chat-v2.ts vico/server/src/api/router.ts
 git commit -m "feat(server): add /api/chat-v2 endpoint using @vico/agent"
 ```
 
@@ -254,13 +254,13 @@ Rename or comment out Mastra imports. Keep the file for reference until Phase 5 
 - [ ] **Step 2: Remove Mastra dependencies from package.json**
 
 ```bash
-cd packages/server && pnpm remove @mastra/core @mastra/hono @mastra/memory @mastra/ai-sdk @mastra/evals @mastra/observability @mastra/rag @mastra/libsql @mastra/loggers @mastra/fastembed @mastra/duckdb @mastra/agent-browser mastra
+cd vico/server && pnpm remove @mastra/core @mastra/hono @mastra/memory @mastra/ai-sdk @mastra/evals @mastra/observability @mastra/rag @mastra/libsql @mastra/loggers @mastra/fastembed @mastra/duckdb @mastra/agent-browser mastra
 ```
 
 - [ ] **Step 3: Verify build**
 
 ```bash
-cd packages/server && npx tsc --noEmit
+cd vico/server && npx tsc --noEmit
 ```
 
 - [ ] **Step 4: Commit**
@@ -339,8 +339,8 @@ export function migrateManifestToSKILLMD(skillDir: string): void {
 - [ ] **Step 3: Update index.ts and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/skill/skills-processor.ts packages/server/src/skill/migrate-to-skills-md.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/skill/skills-processor.ts vico/server/src/skill/migrate-to-skills-md.ts
 git commit -m "feat: add SkillsProcessor and manifest-to-SKILL.md migration tool"
 ```
 
@@ -351,19 +351,19 @@ git commit -m "feat: add SkillsProcessor and manifest-to-SKILL.md migration tool
 - [ ] **Step 1: Run all agent tests**
 
 ```bash
-cd packages/agent && npx vitest run
+cd vico/agent && npx vitest run
 ```
 
 - [ ] **Step 2: Run server tests**
 
 ```bash
-cd packages/server && npx vitest run 2>/dev/null || echo "No server tests configured"
+cd vico/server && npx vitest run 2>/dev/null || echo "No server tests configured"
 ```
 
 - [ ] **Step 3: Verify no Mastra imports remain**
 
 ```bash
-grep -r "mastra" packages/server/src/ --include="*.ts" | grep -v "legacy" | grep -v ".test.ts" || echo "Clean"
+grep -r "mastra" vico/server/src/ --include="*.ts" | grep -v "legacy" | grep -v ".test.ts" || echo "Clean"
 ```
 
 - [ ] **Step 4: Final commit**

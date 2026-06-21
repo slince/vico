@@ -12,7 +12,7 @@ importers:
     dependencies:
       '@vico/agent':
         specifier: workspace:*
-        version: link:../../packages/agent
+        version: link:../../vico/agent
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

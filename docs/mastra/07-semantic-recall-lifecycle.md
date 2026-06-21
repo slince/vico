@@ -44,7 +44,7 @@ memory.saveMessages(messages)
 **SaveQueueManager** 负责驱动保存：
 
 ```typescript
-// packages/core/src/agent/save-queue/index.ts
+// vico/core/src/agent/save-queue/index.ts
 class SaveQueueManager {
   private DEBOUNCE_MS = 100;          // 100ms 去抖
   private MAX_STALENESS_MS = 1000;    // 最多 1s 必须刷新

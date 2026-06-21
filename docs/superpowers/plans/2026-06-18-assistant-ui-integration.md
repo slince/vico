@@ -30,13 +30,13 @@
 - [ ] **Step 1: 安装 Assistant UI 包**
 
 ```bash
-cd packages/web && pnpm add @assistant-ui/react @assistant-ui/react-ai-sdk @assistant-ui/react-markdown
+cd vico/web && pnpm add @assistant-ui/react @assistant-ui/react-ai-sdk @assistant-ui/react-markdown
 ```
 
 - [ ] **Step 2: 检查 `@ai-sdk/react` 版本**
 
 ```bash
-cat packages/web/node_modules/@ai-sdk/react/package.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['version'])"
+cat vico/web/node_modules/@ai-sdk/react/package.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['version'])"
 ```
 
 如果版本 < 2.0，则 `pnpm add @ai-sdk/react@latest` 升级。
@@ -46,7 +46,7 @@ cat packages/web/node_modules/@ai-sdk/react/package.json | python3 -c "import sy
 在 `packages/server/` 下临时创建一个测试脚本来验证导入：
 
 ```bash
-cd packages/server && node -e "
+cd vico/server && node -e "
 const { createUIMessageStream } = require('ai');
 console.log('createUIMessageStream:', typeof createUIMessageStream);
 "
@@ -54,7 +54,7 @@ console.log('createUIMessageStream:', typeof createUIMessageStream);
 
 或使用 tsx：
 ```bash
-cd packages/server && npx tsx -e "
+cd vico/server && npx tsx -e "
 import { createUIMessageStream } from 'ai';
 console.log('createUIMessageStream:', typeof createUIMessageStream);
 "
@@ -65,14 +65,14 @@ console.log('createUIMessageStream:', typeof createUIMessageStream);
 - [ ] **Step 4: 验证客户端导入**
 
 ```bash
-cd packages/web && npx tsc --noEmit -p tsconfig.json 2>&1 | head -5
+cd vico/web && npx tsc --noEmit -p tsconfig.json 2>&1 | head -5
 # 应该不报 @assistant-ui 相关的解析错误
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/web/package.json pnpm-lock.yaml
+git add vico/web/package.json pnpm-lock.yaml
 git commit -m "deps: add @assistant-ui/react + ai-sdk + markdown"
 ```
 
@@ -196,7 +196,7 @@ export async function createAISDKStream(
 - [ ] **Step 2: 验证 TypeScript 编译**
 
 ```bash
-cd packages/server && npx tsc --noEmit src/agent/ai-sdk-stream.ts 2>&1
+cd vico/server && npx tsc --noEmit src/agent/ai-sdk-stream.ts 2>&1
 ```
 
 注：这一步是为了及早发现类型错误。`writer.write()` 接受的 UIMessageChunk 类型联合在 ai v6 中可能较复杂，需要 `as any` 断言或需要精确匹配类型。如果 `UIMessageStreamWriter.write()` 的类型签名与上面不兼容，调整为：
@@ -211,7 +211,7 @@ writer.write({ type: 'text-delta', textDelta: chunk } as InferUIMessageChunk<UIM
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/ai-sdk-stream.ts
+git add vico/server/src/agent/ai-sdk-stream.ts
 git commit -m "feat: add AI SDK stream adapter for Mastra output"
 ```
 
@@ -387,7 +387,7 @@ export async function executeAgentChatRaw(params: ExecuteChatParams): Promise<{
 
 ```bash
 # 启动服务端
-cd packages/server && pnpm dev &
+cd vico/server && pnpm dev &
 sleep 3
 
 # 用 curl 测试 AI SDK 端点（注意使用正确的 cookie 认证或用 admin 登录后抓取 cookie）
@@ -403,7 +403,7 @@ curl -X POST http://localhost:3001/api/v1/chat/ai-sdk \
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/api/chat.ts packages/server/src/chat/chat.ts
+git add vico/server/src/api/chat.ts vico/server/src/chat/chat.ts
 git commit -m "feat: add AI SDK protocol chat endpoints"
 ```
 
@@ -640,14 +640,14 @@ interface UseAssistantRuntimeOptions {
 - [ ] **Step 4: 验证前端启动**
 
 ```bash
-cd packages/web && pnpm dev 2>&1 | head -10
+cd vico/web && pnpm dev 2>&1 | head -10
 # 确保没有 import 错误，Vite 启动成功
 ```
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/web/src/hooks/useAssistantRuntime.ts packages/web/src/pages/Chat.tsx
+git add vico/web/src/hooks/useAssistantRuntime.ts vico/web/src/pages/Chat.tsx
 git commit -m "feat: replace chat data flow with Assistant UI runtime"
 ```
 
@@ -779,7 +779,7 @@ import { WeatherToolUI } from './chat/ToolUIs/weather-ui';
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/web/src/pages/chat/ToolUIs/weather-ui.tsx packages/web/src/pages/Chat.tsx
+git add vico/web/src/pages/chat/ToolUIs/weather-ui.tsx vico/web/src/pages/Chat.tsx
 git commit -m "feat: add weather tool UI card"
 ```
 
@@ -919,7 +919,7 @@ import { ExecToolUI } from './chat/ToolUIs/exec-ui';
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/web/src/pages/chat/ToolUIs/exec-ui.tsx packages/web/src/pages/Chat.tsx
+git add vico/web/src/pages/chat/ToolUIs/exec-ui.tsx vico/web/src/pages/Chat.tsx
 git commit -m "feat: add exec approval tool UI"
 ```
 
@@ -943,12 +943,12 @@ git commit -m "feat: add exec approval tool UI"
 
 ```bash
 # 检查是否还有文件引用这些旧组件
-cd packages/web && grep -r "ChatWindow" src/ --include="*.tsx" --include="*.ts"
-cd packages/web && grep -r "ChatInput" src/ --include="*.tsx" --include="*.ts"
-cd packages/web && grep -r "MessageBubble" src/ --include="*.tsx" --include="*.ts"
-cd packages/web && grep -r "useAgentChat" src/ --include="*.tsx" --include="*.ts"
-cd packages/web && grep -r "ExecApprovalCard" src/ --include="*.tsx" --include="*.ts"
-cd packages/web && grep -r "ChatSkeleton" src/ --include="*.tsx" --include="*.ts"
+cd vico/web && grep -r "ChatWindow" src/ --include="*.tsx" --include="*.ts"
+cd vico/web && grep -r "ChatInput" src/ --include="*.tsx" --include="*.ts"
+cd vico/web && grep -r "MessageBubble" src/ --include="*.tsx" --include="*.ts"
+cd vico/web && grep -r "useAgentChat" src/ --include="*.tsx" --include="*.ts"
+cd vico/web && grep -r "ExecApprovalCard" src/ --include="*.tsx" --include="*.ts"
+cd vico/web && grep -r "ChatSkeleton" src/ --include="*.tsx" --include="*.ts"
 ```
 
 如果只有待删文件自身引用（或 Chat.tsx 中还有 import 但已注释），确认安全后删除。

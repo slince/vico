@@ -76,7 +76,7 @@ export default defineConfig({
 - [ ] **步骤 5：提交**
 
 ```bash
-git add packages/server/package.json packages/server/pnpm-lock.yaml packages/server/vitest.config.ts
+git add vico/server/package.json vico/server/pnpm-lock.yaml vico/server/vitest.config.ts
 git commit -m "chore: 为第二阶段 TDD 搭建 vitest 测试环境"
 ```
 
@@ -156,7 +156,7 @@ CREATE TABLE agent_team_members (
 - [ ] **步骤 5：提交**
 
 ```bash
-git add packages/server/src/db/schema.ts packages/server/drizzle/0001_agent_teams.sql
+git add vico/server/src/db/schema.ts vico/server/drizzle/0001_agent_teams.sql
 git commit -m "feat: 添加 agent_teams 和 agent_team_members 表及迁移脚本"
 ```
 
@@ -438,7 +438,7 @@ import { teamRoutes } from './teams.js';
 - [ ] **步骤 6：提交**
 
 ```bash
-git add packages/server/src/api/teams.ts packages/server/src/api/router.ts packages/server/src/api/__tests__/teams.test.ts
+git add vico/server/src/api/teams.ts vico/server/src/api/router.ts vico/server/src/api/__tests__/teams.test.ts
 git commit -m "feat: 添加团队 CRUD API（6 个端点）并注册路由"
 ```
 
@@ -825,7 +825,7 @@ export async function runTeamPipeline(
 - [ ] **步骤 6：提交**
 
 ```bash
-git add packages/server/src/agent/orchestrator.ts packages/server/src/agent/__tests__/orchestrator.test.ts
+git add vico/server/src/agent/orchestrator.ts vico/server/src/agent/__tests__/orchestrator.test.ts
 git commit -m "feat: 添加团队编排器，实现 supervisor + delegate_to_agent 模式"
 ```
 
@@ -916,7 +916,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 - [ ] **步骤 3：提交**
 
 ```bash
-git add packages/server/src/api/chat.ts
+git add vico/server/src/api/chat.ts
 git commit -m "feat: 添加团队聊天 SSE 端点 POST /api/v1/teams/:id/chat"
 ```
 
@@ -998,7 +998,7 @@ export function streamTeamChat(
 - [ ] **步骤 3：提交**
 
 ```bash
-git add packages/web/src/api/client.ts
+git add vico/web/src/api/client.ts
 git commit -m "feat: 添加 streamTeamChat 用于团队委派 SSE 事件"
 ```
 
@@ -1228,7 +1228,7 @@ export default function Teams() {
 - [ ] **步骤 3：提交**
 
 ```bash
-git add packages/web/src/pages-new/Teams.tsx
+git add vico/web/src/pages-new/Teams.tsx
 git commit -m "feat: 添加团队列表页，含卡片网格、加载骨架屏和空状态"
 ```
 
@@ -1322,7 +1322,7 @@ export default function CreateTeamDialog(props: CreateTeamDialogProps) {
 - [ ] **步骤 4：提交**
 
 ```bash
-git add packages/web/src/pages-new/teams/CreateTeamDialog.tsx
+git add vico/web/src/pages-new/teams/CreateTeamDialog.tsx
 git commit -m "feat: 添加 CreateTeamDialog（团队名称和描述输入）"
 ```
 
@@ -1705,7 +1705,7 @@ export default function TeamDetailPage() {
 - [ ] **步骤 3：提交**
 
 ```bash
-git add packages/web/src/pages-new/TeamDetail.tsx
+git add vico/web/src/pages-new/TeamDetail.tsx
 git commit -m "feat: 添加 TeamDetail 页面，含概览、成员管理和团队聊天 Tab"
 ```
 
@@ -1759,7 +1759,7 @@ import {
 - [ ] **步骤 4：提交**
 
 ```bash
-git add packages/web/src/router.tsx packages/web/src/components/layout/Sidebar.tsx
+git add vico/web/src/router.tsx vico/web/src/components/layout/Sidebar.tsx
 git commit -m "feat: 添加团队路由和侧边栏导航项"
 ```
 

@@ -56,7 +56,7 @@ packages/agent/src/
 - [ ] **Step 1: Install gray-matter and p-limit**
 
 ```bash
-cd /Users/taosikai/www/js/vico/packages/agent && pnpm add gray-matter p-limit
+cd /Users/taosikai/www/js/vico/vico/agent && pnpm add gray-matter p-limit
 ```
 
 - [ ] **Step 2: Verify pnpm-lock.yaml updated**
@@ -69,7 +69,7 @@ Expected: lock file updated.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/package.json pnpm-lock.yaml
+git add vico/agent/package.json pnpm-lock.yaml
 git commit -m "chore(agent): add gray-matter and p-limit dependencies"
 ```
 
@@ -132,13 +132,13 @@ export class CapabilityRegistry {
 - [ ] **Step 2: Verify compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/tool/capability-registry.ts
+git add vico/agent/src/tool/capability-registry.ts
 git commit -m "feat(agent): implement CapabilityRegistry for tool filtering"
 ```
 
@@ -244,8 +244,8 @@ export class StormBreaker {
 - [ ] **Step 3: Verify compilation and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/tool/tool-policy.ts packages/agent/src/tool/storm-breaker.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/tool/tool-policy.ts vico/agent/src/tool/storm-breaker.ts
 git commit -m "feat(agent): implement ToolPolicy resolver and StormBreaker"
 ```
 
@@ -295,8 +295,8 @@ export const BuiltinTools: { list(): ToolSpec[] } = {
 - [ ] **Step 2: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/tool/builtin-tools.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/tool/builtin-tools.ts
 git commit -m "feat(agent): add BuiltinTools (echo, now)"
 ```
 
@@ -483,13 +483,13 @@ export class LocalToolHost implements ToolHost {
 - [ ] **Step 2: Verify compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/tool/local-tool-host.ts
+git add vico/agent/src/tool/local-tool-host.ts
 git commit -m "feat(agent): implement LocalToolHost with policy, storm breaker, and parallel execution"
 ```
 
@@ -646,13 +646,13 @@ export class FSSkillLoader implements SkillLoader {
 - [ ] **Step 2: Verify compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/skill/fs-skill-loader.ts
+git add vico/agent/src/skill/fs-skill-loader.ts
 git commit -m "feat(agent): implement FSSkillLoader for SKILL.md discovery and parsing"
 ```
 
@@ -824,8 +824,8 @@ export function createSkillToolHandlers(manager: SkillManager) {
 - [ ] **Step 3: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/skill/skill-manager.ts packages/agent/src/skill/skill-tools.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/skill/skill-manager.ts vico/agent/src/skill/skill-tools.ts
 git commit -m "feat(agent): implement SkillManager and skill/skill_search/skill_read tools"
 ```
 
@@ -864,8 +864,8 @@ export { createSkillTools, createSkillToolHandlers } from './skill/skill-tools.j
 - [ ] **Step 3: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/agent-loop/agent-loop.ts packages/agent/src/index.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/agent-loop/agent-loop.ts vico/agent/src/index.ts
 git commit -m "feat(agent): integrate tool and skill systems into AgentLoop and public API"
 ```
 
@@ -1189,14 +1189,14 @@ describe('SkillTools', () => {
 - [ ] **Step 6: Run all tests**
 
 ```bash
-cd packages/agent && npx vitest run
+cd vico/agent && npx vitest run
 ```
 Expected: all existing 34 + new ~18 tests pass.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add packages/agent/src/__tests__/
+git add vico/agent/src/__tests__/
 git commit -m "test(agent): add tests for tool and skill systems"
 ```
 
@@ -1206,11 +1206,11 @@ git commit -m "test(agent): add tests for tool and skill systems"
 
 ```bash
 # 1. TypeScript compiles
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 
 # 2. All tests pass
-cd packages/agent && npx vitest run
+cd vico/agent && npx vitest run
 
 # 3. No Mastra imports anywhere
-grep -r "mastra" packages/agent/src/ || echo "Clean"
+grep -r "mastra" vico/agent/src/ || echo "Clean"
 ```

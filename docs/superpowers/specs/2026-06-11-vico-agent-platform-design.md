@@ -528,7 +528,7 @@ database:
 
 skills:
   scan_paths:
-    - "./packages/skills"
+    - "./vico/skills"
     - "./data/custom-skills"
 
 memory:

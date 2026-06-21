@@ -44,7 +44,7 @@
 - [ ] **Step 2: 安装依赖**
 
 ```bash
-cd packages/server && pnpm install
+cd vico/server && pnpm install
 ```
 
 Expected: 安装成功，无 peer dependency 冲突（Mastra 系列版本互相兼容）。
@@ -52,13 +52,13 @@ Expected: 安装成功，无 peer dependency 冲突（Mastra 系列版本互相�
 - [ ] **Step 3: 验证关键包可导入**
 
 ```bash
-cd packages/server && node -e "require('@mastra/core'); require('@mastra/memory'); require('@mastra/libsql'); require('@libsql/client'); require('drizzle-orm/libsql'); console.log('OK')"
+cd vico/server && node -e "require('@mastra/core'); require('@mastra/memory'); require('@mastra/libsql'); require('@libsql/client'); require('drizzle-orm/libsql'); console.log('OK')"
 ```
 
 Expected: `OK` （注意：包是 ESM，需要用 `tsx` 运行而不是 node）
 
 ```bash
-cd packages/server && pnpm tsx -e "import '@mastra/core'; import '@mastra/memory'; import '@mastra/libsql'; import '@libsql/client'; import 'drizzle-orm/libsql'; console.log('OK')"
+cd vico/server && pnpm tsx -e "import '@mastra/core'; import '@mastra/memory'; import '@mastra/libsql'; import '@libsql/client'; import 'drizzle-orm/libsql'; console.log('OK')"
 ```
 
 Expected: `OK`
@@ -66,7 +66,7 @@ Expected: `OK`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/package.json packages/server/pnpm-lock.yaml
+git add vico/server/package.json vico/server/pnpm-lock.yaml
 git commit -m "chore: upgrade deps — remove ai v4/better-sqlite3, add Mastra stack + libsql"
 ```
 
@@ -160,7 +160,7 @@ database:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/server/src/db/init-libsql.ts packages/server/src/db/db.ts packages/server/src/db/schema.ts packages/server/src/config.ts packages/server/server.config.yaml
+git add vico/server/src/db/init-libsql.ts vico/server/src/db/db.ts vico/server/src/db/schema.ts vico/server/src/config.ts vico/server/server.config.yaml
 git commit -m "feat: replace better-sqlite3 with libsql + drizzle-orm/libsql"
 ```
 
@@ -225,7 +225,7 @@ export function getMemory(): Memory {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/memory-setup.ts
+git add vico/server/src/agent/memory-setup.ts
 git commit -m "feat: add Mastra Memory + LibSQLVector initialization"
 ```
 
@@ -331,7 +331,7 @@ export function getSkillToolsForMastraAgent(
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/tools/skill-tool-adapter.ts
+git add vico/server/src/agent/tools/skill-tool-adapter.ts
 git commit -m "feat: add SkillTool → Mastra createTool adapter"
 ```
 
@@ -462,7 +462,7 @@ await vector.upsert({
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/tools/rag-tool.ts packages/server/src/memory/rag.ts
+git add vico/server/src/agent/tools/rag-tool.ts vico/server/src/memory/rag.ts
 git commit -m "feat: add RAG search tool using LibSQLVector + embed query"
 ```
 
@@ -563,7 +563,7 @@ export function createTokenTracker(config: TokenTrackerConfig): Processor<'token
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/processors/audit-logger.ts packages/server/src/agent/processors/token-tracker.ts
+git add vico/server/src/agent/processors/audit-logger.ts vico/server/src/agent/processors/token-tracker.ts
 git commit -m "feat: add Mastra processors for audit logging and token tracking"
 ```
 
@@ -636,7 +636,7 @@ export function createSSEStream(output: MastraModelOutput<any>): ReadableStream 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/sse-utils.ts
+git add vico/server/src/agent/sse-utils.ts
 git commit -m "feat: add unified SSE stream factory for Mastra output"
 ```
 
@@ -782,7 +782,7 @@ export async function createAgent(ctx: AgentContext): Promise<Agent> {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/agent-factory.ts
+git add vico/server/src/agent/agent-factory.ts
 git commit -m "feat: add Agent factory — Vico config → Mastra Agent"
 ```
 
@@ -874,7 +874,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/api/chat.ts
+git add vico/server/src/api/chat.ts
 git commit -m "feat: update chat API to use Mastra Agent.stream()"
 ```
 
@@ -906,36 +906,36 @@ packages/server/src/memory/embedder.ts
 - [ ] **Step 1: 删除所有旧文件**
 
 ```bash
-rm packages/server/src/agent/pipeline.ts
-rm packages/server/src/agent/mastra/agent-factory.ts
-rm packages/server/src/agent/mastra/bridges/model-bridge.ts
-rm packages/server/src/agent/mastra/bridges/skill-bridge.ts
-rm packages/server/src/agent/mastra/bridges/rag-bridge.ts
-rm packages/server/src/agent/mastra/bridges/auth-bridge.ts
-rm packages/server/src/agent/mastra/processors/audit-logger.ts
-rm packages/server/src/agent/mastra/processors/token-tracker.ts
-rm packages/server/src/agent/mastra/processors/message-persister.ts
-rm packages/server/src/agent/mastra/storage.ts
-rm packages/server/src/agent/mastra/index.ts
-rm packages/server/src/agent/tool-executor.ts
-rm packages/server/src/memory/long-term.ts
-rm packages/server/src/memory/working-memory.ts
-rm packages/server/src/memory/observational-memory.ts
-rm packages/server/src/memory/embedder.ts
+rm vico/server/src/agent/pipeline.ts
+rm vico/server/src/agent/mastra/agent-factory.ts
+rm vico/server/src/agent/mastra/bridges/model-bridge.ts
+rm vico/server/src/agent/mastra/bridges/skill-bridge.ts
+rm vico/server/src/agent/mastra/bridges/rag-bridge.ts
+rm vico/server/src/agent/mastra/bridges/auth-bridge.ts
+rm vico/server/src/agent/mastra/processors/audit-logger.ts
+rm vico/server/src/agent/mastra/processors/token-tracker.ts
+rm vico/server/src/agent/mastra/processors/message-persister.ts
+rm vico/server/src/agent/mastra/storage.ts
+rm vico/server/src/agent/mastra/index.ts
+rm vico/server/src/agent/tool-executor.ts
+rm vico/server/src/memory/long-term.ts
+rm vico/server/src/memory/working-memory.ts
+rm vico/server/src/memory/observational-memory.ts
+rm vico/server/src/memory/embedder.ts
 ```
 
 - [ ] **Step 2: 清理空目录**
 
 ```bash
-rmdir packages/server/src/agent/mastra/bridges 2>/dev/null || true
-rmdir packages/server/src/agent/mastra/processors 2>/dev/null || true
-rmdir packages/server/src/agent/mastra 2>/dev/null || true
+rmdir vico/server/src/agent/mastra/bridges 2>/dev/null || true
+rmdir vico/server/src/agent/mastra/processors 2>/dev/null || true
+rmdir vico/server/src/agent/mastra 2>/dev/null || true
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add -A packages/server/src/
+git add -A vico/server/src/
 git commit -m "refactor: remove legacy pipeline, tool executor, custom memory/embedder — replaced by Mastra stack"
 ```
 
@@ -950,13 +950,13 @@ git commit -m "refactor: remove legacy pipeline, tool executor, custom memory/em
 - [ ] **Step 1: 搜索所有引用旧模块的 import 语句**
 
 ```bash
-cd packages/server && grep -r "from.*memory/long-term" src/ || true
-cd packages/server && grep -r "from.*memory/embedder" src/ || true
-cd packages/server && grep -r "from.*agent/pipeline" src/ || true
-cd packages/server && grep -r "from.*agent/tool-executor" src/ || true
-cd packages/server && grep -r "from.*agent/mastra" src/ || true
-cd packages/server && grep -r "from.*memory/working-memory" src/ || true
-cd packages/server && grep -r "from.*memory/observational-memory" src/ || true
+cd vico/server && grep -r "from.*memory/long-term" src/ || true
+cd vico/server && grep -r "from.*memory/embedder" src/ || true
+cd vico/server && grep -r "from.*agent/pipeline" src/ || true
+cd vico/server && grep -r "from.*agent/tool-executor" src/ || true
+cd vico/server && grep -r "from.*agent/mastra" src/ || true
+cd vico/server && grep -r "from.*memory/working-memory" src/ || true
+cd vico/server && grep -r "from.*memory/observational-memory" src/ || true
 ```
 
 Expected: 只有 `chat.ts`（已更新）和可能的 `rag.ts`。如果 orchestrator.ts 存在引用，需要处理。
@@ -985,7 +985,7 @@ import { getVector } from '../agent/memory-setup.js';
 - [ ] **Step 4: Commit**
 
 ```bash
-git add -A packages/server/src/
+git add -A vico/server/src/
 git commit -m "fix: update remaining references to removed modules"
 ```
 
@@ -1007,7 +1007,7 @@ git commit -m "fix: update remaining references to removed modules"
 - [ ] **Step 2: Commit**
 
 ```bash
-git add -A packages/server/src/memory/
+git add -A vico/server/src/memory/
 git commit -m "refactor: remove short-term memory — Mastra Memory handles it"
 ```
 
@@ -1018,7 +1018,7 @@ git commit -m "refactor: remove short-term memory — Mastra Memory handles it"
 - [ ] **Step 1: 运行 TypeScript 编译检查**
 
 ```bash
-cd packages/server && pnpm build 2>&1 | head -100
+cd vico/server && pnpm build 2>&1 | head -100
 ```
 
 - [ ] **Step 2: 逐条修复编译错误**
@@ -1028,7 +1028,7 @@ cd packages/server && pnpm build 2>&1 | head -100
 - [ ] **Step 3: 循环直到编译通过**
 
 ```bash
-cd packages/server && pnpm build
+cd vico/server && pnpm build
 ```
 
 Expected: 编译成功退出。
@@ -1036,7 +1036,7 @@ Expected: 编译成功退出。
 - [ ] **Step 4: Commit**
 
 ```bash
-git add -A packages/server/src/
+git add -A vico/server/src/
 git commit -m "fix: resolve TypeScript compilation errors after Mastra migration"
 ```
 
@@ -1047,7 +1047,7 @@ git commit -m "fix: resolve TypeScript compilation errors after Mastra migration
 - [ ] **Step 1: 启动服务端**
 
 ```bash
-cd packages/server && pnpm dev
+cd vico/server && pnpm dev
 ```
 
 Expected: `[Vico] Server running on http://localhost:3001`
@@ -1133,7 +1133,7 @@ data: {"type":"done","usage":{"promptTokens":...,"completionTokens":...}}
 - [ ] **Step 3: Commit（如有修改）**
 
 ```bash
-git add -A packages/web/
+git add -A vico/web/
 git commit -m "feat: add tool_call/tool_result SSE event support to frontend"
 ```
 
@@ -1163,7 +1163,7 @@ memory:
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/config.ts packages/server/server.config.yaml
+git add vico/server/src/config.ts vico/server/server.config.yaml
 git commit -m "chore: remove agent_engine toggle, clean up deprecated config"
 ```
 

@@ -76,8 +76,8 @@ export class ApprovalGate {
 - [ ] **Step 2: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/agent-loop/approval-gate.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/agent-loop/approval-gate.ts
 git commit -m "feat(agent): implement ApprovalGate with timeout and SSE events"
 ```
 
@@ -179,8 +179,8 @@ export class ChildAgentExecutor {
 - [ ] **Step 2: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/tool/child-agent-executor.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/tool/child-agent-executor.ts
 git commit -m "feat(agent): implement ChildAgentExecutor for sub-agent delegation"
 ```
 
@@ -225,8 +225,8 @@ export { ChildAgentExecutor, type ChildAgentRef, type DelegateStrategy } from '.
 - [ ] **Step 3: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/agent-loop/agent-loop.ts packages/agent/src/index.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/agent-loop/agent-loop.ts vico/agent/src/index.ts
 git commit -m "feat(agent): wire ApprovalGate and ChildAgentExecutor into AgentLoop"
 ```
 
@@ -311,7 +311,7 @@ describe('ChildAgentExecutor', () => {
 - [ ] **Step 2: Run tests and commit**
 
 ```bash
-cd packages/agent && npx vitest run
-git add packages/agent/src/__tests__/
+cd vico/agent && npx vitest run
+git add vico/agent/src/__tests__/
 git commit -m "test(agent): add tests for approval gate and child agent executor"
 ```

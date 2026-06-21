@@ -29,7 +29,7 @@
 - [ ] **Step 1: 在 config.ts 中新增 RagConfig 类型和全局默认配置常量**
 
 ```typescript
-// packages/server/src/config.ts — 在现有 rag 配置块后追加：
+// vico/server/src/config.ts — 在现有 rag 配置块后追加：
 
 /** RAG 全局配置类型 */
 export interface RagConfig {
@@ -75,7 +75,7 @@ export const DEFAULT_RAG_CONFIG: RagConfig = {
 - [ ] **Step 1: 在 schema 中添加 documents 表定义**
 
 ```typescript
-// packages/server/src/db/schema.ts — 在 knowledge_bases 定义之后，chunks 注释之前插入：
+// vico/server/src/db/schema.ts — 在 knowledge_bases 定义之后，chunks 注释之前插入：
 
 /** 文档表 — 知识库中单个文件/URL/手动创建的文档记录 */
 export const documents = sqliteTable('documents', {
@@ -421,7 +421,7 @@ async indexFile(kbId: string, filePath: string, documentId?: string): Promise<nu
 - [ ] **Step 1: 在 uploadFile 中集成文档创建、SHA256 去重和状态流转**
 
 ```typescript
-// packages/server/src/services/knowledge/knowledge-manager.ts
+// vico/server/src/services/knowledge/knowledge-manager.ts
 // 新增 import:
 import { createHash } from 'node:crypto';
 import { documentManager } from './document-manager.js';
@@ -526,7 +526,7 @@ async uploadFile(tenantId: string, kbId: string, formData: FormData): Promise<{ 
 - [ ] **Step 1: 重写 knowledge.ts 路由文件**
 
 ```typescript
-// packages/server/src/api/knowledge.ts — 完整替换：
+// vico/server/src/api/knowledge.ts — 完整替换：
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
@@ -1151,7 +1151,7 @@ if (totalLen > 6000) {
 - [ ] **Step 1: 创建 Parser 接口和注册表**
 
 ```typescript
-// packages/server/src/memory/parsers/registry.ts
+// vico/server/src/memory/parsers/registry.ts
 export interface ParserResult {
   text: string;
   title?: string;
@@ -1189,7 +1189,7 @@ export const parserRegistry = new ParserRegistry();
 - [ ] **Step 2: 创建各格式解析器**
 
 ```typescript
-// packages/server/src/memory/parsers/txt-parser.ts
+// vico/server/src/memory/parsers/txt-parser.ts
 import { readFileSync } from 'node:fs';
 import { parserRegistry } from './registry.js';
 
@@ -1203,7 +1203,7 @@ parserRegistry.register({
 ```
 
 ```typescript
-// packages/server/src/memory/parsers/html-parser.ts
+// vico/server/src/memory/parsers/html-parser.ts
 import { readFileSync } from 'node:fs';
 import { parserRegistry } from './registry.js';
 
@@ -1226,7 +1226,7 @@ parserRegistry.register({
 ```
 
 ```typescript
-// packages/server/src/memory/parsers/docx-parser.ts
+// vico/server/src/memory/parsers/docx-parser.ts
 import { readFileSync } from 'node:fs';
 import { parserRegistry } from './registry.js';
 
@@ -1249,7 +1249,7 @@ parserRegistry.register({
 - [ ] **Step 3: 更新 RAGManager.indexFile 使用 ParserRegistry**
 
 ```typescript
-// packages/server/src/memory/rag.ts — indexFile 修改为：
+// vico/server/src/memory/rag.ts — indexFile 修改为：
 async indexFile(kbId: string, filePath: string, documentId?: string): Promise<number> {
   // 导入 parser registry（ensure side-effect imports）
   await import('./parsers/registry.js');

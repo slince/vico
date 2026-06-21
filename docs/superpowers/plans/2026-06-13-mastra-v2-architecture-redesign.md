@@ -42,7 +42,7 @@
 将 `index.ts` 中 `main()` 函数内 Hono app 的创建、中间件注册、路由注册等所有非启动逻辑抽离为 `createApp()` 导出函数。从现有 `index.ts` 提取完整的 CORS、限流、Session 中间件、Auth 守卫、better-auth 挂载、业务路由注册等全部代码。
 
 ```typescript
-// packages/server/src/app.ts
+// vico/server/src/app.ts
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { eq } from 'drizzle-orm';
@@ -169,7 +169,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
 将 `index.ts` 精简为启动入口，保留 `main()` 中非 app 创建的初始化逻辑（migrations、skill init、storage init、seed），app 通过 `createApp()` 获取。
 
 ```typescript
-// packages/server/src/index.ts
+// vico/server/src/index.ts
 import { serve } from '@hono/node-server';
 import { config } from './config.js';
 import { skillManager } from './skill/manager.js';
@@ -210,7 +210,7 @@ main().catch((err) => {
 - [ ] **Step 3: 验证服务启动**
 
 ```bash
-cd packages/server && npx tsx src/index.ts
+cd vico/server && npx tsx src/index.ts
 ```
 
 Expected: 服务正常启动，`/health` 返回 `{"status":"ok"}`，`/api/v1/agents` 可正常访问。
@@ -218,7 +218,7 @@ Expected: 服务正常启动，`/health` 返回 `{"status":"ok"}`，`/api/v1/age
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/app.ts packages/server/src/index.ts
+git add vico/server/src/app.ts vico/server/src/index.ts
 git commit -m "refactor: extract Hono app creation to app.ts createApp()"
 ```
 
@@ -235,7 +235,7 @@ git commit -m "refactor: extract Hono app creation to app.ts createApp()"
 从 `agent-factory.ts` 的 `resolveModelProvider` 函数迁移代码，保持逻辑完全一致。
 
 ```typescript
-// packages/server/src/agent/mastra/bridges/model-bridge.ts
+// vico/server/src/agent/mastra/bridges/model-bridge.ts
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import type { MastraModelConfig } from '@mastra/core/llm';
@@ -272,7 +272,7 @@ export function resolveModelProvider(modelConfig: ModelConfigRow): MastraModelCo
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/bridges/model-bridge.ts
+git add vico/server/src/agent/mastra/bridges/model-bridge.ts
 git commit -m "feat: add model-bridge.ts — migrate resolveModelProvider from agent-factory"
 ```
 
@@ -288,7 +288,7 @@ git commit -m "feat: add model-bridge.ts — migrate resolveModelProvider from a
 主办 Agent，负责接收用户消息、LLM 判断路由到子 Agent Tool、汇总结果。model 使用默认 LLM（后续通过 RunContext 动态切换）。
 
 ```typescript
-// packages/server/src/agent/mastra/agents/vico-main.agent.ts
+// vico/server/src/agent/mastra/agents/vico-main.agent.ts
 import { Agent } from '@mastra/core/agent';
 import { createOpenAI } from '@ai-sdk/openai';
 import { getMemory } from '../../memory-setup.js';
@@ -338,7 +338,7 @@ export const vicoMainAgent = new Agent({
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/agents/vico-main.agent.ts
+git add vico/server/src/agent/mastra/agents/vico-main.agent.ts
 git commit -m "feat: add VicoMainAgent — LLM-driven task routing dispatcher"
 ```
 
@@ -354,7 +354,7 @@ git commit -m "feat: add VicoMainAgent — LLM-driven task routing dispatcher"
 代理模板 Agent，不固定 instructions/model/tools，运行时由 Tool 调用的 RunContext 注入。
 
 ```typescript
-// packages/server/src/agent/mastra/agents/agent-proxy.agent.ts
+// vico/server/src/agent/mastra/agents/agent-proxy.agent.ts
 import { Agent } from '@mastra/core/agent';
 import { getMemory } from '../../memory-setup.js';
 
@@ -385,7 +385,7 @@ export const agentProxy = new Agent({
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/agents/agent-proxy.agent.ts
+git add vico/server/src/agent/mastra/agents/agent-proxy.agent.ts
 git commit -m "feat: add AgentProxyTemplate — runtime context-injected agent proxy"
 ```
 
@@ -401,7 +401,7 @@ git commit -m "feat: add AgentProxyTemplate — runtime context-injected agent p
 创建 Mastra 实例 + MastraServer，将 createApp() 的 Hono app 挂载到 Mastra。
 
 ```typescript
-// packages/server/src/mastra.ts
+// vico/server/src/mastra.ts
 import { Mastra } from '@mastra/core';
 import { MastraServer } from '@mastra/hono';
 import { vicoMainAgent } from './agent/mastra/agents/vico-main.agent.js';
@@ -454,7 +454,7 @@ export default mastra;
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/mastra.ts
+git add vico/server/src/mastra.ts
 git commit -m "feat: add mastra.ts — Mastra instance + MastraServer integration"
 ```
 
@@ -470,7 +470,7 @@ git commit -m "feat: add mastra.ts — Mastra instance + MastraServer integratio
 为每个用户自定义 Agent 创建 Mastra Tool，Tool 的 execute 内部调用 agentProxy.run() 并注入该 Agent 的完整配置。
 
 ```typescript
-// packages/server/src/agent/mastra/tools/agent-tool.factory.ts
+// vico/server/src/agent/mastra/tools/agent-tool.factory.ts
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod/v4';
 import { agentProxy } from '../agents/agent-proxy.agent.js';
@@ -597,7 +597,7 @@ export function createAgentTool(agentRow: AgentRow, tenantId: string) {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/tools/agent-tool.factory.ts
+git add vico/server/src/agent/mastra/tools/agent-tool.factory.ts
 git commit -m "feat: add AgentToolFactory — user agent to Mastra Tool converter"
 ```
 
@@ -611,7 +611,7 @@ git commit -m "feat: add AgentToolFactory — user agent to Mastra Tool converte
 - [ ] **Step 1: 创建 agent-tool-cache.ts**
 
 ```typescript
-// packages/server/src/agent/mastra/cache/agent-tool-cache.ts
+// vico/server/src/agent/mastra/cache/agent-tool-cache.ts
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '../../../db/db.js';
 import { createAgentTool } from '../tools/agent-tool.factory.js';
@@ -705,7 +705,7 @@ export const agentToolCache = new AgentToolCache();
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/cache/agent-tool-cache.ts
+git add vico/server/src/agent/mastra/cache/agent-tool-cache.ts
 git commit -m "feat: add AgentToolCache — per-tenant tool cache with lazy rebuild"
 ```
 
@@ -721,7 +721,7 @@ git commit -m "feat: add AgentToolCache — per-tenant tool cache with lazy rebu
 在 `agentRoutes()` 函数中，创建、更新、删除 Agent 后调用 `agentToolCache.invalidate(auth.tenantId)`。改动仅添加 import 和一行 invalidate 调用。
 
 ```typescript
-// packages/server/src/api/agents.ts
+// vico/server/src/api/agents.ts
 
 // 在文件顶部 import 区域添加：
 import { agentToolCache } from '../agent/mastra/cache/agent-tool-cache.js';
@@ -775,7 +775,7 @@ import { agentToolCache } from '../agent/mastra/cache/agent-tool-cache.js';
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/api/agents.ts
+git add vico/server/src/api/agents.ts
 git commit -m "feat: invalidate agent tool cache on CRUD operations"
 ```
 
@@ -791,7 +791,7 @@ git commit -m "feat: invalidate agent tool cache on CRUD operations"
 将现有的 `POST /api/v1/chat` 从调用 `createAgent()` + `agent.streamLegacy()` 改为从 Mastra 获取 `vicoMainAgent` 并注入动态 Tool 列表。保留 Teams 对话部分不变。
 
 ```typescript
-// packages/server/src/api/chat.ts
+// vico/server/src/api/chat.ts
 import { Hono } from 'hono';
 import { v4 as uuidv4 } from 'uuid';
 import type { Variables } from '../index.js';
@@ -924,7 +924,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/api/chat.ts
+git add vico/server/src/api/chat.ts
 git commit -m "refactor: rewrite single agent chat to use VicoMainAgent with dynamic tools"
 ```
 
@@ -940,7 +940,7 @@ git commit -m "refactor: rewrite single agent chat to use VicoMainAgent with dyn
 将 app 来源从直接 `createApp()` 改为从 `mastra.ts` 导入（mastra.ts 已经调用了 `createApp()` 并配置了 MastraServer 中间件）。
 
 ```typescript
-// packages/server/src/index.ts
+// vico/server/src/index.ts
 import { serve } from '@hono/node-server';
 import { config } from './config.js';
 import { skillManager } from './skill/manager.js';
@@ -979,7 +979,7 @@ main().catch((err) => {
 - [ ] **Step 2: 验证服务启动和路由**
 
 ```bash
-cd packages/server && npx tsx src/index.ts
+cd vico/server && npx tsx src/index.ts
 ```
 
 Expected: 服务启动成功，`/health` 正常，`/api/v1/agents` 正常，Mastra 自动注册的 `/api/mastra/*` 路由可访问。
@@ -987,7 +987,7 @@ Expected: 服务启动成功，`/health` 正常，`/api/v1/agents` 正常，Mast
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/index.ts
+git add vico/server/src/index.ts
 git commit -m "refactor: wire index.ts to use mastra.ts app with MastraServer middleware"
 ```
 
@@ -1003,7 +1003,7 @@ git commit -m "refactor: wire index.ts to use mastra.ts app with MastraServer mi
 将 `createAgent()` 调用改为通过 `agentProxy.run()` + RunContext 注入成员 Agent 配置。注意保持 `supervisor.network()` 的调用方式不变。
 
 ```typescript
-// packages/server/src/agent/team-network.ts
+// vico/server/src/agent/team-network.ts
 import { Agent } from '@mastra/core/agent';
 import type { MastraAgentNetworkStream } from '@mastra/core/stream';
 import { eq, and } from 'drizzle-orm';
@@ -1181,7 +1181,7 @@ export async function createTeamNetwork(
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/team-network.ts
+git add vico/server/src/agent/team-network.ts
 git commit -m "refactor: adapt team-network to build member agents from DB configs"
 ```
 
@@ -1195,7 +1195,7 @@ git commit -m "refactor: adapt team-network to build member agents from DB confi
 - [ ] **Step 1: 检查 agent-factory.ts 是否还有被引用**
 
 ```bash
-grep -rn "agent-factory" packages/server/src/ --include="*.ts" | grep -v node_modules
+grep -rn "agent-factory" vico/server/src/ --include="*.ts" | grep -v node_modules
 ```
 
 Expected: 仅有 `team-network.ts` 中有引用（Task 11 已移除），不应还有其他引用。
@@ -1203,13 +1203,13 @@ Expected: 仅有 `team-network.ts` 中有引用（Task 11 已移除），不应�
 - [ ] **Step 2: 删除文件**
 
 ```bash
-rm packages/server/src/agent/agent-factory.ts
+rm vico/server/src/agent/agent-factory.ts
 ```
 
 - [ ] **Step 3: 验证构建**
 
 ```bash
-cd packages/server && npx tsc --noEmit
+cd vico/server && npx tsc --noEmit
 ```
 
 Expected: 类型检查通过，无编译错误。
@@ -1217,7 +1217,7 @@ Expected: 类型检查通过，无编译错误。
 - [ ] **Step 4: 验证服务启动**
 
 ```bash
-cd packages/server && npx tsx src/index.ts
+cd vico/server && npx tsx src/index.ts
 ```
 
 Expected: 服务正常启动，所有 API 路由可访问。
@@ -1225,7 +1225,7 @@ Expected: 服务正常启动，所有 API 路由可访问。
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/server/src/agent/agent-factory.ts
+git add vico/server/src/agent/agent-factory.ts
 git commit -m "refactor: remove agent-factory.ts — migrated to model-bridge + tool factory"
 ```
 

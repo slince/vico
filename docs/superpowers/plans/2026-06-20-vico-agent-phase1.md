@@ -128,14 +128,14 @@ packages/agent/
 - [ ] **Step 3: Install dependencies and verify compilation**
 
 ```bash
-cd packages/agent && pnpm install && npx tsc --noEmit --project tsconfig.json
+cd vico/agent && pnpm install && npx tsc --noEmit --project tsconfig.json
 ```
 Expected: no output (no errors), even with empty `src/`.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/agent/package.json packages/agent/tsconfig.json
+git add vico/agent/package.json vico/agent/tsconfig.json
 git commit -m "feat(agent): scaffold @vico/agent package"
 ```
 
@@ -285,14 +285,14 @@ export type SSEEvent = z.infer<typeof SSEEventSchema>;
 - [ ] **Step 5: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/agent/src/contracts/
+git add vico/agent/src/contracts/
 git commit -m "feat(agent): define Zod contracts for AgentConfig, ToolDef, SSEEvent"
 ```
 
@@ -436,14 +436,14 @@ export interface ToolHost {
 - [ ] **Step 4: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/agent/src/model/ packages/agent/src/prompt/ packages/agent/src/tool/
+git add vico/agent/src/model/ vico/agent/src/prompt/ vico/agent/src/tool/
 git commit -m "feat(agent): define ModelClient, PromptAssembler, ToolHost port interfaces"
 ```
 
@@ -651,14 +651,14 @@ export interface SpanTracker {
 - [ ] **Step 7: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add packages/agent/src/memory/ packages/agent/src/skill/ packages/agent/src/session/ packages/agent/src/agent-loop/ packages/agent/src/hook/ packages/agent/src/observable/
+git add vico/agent/src/memory/ vico/agent/src/skill/ vico/agent/src/session/ vico/agent/src/agent-loop/ vico/agent/src/hook/ vico/agent/src/observable/
 git commit -m "feat(agent): define MemoryStore, SkillLoader, SessionStore, Hook, Observable ports"
 ```
 
@@ -761,14 +761,14 @@ export class AISDKModelClient implements ModelClient {
 - [ ] **Step 2: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors. (If AI SDK v6 chunk types differ, adjust mapping — the port contract is the `ModelStreamChunk` union, not the internal mapping.)
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/model/ai-sdk-adapter.ts
+git add vico/agent/src/model/ai-sdk-adapter.ts
 git commit -m "feat(agent): implement AISDKModelClient adapter wrapping ai v6 streamText"
 ```
 
@@ -879,14 +879,14 @@ export class PromptAssemblerImpl implements PromptAssembler {
 - [ ] **Step 2: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/prompt/assembler.ts
+git add vico/agent/src/prompt/assembler.ts
 git commit -m "feat(agent): implement PromptAssembler with cache-friendly assembly order"
 ```
 
@@ -1009,14 +1009,14 @@ export class InMemorySpanTracker implements SpanTracker {
 - [ ] **Step 3: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/agent/src/observable/
+git add vico/agent/src/observable/
 git commit -m "feat(agent): implement MittEventRecorder and InMemorySpanTracker"
 ```
 
@@ -1088,14 +1088,14 @@ export class CompositeHookRunner {
 - [ ] **Step 2: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/hook/
+git add vico/agent/src/hook/
 git commit -m "feat(agent): implement HookRunner and CompositeHookRunner"
 ```
 
@@ -1248,14 +1248,14 @@ export class AgentRuntimeImpl implements AgentRuntime {
 - [ ] **Step 2: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/agent-runtime/
+git add vico/agent/src/agent-runtime/
 git commit -m "feat(agent): implement AgentRuntime with LRU cache and dynamic agent lifecycle"
 ```
 
@@ -1525,14 +1525,14 @@ export class AgentLoopImpl implements AgentLoop {
 - [ ] **Step 2: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/agent-loop/
+git add vico/agent/src/agent-loop/
 git commit -m "feat(agent): implement AgentLoop core engine with model+tool loop"
 ```
 
@@ -1648,14 +1648,14 @@ export {
 - [ ] **Step 2: Verify TypeScript compilation**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 ```
 Expected: no errors.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/index.ts
+git add vico/agent/src/index.ts
 git commit -m "feat(agent): add public API barrel exports"
 ```
 
@@ -1755,7 +1755,7 @@ describe('SSEEventSchema', () => {
 - [ ] **Step 2: Run contracts test**
 
 ```bash
-cd packages/agent && npx vitest run src/__tests__/contracts.test.ts
+cd vico/agent && npx vitest run src/__tests__/contracts.test.ts
 ```
 Expected: all 6 tests pass.
 
@@ -1841,7 +1841,7 @@ describe('PromptAssemblerImpl', () => {
 - [ ] **Step 4: Run PromptAssembler test**
 
 ```bash
-cd packages/agent && npx vitest run src/__tests__/prompt-assembler.test.ts
+cd vico/agent && npx vitest run src/__tests__/prompt-assembler.test.ts
 ```
 Expected: all 3 tests pass.
 
@@ -1940,7 +1940,7 @@ describe('AgentRuntimeImpl', () => {
 - [ ] **Step 6: Run AgentRuntime test**
 
 ```bash
-cd packages/agent && npx vitest run src/__tests__/agent-runtime.test.ts
+cd vico/agent && npx vitest run src/__tests__/agent-runtime.test.ts
 ```
 Expected: all 7 tests pass.
 
@@ -1991,7 +1991,7 @@ describe('MittEventRecorder', () => {
 - [ ] **Step 8: Run EventRecorder test**
 
 ```bash
-cd packages/agent && npx vitest run src/__tests__/event-recorder.test.ts
+cd vico/agent && npx vitest run src/__tests__/event-recorder.test.ts
 ```
 Expected: all 3 tests pass.
 
@@ -2088,7 +2088,7 @@ describe('CompositeHookRunner', () => {
 - [ ] **Step 10: Run HookRunner test**
 
 ```bash
-cd packages/agent && npx vitest run src/__tests__/hook-runner.test.ts
+cd vico/agent && npx vitest run src/__tests__/hook-runner.test.ts
 ```
 Expected: all 4 tests pass.
 
@@ -2134,7 +2134,7 @@ describe('InMemorySpanTracker', () => {
 - [ ] **Step 12: Run SpanTracker test**
 
 ```bash
-cd packages/agent && npx vitest run src/__tests__/span-tracker.test.ts
+cd vico/agent && npx vitest run src/__tests__/span-tracker.test.ts
 ```
 Expected: all 3 tests pass.
 
@@ -2297,21 +2297,21 @@ describe('AgentLoopImpl', () => {
 - [ ] **Step 14: Run AgentLoop test**
 
 ```bash
-cd packages/agent && npx vitest run src/__tests__/agent-loop.test.ts
+cd vico/agent && npx vitest run src/__tests__/agent-loop.test.ts
 ```
 Expected: all 3 tests pass.
 
 - [ ] **Step 15: Run full test suite**
 
 ```bash
-cd packages/agent && npx vitest run
+cd vico/agent && npx vitest run
 ```
 Expected: all tests pass (~26 tests across 7 files).
 
 - [ ] **Step 16: Final commit**
 
 ```bash
-git add packages/agent/src/__tests__/
+git add vico/agent/src/__tests__/
 git commit -m "test(agent): add unit tests for contracts, runtime, loop, observable, hooks"
 ```
 
@@ -2323,12 +2323,12 @@ After all tasks complete, verify:
 
 ```bash
 # 1. TypeScript compiles cleanly
-cd packages/agent && npx tsc --noEmit
+cd vico/agent && npx tsc --noEmit
 
 # 2. All tests pass
-cd packages/agent && npx vitest run
+cd vico/agent && npx vitest run
 
 # 3. Package can be imported from server (smoke test)
-cd packages/server && node -e "require('@vico/agent')" 2>/dev/null || \
+cd vico/server && node -e "require('@vico/agent')" 2>/dev/null || \
   node -e "import('@vico/agent').then(m => console.log(Object.keys(m).slice(0,10)))"
 ```

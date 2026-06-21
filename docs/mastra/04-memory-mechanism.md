@@ -347,7 +347,7 @@ interface ObservationalMemoryConfig {
 ### 6.1 文本分块
 
 ```typescript
-// packages/memory/src/index.ts
+// vico/memory/src/index.ts
 function chunkText(text: string, tokensPerChunk: number): string[] {
   // 按词边界分割
   // 最大块大小：tokens * 4 字符（~16K chars @ 4096 tokens）
@@ -629,7 +629,7 @@ class MockMemory extends MastraMemory {
 ### 12.1 MemoryStorage 抽象
 
 ```typescript
-// packages/core/src/storage/domains/memory/base.ts
+// vico/core/src/storage/domains/memory/base.ts
 abstract class MemoryStorage {
   abstract getThreadById(id: string): Promise<StorageThread>;
   abstract saveMessages(messages: Message[]): Promise<void>;

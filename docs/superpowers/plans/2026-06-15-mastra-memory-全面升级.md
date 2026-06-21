@@ -46,7 +46,7 @@
 - [ ] **Step 1: 备份当前 memory-setup.ts 并记录关键状态**
 
 ```bash
-cp packages/server/src/agent/memory-setup.ts packages/server/src/agent/memory-setup.ts.bak
+cp vico/server/src/agent/memory-setup.ts vico/server/src/agent/memory-setup.ts.bak
 ```
 
 - [ ] **Step 2: 修改 memory-setup.ts，补全 processor 配置**
@@ -132,7 +132,7 @@ export function getMemory(): Memory {
 - [ ] **Step 3: 验证 TypeScript 编译**
 
 ```bash
-cd packages/server && pnpm tsc --noEmit 2>&1 | head -20
+cd vico/server && pnpm tsc --noEmit 2>&1 | head -20
 ```
 
 Expected: no new errors from memory-setup.ts.
@@ -140,7 +140,7 @@ Expected: no new errors from memory-setup.ts.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/agent/memory-setup.ts
+git add vico/server/src/agent/memory-setup.ts
 git commit -m "feat: configure Mastra native WorkingMemory, SemanticRecall, and ObservationalMemory processors"
 ```
 
@@ -199,7 +199,7 @@ export const mastra = new Mastra({
 - [ ] **Step 2: 验证编译**
 
 ```bash
-cd packages/server && pnpm tsc --noEmit 2>&1 | head -20
+cd vico/server && pnpm tsc --noEmit 2>&1 | head -20
 ```
 
 Expected: no new errors.
@@ -207,7 +207,7 @@ Expected: no new errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/mastra.ts
+git add vico/server/src/mastra.ts
 git commit -m "feat: register Memory in Mastra constructor to activate framework-level memory pipeline"
 ```
 
@@ -274,7 +274,7 @@ export const mainAgent = new Agent({
 - [ ] **Step 3: 验证编译**
 
 ```bash
-cd packages/server && pnpm tsc --noEmit 2>&1 | head -20
+cd vico/server && pnpm tsc --noEmit 2>&1 | head -20
 ```
 
 Expected: no errors.
@@ -282,7 +282,7 @@ Expected: no errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/agent/agents/main.agent.ts packages/server/src/agent/agents/agent-proxy.agent.ts
+git add vico/server/src/agent/agents/main.agent.ts vico/server/src/agent/agents/agent-proxy.agent.ts
 git commit -m "refactor: remove per-agent memory config, rely on Mastra framework-level memory injection"
 ```
 
@@ -403,7 +403,7 @@ import type {MastraModelConfig} from '@mastra/core/llm';
 - [ ] **Step 2: 验证编译**
 
 ```bash
-cd packages/server && pnpm tsc --noEmit 2>&1 | head -20
+cd vico/server && pnpm tsc --noEmit 2>&1 | head -20
 ```
 
 Expected: no errors.
@@ -411,7 +411,7 @@ Expected: no errors.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/chat/chat.ts
+git add vico/server/src/chat/chat.ts
 git commit -m "refactor: remove custom WorkingMemory extraction from chat flow, Mastra processors auto-manage memory"
 ```
 
@@ -428,15 +428,15 @@ git commit -m "refactor: remove custom WorkingMemory extraction from chat flow, 
 - [ ] **Step 1: 删除文件**
 
 ```bash
-rm packages/server/src/agent/memory/working-memory.ts
-rm packages/server/src/agent/memory/observational-memory.ts
-rm -rf packages/server/src/agent/memory/__tests__
+rm vico/server/src/agent/memory/working-memory.ts
+rm vico/server/src/agent/memory/observational-memory.ts
+rm -rf vico/server/src/agent/memory/__tests__
 ```
 
 - [ ] **Step 2: 检查是否还有残留引用**
 
 ```bash
-cd packages/server && grep -r "working-memory\|observational-memory" src/ --include="*.ts" | grep -v node_modules | grep -v ".bak"
+cd vico/server && grep -r "working-memory\|observational-memory" src/ --include="*.ts" | grep -v node_modules | grep -v ".bak"
 ```
 
 Expected: no output（无残留引用）。如果 conversation-manager.ts 中有引用，需要在下一步处理。
@@ -444,7 +444,7 @@ Expected: no output（无残留引用）。如果 conversation-manager.ts 中有
 - [ ] **Step 3: 检查 conversation-manager.ts 是否需要适配**
 
 ```bash
-grep -n "workingMemory\|observationalMemory\|memory_entries" packages/server/src/services/conversation/conversation-manager.ts
+grep -n "workingMemory\|observationalMemory\|memory_entries" vico/server/src/services/conversation/conversation-manager.ts
 ```
 
 如果 `conversation-manager.ts` 依赖了自建 memory 类，将其替换为 Mastra Memory API。预期 `conversation-manager.ts` 只使用 `getMemory().listThreads()` / `getMemory().getThreadById()` / `getMemory().recall()` / `getMemory().saveThread()`，这些 API 不变。
@@ -452,7 +452,7 @@ grep -n "workingMemory\|observationalMemory\|memory_entries" packages/server/src
 - [ ] **Step 4: 验证编译**
 
 ```bash
-cd packages/server && pnpm tsc --noEmit 2>&1 | head -20
+cd vico/server && pnpm tsc --noEmit 2>&1 | head -20
 ```
 
 Expected: no errors.
@@ -460,7 +460,7 @@ Expected: no errors.
 - [ ] **Step 5: 运行测试**
 
 ```bash
-cd packages/server && pnpm test 2>&1 | tail -20
+cd vico/server && pnpm test 2>&1 | tail -20
 ```
 
 注意：如果之前有针对 working-memory/observational-memory 的测试，它们已被删除。剩下的测试（conversation-manager 等）应继续通过。
@@ -468,7 +468,7 @@ cd packages/server && pnpm test 2>&1 | tail -20
 - [ ] **Step 6: 检查 memory_entries 表是否还有其他引用**
 
 ```bash
-cd packages/server && grep -rn "memory_entries\|memoryEntries" src/ --include="*.ts" | grep -v node_modules | grep -v ".bak" | grep -v schema.ts
+cd vico/server && grep -rn "memory_entries\|memoryEntries" src/ --include="*.ts" | grep -v node_modules | grep -v ".bak" | grep -v schema.ts
 ```
 
 如果只有 `schema.ts` 中定义了表结构而其他无引用，可以保留表定义（用于未来可能的迁移脚本），但不影响运行。
@@ -476,7 +476,7 @@ cd packages/server && grep -rn "memory_entries\|memoryEntries" src/ --include="*
 - [ ] **Step 7: Commit**
 
 ```bash
-git add packages/server/src/agent/memory/
+git add vico/server/src/agent/memory/
 git commit -m "refactor: remove custom WorkingMemory and ObservationalMemory, replaced by Mastra native processors"
 ```
 
@@ -603,13 +603,13 @@ migrateMemoryEntries().catch(err => {
 - [ ] **Step 3: 验证编译**
 
 ```bash
-cd packages/server && pnpm tsc --noEmit 2>&1 | head -20
+cd vico/server && pnpm tsc --noEmit 2>&1 | head -20
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/db/migrate-memory-entries.ts packages/server/src/index.ts
+git add vico/server/src/db/migrate-memory-entries.ts vico/server/src/index.ts
 git commit -m "feat: add memory_entries to Mastra WorkingMemory data migration script"
 ```
 
@@ -652,7 +652,7 @@ Expected: 如果语义相似，Agent 通过 SemanticRecall 能引用跨对话的
 - [ ] **Step 5: 回归测试**
 
 ```bash
-cd packages/server && pnpm test
+cd vico/server && pnpm test
 ```
 
 Expected: 所有保留的测试通过（conversation-manager 等）。
@@ -660,7 +660,7 @@ Expected: 所有保留的测试通过（conversation-manager 等）。
 - [ ] **Step 6: 清理备份文件**
 
 ```bash
-rm packages/server/src/agent/memory-setup.ts.bak
+rm vico/server/src/agent/memory-setup.ts.bak
 ```
 
 - [ ] **Step 7: 最终 Commit**
@@ -691,7 +691,7 @@ git commit -m "chore: cleanup migration artifacts and verify memory upgrade"
 
 1. 恢复 `memory-setup.ts` 备份：
    ```bash
-   git checkout HEAD~5 -- packages/server/src/agent/memory-setup.ts
+   git checkout HEAD~5 -- vico/server/src/agent/memory-setup.ts
    ```
 2. 恢复 `mastra.ts`、`main.agent.ts`、`agent-proxy.agent.ts`
 3. 恢复 `chat.ts`

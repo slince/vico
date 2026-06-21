@@ -133,7 +133,7 @@ export function extractObservabilityMeta(context: {
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/observability/
+git add vico/server/src/agent/observability/
 git commit -m "feat: add observability config singleton and utils"
 ```
 
@@ -180,7 +180,7 @@ export const mastra = new Mastra({
 - [ ] **Step 2: Verify server starts without errors**
 
 ```bash
-cd packages/server && npx tsx src/index.ts &
+cd vico/server && npx tsx src/index.ts &
 sleep 3
 curl http://localhost:3001/health
 ```
@@ -206,7 +206,7 @@ Expected: SSE stream with text_delta events, no errors. Console should show trac
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/mastra.ts
+git add vico/server/src/mastra.ts
 git commit -m "feat: inject observability config into Mastra instance"
 ```
 
@@ -363,7 +363,7 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
 
 ```bash
 # Start server
-cd packages/server && npx tsx src/index.ts &
+cd vico/server && npx tsx src/index.ts &
 sleep 3
 
 # Get traces list
@@ -380,7 +380,7 @@ Expected: JSON responses with traces data and aggregated stats.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/api/observability.ts packages/server/src/api/router.ts
+git add vico/server/src/api/observability.ts vico/server/src/api/router.ts
 git commit -m "feat: add observability API routes for trace query and stats"
 ```
 
@@ -486,7 +486,7 @@ export function fetchObservabilityStats(params?: {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/web/src/api/observability.ts
+git add vico/web/src/api/observability.ts
 git commit -m "feat: add observability API client"
 ```
 
@@ -636,7 +636,7 @@ And add route inside the ProtectedRoute children:
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/web/src/pages-new/observability/TraceList.tsx packages/web/src/router.tsx
+git add vico/web/src/pages-new/observability/TraceList.tsx vico/web/src/router.tsx
 git commit -m "feat: add TraceList page with loading/empty/error states"
 ```
 
@@ -782,7 +782,7 @@ export default function TraceDetail() {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/web/src/pages-new/observability/TraceDetail.tsx
+git add vico/web/src/pages-new/observability/TraceDetail.tsx
 git commit -m "feat: add TraceDetail page with span tree visualization"
 ```
 
@@ -856,7 +856,7 @@ export interface EvalRunDetail extends EvalRun {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/evals/types.ts
+git add vico/server/src/agent/evals/types.ts
 git commit -m "feat: add eval type definitions"
 ```
 
@@ -932,7 +932,7 @@ export {
 - [ ] **Step 3: Generate and run migration**
 
 ```bash
-cd packages/server && npx drizzle-kit generate
+cd vico/server && npx drizzle-kit generate
 # Then run migration
 npx tsx src/db/migrate.ts
 ```
@@ -940,7 +940,7 @@ npx tsx src/db/migrate.ts
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/db/schema.ts packages/server/src/db/schema-index.ts
+git add vico/server/src/db/schema.ts vico/server/src/db/schema-index.ts
 git commit -m "feat: add eval tables to database schema"
 ```
 
@@ -1031,7 +1031,7 @@ registerScorer('hallucination', async ({ input, output, context }) => {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/evals/scorers.ts
+git add vico/server/src/agent/evals/scorers.ts
 git commit -m "feat: add eval scorer registry with 4 built-in scorers"
 ```
 
@@ -1170,7 +1170,7 @@ export async function getDataset(tenantId: string, datasetId: string): Promise<D
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/evals/datasets.ts
+git add vico/server/src/agent/evals/datasets.ts
 git commit -m "feat: add eval dataset CRUD module"
 ```
 
@@ -1424,7 +1424,7 @@ export async function getEvalRunDetail(runId: string): Promise<{
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/evals/runner.ts
+git add vico/server/src/agent/evals/runner.ts
 git commit -m "feat: add eval runner with async execution and 4 scorers"
 ```
 
@@ -1548,7 +1548,7 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/api/evals.ts packages/server/src/api/router.ts
+git add vico/server/src/api/evals.ts vico/server/src/api/router.ts
 git commit -m "feat: add evals API routes"
 ```
 
@@ -1657,7 +1657,7 @@ export function fetchEvalRunDetail(runId: string): Promise<EvalRunDetail> {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/web/src/api/evals.ts
+git add vico/web/src/api/evals.ts
 git commit -m "feat: add evals API client"
 ```
 
@@ -2148,7 +2148,7 @@ And add routes:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/web/src/pages-new/evals/ packages/web/src/router.tsx
+git add vico/web/src/pages-new/evals/ vico/web/src/router.tsx
 git commit -m "feat: add evals frontend pages (DatasetList, DatasetDetail, EvalRun)"
 ```
 
@@ -2246,7 +2246,7 @@ In `packages/server/package.json`, add:
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/evals/ci-smoke.ts packages/server/package.json
+git add vico/server/src/agent/evals/ci-smoke.ts vico/server/package.json
 git commit -m "feat: add CI smoke test for eval regression"
 ```
 

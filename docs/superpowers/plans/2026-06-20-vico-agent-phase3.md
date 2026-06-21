@@ -58,8 +58,8 @@ export class ShortTermMemory {
 - [ ] **Step 2: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/memory/short-term-memory.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/memory/short-term-memory.ts
 git commit -m "feat(agent): implement ShortTermMemory with FIFO sliding window"
 ```
 
@@ -142,8 +142,8 @@ export class InMemoryMemoryStore implements MemoryStore {
 - [ ] **Step 2: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/memory/memory-store-impl.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/memory/memory-store-impl.ts
 git commit -m "feat(agent): implement InMemoryMemoryStore with STM/LTM/RAG stubs"
 ```
 
@@ -239,8 +239,8 @@ export class ContextCompactorImpl implements ContextCompactor {
 - [ ] **Step 2: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/agent-loop/context-compactor.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/agent-loop/context-compactor.ts
 git commit -m "feat(agent): implement ContextCompactor with LLM summarization"
 ```
 
@@ -306,8 +306,8 @@ export class TokenEconomy {
 - [ ] **Step 2: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/agent-loop/token-economy.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/agent-loop/token-economy.ts
 git commit -m "feat(agent): implement TokenEconomy with budget tracking and truncation"
 ```
 
@@ -357,8 +357,8 @@ export { TokenEconomy } from './agent-loop/token-economy.js';
 - [ ] **Step 3: Verify and commit**
 
 ```bash
-cd packages/agent && npx tsc --noEmit
-git add packages/agent/src/agent-loop/agent-loop.ts packages/agent/src/index.ts
+cd vico/agent && npx tsc --noEmit
+git add vico/agent/src/agent-loop/agent-loop.ts vico/agent/src/index.ts
 git commit -m "feat(agent): integrate memory, compactor, and token economy into AgentLoop"
 ```
 
@@ -448,7 +448,7 @@ describe('TokenEconomy', () => {
 - [ ] **Step 2: Run tests and commit**
 
 ```bash
-cd packages/agent && npx vitest run
-git add packages/agent/src/__tests__/
+cd vico/agent && npx vitest run
+git add vico/agent/src/__tests__/
 git commit -m "test(agent): add tests for memory, compactor, and token economy"
 ```

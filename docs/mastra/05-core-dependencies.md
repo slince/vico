@@ -9,7 +9,7 @@
 Mastra 同时支持 AI SDK v4、v5、v6 三个版本，通过 npm alias 实现：
 
 ```json
-// packages/core/package.json
+// vico/core/package.json
 {
   "@ai-sdk/provider-utils-v5": "npm:@ai-sdk/provider-utils@3.0.25",
   "@ai-sdk/provider-utils-v6": "npm:@ai-sdk/provider-utils@4.0.27",

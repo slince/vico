@@ -50,7 +50,7 @@ packages/server/
 - [ ] **Step 1: 添加 Mastra 核心依赖**
 
 ```bash
-cd packages/server && pnpm add @mastra/core @mastra/libsql
+cd vico/server && pnpm add @mastra/core @mastra/libsql
 ```
 
 Expected: 安装成功，`package.json` 中新增 `@mastra/core` 和 `@mastra/libsql` 依赖项。
@@ -58,7 +58,7 @@ Expected: 安装成功，`package.json` 中新增 `@mastra/core` 和 `@mastra/li
 - [ ] **Step 2: 验证安装**
 
 ```bash
-cd packages/server && node -e "import('@mastra/core').then(m => console.log('Mastra core OK:', Object.keys(m).slice(0,5)))"
+cd vico/server && node -e "import('@mastra/core').then(m => console.log('Mastra core OK:', Object.keys(m).slice(0,5)))"
 ```
 
 Expected: 输出 `Mastra core OK: [...]`，确认模块可加载。
@@ -66,7 +66,7 @@ Expected: 输出 `Mastra core OK: [...]`，确认模块可加载。
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/package.json packages/server/pnpm-lock.yaml
+git add vico/server/package.json vico/server/pnpm-lock.yaml
 git commit -m "chore: add @mastra/core and @mastra/libsql dependencies"
 ```
 
@@ -114,11 +114,11 @@ server:
 - [ ] **Step 3: 验证配置加载**
 
 ```bash
-cd packages/server && node -e "
+cd vico/server && node -e "
 const { config } = require('./src/config.ts' || await import('./src/config.ts'));
 " 2>&1 || echo "(ESM, use tsx)"
 
-cd packages/server && npx tsx -e "
+cd vico/server && npx tsx -e "
 import { config } from './src/config.js';
 console.log('agent_engine:', config.server.agent_engine);
 "
@@ -129,7 +129,7 @@ Expected: 输出 `agent_engine: legacy`。
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/server.config.yaml packages/server/src/config.ts
+git add vico/server/server.config.yaml vico/server/src/config.ts
 git commit -m "feat: add agent_engine feature flag (mastra|legacy)"
 ```
 
@@ -143,7 +143,7 @@ git commit -m "feat: add agent_engine feature flag (mastra|legacy)"
 - [ ] **Step 1: 创建 Storage 配置模块**
 
 ```typescript
-// packages/server/src/agent/mastra/storage.ts
+// vico/server/src/agent/mastra/storage.ts
 // Mastra LibSQL 存储配置，使用独立 DB 文件避免与 Drizzle ORM 冲突
 
 import { LibSQLStore } from '@mastra/libsql';
@@ -170,13 +170,13 @@ export function getMastraStorage(): LibSQLStore {
 - [ ] **Step 2: 验证文件创建**
 
 ```bash
-ls -la packages/server/src/agent/mastra/storage.ts
+ls -la vico/server/src/agent/mastra/storage.ts
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/storage.ts
+git add vico/server/src/agent/mastra/storage.ts
 git commit -m "feat: add Mastra LibSQL storage configuration"
 ```
 
@@ -190,7 +190,7 @@ git commit -m "feat: add Mastra LibSQL storage configuration"
 - [ ] **Step 1: 创建 Model Bridge 模块**
 
 ```typescript
-// packages/server/src/agent/mastra/bridges/model-bridge.ts
+// vico/server/src/agent/mastra/bridges/model-bridge.ts
 // Bridge 1: Vico ModelConfigRow → AI SDK LanguageModel (已包裹 withMastra)
 
 import { createOpenAI } from '@ai-sdk/openai';
@@ -253,7 +253,7 @@ export function resolveAgentModel(tenantId: string, modelId?: string): {
 - [ ] **Step 2: 验证 TypeScript 编译**
 
 ```bash
-cd packages/server && npx tsc --noEmit src/agent/mastra/bridges/model-bridge.ts 2>&1 | head -20
+cd vico/server && npx tsc --noEmit src/agent/mastra/bridges/model-bridge.ts 2>&1 | head -20
 ```
 
 Expected: 无类型错误（可能有模块解析警告，正常）。
@@ -261,7 +261,7 @@ Expected: 无类型错误（可能有模块解析警告，正常）。
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/bridges/model-bridge.ts
+git add vico/server/src/agent/mastra/bridges/model-bridge.ts
 git commit -m "feat: add Model Bridge - Vico ModelConfig to AI SDK model"
 ```
 
@@ -275,7 +275,7 @@ git commit -m "feat: add Model Bridge - Vico ModelConfig to AI SDK model"
 - [ ] **Step 1: 创建 Skill Bridge 模块**
 
 ```typescript
-// packages/server/src/agent/mastra/bridges/skill-bridge.ts
+// vico/server/src/agent/mastra/bridges/skill-bridge.ts
 // Bridge 2: Vico SkillTool[] → Mastra-compatible tools (Record<string, Tool>)
 // 将 JSON Schema parameters 转换为 Zod schema
 
@@ -388,13 +388,13 @@ export function getSkillPromptForAgent(agentId: string): string {
 - [ ] **Step 2: 验证 TypeScript 编译**
 
 ```bash
-cd packages/server && npx tsc --noEmit src/agent/mastra/bridges/skill-bridge.ts 2>&1 | head -20
+cd vico/server && npx tsc --noEmit src/agent/mastra/bridges/skill-bridge.ts 2>&1 | head -20
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/bridges/skill-bridge.ts
+git add vico/server/src/agent/mastra/bridges/skill-bridge.ts
 git commit -m "feat: add Skill Bridge - Vico SkillTool to Mastra tools"
 ```
 
@@ -408,7 +408,7 @@ git commit -m "feat: add Skill Bridge - Vico SkillTool to Mastra tools"
 - [ ] **Step 1: 创建 RAG Bridge 模块**
 
 ```typescript
-// packages/server/src/agent/mastra/bridges/rag-bridge.ts
+// vico/server/src/agent/mastra/bridges/rag-bridge.ts
 // Bridge 3: Vico RAG 作为 Mastra Tool 暴露
 // Phase 1 策略：将 Vico 知识库检索封装为 search_knowledge_base tool
 
@@ -479,13 +479,13 @@ export async function getRagContext(agentId: string, message: string): Promise<s
 - [ ] **Step 2: 验证创建**
 
 ```bash
-ls -la packages/server/src/agent/mastra/bridges/rag-bridge.ts
+ls -la vico/server/src/agent/mastra/bridges/rag-bridge.ts
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/bridges/rag-bridge.ts
+git add vico/server/src/agent/mastra/bridges/rag-bridge.ts
 git commit -m "feat: add RAG Bridge - Vico knowledge search as Mastra tool"
 ```
 
@@ -499,7 +499,7 @@ git commit -m "feat: add RAG Bridge - Vico knowledge search as Mastra tool"
 - [ ] **Step 1: 创建 Auth Bridge 模块**
 
 ```typescript
-// packages/server/src/agent/mastra/bridges/auth-bridge.ts
+// vico/server/src/agent/mastra/bridges/auth-bridge.ts
 // Bridge 4: Vico AuthContext → Mastra RuntimeContext (threadId/resourceId)
 // resourceId = tenantId 确保多租户记忆隔离
 // threadId = conversationId 确保对话连续性
@@ -529,7 +529,7 @@ export function authToMastraContext(
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/bridges/auth-bridge.ts
+git add vico/server/src/agent/mastra/bridges/auth-bridge.ts
 git commit -m "feat: add Auth Bridge - AuthContext to Mastra RuntimeContext"
 ```
 
@@ -545,7 +545,7 @@ git commit -m "feat: add Auth Bridge - AuthContext to Mastra RuntimeContext"
 - [ ] **Step 1: 创建审计日志 Processor**
 
 ```typescript
-// packages/server/src/agent/mastra/processors/audit-logger.ts
+// vico/server/src/agent/mastra/processors/audit-logger.ts
 // Mastra output processor: 工具调用审计 → tool_call_logs 表
 
 import { v4 as uuid } from 'uuid';
@@ -599,7 +599,7 @@ export function createAuditLogger(opts: AuditLoggerOptions) {
 - [ ] **Step 2: 创建 Token 统计 Processor**
 
 ```typescript
-// packages/server/src/agent/mastra/processors/token-tracker.ts
+// vico/server/src/agent/mastra/processors/token-tracker.ts
 // Mastra output processor: Token 用量统计 → token_usage_logs 表
 
 import { v4 as uuid } from 'uuid';
@@ -648,7 +648,7 @@ export function createTokenTracker(opts: TokenTrackerOptions) {
 - [ ] **Step 3: 创建消息持久化 Processor**
 
 ```typescript
-// packages/server/src/agent/mastra/processors/message-persister.ts
+// vico/server/src/agent/mastra/processors/message-persister.ts
 // Mastra input/output processor: 用户消息 + 助手回复 → messages 表
 
 import { v4 as uuid } from 'uuid';
@@ -724,7 +724,7 @@ export function createMessagePersister(opts: MessagePersisterOptions) {
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/processors/
+git add vico/server/src/agent/mastra/processors/
 git commit -m "feat: add Mastra processors - audit, token tracking, message persistence"
 ```
 
@@ -738,7 +738,7 @@ git commit -m "feat: add Mastra processors - audit, token tracking, message pers
 - [ ] **Step 1: 创建 Agent Factory 模块**
 
 ```typescript
-// packages/server/src/agent/mastra/agent-factory.ts
+// vico/server/src/agent/mastra/agent-factory.ts
 // Vico Agent DB 配置 → Mastra Agent 实例构建器
 // 整合 4 个 Bridge + 3 个 Processor，构建完整的 Mastra Agent
 
@@ -893,13 +893,13 @@ export async function createMastraAgent(
 - [ ] **Step 2: 验证 TypeScript 编译**
 
 ```bash
-cd packages/server && npx tsc --noEmit src/agent/mastra/agent-factory.ts 2>&1 | head -30
+cd vico/server && npx tsc --noEmit src/agent/mastra/agent-factory.ts 2>&1 | head -30
 ```
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/agent-factory.ts
+git add vico/server/src/agent/mastra/agent-factory.ts
 git commit -m "feat: add Agent Factory - Vico DB config to Mastra Agent"
 ```
 
@@ -913,7 +913,7 @@ git commit -m "feat: add Agent Factory - Vico DB config to Mastra Agent"
 - [ ] **Step 1: 创建 Mastra 入口模块**
 
 ```typescript
-// packages/server/src/agent/mastra/index.ts
+// vico/server/src/agent/mastra/index.ts
 // Mastra 实例管理：懒加载单例，初始化时注册动态 Agent
 
 import { Mastra } from '@mastra/core';
@@ -944,7 +944,7 @@ export type { PipelineContext } from './agent-factory.js';
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/mastra/index.ts
+git add vico/server/src/agent/mastra/index.ts
 git commit -m "feat: add Mastra singleton entry point"
 ```
 
@@ -1087,7 +1087,7 @@ function mastraStreamToPipelineResult(
 - [ ] **Step 2: 修改 chat.ts 路由，使用 runChatPipeline**
 
 ```typescript
-// packages/server/src/api/chat.ts
+// vico/server/src/api/chat.ts
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
@@ -1128,7 +1128,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 - [ ] **Step 3: 验证 TypeScript 编译**
 
 ```bash
-cd packages/server && npx tsc --noEmit 2>&1 | head -40
+cd vico/server && npx tsc --noEmit 2>&1 | head -40
 ```
 
 Expected: 无新增类型错误。
@@ -1136,7 +1136,7 @@ Expected: 无新增类型错误。
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/src/api/chat.ts packages/server/src/agent/pipeline.ts
+git add vico/server/src/api/chat.ts vico/server/src/agent/pipeline.ts
 git commit -m "feat: add Mastra engine routing with feature flag fallback"
 ```
 
@@ -1150,7 +1150,7 @@ git commit -m "feat: add Mastra engine routing with feature flag fallback"
 - [ ] **Step 1: 启动开发服务器**
 
 ```bash
-cd packages/server && pnpm dev
+cd vico/server && pnpm dev
 ```
 
 Expected: 服务器正常启动，日志中可见 `[Mastra] Storage initialized: ...`（仅在首次请求触发 Mastra agent 创建时）。
@@ -1199,7 +1199,7 @@ Expected: 返回 SSE 流，格式与 Legacy 一致（`text_delta` + `done`），
 - [ ] **Step 5: Commit（如有配置调整）**
 
 ```bash
-git add packages/server/server.config.yaml
+git add vico/server/server.config.yaml
 git commit -m "chore: set agent_engine to legacy as default"
 ```
 
@@ -1213,7 +1213,7 @@ git commit -m "chore: set agent_engine to legacy as default"
 - [ ] **Step 1: 启动前端开发服务器**
 
 ```bash
-cd packages/web && pnpm dev
+cd vico/web && pnpm dev
 ```
 
 - [ ] **Step 2: 浏览器访问测试对话**
@@ -1245,7 +1245,7 @@ Expected: 两种模式下对话记录均正常。
 - [ ] **Step 1: 完整构建验证**
 
 ```bash
-cd packages/server && pnpm build
+cd vico/server && pnpm build
 ```
 
 Expected: TypeScript 编译无错误。
@@ -1255,7 +1255,7 @@ Expected: TypeScript 编译无错误。
 确认 `server.config.yaml` 中 `agent_engine: legacy`，确保生产环境默认使用稳定引擎。
 
 ```bash
-grep agent_engine packages/server/server.config.yaml
+grep agent_engine vico/server/server.config.yaml
 ```
 
 Expected: `agent_engine: legacy`

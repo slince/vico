@@ -87,7 +87,7 @@ export { model_configs, agents, memory_entries, installed_skills, agent_skills, 
 - [ ] **Step 3: 运行迁移验证**
 
 ```bash
-cd packages/server && pnpm db:migrate
+cd vico/server && pnpm db:migrate
 ```
 
 Expected: 迁移成功执行，agents 表新增 builtin_tools 列，exec_approvals 表创建。
@@ -95,7 +95,7 @@ Expected: 迁移成功执行，agents 表新增 builtin_tools 列，exec_approva
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/server/drizzle/0003_builtin_tools.sql packages/server/src/db/schema.ts packages/server/src/db/schema-index.ts
+git add vico/server/drizzle/0003_builtin_tools.sql vico/server/src/db/schema.ts vico/server/src/db/schema-index.ts
 git commit -m "feat: add builtin_tools column and exec_approvals table migration"
 ```
 
@@ -174,7 +174,7 @@ export const updateAgentSchema = z.object({
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/services/agent/types.ts
+git add vico/server/src/services/agent/types.ts
 git commit -m "feat: add BuiltinToolsConfig types and validation schemas"
 ```
 
@@ -254,7 +254,7 @@ async update(tenantId: string, id: string, input: unknown): Promise<void> {
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/services/agent/agent-manager.ts
+git add vico/server/src/services/agent/agent-manager.ts
 git commit -m "feat: support builtin_tools field in agent create/update"
 ```
 
@@ -460,7 +460,7 @@ import { eq } from 'drizzle-orm';
 - [ ] **Step 2: TypeScript 编译检查**
 
 ```bash
-cd packages/server && npx tsc --noEmit
+cd vico/server && npx tsc --noEmit
 ```
 
 Expected: 无类型错误。
@@ -468,7 +468,7 @@ Expected: 无类型错误。
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/tools/builtin/index.ts
+git add vico/server/src/agent/tools/builtin/index.ts
 git commit -m "feat: refactor BuiltinToolManager with per-agent filtering and exec approval wrapper"
 ```
 
@@ -521,7 +521,7 @@ Object.assign(tools, builtinTools);
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/agent/tools/agent-tool.factory.ts
+git add vico/server/src/agent/tools/agent-tool.factory.ts
 git commit -m "feat: inject per-agent builtin tools in createAgentTool"
 ```
 
@@ -607,7 +607,7 @@ if (agentId === 'main') {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/server/src/chat/chat.ts
+git add vico/server/src/chat/chat.ts
 git commit -m "feat: use per-agent builtin tools config in chat pipeline"
 ```
 
@@ -721,7 +721,7 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/api/exec-approvals.ts packages/server/src/api/router.ts
+git add vico/server/src/api/exec-approvals.ts vico/server/src/api/router.ts
 git commit -m "feat: add exec approval API endpoints"
 ```
 
@@ -775,7 +775,7 @@ const maxWaitMs = 2 * 60 * 1000; // 2 分钟审批超时
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/server/src/agent/sse-utils.ts packages/server/src/agent/tools/builtin/index.ts
+git add vico/server/src/agent/sse-utils.ts vico/server/src/agent/tools/builtin/index.ts
 git commit -m "feat: add approval_required SSE event for exec tool calls"
 ```
 
