@@ -1,7 +1,5 @@
 // @vico/agent - Memory module type definitions
-import { z } from 'zod';
-
-export { type BatchEmbedder, type BatchEmbedOptions, type BatchEmbedResult } from '@vico/rag';
+import {z} from 'zod';
 
 export const MemoryRecordSchema = z.object({
   id: z.string().uuid(),

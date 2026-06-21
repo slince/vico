@@ -1,6 +1,6 @@
 // @vico/agent - VectorSemanticRecall: 基于 @vico/rag BatchEmbedder + VectorStore 的语义召回实现
-import type {BatchEmbedder, MemoryRecord, SemanticRecallMemory} from '../types.js';
-import type {VectorStore} from '@vico/rag';
+import type {MemoryRecord, SemanticRecallMemory} from '../types.js';
+import type {BatchEmbedder, VectorStore} from '@vico/rag';
 import {InMemoryVectorStore} from '@vico/rag';
 
 const INDEX = 'memory';
