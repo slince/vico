@@ -15,7 +15,7 @@ import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillProcessor} from '../skill/skill-processor.js';
-import type {Skill, SkillStore} from '../skill/types.js';
+import type {SkillStore} from '../skill/types.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {SessionStore} from '../session/types.js';
@@ -159,7 +159,7 @@ export class Vico {
   /**
    * 创建单个 Agent（无缓存），绑定 skills / tools。
    */
-  private async buildAgent(config: AgentConfig, modelClient: ModelClient): Promise<Agent> {
+  private async buildAgent(config: AgentConfig, model: ModelClient): Promise<Agent> {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
@@ -184,25 +184,26 @@ export class Vico {
 
     const agent = new Agent({
       config,
+      model,
       skills: boundSkills,
       tools: boundTools,
       memory,
       session,
     });
 
-    agent.loop = this.buildLoop(agent, modelClient, boundSkills);
+    agent.loop = this.buildLoop(agent);
 
     return agent;
   }
 
   /** 为 Agent 构建 AgentLoop */
-  private buildLoop(agent: Agent, modelClient: ModelClient, skills: Skill[]): AgentLoop {
+  private buildLoop(agent: Agent): AgentLoop {
     const memory = agent.memory ?? this.memory;
 
     // prompt context processor
     const processors: ContextProcessor[] = [
       new SystemPromptProcessor(),
-      new SkillProcessor(skills),
+      new SkillProcessor(agent.skills),
     ];
 
     const toolBroker = new ToolBroker();
@@ -224,7 +225,7 @@ export class Vico {
 
     return new AgentLoop({
       agent,
-      model: modelClient,
+      model: agent.model,
       toolBroker,
       processors,
       events: this.events,

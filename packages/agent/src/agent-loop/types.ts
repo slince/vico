@@ -1,21 +1,19 @@
 // @vico/agent - AgentLoop module type definitions
-import { z } from 'zod';
-import type { ModelClient, ModelMessage } from '../model/types.js';
-import type { ContextProcessor } from '../prompt/context-processor.js';
-import type { ToolExecutionContext, ToolStore } from '../tool/types.js';
-import type { ToolBroker } from '../tool/tool-broker.js';
-import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
-import type { EventRecorder } from '../observable/types.js';
-import type { SpanTracker } from '../observable/types.js';
-import type { CompositeHookRunner } from '../hook/hook-runner.js';
-import type { ContextCompactor } from './context-compactor.js';
-import type { TokenEconomy } from './token-economy.js';
-import type { ApprovalGate } from './approval-gate.js';
-import type { AgentLoop } from './agent-loop.js';
-import type { Skill, SkillStore } from '../skill/types.js';
-import type { MemoryStore } from '../memory/memory-store.js';
-import type { WorkingMemory } from '../memory/types.js';
-import type { SessionStore } from '../session/types.js';
+import {z} from 'zod';
+import type {ModelClient, ModelMessage} from '../model/types.js';
+import type {ContextProcessor} from '../prompt/context-processor.js';
+import type {Tool, ToolStore} from '../tool/types.js';
+import type {ToolBroker} from '../tool/tool-broker.js';
+import type {EventRecorder, SpanTracker} from '../observable/types.js';
+import type {CompositeHookRunner} from '../hook/hook-runner.js';
+import type {ContextCompactor} from './context-compactor.js';
+import type {TokenEconomy} from './token-economy.js';
+import type {ApprovalGate} from './approval-gate.js';
+import type {AgentLoop} from './agent-loop.js';
+import type {Skill, SkillStore} from '../skill/types.js';
+import type {MemoryStore} from '../memory/memory-store.js';
+import type {WorkingMemory} from '../memory/types.js';
+import type {SessionStore} from '../session/types.js';
 
 /** 模型引用 */
 export const ModelRefSchema = z.object({
@@ -95,6 +93,7 @@ export interface AgentLoopOptions {
 /** Agent — 配置 + 运行时 loop + 绑定（memory/session/skills/tools） */
 export class Agent {
   readonly config: AgentConfig;
+  readonly model: ModelClient;
   readonly skills: Skill[];
   readonly tools: Tool[];
   readonly memory: MemoryStore;
@@ -105,12 +104,14 @@ export class Agent {
 
   constructor(params: {
     config: AgentConfig;
+    model: ModelClient,
     skills?: Skill[];
     tools?: Tool[];
     memory: MemoryStore;
     session: SessionStore;
   }) {
     this.config = params.config;
+    this.model = params.model;
     this.skills = params.skills ?? [];
     this.tools = params.tools ?? [];
     this.memory = params.memory;
