@@ -1,7 +1,12 @@
 // @vico/agent - MemoryProcessor: injects conversation history, working memory, and semantic recall
+import { randomUUID } from 'node:crypto';
 import type { ContextProcessor, ModelRequestContext } from '../prompt/context-processor.js';
 import { Priority } from '../prompt/context-processor.js';
 import type { MemoryStore } from './memory-store.js';
+import type { MemoryRecord } from '../contracts/memory.js';
+
+/** 事实匹配模式 — 包含这些动词/模式的句子视为事实 */
+const FACT_PATTERNS = /\b(is|are|was|were|lives?|works?|located|prefers?|likes?|uses?|has|have|name|from|occupation|role|goal|deadline|project)\b/i;
 
 /** 注入会话历史、工作记忆和语义召回结果（NORMAL 优先级） */
 export class MemoryProcessor implements ContextProcessor {
@@ -14,6 +19,14 @@ export class MemoryProcessor implements ContextProcessor {
     await this.injectConversationHistory(ctx);
     await this.injectWorkingMemory(ctx);
     await this.injectSemanticRecall(ctx);
+  }
+
+  /** 循环结束后提取事实存入语义记忆 */
+  async resolve(ctx: ModelRequestContext): Promise<void> {
+    const facts = this.extractFacts(ctx);
+    for (const fact of facts) {
+      await this.memoryStore.semantic.create(fact);
+    }
   }
 
   /** 注入会话历史（FIFO 滑动窗口） */
@@ -61,5 +74,34 @@ export class MemoryProcessor implements ContextProcessor {
 
     const memText = items.map((m) => `- ${m.content}`).join('\n');
     ctx.messages.push({ role: 'system', content: `Relevant memories:\n${memText}` });
+  }
+
+  /** 从对话中提取事实句子，转为 MemoryRecord */
+  private extractFacts(ctx: ModelRequestContext): MemoryRecord[] {
+    const now = Date.now();
+    const threadId = ctx.threadId || undefined;
+    const facts: MemoryRecord[] = [];
+
+    for (const msg of ctx.messages) {
+      if (msg.role !== 'assistant') continue;
+      if (!msg.content || msg.content.length < 10) continue;
+
+      // 按句号、换行拆分
+      const sentences = msg.content.split(/[.\n]+/).map((s) => s.trim()).filter(Boolean);
+      for (const sentence of sentences) {
+        if (sentence.length < 15) continue; // 太短的不算事实
+        if (!FACT_PATTERNS.test(sentence)) continue;
+
+        facts.push({
+          id: randomUUID(),
+          threadId,
+          content: sentence,
+          metadata: { source: 'resolve' },
+          createdAt: now,
+        });
+      }
+    }
+
+    return facts;
   }
 }

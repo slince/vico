@@ -194,6 +194,49 @@ describe('MemoryProcessor', () => {
     const wmMsg = ctx.messages.find((m) => m.content.includes('working_memory'));
     expect(wmMsg).toBeUndefined();
   });
+
+  it('resolve() extracts facts from assistant messages into semantic memory', async () => {
+    const memoryStore = makeMemoryStore({
+      semanticEnabled: true,
+      semantic: { search: vi.fn(async () => []), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    });
+    const p = new MemoryProcessor(memoryStore);
+    const ctx = makeCtx();
+    ctx.messages = [
+      { role: 'user', content: 'My name is Alice and I live in Shanghai.' },
+      { role: 'assistant', content: 'Nice to meet you, Alice! I will remember that you live in Shanghai.\nYour name is Alice.\nYou are located in Shanghai.' },
+    ];
+    await p.process(ctx);
+    // resolve 应提取助理回复中的事实
+    if (p.resolve) {
+      await p.resolve(ctx);
+    }
+    const createCalls = (memoryStore.semantic.create as ReturnType<typeof vi.fn>).mock.calls;
+    expect(createCalls.length).toBeGreaterThan(0);
+    // 所有 fact 都应有 threadId 和 content
+    for (const [record] of createCalls) {
+      expect(record.content).toBeTruthy();
+      expect(record.threadId).toBe('t1');
+    }
+  });
+
+  it('resolve() skips non-assistant and short messages', async () => {
+    const memoryStore = makeMemoryStore({
+      semanticEnabled: true,
+      semantic: { search: vi.fn(async () => []), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    });
+    const p = new MemoryProcessor(memoryStore);
+    const ctx = makeCtx();
+    ctx.messages = [
+      { role: 'user', content: 'OK' },
+      { role: 'assistant', content: 'Got it.' },
+    ];
+    await p.process(ctx);
+    if (p.resolve) {
+      await p.resolve(ctx);
+    }
+    expect(memoryStore.semantic.create).not.toHaveBeenCalled();
+  });
 });
 
 // --- RagProcessor ---

@@ -74,6 +74,7 @@ export { ConversationHistoryMemory } from './memory/conversation-history-memory.
 export { InMemorySemanticRecall } from './memory/in-memory-semantic-recall.js';
 export { InMemoryWorkingMemory } from './memory/in-memory-working-memory.js';
 export { InMemoryRagProvider } from './memory/in-memory-rag-provider.js';
+export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/file-working-memory.js';
 
 // Ports — SkillLoader
 export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js';
