@@ -1,7 +1,7 @@
 // src/skill/skill-tool-source.ts
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Tool, ToolSource } from '../tool/types.js';
+import type { Tool, ToolCall, ToolExecutionContext, ToolSource } from '../tool/types.js';
 import type { SkillManager } from './skill-manager.js';
 
 function createSkillTools(manager: SkillManager): Tool[] {
@@ -20,9 +20,10 @@ function createSkillTools(manager: SkillManager): Tool[] {
       policy: 'auto',
       kind: 'readonly',
       tags: ['skill'],
-      execute: async (call: { name: string }) => {
-        const skill = manager.get(call.name);
-        if (!skill) return `Skill "${call.name}" not found. Available: ${manager.listAll().map((s) => s.name).join(', ')}`;
+      execute: async (call: ToolCall) => {
+        const { name } = call.args as { name: string };
+        const skill = manager.get(name);
+        if (!skill) return `Skill "${name}" not found. Available: ${manager.listAll().map((s) => s.name).join(', ')}`;
         return JSON.stringify({
           name: skill.name,
           description: skill.description,
@@ -47,8 +48,9 @@ function createSkillTools(manager: SkillManager): Tool[] {
       policy: 'auto',
       kind: 'readonly',
       tags: ['skill'],
-      execute: async (call: { query: string; limit?: number }) => {
-        const results = manager.search(call.query, call.limit ?? 10);
+      execute: async (call: ToolCall) => {
+        const { query, limit } = call.args as { query: string; limit?: number };
+        const results = manager.search(query, limit ?? 10);
         return JSON.stringify(results);
       },
     },
@@ -66,15 +68,16 @@ function createSkillTools(manager: SkillManager): Tool[] {
       policy: 'auto',
       kind: 'readonly',
       tags: ['skill'],
-      execute: async (call: { skillName: string; filePath: string }) => {
-        const skill = manager.get(call.skillName);
-        if (!skill) return `Skill "${call.skillName}" not found`;
-        const fullPath = resolve(skill.path, call.filePath);
-        if (!existsSync(fullPath)) return `File not found: ${call.filePath}`;
+      execute: async (call: ToolCall) => {
+        const { skillName, filePath } = call.args as { skillName: string; filePath: string };
+        const skill = manager.get(skillName);
+        if (!skill) return `Skill "${skillName}" not found`;
+        const fullPath = resolve(skill.path, filePath);
+        if (!existsSync(fullPath)) return `File not found: ${filePath}`;
         try {
           return readFileSync(fullPath, 'utf-8');
         } catch {
-          return `Cannot read file: ${call.filePath} (may be binary)`;
+          return `Cannot read file: ${filePath} (may be binary)`;
         }
       },
     },

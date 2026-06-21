@@ -33,7 +33,7 @@ describe('SkillToolSource', () => {
     const source = createSkillToolSource(manager);
     const tools = await source.list(makeCtx() as any);
     const skill = tools.find((t) => t.name === 'skill')!;
-    const result = await skill.execute({ name: 'code-review' }, makeCtx() as any);
+    const result = await skill.execute({ id: '1', name: 'skill', args: { name: 'code-review' } }, makeCtx() as any);
     const parsed = JSON.parse(result as string);
     expect(parsed.name).toBe('code-review');
     expect(parsed.instructions).toContain('Check for bugs');
@@ -43,7 +43,7 @@ describe('SkillToolSource', () => {
     const source = createSkillToolSource(manager);
     const tools = await source.list(makeCtx() as any);
     const skill = tools.find((t) => t.name === 'skill')!;
-    const result = await skill.execute({ name: 'nonexistent' }, makeCtx() as any);
+    const result = await skill.execute({ id: '2', name: 'skill', args: { name: 'nonexistent' } }, makeCtx() as any);
     expect(result).toContain('not found');
   });
 
@@ -51,7 +51,7 @@ describe('SkillToolSource', () => {
     const source = createSkillToolSource(manager);
     const tools = await source.list(makeCtx() as any);
     const search = tools.find((t) => t.name === 'skill_search')!;
-    const result = await search.execute({ query: 'review' }, makeCtx() as any) as string;
+    const result = await search.execute({ id: '3', name: 'skill_search', args: { query: 'review' } }, makeCtx() as any) as string;
     const parsed = JSON.parse(result);
     expect(parsed).toHaveLength(1);
     expect(parsed[0].name).toBe('code-review');

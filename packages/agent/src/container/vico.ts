@@ -1,4 +1,6 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
+import {homedir} from 'node:os';
+import {resolve} from 'node:path';
 import type {AgentConfig, TurnEvent, TurnResult} from '../agent-loop/types.js';
 import {Agent} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
@@ -13,7 +15,7 @@ import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillProcessor} from '../skill/skill-processor.js';
-import type {Skill} from '../skill/types.js';
+import type {Skill, SkillStore} from '../skill/types.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {SessionStore} from '../session/types.js';
@@ -26,10 +28,43 @@ import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 
 export type { ModelClientFactory } from '../model/types.js';
 
+
+type SkillSettings = {
+  /** Vico 原生 Skill 扫描根目录 */
+  skillDirs?: string[];
+  /** 开启后自动扫描第三方 AI Agent 产品的全局 Skills（Claude、OpenClaw、Hermes、通用 agents） */
+  compatible?: boolean;
+}
+
+type SkillOptions = SkillStore | SkillSettings
+
+/** 各产品全局 Skills 默认目录 */
+const COMPATIBLE_SKILL_ROOTS = [
+  '.claude/skills',
+  '.openclaw/skills',
+  '.hermes/skills',
+  '.agents/skills',
+];
+
+/** 汇总 SkillSettings 中所有待扫描目录 */
+function collectSkillDirs(settings: SkillSettings): string[] {
+  const dirs: string[] = [];
+  if (settings.skillDirs) {
+    dirs.push(...settings.skillDirs);
+  }
+  if (settings.compatible) {
+    const home = homedir();
+    for (const rel of COMPATIBLE_SKILL_ROOTS) {
+      dirs.push(resolve(home, rel));
+    }
+  }
+  return dirs;
+}
+
 /** Vico 配置选项 */
 export interface VicoOptions {
-  /** Skill 扫描根目录 */
-  skillRoots?: string[];
+  /** Skill 配置 */
+  skills?: SkillOptions;
   /** 额外的工具来源 */
   toolSources?: ToolSource[];
   /** 全局生命周期钩子 */
@@ -102,11 +137,14 @@ export class Vico {
 
   /** 初始化：发现 Skill、注册 skill 工具 */
   async init(): Promise<void> {
-    if (this.options.skillRoots?.length) {
-      await this.skillManager.discover(this.options.skillRoots);
+    if (this.options.skills && 'skillDirs' in this.options.skills) {
+      const dirs = collectSkillDirs(this.options.skills);
+      if (dirs.length > 0) {
+        await this.skillManager.discover(dirs);
+      }
     }
 
-    this.toolBroker.addSource(this.createSkillToolSource());
+    this.toolBroker.addSource(createSkillToolSource(this.skillManager));
     this.initialized = true;
   }
 
@@ -240,9 +278,5 @@ export class Vico {
 
   getSkillManager(): SkillManager {
     return this.skillManager;
-  }
-
-  private createSkillToolSource(): ToolSource {
-    return createSkillToolSource(this.skillManager);
   }
 }
