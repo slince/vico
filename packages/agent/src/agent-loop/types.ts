@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import type { ModelClient, ModelMessage } from '../model/types.js';
 import type { ContextProcessor } from '../prompt/context-processor.js';
-import type { ToolExecutionContext } from '../tool/types.js';
+import type { ToolExecutionContext, ToolStore } from '../tool/types.js';
 import type { ToolBroker } from '../tool/tool-broker.js';
 import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
 import type { EventRecorder } from '../observable/types.js';
@@ -12,9 +12,10 @@ import type { ContextCompactor } from './context-compactor.js';
 import type { TokenEconomy } from './token-economy.js';
 import type { ApprovalGate } from './approval-gate.js';
 import type { AgentLoop } from './agent-loop.js';
-import type { Skill } from '../skill/types.js';
+import type { Skill, SkillStore } from '../skill/types.js';
 import type { MemoryStore } from '../memory/memory-store.js';
 import type { WorkingMemory } from '../memory/types.js';
+import type { SessionStore } from '../session/types.js';
 
 /** 模型引用 */
 export const ModelRefSchema = z.object({
@@ -37,9 +38,13 @@ export const AgentConfigSchema = z.object({
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema> & {
   /** 工具存储 — 加载该 Agent 绑定的工具 */
-  tools?: import('../tool/types.js').ToolStore;
+  tools?: ToolStore;
   /** Skill 存储 — 加载该 Agent 绑定的 Skill */
-  skills?: import('../skill/types.js').SkillStore;
+  skills?: SkillStore;
+  /** Agent 自身 memory（优先于容器 memoryStore） */
+  memory?: MemoryStore;
+  /** Agent 自身 session（优先于容器 sessionStore） */
+  session?: SessionStore;
 };
 export type ModelRef = z.infer<typeof ModelRefSchema>;
 
@@ -87,12 +92,13 @@ export interface AgentLoopOptions {
   workingMemory?: WorkingMemory;
 }
 
-/** Agent — 配置 + 运行时 loop + 绑定（memory/skills/tools） */
+/** Agent — 配置 + 运行时 loop + 绑定（memory/session/skills/tools） */
 export class Agent {
   readonly config: AgentConfig;
   readonly skills: Skill[];
   readonly tools: Tool[];
   readonly memory?: MemoryStore;
+  readonly session?: SessionStore;
 
   /** AgentLoop 实例，由容器在构建时注入 */
   loop?: AgentLoop;
@@ -102,11 +108,13 @@ export class Agent {
     skills?: Skill[];
     tools?: Tool[];
     memory?: MemoryStore;
+    session?: SessionStore;
   }) {
     this.config = params.config;
     this.skills = params.skills ?? [];
     this.tools = params.tools ?? [];
     this.memory = params.memory;
+    this.session = params.session;
   }
 
   getLoop(): AgentLoop {

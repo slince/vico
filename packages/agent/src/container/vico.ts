@@ -16,6 +16,7 @@ import {SkillProcessor} from '../skill/skill-processor.js';
 import type {Skill} from '../skill/types.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
 import type {MemoryStore} from '../memory/memory-store.js';
+import type {SessionStore} from '../session/types.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
@@ -36,8 +37,10 @@ export interface VicoOptions {
   modelFactory?: ModelClientFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
   maxCached?: number;
-  /** MemoryStore（提供时自动注入 MemoryProcessor + 注册 workMemory 工具） */
-  memoryStore?: MemoryStore;
+  /** 全局 MemoryStore（agent 自身未配置时使用） */
+  memory?: MemoryStore;
+  /** 全局 SessionStore（agent 自身未配置时使用） */
+  session?: SessionStore;
 }
 
 /** invoke 调用选项 */
@@ -133,10 +136,15 @@ export class Vico {
       ? await config.skills.load()
       : this.skillManager.listAll();
 
+    const memory = config.memory ?? this.options.memory;
+    const session = config.session ?? this.options.session;
+
     const agent = new Agent({
       config,
       skills: boundSkills,
       tools: boundTools,
+      memory,
+      session,
     });
 
     agent.loop = this.buildLoop(agent, modelClient, boundSkills);
@@ -146,7 +154,7 @@ export class Vico {
 
   /** 为 Agent 构建 AgentLoop */
   private buildLoop(agent: Agent, modelClient: ModelClient, skills: Skill[]): AgentLoop {
-    const memoryStore = agent.memory ?? this.options.memoryStore;
+    const memoryStore = agent.memory ?? this.options.memory;
 
     // prompt context processor
     const processors: ContextProcessor[] = [
@@ -170,7 +178,7 @@ export class Vico {
     }
 
     toolBroker.addSource(createBuiltInToolSource())
-    
+
     return new AgentLoop({
       agent,
       model: modelClient,

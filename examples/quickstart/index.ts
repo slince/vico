@@ -3,8 +3,8 @@
  *
  * 运行：pnpm start（无需 API Key，使用内置 mock 模型）
  */
-import { Vico, MemoryStore } from '@vico/agent';
-import type { ModelClient, ModelRequest, ModelStreamChunk } from '@vico/agent';
+import type {ModelClient, ModelRequest, ModelStreamChunk} from '@vico/agent';
+import {MemoryStore, Vico} from '@vico/agent';
 
 // FakeModelClient — 模拟 LLM 响应，自动调用 echo 工具
 class FakeModelClient implements ModelClient {
@@ -28,7 +28,7 @@ async function main() {
   // 一键装配：Skill + Memory + MockModel
   const vico = new Vico({
     skillRoots: ['skills'],
-    memoryStore: new MemoryStore(),
+    memory: new MemoryStore(),
     modelFactory: () => new FakeModelClient(),
   });
   await vico.init();
