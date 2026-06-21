@@ -100,7 +100,7 @@ export class DrizzleVectorStore implements VectorStore {
       : sql`vector_distance_cos`;
 
     // 使用原生向量距离函数，在 SQL 层排序
-    const rows = this.db.all<Record<string, unknown>>(sql`
+    const rows = this.db.all(sql`
       SELECT id, content, metadata, thread_id, scope_type, created_at,
         ${distFn}(embedding, vector32(${vecStr})) AS _distance
       FROM vico_memory_entries
@@ -109,7 +109,7 @@ export class DrizzleVectorStore implements VectorStore {
         AND embedding IS NOT NULL
       ORDER BY _distance ASC
       LIMIT ${params.topK}
-    `);
+    `) as unknown as Record<string, unknown>[];
 
     return rows
       .map((r) => {
