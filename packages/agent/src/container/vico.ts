@@ -15,8 +15,9 @@ import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillProcessor} from '../skill/skill-processor.js';
 import type {Skill} from '../skill/types.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
-import type {MemoryStore} from '../memory/memory-store.js';
+import {MemoryStore} from '../memory/memory-store.js';
 import type {SessionStore} from '../session/types.js';
+import {InMemorySessionStore} from '../session/memory-session-store.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
@@ -75,11 +76,15 @@ export class Vico {
   private options: VicoOptions;
   private readonly modelFactory: ModelClientFactory;
   readonly runtime: AgentRuntime;
+  readonly memory: MemoryStore;
+  readonly session: SessionStore;
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.modelFactory = options.modelFactory ?? defaultModelFactory;
     this.runtime = new AgentRuntime(this.options.maxCached);
+    this.memory = options.memory ?? new MemoryStore();
+    this.session = options.session ?? new InMemorySessionStore();
     this.skillManager = new SkillManager(new FSSkillLoader());
 
     if (options.toolSources) {
@@ -136,8 +141,8 @@ export class Vico {
       ? await config.skills.load()
       : this.skillManager.listAll();
 
-    const memory = config.memory ?? this.options.memory;
-    const session = config.session ?? this.options.session;
+    const memory = config.memory ?? this.memory;
+    const session = config.session ?? this.session;
 
     const agent = new Agent({
       config,
@@ -154,7 +159,7 @@ export class Vico {
 
   /** 为 Agent 构建 AgentLoop */
   private buildLoop(agent: Agent, modelClient: ModelClient, skills: Skill[]): AgentLoop {
-    const memoryStore = agent.memory ?? this.options.memory;
+    const memoryStore = agent.memory ?? this.memory;
 
     // prompt context processor
     const processors: ContextProcessor[] = [
