@@ -1,6 +1,6 @@
 // @vico/rag — Query rewriting for improved recall
 
-import type { QueryRewriter } from '../types/retrieval.js';
+import type {QueryRewriter} from '../types/index.js';
 
 interface CacheEntry {
   rewrites: string[];
