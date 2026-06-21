@@ -37,7 +37,7 @@ export {
 } from './prompt/context-processor.js';
 
 export { SystemPromptProcessor } from './prompt/system-prompt-processor.js';
-export { SkillCatalogProcessor } from './skill/skill-catalog-processor.js';
+export { SkillProcessor } from './skill/skill-processor.js';
 export { MemoryProcessor } from './memory/memory-processor.js';
 export { RagProcessor } from './memory/rag-processor.js';
 export { DynamicInstructionProcessor } from './agent-loop/dynamic-instruction-processor.js';

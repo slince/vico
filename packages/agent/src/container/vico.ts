@@ -12,7 +12,7 @@ import {createSkillToolSource} from '../skill/skill-tool-source.js';
 import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
-import {SkillCatalogProcessor} from '../skill/skill-catalog-processor.js';
+import {SkillProcessor} from '../skill/skill-processor.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
@@ -130,18 +130,12 @@ export class Vico {
       ? await config.skills.load()
       : this.skillManager.listAll();
 
-    const skillCatalog = boundSkills.map((s) => ({
-      name: s.name,
-      description: s.description,
-      location: s.path,
-    }));
-
     const agent: Agent = new Agent({
       config,
       loopFactory: (): AgentLoop => {
         const processors: ContextProcessor[] = [
           new SystemPromptProcessor(),
-          new SkillCatalogProcessor(skillCatalog),
+          new SkillProcessor(boundSkills),
         ];
         if (this.options.memoryStore) {
           processors.push(new MemoryProcessor(this.options.memoryStore));

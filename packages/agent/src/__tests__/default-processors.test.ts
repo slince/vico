@@ -1,7 +1,7 @@
 // default-processors.test.ts — tests for context processors and onion pipeline
 import {describe, expect, it, vi} from 'vitest';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
-import {SkillCatalogProcessor} from '../skill/skill-catalog-processor.js';
+import {SkillProcessor} from '../skill/skill-processor.js';
 import {MemoryProcessor} from '../memory/memory-processor.js';
 import {RagProcessor} from '../memory/rag-processor.js';
 import {DynamicInstructionProcessor} from '../agent-loop/dynamic-instruction-processor.js';
@@ -64,13 +64,23 @@ describe('SystemPromptProcessor', () => {
   });
 });
 
-// --- SkillCatalogProcessor ---
+// --- SkillProcessor ---
 
-describe('SkillCatalogProcessor', () => {
+describe('SkillProcessor', () => {
+  const skill = {
+    name: 'code-review',
+    description: 'Review code',
+    instructions: '',
+    path: '/skills/cr',
+    source: 'local' as const,
+    userInvocable: false,
+    references: [],
+    scripts: [],
+    assets: [],
+  };
+
   it('appends skill catalog to system prompt', async () => {
-    const p = new SkillCatalogProcessor([
-      { name: 'code-review', description: 'Review code', location: '/skills/cr' },
-    ]);
+    const p = new SkillProcessor([skill]);
     const ctx = makeCtx();
     ctx.systemPrompt = 'Base prompt.';
     await p.process(ctx);
@@ -80,7 +90,7 @@ describe('SkillCatalogProcessor', () => {
   });
 
   it('does nothing when catalog is empty', async () => {
-    const p = new SkillCatalogProcessor([]);
+    const p = new SkillProcessor([]);
     const ctx = makeCtx();
     ctx.systemPrompt = 'Base prompt.';
     await p.process(ctx);
