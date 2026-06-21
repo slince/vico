@@ -38,6 +38,12 @@ export interface VicoOptions {
   memoryStore?: MemoryStore;
 }
 
+/** invoke 调用选项 */
+export interface InvokeOptions {
+  threadId?: string;
+  [key: string]: unknown;
+}
+
 /**
  * Vico — 一键装配所有 Agent 服务。
  *
@@ -170,7 +176,7 @@ export class Vico {
    * const result = await vico.invoke(config.id, 'Hello!');
    * ```
    */
-  async invoke(agentId: string, message: string, options?: { threadId?: string; [key: string]: unknown }): Promise<TurnResult> {
+  async invoke(agentId: string, message: string, options?: InvokeOptions): Promise<TurnResult> {
     const agent = this.runtime.getAgent(agentId);
     if (!agent) {
       throw new Error(

@@ -132,4 +132,5 @@ export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.j
 export {
   Vico,
   type VicoOptions,
+  type InvokeOptions,
 } from './container/vico.js';
