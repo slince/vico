@@ -61,11 +61,11 @@ export class FileSessionStore implements SessionStore {
 
   // Thread 操作
 
-  async createThread(agentId: string, title?: string): Promise<Thread> {
+  async createThread(agentId: string, title: string, id: string): Promise<Thread> {
     await this.ensureDirs();
     const now = Date.now();
     const thread: Thread = {
-      id: crypto.randomUUID(),
+      id,
       agentId,
       title,
       createdAt: now,

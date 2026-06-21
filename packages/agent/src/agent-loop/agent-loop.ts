@@ -25,6 +25,7 @@ export class AgentLoop {
   private spanTracker: SpanTracker;
   private steerBuffer: string[] = [];
   private interrupted = false;
+  private currentTurnId = '';
 
   private pipeline: ProcessorPipeline;
 
@@ -68,12 +69,37 @@ export class AgentLoop {
     const toolUserId = opts?.userId ?? '';
     const toolWorkspace = opts?.workspace ?? '';
 
+    // 确保 session 中的 thread 和 turn 存在
+    const session = this.agent.session;
+    let thread = await session?.getThread(threadId);
+    if (!thread && session) {
+      const title = typeof userMessage.content === 'string'
+        ? userMessage.content.slice(0, 50)
+        : 'New thread';
+      thread = await session.createThread(this.agent.config.id, title, threadId);
+    }
+    const turn = await session?.createTurn(threadId);
+    this.currentTurnId = turn?.id ?? '';
+
+    // 记录用户消息
+    if (session && this.currentTurnId) {
+      await session.appendEntry({
+        threadId,
+        turnId: this.currentTurnId,
+        role: userMessage.role,
+        content: typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content),
+      });
+    }
+
     try {
       this.applySteerBuffer(messages);
 
       if (this.hooks) {
         const hookResult = await this.hooks.runAll('turn:start', { threadId, messages });
         if (hookResult.action === 'deny') {
+          if (session && this.currentTurnId) {
+            await session.updateTurn(this.currentTurnId, { status: 'aborted', steps: 0 });
+          }
           turnSpan.end({ status: 'denied' });
           return { status: 'interrupted', steps: 0, usage, messages };
         }
@@ -81,6 +107,9 @@ export class AgentLoop {
 
       while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
+          if (session && this.currentTurnId) {
+            await session.updateTurn(this.currentTurnId, { status: 'aborted', steps });
+          }
           turnSpan.end({ status: 'aborted' });
           return { status: 'aborted', steps, usage, messages };
         }
@@ -96,6 +125,18 @@ export class AgentLoop {
 
         yield* this.callModel(messages, threadId, scopeId, signal, usage, steps);
 
+        // 记录 assistant 消息到 session
+        const assistantMsg = messages.at(-1);
+        if (session && this.currentTurnId && assistantMsg?.role === 'assistant') {
+          await session.appendEntry({
+            threadId,
+            turnId: this.currentTurnId,
+            role: assistantMsg.role,
+            content: assistantMsg.content,
+            toolCalls: assistantMsg.toolCalls,
+          });
+        }
+
         const toolCalls = (messages.at(-1) as { toolCalls?: ToolCall[] } | undefined)?.toolCalls ?? [];
         if (toolCalls.length === 0) {
           yield this.emit({ type: 'step_end', step: steps + 1 });
@@ -103,6 +144,21 @@ export class AgentLoop {
         }
 
         yield* this.executeToolCalls(toolCalls, messages, threadId, toolUserId, toolWorkspace);
+
+        // 记录 tool 消息到 session
+        if (session && this.currentTurnId) {
+          for (const msg of messages.slice(-toolCalls.length)) {
+            if (msg.role === 'tool') {
+              await session.appendEntry({
+                threadId,
+                turnId: this.currentTurnId,
+                role: msg.role,
+                content: msg.content,
+                toolCallId: msg.toolCallId,
+              });
+            }
+          }
+        }
 
         yield this.emit({ type: 'step_end', step: steps + 1 });
         steps++;
@@ -122,6 +178,11 @@ export class AgentLoop {
         await this.hooks.runAll('turn:end', { threadId, messages, usage });
       }
 
+      if (session && this.currentTurnId) {
+        const finalStatus = this.interrupted ? 'aborted' : 'completed';
+        await session.updateTurn(this.currentTurnId, { status: finalStatus, steps });
+      }
+
       turnSpan.end({ status: 'completed', steps });
       yield this.emit({ type: 'done', usage });
 
@@ -132,6 +193,9 @@ export class AgentLoop {
         messages,
       };
     } catch (err) {
+      if (session && this.currentTurnId) {
+        await session.updateTurn(this.currentTurnId, { status: 'failed', steps });
+      }
       const message = err instanceof Error ? err.message : String(err);
       turnSpan.error(err as Error);
       yield this.emit({ type: 'error', message });

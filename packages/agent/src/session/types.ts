@@ -37,7 +37,7 @@ export interface SessionStore {
   /** Thread 操作 */
 
   /** 创建新线程 */
-  createThread(agentId: string, title?: string): Promise<Thread>;
+  createThread(agentId: string, title: string, id: string): Promise<Thread>;
   /** 获取线程详情 */
   getThread(threadId: string): Promise<Thread | undefined>;
   /** 列出指定 Agent 的所有线程 */
