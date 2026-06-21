@@ -64,7 +64,7 @@ export interface RunTurnOptions {
 export type TurnEvent =
   | { type: 'text_delta'; content: string }
   | { type: 'reasoning_delta'; content: string }
-  | { type: 'tool_call_start'; id: string; name: string }
+  | { type: 'tool_call_start'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'tool_result'; id: string; name: string; status: 'success' | 'error'; output: unknown }
   | { type: 'step_start'; step: number }
   | { type: 'step_end'; step: number }

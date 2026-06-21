@@ -1,14 +1,13 @@
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '../../db/db.js';
-import { getMemory } from '../../agent/memory-setup.js';
 import { resourceId as buildResourceId } from '../../lib/resource.js';
+import { DrizzleThreadStore, ensureTables } from '@vico/libsql-adapter';
 import type { ConversationItem, ConversationDetail, MessageItem, RecentConversation } from './types.js';
 
 const { agents } = schema;
 
 /**
- * 从 Mastra 消息中提取纯文本内容。
- * MastraDBMessage.content 是 MastraMessageContentV2 格式 { format: 2, parts, content? }。
+ * 从消息中提取纯文本内容。
  */
 function extractMessageText(msg: any): string {
   try {
@@ -28,70 +27,31 @@ function extractMessageText(msg: any): string {
   }
 }
 
-/**
- * 从 Mastra 消息中提取工具调用信息。
- */
-function extractToolCalls(msg: any): string | undefined {
-  try {
-    const c = msg.content;
-    if (c?.parts && Array.isArray(c.parts)) {
-      const toolParts = c.parts.filter((p: any) =>
-        p.type === 'tool-invocation' || p.type === 'tool-call',
-      );
-      if (toolParts.length > 0) {
-        return JSON.stringify(
-          toolParts.map((p: any) => ({
-            name: p.toolName ?? p.tool?.name,
-            arguments: p.args ?? p.tool?.args ?? {},
-            result: p.result ?? p.tool?.result,
-          })),
-        );
-      }
-    }
-  } catch {}
-  return undefined;
+/** 获取或创建共享的 ThreadStore 实例 */
+async function getThreadStore(): Promise<DrizzleThreadStore> {
+  const db = getDb();
+  await ensureTables(db as any);
+  return new DrizzleThreadStore({ db: db as any });
 }
 
-/** Mastra thread 的核心字段 */
-interface MastraThread {
-  id: string;
-  title?: string;
-  resourceId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * 对话业务管理器。
- * 封装 Mastra Memory thread 查询、格式化和消息提取逻辑。
- */
 class ConversationManager {
-  /**
-   * 将 Mastra thread 映射为前端 conversation 格式。
-   * 含异步查询 agent 名称（agent 可能不存在）。
-   */
-  private async threadToConversation(thread: MastraThread): Promise<ConversationItem> {
+  private threadToConversation(thread: any): ConversationItem {
     const meta = (thread.metadata || {}) as Record<string, unknown>;
 
     return {
       id: thread.id,
-      tenant_id: (thread.resourceId as string).split(':')[0],
-      agent_id: (meta.agent_id as string) || '',
+      tenant_id: (thread.resourceId as string)?.split(':')[0] ?? '',
+      agent_id: thread.agentId || (meta.agent_id as string) || '',
       user_id: (meta.user_id as string) || '',
       title: thread.title || '',
       model_name: (meta.model_name as string) || '',
       message_count: 0,
       total_tokens: 0,
-      created_at: new Date(thread.createdAt).getTime(),
-      updated_at: new Date(thread.updatedAt).getTime(),
+      created_at: thread.createdAt || Date.now(),
+      updated_at: thread.updatedAt || Date.now(),
     };
   }
 
-  /**
-   * 获取对话列表。
-   * 从 Mastra Memory 读取 threads，支持按 agent 过滤和关键词搜索。
-   */
   async list(
     tenantId: string,
     userId: string,
@@ -99,23 +59,17 @@ class ConversationManager {
   ): Promise<ConversationItem[]> {
     const search = filters?.search?.toLowerCase();
     const agentIdFilter = filters?.agent_id;
-    const memory = await getMemory();
-    const resourceId = buildResourceId(tenantId, userId);
-
-    const result = await memory.listThreads({
-      perPage: false,
-      filter: { resourceId },
-    });
+    const store = await getThreadStore();
+    const threads = await store.listThreads();
 
     let convs: ConversationItem[] = [];
-    for (const thread of result.threads) {
-      const conv = await this.threadToConversation(thread);
+    for (const thread of threads) {
+      const conv = this.threadToConversation(thread);
       if (agentIdFilter && conv.agent_id !== agentIdFilter) continue;
 
-      // 获取消息数
       try {
-        const msgResult = await memory.recall({ threadId: thread.id, perPage: 1 });
-        conv.message_count = msgResult.total;
+        const entries = await store.getEntries(thread.id);
+        conv.message_count = entries.length;
       } catch {
         conv.message_count = 0;
       }
@@ -130,32 +84,26 @@ class ConversationManager {
     return convs;
   }
 
-  /**
-   * 获取对话详情，含完整消息列表。
-   * 校验 thread 归属（resourceId 匹配 tenantId）。
-   */
   async getById(tenantId: string, userId: string, id: string): Promise<ConversationDetail | null> {
-    const memory = await getMemory();
-    const resourceId = buildResourceId(tenantId, userId);
+    const store = await getThreadStore();
+    const thread = await store.getThread(id);
+    if (!thread) return null;
 
-    const thread = await memory.getThreadById({ threadId: id });
-    if (!thread || thread.resourceId !== resourceId) return null;
-
-    const conv = await this.threadToConversation(thread);
+    const conv = this.threadToConversation(thread);
 
     let messages: MessageItem[] = [];
     try {
-      const msgResult = await memory.recall({ threadId: id, perPage: false });
-      conv.message_count = msgResult.total;
+      const entries = await store.getEntries(id);
+      conv.message_count = entries.length;
 
-      messages = msgResult.messages.map((msg: any) => ({
+      messages = entries.map((msg: any) => ({
         id: msg.id,
-        thread_id: msg.thread_id || id,
+        thread_id: msg.threadId || id,
         role: ['user', 'assistant', 'system'].includes(msg.role) ? msg.role : 'system',
         content: extractMessageText(msg),
-        tool_calls: extractToolCalls(msg),
+        tool_calls: msg.toolCalls ? JSON.stringify(msg.toolCalls) : undefined,
         token_usage: 0,
-        created_at: new Date(msg.createdAt).getTime(),
+        created_at: msg.createdAt || Date.now(),
       }));
     } catch {
       conv.message_count = 0;
@@ -164,37 +112,20 @@ class ConversationManager {
     return { ...conv, messages };
   }
 
-  /**
-   * 获取租户下对话总数。
-   */
   async count(tenantId: string, userId: string): Promise<number> {
-    const memory = await getMemory();
-    const result = await memory.listThreads({
-      perPage: false,
-      filter: { resourceId: buildResourceId(tenantId, userId) },
-    });
-    return result.threads.length;
+    const store = await getThreadStore();
+    const threads = await store.listThreads();
+    return threads.length;
   }
 
-  /**
-   * 获取最近 N 条对话，含最后一条消息预览。
-   * Mastra listThreads 按 updatedAt 降序返回。
-   */
   async recent(tenantId: string, userId: string, limit = 5): Promise<RecentConversation[]> {
-    const memory = await getMemory();
-
-    const result = await memory.listThreads({
-      perPage: limit,
-      filter: { resourceId: buildResourceId(tenantId, userId) },
-    });
+    const store = await getThreadStore();
+    const threads = (await store.listThreads()).slice(0, limit);
 
     const items: RecentConversation[] = [];
-    for (const thread of result.threads) {
-      const meta = (thread.metadata || {}) as Record<string, unknown>;
-
-      // 获取 agent 名称
+    for (const thread of threads) {
       let agentName: string | undefined;
-      const agentId = meta.agent_id as string | undefined;
+      const agentId = thread.agentId;
       if (agentId) {
         const db = getDb();
         const agent = await db
@@ -205,19 +136,16 @@ class ConversationManager {
         agentName = agent?.name;
       }
 
-      // 获取最后一条消息预览
       let lastMessage: string | undefined;
       let messageCount = 0;
       try {
-        const msgResult = await memory.recall({ threadId: thread.id, perPage: 1 });
-        messageCount = msgResult.total;
-        if (msgResult.messages.length > 0) {
-          const last = msgResult.messages[msgResult.messages.length - 1];
+        const entries = await store.getEntries(thread.id);
+        messageCount = entries.length;
+        if (entries.length > 0) {
+          const last = entries[entries.length - 1];
           lastMessage = extractMessageText(last) || undefined;
         }
-      } catch {
-        // 忽略获取消息失败
-      }
+      } catch {}
 
       items.push({
         id: thread.id,
@@ -225,26 +153,29 @@ class ConversationManager {
         agent_name: agentName,
         message_count: messageCount,
         last_message: lastMessage,
-        updated_at: new Date(thread.updatedAt).getTime(),
+        updated_at: thread.updatedAt || Date.now(),
       });
     }
 
     return items;
   }
-  /**
-   * 删除对话。
-   * 校验 thread 归属（resourceId 匹配 tenantId）后调用 Mastra Memory deleteThread。
-   * 返回 true 表示删除成功，false 表示对话不存在或无权访问。
-   */
+
   async delete(tenantId: string, userId: string, id: string): Promise<boolean> {
-    const memory = await getMemory();
-    const resourceId = buildResourceId(tenantId, userId);
-    const thread = await memory.getThreadById({ threadId: id });
-    if (!thread || thread.resourceId !== resourceId) return false;
-    await memory.deleteThread(id);
-    return true;
+    // ThreadStore has no delete method; drop via raw SQL
+    const db = getDb();
+    const store = await getThreadStore();
+    const thread = await store.getThread(id);
+    if (!thread) return false;
+
+    try {
+      await (db as any).run('DELETE FROM messages WHERE thread_id = ?', [id]);
+      await (db as any).run('DELETE FROM turns WHERE thread_id = ?', [id]);
+      await (db as any).run('DELETE FROM threads WHERE id = ?', [id]);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
-/** 对话业务管理器单例 */
 export const conversationManager = new ConversationManager();

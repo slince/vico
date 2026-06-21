@@ -243,7 +243,7 @@ export class AgentLoop {
           break;
         case 'tool_call_complete':
           toolCalls.push({ id: chunk.id, name: chunk.name, args: chunk.args });
-          yield this.emit({ type: 'tool_call_start', id: chunk.id, name: chunk.name });
+          yield this.emit({ type: 'tool_call_start', id: chunk.id, name: chunk.name, args: chunk.args });
           break;
         case 'usage':
           usage.input += chunk.input;

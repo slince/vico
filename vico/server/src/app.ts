@@ -126,15 +126,10 @@ export function createApp(): Hono<{ Variables: Variables }> {
     return next();
   });
 
-  /** Auth 守卫中间件 — 保护 Mastra /api/* 路由（不含 /api/v1/*，因其已有独立守卫） */
+  /** /api/* 路由的认证保护（跳过 /api/v1/* 和 /api/auth/*） */
   app.use('/api/*', async (c, next) => {
     const path = c.req.path;
-    // 跳过 /api/v1/*（已有独立守卫）和 /api/auth/*（better-auth 自己处理）
     if (path.startsWith('/api/v1/') || path.startsWith('/api/auth/')) {
-      return next();
-    }
-    // Mastra Studio dev playground — 允许无认证通过，MastraServer 路由层自行鉴权
-    if (c.req.header('x-mastra-dev-playground') === 'true') {
       return next();
     }
     const session = c.get('session');

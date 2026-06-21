@@ -53,8 +53,8 @@ export interface AgentDetail extends AgentRow {
 export interface AgentRuntimeConfig {
   /** Agent 详情（含 skills、knowledge_bases 等），供工具构建及调用方使用 */
   agent: AgentDetail;
-  /** 已解析为 Mastra 可用的模型实例 */
-  model: import('@mastra/core/llm').MastraModelConfig;
+  /** 已解析的模型实例 */
+  model: import('ai').LanguageModel;
   /** 编译后的基础系统指令（system_prompt + Skill 提示词），不含任务级动态内容 */
   instructions: string;
 }

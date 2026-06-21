@@ -1,71 +1,54 @@
 /**
  * AgentToolsFactory — 为 Agent 构建运行时工具集。
  *
- * 聚合 Skill 工具和 RAG 搜索工具，
- * 由调用方将结果注入 requestContext，供 agentProxy 的 tools 函数同步读取。
+ * 聚合 Skill 工具和 RAG 搜索工具。
+ * 不再使用 Mastra createTool() 和 RequestContext。
  */
-import {getSkillToolsForMastraAgent} from './tools/skill-tool-adapter';
-import {createRagSearchTool} from './tools/rag-tool';
-import {agentToolStore} from './tools/agent-tool-store.js';
-import {weatherTool} from './tools/weather-tool.js';
-import {AgentDetail} from '../services/agent/types.js';
+import { getSkillTools } from './tools/skill-tool-adapter.js';
+import { createRagSearchTool } from './tools/rag-tool.js';
+import { agentToolStore } from './tools/agent-tool-store.js';
+import type { Tool } from '@vico/agent';
+import type { AgentDetail } from '../services/agent/types.js';
 
 /**
  * 为指定 Agent 构建完整的运行时工具集。
- *
- * 按顺序聚合三类工具：
- * 1. 内置工具 — 平台预置的通用工具（如天气查询）
- * 2. Skill 工具 — 来自 Agent 绑定的 Skill 插件的工具导出
- * 3. RAG 工具 — 仅当 agent.rag_mode !== 'disabled' 时启用
- *
- * @param agent - Agent 详情（含 skills、rag_mode 及 tenant_id）
- * @returns 工具集，key 为工具 ID
  */
 export async function buildAgentTools(
   agent: AgentDetail,
-): Promise<Record<string, any>> {
-  const { id, tenant_id, rag_mode } = agent;
-  const tools: Record<string, any> = {};
+  tenantId: string,
+  userId: string,
+): Promise<Tool[]> {
+  const tools: Tool[] = [];
 
-  // 1. 内置工具
-  tools[weatherTool.id!] = weatherTool;
-
-  // 2. Skill 工具
-  const skillTools = await getSkillToolsForMastraAgent(id, {
-    tenantId: tenant_id,
-    agentId: id,
-    userId: '',
+  // Skill 工具
+  const skillTools = await getSkillTools(agent.id, {
+    tenantId,
+    agentId: agent.id,
+    userId,
     skillConfig: {},
   });
-  Object.assign(tools, skillTools);
+  tools.push(...skillTools);
 
-  // 3. RAG 搜索工具
-  if (rag_mode !== 'disabled') {
+  // RAG 搜索工具
+  if (agent.rag_mode !== 'disabled') {
     const ragTool = await createRagSearchTool(agent);
-    if (ragTool) {
-      tools[ragTool.id] = ragTool;
-    }
+    if (ragTool) tools.push(ragTool as unknown as Tool);
   }
 
   return tools;
 }
 
 /**
- * 为主 Agent 构建运行时工具集。
- *
- * 聚合两类工具：
- * 1. Agent 工具 — 来自该 Agent 绑定的 Skill、RAG 等
- * 2. 租户工具 — 来自该租户下其他 Agent 注册的工具（用于子 Agent 路由）
- *
- * @param agent - Agent 详情（含 tenant_id）
- * @returns 工具集，key 为工具 ID
+ * 为主 Agent 构建运行时工具集（含子 Agent 委托工具）。
  */
 export async function buildMainAgentTools(
   agent: AgentDetail,
-): Promise<Record<string, any>> {
+  tenantId: string,
+  userId: string,
+): Promise<Tool[]> {
   const [agentTools, tenantTools] = await Promise.all([
-    buildAgentTools(agent),
-    agentToolStore.getToolsForTenant(agent.tenant_id),
+    buildAgentTools(agent, tenantId, userId),
+    agentToolStore.getToolsForTenant(tenantId),
   ]);
-  return { ...tenantTools, ...agentTools };
+  return [...Object.values(tenantTools), ...agentTools];
 }

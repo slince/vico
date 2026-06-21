@@ -28,17 +28,17 @@ export class DrizzleThreadStore implements ThreadStore {
 
   // --- Thread ---
 
-  async createThread(agentId: string, title?: string): Promise<Thread> {
-    const id = crypto.randomUUID();
+  async createThread(agentId: string, title: string, id: string): Promise<Thread> {
+    const threadId = id || crypto.randomUUID();
     const now = Date.now();
     await this.db.insert(threads).values({
-      id,
+      id: threadId,
       agent_id: agentId,
       title: title ?? null,
       created_at: now,
       updated_at: now,
     });
-    return { id, agentId, title, createdAt: now, updatedAt: now };
+    return { id: threadId, agentId, title: title || undefined, createdAt: now, updatedAt: now };
   }
 
   async getThread(threadId: string): Promise<Thread | undefined> {

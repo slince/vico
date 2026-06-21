@@ -28,7 +28,7 @@ export async function createRagSearchTool(agent: AgentDetail): Promise<any> {
   if (!kbId) return null;
 
   const memory = await getMemory();
-  if (!memory.embedder) return null;
+  if (!memory || !(memory as any).embedder) return null;
 
   const cfg = DEFAULT_RAG_CONFIG;
   const vector = getVector();
@@ -54,7 +54,7 @@ export async function createRagSearchTool(agent: AgentDetail): Promise<any> {
       const allResults: any[] = [];
       for (const q of queries) {
         try {
-          const { embeddings } = await memory.embedder!.doEmbed({ values: [q] });
+          const { embeddings } = await (memory as any).embedder!.doEmbed({ values: [q] });
           const results = await vector.query({
             indexName, queryVector: embeddings[0],
             topK: cfg.retrieval.top_k * 3,

@@ -4,7 +4,7 @@ import { getDb, schema } from '../../db/db.js';
 import { encryptApiKey, decryptApiKey } from '../../lib/crypto.js';
 import { resolveModelProvider } from '../../agent/bridges/model-bridge.js';
 import type { ModelConfigRow } from './types.js';
-import type { MastraModelConfig } from '@mastra/core/llm';
+import type { LanguageModel } from 'ai';
 
 const { model_configs } = schema;
 
@@ -59,7 +59,7 @@ class ModelManager {
    *
    * @returns MastraModelConfig 实例，未找到时返回 null
    */
-  async resolveModelConfig(tenantId: string, modelId: string): Promise<MastraModelConfig | null> {
+  async resolveModelConfig(tenantId: string, modelId: string): Promise<LanguageModel | null> {
     const config = await this.getById(tenantId, modelId);
     if (!config) return null;
     return resolveModelProvider(config);

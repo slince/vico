@@ -1,107 +1,239 @@
-import {RequestContext} from '@mastra/core/request-context';
-import {mastra} from '../mastra.js';
+/**
+ * Chat 执行引擎 — 基于 Vico AgentLoop。
+ */
+import {
+  Agent, AgentLoop, AISDKModelClient, ToolBroker,
+  SystemPromptProcessor, MemoryProcessor,
+  ProcessorPipeline, MittEventRecorder, InMemorySpanTracker,
+  createBuiltInToolSource,
+} from '@vico/agent';
+import type { TurnEvent, TurnResult, ModelMessage, Tool } from '@vico/agent';
+import { DrizzleThreadStore, ensureTables } from '@vico/libsql-adapter';
+import { resolveModelProvider } from '../agent/bridges/model-bridge.js';
+import { agentManager } from '../services/agent/agent-manager.js';
+import { modelManager } from '../services/model/model-manager.js';
+import { skillManager } from '../skill/manager.js';
+import { getDb } from '../db/db.js';
+import { TenantThreadStore } from '../agent/thread-store-wrapper.js';
+import logger from '../lib/logger.js';
 
-import {getMemory} from '../agent/memory-setup.js';
-import {prepareAgentContext, prepareMainAgentContext} from '../agent/agent.factory.js';
-import type {MastraModelOutput} from '@mastra/core/stream';
-
-import { resourceId } from '../lib/resource.js';
+// ---------------------------------------------------------------------------
+// 类型
+// ---------------------------------------------------------------------------
 
 export interface ExecuteChatParams {
   agentId: string;
   message: string;
-  /** 前端必传的对话线程 ID */
   threadId: string;
   tenantId: string;
   userId: string;
 }
 
-/** executeAgentChat 的返回值 */
-export interface ExecuteChatRawResult {
+export interface ExecuteChatResult {
   thread: string;
-  output: MastraModelOutput<unknown>;
+  stream: AsyncGenerator<TurnEvent, TurnResult>;
 }
 
-/**
- * 执行单 Agent 对话的公共逻辑。
- *
- * 加载 Agent 配置、保存 thread、调用 Mastra agent.stream()，
- * 返回 raw MastraModelOutput + threadId，由调用方决定如何格式化（SSE 或 AI SDK）。
- */
+// ---------------------------------------------------------------------------
+// Agent 缓存
+// ---------------------------------------------------------------------------
+
+const agentCache = new Map<string, Agent>();
+
+function cacheKey(tenantId: string, agentId: string): string {
+  return `${tenantId}:${agentId}`;
+}
+
+// ---------------------------------------------------------------------------
+// 公共 API
+// ---------------------------------------------------------------------------
+
 export async function executeAgentChat(
   params: ExecuteChatParams,
-): Promise<ExecuteChatRawResult> {
-  const { agentId, message, tenantId, userId } = params;
-  let { threadId: thread } = params;
+): Promise<ExecuteChatResult> {
+  const { agentId: rawAgentId, message, tenantId, userId } = params;
+  let threadId: string = params.threadId;
 
-  if (!message?.trim()) {
-    throw new Error('Message is required');
+  if (!message?.trim()) throw new Error('Message is required');
+
+  if (threadId.startsWith('__LOCALID_')) {
+    threadId = crypto.randomUUID();
   }
 
-  // 前端新会话使用临时本地 ID（__LOCALID_ 前缀），后端需生成正式 ID 以便前端同步 URL
-  if (thread.startsWith('__LOCALID_')) {
-    thread = crypto.randomUUID();
+  const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, rawAgentId);
+  if (!agentConfig) throw new Error('Agent not found');
+
+  const key = cacheKey(tenantId, (agentConfig as any).agent.id);
+  let agent = agentCache.get(key);
+  if (!agent) {
+    agent = await buildAgent(tenantId, userId, agentConfig!);
+    agentCache.set(key, agent);
   }
 
-  const requestContext = new RequestContext();
+  const history = await loadRecentHistory(agent.thread, threadId);
+  const userMessage: ModelMessage = { role: 'user', content: message };
 
-  const ctx = agentId === 'main'
-    ? await prepareMainAgentContext(tenantId, requestContext)
-    : await prepareAgentContext(tenantId, agentId, requestContext);
-
-  await saveThread(thread, tenantId, userId, {
-    agent_id: agentId,
-    user_id: userId,
-    model_name: ctx.agent.model_id,
-  }, message);
-
-  const mastraAgentId = agentId === 'main' ? 'mainAgent' : 'agentProxy';
-  const output: MastraModelOutput<unknown> = await mastra.getAgent(mastraAgentId).stream(
-    [{ role: 'user', content: message }],
-    {
-      instructions: ctx.instructions,
-      memory: { thread, resource: resourceId(tenantId, userId) },
-      maxSteps: ctx.agent.max_steps || 10,
-      requestContext,
-    },
+  const stream = agent.getLoop().runTurn(
+    threadId, history, userMessage,
+    new AbortController().signal,
+    { userId, scopeId: tenantId },
   );
 
-  return { thread, output };
+  return { thread: threadId, stream };
 }
 
-/** 提取消息前段作为对话标题（截取前 50 个字符，去除换行） */
-function extractTitle(message: string): string {
-  const cleaned = message.replace(/\n/g, ' ').trim();
-  return cleaned.length > 50 ? cleaned.slice(0, 50) + '…' : cleaned;
+export function invalidateAgentCache(tenantId: string, agentId: string): void {
+  agentCache.delete(cacheKey(tenantId, agentId));
+  agentCache.delete(cacheKey(tenantId, 'main'));
 }
 
-/** 写入 thread 到 memory，首次创建时从消息内容提取标题 */
-async function saveThread(
-  threadId: string,
+// ---------------------------------------------------------------------------
+// Agent 构建
+// ---------------------------------------------------------------------------
+
+async function buildAgent(
   tenantId: string,
   userId: string,
-  metadata: Record<string, string>,
-  message: string,
-): Promise<void> {
-  const memory = await getMemory();
+  runtimeConfig: NonNullable<Awaited<ReturnType<typeof agentManager.getAgentRuntimeConfig>>>,
+): Promise<Agent> {
+  const { agent } = runtimeConfig;
 
-  const currentResourceId = resourceId(tenantId, userId);
+  // Model
+  const modelConfig = await modelManager.getDefault(tenantId);
+  if (!modelConfig) throw new Error('No LLM model configured');
+  const languageModel = resolveModelProvider(modelConfig);
+  const modelClient = new AISDKModelClient(
+    languageModel as any,
+    modelConfig.provider,
+    modelConfig.model_name,
+  );
 
-  // 检查是否为新 thread，首次创建时提取标题
-  const existing = await memory.getThreadById({ threadId });
-  if (existing && existing.resourceId !== currentResourceId) {
-    throw new Error('Thread does not belong to current user');
-  }
-  const title = existing ? existing.title || '' : extractTitle(message);
+  // ThreadStore
+  const db = getDb();
+  await ensureTables(db as any);
+  const threadStore = new TenantThreadStore(tenantId, new DrizzleThreadStore({ db: db as any }));
 
-  await memory.saveThread({
-    thread: {
-      id: threadId,
-      resourceId: currentResourceId,
-      title,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      metadata,
+  // Tools
+  const tools = await buildTools(agent, tenantId, userId);
+
+  // System prompt
+  let systemPrompt = agent.system_prompt || '';
+  try {
+    const skillPrompts = await skillManager.getPromptForAgent(agent.id);
+    if (skillPrompts) systemPrompt += '\n\n## 技能指南\n' + skillPrompts;
+  } catch {}
+
+  // Agent 实例
+  const agentInst = new Agent({
+    config: {
+      id: agent.id,
+      name: agent.name,
+      systemPrompt,
+      model: {
+        provider: modelConfig.provider,
+        model: modelConfig.model_name,
+        baseUrl: modelConfig.base_url || undefined,
+        apiKey: modelConfig.api_key || undefined,
+      },
+      temperature: agent.temperature ?? 0.7,
+      maxTokens: agent.max_tokens ?? 4096,
+      maxSteps: agent.max_steps ?? 10,
     },
+    model: modelClient,
+    tools,
+    skills: [],
+    thread: threadStore,
   });
+
+  // Event + span infrastructure
+  const events = new MittEventRecorder();
+  const spanTracker = new InMemorySpanTracker();
+
+  // Tool chain
+  const toolBroker = new ToolBroker();
+  if (tools.length > 0) {
+    toolBroker.addSource({
+      name: 'primary',
+      list: async () => tools,
+    });
+  }
+  toolBroker.addSource(createBuiltInToolSource());
+
+  // Context processors
+  const processors = [new SystemPromptProcessor()];
+
+  // AgentLoop
+  agentInst.loop = new AgentLoop({
+    agent: agentInst,
+    toolBroker,
+    processors,
+    events,
+    spanTracker,
+  });
+
+  logger.info({ agentId: agent.id, name: agent.name }, 'Agent built');
+  return agentInst;
+}
+
+async function buildTools(
+  agent: any,
+  tenantId: string,
+  userId: string,
+): Promise<Tool[]> {
+  const tools: Tool[] = [];
+
+  // Skill 工具
+  try {
+    const defs = await skillManager.getToolDefsForAgent(agent.id);
+    const impls = await skillManager.getToolsForAgent(agent.id);
+    for (const def of defs) {
+      const impl = impls.find((t: any) => t.definition.name === def.name);
+      if (!impl) continue;
+      tools.push({
+        name: def.name,
+        description: def.description,
+        inputSchema: (def.parameters || {}) as Record<string, unknown>,
+        policy: 'auto' as const,
+        kind: 'readonly' as const,
+        tags: ['skill'],
+        execute: async (call: any, ctx: any) => {
+          return impl.handler(call.args, { tenantId, agentId: agent.id, userId, skillConfig: {} });
+        },
+      } as Tool);
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Failed to load skill tools');
+  }
+
+  // RAG 工具
+  if (agent.rag_mode !== 'disabled') {
+    try {
+      const { createRagSearchTool } = await import('../agent/tools/rag-tool.js');
+      const ragTool = await createRagSearchTool(agent);
+      if (ragTool) tools.push(ragTool as unknown as Tool);
+    } catch (err) {
+      logger.warn({ err }, 'Failed to create RAG tool');
+    }
+  }
+
+  return tools;
+}
+
+async function loadRecentHistory(
+  threadStore: any,
+  threadId: string,
+): Promise<ModelMessage[]> {
+  try {
+    const existing = await threadStore.getThread(threadId);
+    if (!existing) return [];
+    const entries = await threadStore.getRecentEntries(threadId, 20);
+    return entries.map((e: any) => ({
+      role: e.role,
+      content: e.content,
+      ...(e.toolCallId ? { toolCallId: e.toolCallId } : {}),
+      ...(e.toolCalls ? { toolCalls: e.toolCalls } : {}),
+    }));
+  } catch {
+    return [];
+  }
 }

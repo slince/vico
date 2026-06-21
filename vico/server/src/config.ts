@@ -2,7 +2,7 @@ import {existsSync, readFileSync} from 'node:fs';
 import {parse} from 'yaml';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {OpenAICompatibleConfig} from "@mastra/core/llm";
+
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -16,7 +16,6 @@ interface AppConfig {
   };
   database: {
     url: string;
-    duckdb_url: string;
   };
   skills: {
     scan_paths: string[];
@@ -30,7 +29,7 @@ interface AppConfig {
     chunk_size: number;
     chunk_overlap: number;
     retrieval_top_k: number;
-    embedder: 'fastembed' | string | OpenAICompatibleConfig;
+    embedder: 'fastembed' | string | Record<string, unknown>;
   };
   /** 文件存储后端配置 */
   storage: {
@@ -75,7 +74,7 @@ function loadConfig(): AppConfig {
   const defaultConfig: AppConfig = {
     server: { port: 3001, deploy_mode: 'private' },
     auth: { session_expiry_days: 7 },
-    database: { url: 'file:./data/vico.db', duckdb_url: './data/mastra.duckdb' },
+    database: { url: 'file:./data/vico.db' },
     skills: { scan_paths: [resolve(__dirname, '../../skills'), resolve(__dirname, '../db/custom-skills')] },
     memory: { stm_window: 20, ltm_auto_extract: true, ltm_max_entries: 10000 },
     rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'openai/text-embedding-3-small' },

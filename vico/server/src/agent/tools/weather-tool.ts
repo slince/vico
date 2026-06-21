@@ -1,4 +1,4 @@
-import { createTool } from '@mastra/core/tools';
+import { tool } from 'ai';
 import { z } from 'zod';
 
 interface GeocodingResponse {
@@ -20,23 +20,13 @@ interface WeatherResponse {
   };
 }
 
-export const weatherTool = createTool({
-  id: 'get-weather',
+export const weatherTool = tool({
   description: 'Get current weather for a location',
   inputSchema: z.object({
     location: z.string().describe('City name'),
   }),
-  outputSchema: z.object({
-    temperature: z.number(),
-    feelsLike: z.number(),
-    humidity: z.number(),
-    windSpeed: z.number(),
-    windGust: z.number(),
-    conditions: z.string(),
-    location: z.string(),
-  }),
-  execute: async (inputData) => {
-    return await getWeather(inputData.location);
+  execute: async ({ location }) => {
+    return await getWeather(location);
   },
 });
 

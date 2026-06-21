@@ -8,19 +8,17 @@ import type { AgentDetail } from '../services/agent/types.js';
 
 /**
  * Vico Bootstrap — Vico 的单例包装。
- * 管理 AgentRuntime + ToolBroker + SkillManager 生命周期。
  */
 export class VicoBootstrap {
   private container!: Vico;
   private runtime!: AgentRuntime;
 
   async init(skillRoots: string[]): Promise<void> {
-    this.container = new Vico({ skillRoots });
+    this.container = new Vico({ skills: { skillDirs: skillRoots } });
     await this.container.init();
     this.runtime = this.container.runtime;
   }
 
-  /** 根据 DB AgentDetail 创建 Vico AgentConfig */
   static toAgentConfig(detail: AgentDetail): AgentConfig {
     return {
       id: detail.id,
@@ -37,9 +35,7 @@ export class VicoBootstrap {
   }
 
   getRuntime(): AgentRuntime { return this.runtime; }
-  getToolBroker() { return this.container.toolBroker; }
-  getSkillManager() { return this.container.getSkillManager(); }
-  getEvents() { return this.container.events; }
+  getContainer(): Vico { return this.container; }
 }
 
 export const vicoBootstrap = new VicoBootstrap();

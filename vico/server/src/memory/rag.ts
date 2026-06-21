@@ -1,16 +1,15 @@
 import { v4 as uuid } from 'uuid';
 import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
-import { MDocument } from '@mastra/rag';
+import { RecursiveChunker } from '@vico/rag';
 import { config, DEFAULT_RAG_CONFIG } from '../config.js';
-import { getVector, getMemory } from '../agent/memory-setup.js';
+import { getVector } from '../agent/memory-setup.js';
 import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
 import { kbIndexName } from '../lib/resource.js';
 import { getClient } from '../db/init-libsql.js';
 import { parserRegistry } from './parsers/registry.js';
-// 注册各文件类型解析器（副作用导入）
 import './parsers/txt-parser.js';
 import './parsers/md-parser.js';
 import './parsers/pdf-parser.js';
@@ -22,39 +21,30 @@ class RAGManager {
   /**
    * 索引文本内容到指定知识库。
    *
-   * 使用 @mastra/rag MDocument 进行文本分块，
-   * 通过 Mastra Memory embedder 向量化后存入 LibSQLVector。
-   *
-   * @param kbId - 知识库 ID
-   * @param text - 待索引的原始文本
-   * @param metadata - 附加元数据
-   * @returns 索引的分块数量
+   * 使用 @vico/rag RecursiveChunker 进行文本分块，
+   * 向量化后存入 LibSQL 向量表。
    */
   async indexText(kbId: string, text: string, metadata: Record<string, any> = {}, documentId?: string): Promise<number> {
     const vector = getVector();
-    const memory = await getMemory();
-    if (!memory.embedder) throw new Error('Embedder not configured');
-
-    // MDocument 分块，策略和大小由 DEFAULT_RAG_CONFIG 控制
     const kbConfig = DEFAULT_RAG_CONFIG;
-    const doc = MDocument.fromText(text);
-    const chunks = await doc.chunk({
-      strategy: kbConfig.chunk.strategy as 'recursive',
-      maxSize: kbConfig.chunk.size,
+
+    // 使用 @vico/rag RecursiveChunker 分块
+    const chunker = new RecursiveChunker();
+    const chunks = await chunker.chunk(text, {
+      strategy: 'recursive',
+      size: kbConfig.chunk.size,
       overlap: kbConfig.chunk.overlap,
     });
-
     const chunkTexts = chunks.map((c) => c.text);
     const chunkIds = chunks.map(() => uuid());
 
-    // 批量向量化
-    const embedResult = await memory.embedder.doEmbed({
-      values: chunkTexts,
-    });
+    // 向量化（需要 embedder — 由调用方提供或使用默认）
+    const embedder = await this.getEmbedder();
+    const embedResult = await embedder.doEmbed({ values: chunkTexts });
 
     const indexName = kbIndexName(kbId);
 
-    // 确保向量索引存在（幂等：已存在则跳过）
+    // 确保向量索引存在
     try {
       await vector.createIndex({
         indexName,
@@ -65,7 +55,7 @@ class RAGManager {
       if (!err?.message?.includes('already exists')) throw err;
     }
 
-    // 通过 LibSQLVector 存储，content 写入 metadata 以便检索时还原
+    // 存储向量
     await vector.upsert({
       indexName,
       vectors: embedResult.embeddings,
@@ -89,11 +79,23 @@ class RAGManager {
     return chunkTexts.length;
   }
 
-  /** 索引单个文件，通过 ParserRegistry 自动识别类型并提取文本 */
+  /** 获取 embedder */
+  private async getEmbedder(): Promise<any> {
+    // 使用 @vico/rag 的 embedder
+    const { createEmbedder } = await import('@vico/rag');
+    const { embedder: embedderCfg } = config.rag;
+    if (embedderCfg === 'fastembed') {
+      return createEmbedder('fastembed');
+    }
+    if (typeof embedderCfg === 'string') {
+      return createEmbedder({ provider: 'openai', model: embedderCfg });
+    }
+    return createEmbedder(embedderCfg as any);
+  }
+
   async indexFile(kbId: string, filePath: string, documentId?: string): Promise<number> {
     const parser = parserRegistry.findParser(filePath);
     if (!parser) throw new Error(`Unsupported file type: ${filePath}`);
-
     const result = await parser.parse(filePath);
     return this.indexText(kbId, result.text, {
       filename: basename(filePath),
@@ -102,7 +104,6 @@ class RAGManager {
     }, documentId);
   }
 
-  /** 索引目录中所有文件 */
   async indexResourceDir(kbId: string, resourceDir: string): Promise<number> {
     let total = 0;
     const files = readdirSync(resourceDir);
@@ -120,30 +121,23 @@ class RAGManager {
     return total;
   }
 
-  /** 删除指定文档的所有向量 chunks，更新计数 */
   async deleteDocumentChunks(kbId: string, documentId: string): Promise<number> {
     const vector = getVector();
     const indexName = kbIndexName(kbId);
     const client = getClient();
-
     const tableName = indexName;
     const { rows } = await client.execute({
       sql: `SELECT vector_id FROM ${tableName} WHERE json_extract(metadata, '$.document_id') = ?`,
       args: [documentId],
     });
-
     const ids = rows.map((r: any) => r.vector_id as string);
     if (ids.length === 0) return 0;
-
     await vector.deleteVectors({ indexName, ids });
-
-    // 更新 KB 计数
     const db = getDb();
     const { knowledge_bases } = schema;
     await db.update(knowledge_bases)
       .set({ chunk_count: sql`MAX(0, ${knowledge_bases.chunk_count} - ${ids.length})` })
       .where(eq(knowledge_bases.id, kbId));
-
     return ids.length;
   }
 }
