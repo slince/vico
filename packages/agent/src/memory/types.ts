@@ -48,14 +48,3 @@ export interface WorkingMemory {
   clear(): Promise<void>;
 }
 
-/** 三层记忆存储端口 */
-export interface MemoryStore {
-  /** 会话历史记忆 */
-  conversation: ConversationHistoryMemory;
-  /** 语义召回记忆 */
-  semantic: SemanticRecallMemory;
-  /** 工作记忆（实体记忆） */
-  working: WorkingMemory;
-  /** RAG 知识库检索 */
-  rag: RagProvider;
-}

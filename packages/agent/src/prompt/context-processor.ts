@@ -47,22 +47,24 @@ export class ModelRequestContext {
 
 /**
  * 上下文处理器 — 洋葱模型的一层。
- * 在 model 调用前按优先级依次执行，修改 ModelRequestContext。
+ * 在 model 调用前按优先级依次执行（process），循环结束后逆序执行（resolve）。
  */
 export interface ContextProcessor {
   /** 处理器名称（用于日志/调试） */
   readonly name: string;
   /** 优先级，越小越外层（先执行） */
   readonly priority: number;
-  /** 处理上下文，可异步 */
+  /** 进入阶段：model 调用前修改上下文 */
   process(ctx: ModelRequestContext): Promise<void>;
+  /** 离开阶段：整个循环结束后逆序执行，用于提取记忆、后处理等 */
+  resolve?(ctx: ModelRequestContext): Promise<void>;
 }
 
 /** 洋葱管道 — 按优先级排序后依次执行所有处理器 */
 export class OnionPipeline {
   constructor(private readonly processors: ContextProcessor[]) {}
 
-  /** 按优先级升序执行所有处理器。单个处理器异常不阻塞后续处理器。 */
+  /** 进入阶段：按优先级升序依次执行 process()。单个处理器异常不阻塞后续处理器。 */
   async run(ctx: ModelRequestContext): Promise<void> {
     const sorted = [...this.processors].sort((a, b) => a.priority - b.priority);
     for (const processor of sorted) {
@@ -71,6 +73,22 @@ export class OnionPipeline {
       } catch (err) {
         console.warn(
           `[OnionPipeline] Processor "${processor.name}" (priority ${processor.priority}) threw:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+  }
+
+  /** 离开阶段：循环结束后，按优先级降序（内层先执行）执行 resolve()。不抛异常，不阻塞后续处理器。 */
+  async resolve(ctx: ModelRequestContext): Promise<void> {
+    const sorted = [...this.processors].sort((a, b) => b.priority - a.priority);
+    for (const processor of sorted) {
+      if (!processor.resolve) continue;
+      try {
+        await processor.resolve(ctx);
+      } catch (err) {
+        console.warn(
+          `[OnionPipeline] Processor "${processor.name}" resolve threw:`,
           err instanceof Error ? err.message : err,
         );
       }

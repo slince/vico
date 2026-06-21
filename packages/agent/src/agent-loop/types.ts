@@ -12,7 +12,7 @@ import type { ApprovalGate } from './approval-gate.js';
 import type { AgentConfig } from '../contracts/agent.js';
 import type { AgentLoop } from './agent-loop.js';
 import type { Skill } from '../skill/types.js';
-import type { MemoryStore } from '../memory/types.js';
+import type { MemoryStore } from '../memory/memory-store.js';
 
 /** 一次 turn 的执行结果 */
 export interface TurnResult {

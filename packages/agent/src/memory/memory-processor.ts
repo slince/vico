@@ -1,9 +1,9 @@
-// @vico/agent - MemoryProcessor: retrieves long-term memory and appends as system message
+// @vico/agent - MemoryProcessor: injects working memory entities and semantic recall results
 import type { ContextProcessor, ModelRequestContext } from '../prompt/context-processor.js';
 import { Priority } from '../prompt/context-processor.js';
-import type { MemoryStore } from './types.js';
+import type { MemoryStore } from './memory-store.js';
 
-/** 检索长期记忆并追加为 system 消息（NORMAL 优先级） */
+/** 注入工作记忆实体和语义召回结果（NORMAL 优先级） */
 export class MemoryProcessor implements ContextProcessor {
   readonly name = 'memory';
   readonly priority = Priority.NORMAL;
@@ -11,6 +11,31 @@ export class MemoryProcessor implements ContextProcessor {
   constructor(private readonly memoryStore: MemoryStore) {}
 
   async process(ctx: ModelRequestContext): Promise<void> {
+    await this.injectWorkingMemory(ctx);
+    await this.injectSemanticRecall(ctx);
+  }
+
+  /** 注入工作记忆实体 */
+  private async injectWorkingMemory(ctx: ModelRequestContext): Promise<void> {
+    const keys = await this.memoryStore.working.keys();
+    if (keys.length === 0) return;
+
+    const entries: string[] = [];
+    for (const key of keys) {
+      const value = await this.memoryStore.working.get(key);
+      if (value !== undefined) {
+        entries.push(`- ${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`);
+      }
+    }
+    if (entries.length === 0) return;
+
+    ctx.messages.push({ role: 'system', content: `User profile:\n${entries.join('\n')}` });
+  }
+
+  /** 语义召回长期记忆 */
+  private async injectSemanticRecall(ctx: ModelRequestContext): Promise<void> {
+    if (!this.memoryStore.semanticEnabled) return;
+
     const query = ctx.getLastUserMessage();
     if (!query) return;
 

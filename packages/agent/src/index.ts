@@ -70,9 +70,8 @@ export { resolvePolicy, type PolicyContext } from './tool/tool-policy.js';
 export { BuiltinTools } from './tool/builtin-tools.js';
 
 // Ports — MemoryStore
-export { type MemoryStore } from './memory/memory-store.js';
+export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
 export { ConversationHistoryMemoryStore } from './memory/conversation-history-memory.js';
-export { InMemoryMemoryStore } from './memory/memory-store-impl.js';
 
 // Ports — SkillLoader
 export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js';

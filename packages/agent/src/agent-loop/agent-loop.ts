@@ -206,7 +206,16 @@ export class AgentLoop {
         steps++;
       }
 
-      // 4. turn:end hooks
+      // 4. 洋葱管道离开阶段：循环结束后逆序执行 resolve()
+      await this.pipeline.resolve(
+        new ModelRequestContext({
+          agent: this.config,
+          messages: [...messages],
+          tools: [...this.boundTools],
+        }),
+      );
+
+      // 5. turn:end hooks
       if (this.hooks) {
         await this.hooks.runAll('turn:end', { threadId, messages, usage });
       }
