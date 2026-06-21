@@ -9,7 +9,7 @@ import type {ToolSource} from '../tool/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
-import {createSkillTools} from '../skill/skill-tools.js';
+import {createSkillToolSource} from '../skill/skill-tool-source.js';
 import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
 import type {TurnEvent} from '../agent-loop/types.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
@@ -216,9 +216,6 @@ export class Vico {
   }
 
   private createSkillToolSource(): ToolSource {
-    return {
-      name: 'skill',
-      list: async () => createSkillTools(this.skillManager),
-    };
+    return createSkillToolSource(this.skillManager);
   }
 }

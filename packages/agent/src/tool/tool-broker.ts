@@ -2,7 +2,7 @@
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult, ToolSource} from './types.js';
 import {resolvePolicy} from './tool-policy.js';
 import {StormBreaker} from './storm-breaker.js';
-import {BuiltinToolsSource} from './builtin-tools-source';
+import {createBuiltInToolSource} from './builtin-tools-source.js';
 import {createMemoryToolSource} from '../memory/memory-tool-source.js';
 
 /** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
@@ -123,10 +123,7 @@ export class ToolBroker {
   }
 
   private addBuiltinSource(): void {
-    this.addSource({
-      name: 'builtin',
-      list: async () => BuiltinToolsSource.list(),
-    });
+    this.addSource(createBuiltInToolSource());
   }
 
   private addMemorySource(): void {

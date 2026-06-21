@@ -65,7 +65,7 @@ export { type ChildAgentRef, type DelegateStrategy } from './tool/types.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/tool-policy.js';
 export { type PolicyContext } from './tool/types.js';
-export { BuiltinToolsSource } from './tool/builtin-tools-source';
+export { createBuiltInToolSource } from './tool/builtin-tools-source.js';
 
 // Builtin tools (individual exports)
 export {
@@ -98,7 +98,7 @@ export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js'
 // Skill system
 export { FSSkillLoader } from './skill/fs-skill-loader.js';
 export { SkillManager } from './skill/skill-manager.js';
-export { createSkillTools } from './skill/skill-tools.js';
+export { createSkillToolSource } from './skill/skill-tool-source.js';
 export { formatSkillCatalog } from './skill/skills-processor.js';
 export { ManagedSkillStore } from './skill/managed-skill-store.js';
 

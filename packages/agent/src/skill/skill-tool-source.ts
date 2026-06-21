@@ -1,10 +1,10 @@
-// src/skill/skill-tools.ts
+// src/skill/skill-tool-source.ts
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Tool } from '../tool/types.js';
+import type { Tool, ToolSource } from '../tool/types.js';
 import type { SkillManager } from './skill-manager.js';
 
-export function createSkillTools(manager: SkillManager): Tool[] {
+function createSkillTools(manager: SkillManager): Tool[] {
   return [
     {
       name: 'skill',
@@ -79,4 +79,12 @@ export function createSkillTools(manager: SkillManager): Tool[] {
       },
     },
   ];
+}
+
+/** 创建 Skill 模块的 ToolSource */
+export function createSkillToolSource(manager: SkillManager): ToolSource {
+  return {
+    name: 'skill',
+    list: async (): Promise<Tool[]> => createSkillTools(manager),
+  };
 }
