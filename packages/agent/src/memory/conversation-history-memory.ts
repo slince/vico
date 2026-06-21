@@ -7,12 +7,9 @@ export class ConversationHistoryMemory {
   constructor(readonly sessionStore: SessionStore) {}
 
   async get(threadId: string, window: number): Promise<ModelMessage[]> {
-    const entries = await this.sessionStore.getEntries(threadId);
+    const entries = await this.sessionStore.getRecentEntries(threadId, window);
 
-    // 从尾部取最近 window 条（FIFO 滑动窗口）
-    const recent = entries.length > window ? entries.slice(entries.length - window) : entries;
-
-    return recent.map((entry) => {
+    return entries.map((entry) => {
       const msg: ModelMessage = {
         role: entry.role as MessageRole,
         content: entry.content,

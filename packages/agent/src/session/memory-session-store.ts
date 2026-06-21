@@ -74,4 +74,9 @@ export class InMemorySessionStore implements SessionStore {
     const end = options?.limit ? start + options.limit : undefined;
     return [...list].slice(start, end);
   }
+
+  async getRecentEntries(threadId: string, limit: number): Promise<Message[]> {
+    const list = this.messages.get(threadId) ?? [];
+    return list.length > limit ? [...list].slice(list.length - limit) : [...list];
+  }
 }

@@ -137,4 +137,13 @@ export class FileSessionStore implements SessionStore {
     const end = options?.limit ? start + options.limit : undefined;
     return all.slice(start, end);
   }
+
+  async getRecentEntries(threadId: string, limit: number): Promise<Message[]> {
+    const all = await this.listJSON<Message>(
+      this.messagesDir,
+      (m) => m.threadId === threadId,
+    );
+    all.sort((a, b) => a.createdAt - b.createdAt);
+    return all.length > limit ? all.slice(all.length - limit) : all;
+  }
 }

@@ -129,6 +129,16 @@ export class DrizzleSessionStore implements SessionStore {
     return rows.map((r) => this.toMessage(r));
   }
 
+  async getRecentEntries(threadId: string, limit: number): Promise<Message[]> {
+    const rows = await this.db
+      .select()
+      .from(session_messages)
+      .where(eq(session_messages.thread_id, threadId))
+      .orderBy(desc(session_messages.created_at))
+      .limit(limit);
+    return rows.map((r) => this.toMessage(r));
+  }
+
   // 映射辅助
 
   private toThread(r: typeof session_threads.$inferSelect): Thread {
