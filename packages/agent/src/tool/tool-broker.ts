@@ -4,6 +4,7 @@ import type { ToolSource } from './types.js';
 import { resolvePolicy } from './tool-policy.js';
 import { StormBreaker } from './storm-breaker.js';
 import { BuiltinTools } from './builtin-tools.js';
+import { createMemoryToolSource } from '../memory/memory-tool-source.js';
 
 /** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
 export class ToolBroker {
@@ -17,6 +18,7 @@ export class ToolBroker {
 
   constructor() {
     this.addBuiltinSource();
+    this.addMemorySource();
   }
 
   /** 注册工具来源 */
@@ -126,6 +128,10 @@ export class ToolBroker {
       name: 'builtin',
       list: async () => BuiltinTools.list(),
     });
+  }
+
+  private addMemorySource(): void {
+    this.addSource(createMemoryToolSource());
   }
 
   /** 动态注册工具处理器（覆盖已有同名 Tool 的 execute） */

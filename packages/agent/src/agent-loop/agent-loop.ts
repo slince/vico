@@ -10,6 +10,7 @@ import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
 import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
+import { createWorkingMemoryHandler } from '../memory/working-memory-tool.js';
 
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
@@ -49,25 +50,7 @@ export class AgentLoop {
 
     // 注册 updateWorkingMemory 工具 handler
     if (options.workingMemory) {
-      const wm = options.workingMemory;
-      const template = wm.getTemplate();
-
-      this.toolBroker.registerHandler('updateWorkingMemory', {
-        execute: async (call, ctx) => {
-          const args = call.args as { memory: string };
-          if (!args.memory || typeof args.memory !== 'string') {
-            throw new Error('updateWorkingMemory requires a "memory" string argument');
-          }
-          const scopeId = wm.scope === 'user' ? ctx.userId : ctx.workspace;
-          // 防退化保护：拒绝用空模板覆盖已有数据
-          const current = await wm.get(scopeId);
-          if (current && args.memory.trim() === template.trim()) {
-            throw new Error('Refusing to replace working memory with empty template');
-          }
-          await wm.set(scopeId, args.memory);
-          return 'Working memory updated';
-        },
-      });
+      this.toolBroker.registerHandler('updateWorkingMemory', createWorkingMemoryHandler(options.workingMemory));
     }
   }
 

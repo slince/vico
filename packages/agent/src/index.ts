@@ -87,6 +87,8 @@ export { InMemorySemanticRecall } from './memory/in-memory-semantic-recall.js';
 export { InMemoryWorkingMemory } from './memory/in-memory-working-memory.js';
 export { InMemoryRagProvider } from './memory/in-memory-rag-provider.js';
 export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/file-working-memory.js';
+export { UPDATE_WORKING_MEMORY_TOOL, createWorkingMemoryHandler } from './memory/working-memory-tool.js';
+export { createMemoryToolSource } from './memory/memory-tool-source.js';
 export { InMemoryVectorStore } from './memory/in-memory-vector-store.js';
 export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/vector-semantic-recall.js';
 
