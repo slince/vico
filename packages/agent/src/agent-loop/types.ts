@@ -50,6 +50,13 @@ export interface TurnResult {
   messages: ModelMessage[];
 }
 
+/** runTurn 选项 */
+export interface RunTurnOptions {
+  scopeId?: string;
+  userId?: string;
+  workspace?: string;
+}
+
 /** turn 执行过程中的流式事件 */
 export type TurnEvent =
   | { type: 'text_delta'; content: string }

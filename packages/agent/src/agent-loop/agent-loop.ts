@@ -1,18 +1,14 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type { TurnResult, AgentLoopOptions, TurnEvent } from './types.js';
-import type { Agent } from './types.js';
-import type { ModelClient, ModelMessage } from '../model/types.js';
-import type { ToolHost, ToolExecutionContext } from '../tool/types.js';
-import type { ToolCall, ToolResult } from '../tool/types.js';
-import type { EventRecorder, SSEEvent } from '../observable/types.js';
-import type { SpanTracker } from '../observable/types.js';
-import type { CompositeHookRunner } from '../hook/hook-runner.js';
-import { ContextCompactor } from './context-compactor.js';
-import type { TokenEconomy } from './token-economy.js';
-import type { ApprovalGate } from './approval-gate.js';
-import type { ContextProcessor } from '../prompt/context-processor.js';
-import { OnionPipeline, buildModelRequest, ModelRequestContext } from '../prompt/context-processor.js';
-import { DynamicInstructionProcessor } from './dynamic-instruction-processor.js';
+import type {Agent, AgentLoopOptions, RunTurnOptions, TurnEvent, TurnResult} from './types.js';
+import type {ModelClient, ModelMessage} from '../model/types.js';
+import type {ToolCall, ToolExecutionContext, ToolHost, ToolResult} from '../tool/types.js';
+import type {EventRecorder, SpanTracker, SSEEvent} from '../observable/types.js';
+import type {CompositeHookRunner} from '../hook/hook-runner.js';
+import {ContextCompactor} from './context-compactor.js';
+import type {TokenEconomy} from './token-economy.js';
+import type {ApprovalGate} from './approval-gate.js';
+import {buildModelRequest, ModelRequestContext, OnionPipeline} from '../prompt/context-processor.js';
+import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
 
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
@@ -82,7 +78,7 @@ export class AgentLoop {
     history: ModelMessage[],
     userMessage: ModelMessage,
     signal: AbortSignal,
-    opts?: { scopeId?: string; userId?: string; workspace?: string },
+    opts?: RunTurnOptions,
   ): AsyncGenerator<TurnEvent, TurnResult> {
     const turnSpan = this.spanTracker.startSpan('agent_run');
     this.interrupted = false;
@@ -111,36 +107,26 @@ export class AgentLoop {
           return { status: 'aborted', steps, usage, messages };
         }
 
-        const stepStart: TurnEvent = { type: 'step_start', step: steps + 1 };
-        this.emit(stepStart);
-        yield stepStart;
+        yield this.emit({ type: 'step_start', step: steps + 1 });
 
         yield* this.tryCompact(messages, signal);
 
         if (this.tokenEconomy?.isInputExhausted()) {
-          const ev: TurnEvent = { type: 'error', message: 'Input token budget exhausted' };
-          this.emit(ev);
-          yield ev;
+          yield this.emit({ type: 'error', message: 'Input token budget exhausted' });
           break;
         }
 
-        const { fullText, toolCalls } = yield* this.callModel(messages, threadId, scopeId, signal, usage, steps);
-        if (fullText || toolCalls.length > 0) {
-          messages.push({ role: 'assistant', content: fullText, ...(toolCalls.length > 0 && { toolCalls }) });
-        }
+        yield* this.callModel(messages, threadId, scopeId, signal, usage, steps);
 
+        const toolCalls = (messages.at(-1) as { toolCalls?: ToolCall[] } | undefined)?.toolCalls ?? [];
         if (toolCalls.length === 0) {
-          const stepEnd: TurnEvent = { type: 'step_end', step: steps + 1 };
-          this.emit(stepEnd);
-          yield stepEnd;
+          yield this.emit({ type: 'step_end', step: steps + 1 });
           break;
         }
 
         yield* this.executeToolCalls(toolCalls, messages, threadId, toolUserId, toolWorkspace);
 
-        const endEv: TurnEvent = { type: 'step_end', step: steps + 1 };
-        this.emit(endEv);
-        yield endEv;
+        yield this.emit({ type: 'step_end', step: steps + 1 });
         steps++;
       }
 
@@ -159,9 +145,8 @@ export class AgentLoop {
       }
 
       turnSpan.end({ status: 'completed', steps });
-      const doneEv: TurnEvent = { type: 'done', usage };
-      this.emit(doneEv);
-      yield doneEv;
+      yield this.emit({ type: 'done', usage });
+
       return {
         status: this.interrupted ? 'interrupted' : 'completed',
         steps,
@@ -171,16 +156,15 @@ export class AgentLoop {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       turnSpan.error(err as Error);
-      const errEv: TurnEvent = { type: 'error', message };
-      this.emit(errEv);
-      yield errEv;
+      yield this.emit({ type: 'error', message });
       return { status: 'failed', steps, usage, messages };
     }
   }
 
-  /** 事件同时发送到 EventRecorder（全局可观测）和流式迭代器（per-invocation） */
-  private emit(event: TurnEvent): void {
+  /** emit 并返回事件，方便 yield this.emit(...) 一行走两路 */
+  private emit<T extends TurnEvent>(event: T): T {
     this.events.emit(event as unknown as SSEEvent);
+    return event;
   }
 
   /** 排干 steer 缓冲区并追加到消息列表 */
@@ -198,13 +182,11 @@ export class AgentLoop {
     if (result.wasCompacted) {
       messages.length = 0;
       messages.push(...result.compacted);
-      const ev: TurnEvent = { type: 'compacted', removedTokens: result.removedTokens };
-      this.emit(ev);
-      yield ev;
+      yield this.emit({ type: 'compacted', removedTokens: result.removedTokens });
     }
   }
 
-  /** 洋葱管道 + 调用模型，流式返回过程事件 */
+  /** 洋葱管道 + 调用模型，流式返回过程事件，结果直接追加到 messages */
   private async *callModel(
     messages: ModelMessage[],
     threadId: string,
@@ -212,7 +194,7 @@ export class AgentLoop {
     signal: AbortSignal,
     usage: { input: number; output: number },
     step: number,
-  ): AsyncGenerator<TurnEvent, { fullText: string; toolCalls: ToolCall[] }> {
+  ): AsyncGenerator<TurnEvent> {
     const ctx = new ModelRequestContext({
       agent: this.agent.config,
       messages: [...messages],
@@ -232,17 +214,14 @@ export class AgentLoop {
       switch (chunk.type) {
         case 'text_delta':
           fullText += chunk.content;
-          this.emit({ type: 'text_delta', content: chunk.content });
-          yield { type: 'text_delta', content: chunk.content };
+          yield this.emit({ type: 'text_delta', content: chunk.content });
           break;
         case 'reasoning_delta':
-          this.emit({ type: 'reasoning_delta', content: chunk.content });
-          yield { type: 'reasoning_delta', content: chunk.content };
+          yield this.emit({ type: 'reasoning_delta', content: chunk.content });
           break;
         case 'tool_call_complete':
           toolCalls.push({ id: chunk.id, name: chunk.name, args: chunk.args });
-          this.emit({ type: 'tool_call_start', id: chunk.id, name: chunk.name });
-          yield { type: 'tool_call_start', id: chunk.id, name: chunk.name };
+          yield this.emit({ type: 'tool_call_start', id: chunk.id, name: chunk.name });
           break;
         case 'usage':
           usage.input += chunk.input;
@@ -251,14 +230,16 @@ export class AgentLoop {
           break;
         case 'error':
           modelSpan.error(new Error(chunk.message));
-          this.emit({ type: 'error', message: chunk.message });
-          yield { type: 'error', message: chunk.message };
+          yield this.emit({ type: 'error', message: chunk.message });
           break;
       }
     }
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
-    return { fullText, toolCalls };
+
+    if (fullText || toolCalls.length > 0) {
+      messages.push({ role: 'assistant', content: fullText, ...(toolCalls.length > 0 && { toolCalls }) });
+    }
   }
 
   /** 执行工具调用并将结果追加到 messages */
@@ -283,15 +264,13 @@ export class AgentLoop {
       const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
-      const tr: TurnEvent = {
+      yield this.emit({
         type: 'tool_result',
         id: r.callId,
         name: r.name,
         status: r.status,
         output: r.output,
-      };
-      this.emit(tr);
-      yield tr;
+      });
     }
   }
 
