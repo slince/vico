@@ -2,7 +2,6 @@
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult, ToolSource} from './types.js';
 import {resolvePolicy} from './tool-policy.js';
 import {StormBreaker} from './storm-breaker.js';
-import {createBuiltInToolSource} from './builtin-tools-source.js';
 
 /** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
 export class ToolBroker {
@@ -11,10 +10,6 @@ export class ToolBroker {
   private stormBreaker: StormBreaker = new StormBreaker();
   /** 跟踪 on-request 工具的审批状态 */
   private approvalState: Map<string, boolean> = new Map();
-
-  constructor() {
-    this.addBuiltinSource();
-  }
 
   /** 注册工具来源 */
   addSource(source: ToolSource): void {
@@ -115,10 +110,6 @@ export class ToolBroker {
     }
 
     return results;
-  }
-
-  private addBuiltinSource(): void {
-    this.addSource(createBuiltInToolSource());
   }
 
   /** 暴露 storm breaker 供外部重置 */

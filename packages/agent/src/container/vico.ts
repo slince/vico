@@ -10,7 +10,6 @@ import type {ToolSource} from '../tool/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
-import {createSkillToolSource} from '../skill/skill-tool-source.js';
 import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
@@ -25,6 +24,7 @@ import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
 import {createMemoryToolSource} from "../memory/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
+import {createSkillToolSource} from "../skill/skill-tool-source.js";
 
 export type { ModelClientFactory } from '../model/types.js';
 
@@ -103,7 +103,6 @@ export interface InvokeOptions {
 export class Vico {
   readonly events = new MittEventRecorder();
   readonly spanTracker = new InMemorySpanTracker();
-  readonly toolBroker = new ToolBroker();
   readonly hooks = new CompositeHookRunner();
 
   private readonly skillManager: SkillManager;
@@ -122,12 +121,6 @@ export class Vico {
     this.session = options.session ?? new InMemorySessionStore();
     this.skillManager = new SkillManager(new FSSkillLoader());
 
-    if (options.toolSources) {
-      for (const source of options.toolSources) {
-        this.toolBroker.addSource(source);
-      }
-    }
-
     if (options.hooks) {
       for (const hook of options.hooks) {
         this.hooks.register(hook);
@@ -143,8 +136,6 @@ export class Vico {
         await this.skillManager.discover(dirs);
       }
     }
-
-    this.toolBroker.addSource(createSkillToolSource(this.skillManager));
     this.initialized = true;
   }
 
@@ -165,19 +156,9 @@ export class Vico {
     }
 
     // 加载 agent 绑定的 tools 和 skills
-    const tools = config.tools ? await config.tools.load() : await this.toolBroker.listTools({
-      userId: '',
-      agentId: config.id,
-      threadId: '',
-      workspace: '',
-      hooks: [],
-      awaitApproval: async () => ({ approved: true }),
-      signal: new AbortController().signal,
-    });
+    const tools = config.tools ? await config.tools.load() : []
 
-    const skills = config.skills
-      ? await config.skills.load()
-      : this.skillManager.listAll();
+    const skills = config.skills ? await config.skills.load() : []
 
     const memory = config.memory ?? this.memory;
     const session = config.session ?? this.session;
@@ -207,6 +188,16 @@ export class Vico {
     ];
 
     const toolBroker = new ToolBroker();
+
+    // 如果没有预定义就用 vico的
+    if (!agent.tools ) {
+      if (this.options.toolSources) {
+        for (const source of this.options.toolSources) {
+          toolBroker.addSource(source);
+        }
+      }
+      toolBroker.addSource(createSkillToolSource(this.skillManager));
+    }
 
     if (memory) {
       processors.push(new MemoryProcessor(memory));
