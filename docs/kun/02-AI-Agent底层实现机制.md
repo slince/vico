@@ -336,7 +336,7 @@ execute(call, context):
 
 ### 4.3 内置工具（7 个核心工具）
 
-文件：`kun/src/adapters/tool/builtin-tools.ts`
+文件：`kun/src/adapters/tool/builtin-tools-source.ts`
 
 | 工具 | 功能 | 类型 |
 |------|------|------|

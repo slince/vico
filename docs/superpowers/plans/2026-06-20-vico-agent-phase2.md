@@ -27,7 +27,7 @@ packages/agent/src/
 │   ├── tool-host.ts                # 已有（接口），无需修改
 │   ├── local-tool-host.ts          # NEW：LocalToolHost 实现
 │   ├── capability-registry.ts      # NEW：能力注册表
-│   ├── builtin-tools.ts            # NEW：内置工具集
+│   ├── builtin-tools-source.ts            # NEW：内置工具集
 │   ├── tool-policy.ts              # NEW：审批策略逻辑
 │   └── storm-breaker.ts            # NEW：工具风暴断路器
 ├── skill/
@@ -251,22 +251,22 @@ git commit -m "feat(agent): implement ToolPolicy resolver and StormBreaker"
 
 ---
 
-### Task 4: BuiltinTools
+### Task 4: BuiltinToolsSource
 
 **Files:**
-- Create: `packages/agent/src/tool/builtin-tools.ts`
+- Create: `packages/agent/src/tool/builtin-tools-source.ts`
 
 **Interfaces:**
-- Produces: `BuiltinTools.list()` — returns `ToolSpec[]`
+- Produces: `BuiltinToolsSource.list()` — returns `ToolSpec[]`
 
-- [ ] **Step 1: Write builtin-tools.ts**
+- [ ] **Step 1: Write builtin-tools-source.ts**
 
 ```typescript
-// src/tool/builtin-tools.ts
+// src/tool/builtin-tools-source.ts
 import type { ToolSpec } from '../contracts/tool.js';
 
 /** 框架内置工具集 */
-export const BuiltinTools: { list(): ToolSpec[] } = {
+export const BuiltinToolsSource: { list(): ToolSpec[] } = {
   list(): ToolSpec[] {
     return [
       {
@@ -296,8 +296,8 @@ export const BuiltinTools: { list(): ToolSpec[] } = {
 
 ```bash
 cd vico/agent && npx tsc --noEmit
-git add vico/agent/src/tool/builtin-tools.ts
-git commit -m "feat(agent): add BuiltinTools (echo, now)"
+git add vico/agent/src/tool/builtin-tools-source.ts
+git commit -m "feat(agent): add BuiltinToolsSource (echo, now)"
 ```
 
 ---
@@ -323,7 +323,7 @@ import type { ToolHost, ToolExecutionContext } from './tool-host.js';
 import { CapabilityRegistry } from './capability-registry.js';
 import { resolvePolicy } from './tool-policy.js';
 import { StormBreaker } from './storm-breaker.js';
-import { BuiltinTools } from './builtin-tools.js';
+import { BuiltinToolsSource } from './builtin-tools.js';
 
 export interface ToolHandler {
   execute(call: ToolCall, ctx: ToolExecutionContext): Promise<unknown>;
@@ -462,7 +462,7 @@ export class LocalToolHost implements ToolHost {
   private addBuiltinSource(): void {
     this.addSource({
       name: 'builtin',
-      list: async () => BuiltinTools.list(),
+      list: async () => BuiltinToolsSource.list(),
       getHandler: (name: string): ToolHandler => {
         const handlers: Record<string, ToolHandler> = {
           echo: { execute: async (call) => (call.args as any).message ?? '' },
@@ -853,7 +853,7 @@ export { LocalToolHost, type ToolSource, type ToolHandler } from './tool/local-t
 export { CapabilityRegistry } from './tool/capability-registry.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy, type PolicyContext } from './tool/tool-policy.js';
-export { BuiltinTools } from './tool/builtin-tools.js';
+export { BuiltinToolsSource } from './tool/builtin-tools.js';
 
 // Skill system
 export { FSSkillLoader } from './skill/fs-skill-loader.js';

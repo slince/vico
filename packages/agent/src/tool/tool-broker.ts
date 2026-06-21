@@ -1,10 +1,9 @@
 // src/tool/tool-broker.ts
-import type { Tool, ToolCall, ToolResult, ToolExecutionContext } from './types.js';
-import type { ToolSource } from './types.js';
-import { resolvePolicy } from './tool-policy.js';
-import { StormBreaker } from './storm-breaker.js';
-import { BuiltinTools } from './builtin-tools.js';
-import { createMemoryToolSource } from '../memory/memory-tool-source.js';
+import type {Tool, ToolCall, ToolExecutionContext, ToolResult, ToolSource} from './types.js';
+import {resolvePolicy} from './tool-policy.js';
+import {StormBreaker} from './storm-breaker.js';
+import {BuiltinToolsSource} from './builtin-tools-source';
+import {createMemoryToolSource} from '../memory/memory-tool-source.js';
 
 /** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
 export class ToolBroker {
@@ -126,7 +125,7 @@ export class ToolBroker {
   private addBuiltinSource(): void {
     this.addSource({
       name: 'builtin',
-      list: async () => BuiltinTools.list(),
+      list: async () => BuiltinToolsSource.list(),
     });
   }
 

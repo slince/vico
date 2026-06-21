@@ -65,7 +65,7 @@ export { type ChildAgentRef, type DelegateStrategy } from './tool/types.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/tool-policy.js';
 export { type PolicyContext } from './tool/types.js';
-export { BuiltinTools } from './tool/builtin-tools.js';
+export { BuiltinToolsSource } from './tool/builtin-tools-source';
 
 // Builtin tools (individual exports)
 export {

@@ -127,7 +127,7 @@
 │   ├── LocalToolHost  # 工具执行器（审批+策略+并行）
 │   ├── ToolPolicy     # 审批策略（auto/on-request/suggest/never）
 │   ├── CapabilityRegistry # 能力注册表（按 capability 过滤工具）
-│   └── BuiltinTools   # 内置工具（与 Vico 业务相关）
+│   └── BuiltinToolsSource   # 内置工具（与 Vico 业务相关）
 │
 ├── skill/             # Skill 插件系统（遵循 Agent Skills 规范）
 │   ├── SkillLoader    # 抽象端口
@@ -529,7 +529,7 @@ class LocalToolHost implements ToolHost {
     const allTools: ToolSpec[] = [];
     
     // 1. 内置工具（始终可用）
-    allTools.push(...BuiltinTools.list(context));
+    allTools.push(...BuiltinToolsSource.list(context));
     
     // 2. Skill 工具（skill / skill_search / skill_read，由框架提供，非 Skill 自带）
     allTools.push(...await this.skillManager.listTools(context.agentId));
@@ -1144,7 +1144,7 @@ packages/
 │       │   ├── tool-host.ts         # 抽象端口
 │       │   ├── local-tool-host.ts   # 工具执行器（审批+策略+并行）
 │       │   ├── capability-registry.ts # 能力注册表
-│       │   └── builtin-tools.ts     # 内置工具
+│       │   └── builtin-tools-source.ts     # 内置工具
 │       │
 │       ├── skill/           # Skill 插件系统
 │       │   ├── skill-loader.ts      # 抽象端口
