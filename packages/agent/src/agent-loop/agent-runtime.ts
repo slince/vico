@@ -2,7 +2,6 @@
 import { Agent, type AgentFactory } from './types.js';
 import type { AgentConfig } from './types.js';
 
-export { Agent, type AgentFactory } from './types.js';
 
 /** Agent 缓存条目 */
 interface CacheEntry {

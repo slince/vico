@@ -2,7 +2,6 @@
 import type { ToolPolicy, ToolCall } from './types.js';
 import type { ApprovalDecision, PolicyContext } from './types.js';
 
-export type { PolicyContext } from './types.js';
 
 export function resolvePolicy(
   policy: ToolPolicy,

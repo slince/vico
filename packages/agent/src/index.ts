@@ -62,11 +62,14 @@ export {
 } from './tool/types.js';
 
 // Tool system
-export { LocalToolHost, type ToolSource, type ToolHandler } from './tool/local-tool-host.js';
-export { ChildAgentExecutor, type ChildAgentRef, type DelegateStrategy } from './tool/child-agent-executor.js';
+export { LocalToolHost } from './tool/local-tool-host.js';
+export { type ToolSource, type ToolHandler } from './tool/types.js';
+export { ChildAgentExecutor } from './tool/child-agent-executor.js';
+export { type ChildAgentRef, type DelegateStrategy } from './tool/types.js';
 export { CapabilityRegistry } from './tool/capability-registry.js';
 export { StormBreaker } from './tool/storm-breaker.js';
-export { resolvePolicy, type PolicyContext } from './tool/tool-policy.js';
+export { resolvePolicy } from './tool/tool-policy.js';
+export { type PolicyContext } from './tool/types.js';
 export { BuiltinTools } from './tool/builtin-tools.js';
 
 // Ports — MemoryStore
@@ -110,28 +113,18 @@ export {
 export { HookRunner, CompositeHookRunner } from './hook/hook-runner.js';
 
 // Observable
-export { type EventRecorder, MittEventRecorder } from './observable/event-recorder.js';
-export {
-  type SpanTracker,
-  type Span,
-  InMemorySpanTracker,
-} from './observable/span-tracker.js';
+export { MittEventRecorder } from './observable/event-recorder.js';
+export { type EventRecorder } from './observable/types.js';
+export { InMemorySpanTracker } from './observable/span-tracker.js';
+export { type SpanTracker, type Span } from './observable/types.js';
 
 // AgentRuntime
-export {
-  AgentRuntime,
-} from './agent-loop/agent-runtime.js';
-export {
-  Agent,
-  type AgentFactory,
-} from './agent-loop/types.js';
+export { AgentRuntime } from './agent-loop/agent-runtime.js';
+export { Agent, type AgentFactory } from './agent-loop/types.js';
 
 // AgentLoop
-export {
-  AgentLoop,
-  type AgentLoopOptions,
-  type TurnResult,
-} from './agent-loop/agent-loop.js';
+export { AgentLoop } from './agent-loop/agent-loop.js';
+export { type AgentLoopOptions, type TurnResult } from './agent-loop/types.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
 export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';
 

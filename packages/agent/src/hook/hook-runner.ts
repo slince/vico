@@ -1,7 +1,6 @@
 // @vico/agent - HookRunner: concrete hook execution and composition
 import type { HookEvent, HookResult } from './types.js';
 
-export type { HookEvent, HookResult } from './types.js';
 
 /** 单个 Hook 的执行器 */
 export class HookRunner {

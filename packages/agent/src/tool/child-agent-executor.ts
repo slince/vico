@@ -5,7 +5,6 @@ import type { DelegateStrategy, ChildAgentRef } from './types.js';
 import type { AgentLoop } from '../agent-loop/agent-loop.js';
 import type { ModelMessage } from '../model/types.js';
 
-export type { DelegateStrategy, ChildAgentRef } from './types.js';
 
 /** 子 Agent 委托执行器 */
 export class ChildAgentExecutor {

@@ -3,7 +3,6 @@ import mitt, { type Emitter } from 'mitt';
 import type { EventRecorder } from './types.js';
 import type { SSEEvent } from './types.js';
 
-export type { EventRecorder } from './types.js';
 
 /** 基于 mitt 的 EventRecorder 实现 */
 export class MittEventRecorder implements EventRecorder {

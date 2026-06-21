@@ -3,7 +3,6 @@ import type { Span, SpanTracker } from './types.js';
 import type { SpanType } from './types.js';
 import { randomUUID } from 'node:crypto';
 
-export type { Span, SpanTracker } from './types.js';
 
 /** Span 内部状态 */
 interface SpanState {

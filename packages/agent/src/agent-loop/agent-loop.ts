@@ -3,8 +3,8 @@ import type { TurnResult, AgentLoopOptions } from './types.js';
 import type { ModelClient, ModelMessage } from '../model/types.js';
 import type { ToolHost, ToolExecutionContext } from '../tool/types.js';
 import type { ToolCall, ToolResult, ToolSpec } from '../tool/types.js';
-import type { EventRecorder } from '../observable/event-recorder.js';
-import type { SpanTracker } from '../observable/span-tracker.js';
+import type { EventRecorder } from '../observable/types.js';
+import type { SpanTracker } from '../observable/types.js';
 import type { CompositeHookRunner } from '../hook/hook-runner.js';
 import { ContextCompactor } from './context-compactor.js';
 import type { TokenEconomy } from './token-economy.js';
@@ -13,7 +13,6 @@ import type { ContextProcessor } from '../prompt/context-processor.js';
 import { OnionPipeline, buildModelRequest, ModelRequestContext } from '../prompt/context-processor.js';
 import { DynamicInstructionProcessor } from './dynamic-instruction-processor.js';
 
-export type { TurnResult, AgentLoopOptions } from './types.js';
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {

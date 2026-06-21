@@ -7,8 +7,6 @@ import { resolvePolicy } from './tool-policy.js';
 import { StormBreaker } from './storm-breaker.js';
 import { BuiltinTools } from './builtin-tools.js';
 
-export type { ToolHandler, ToolSource } from './types.js';
-
 /** LocalToolHost — 聚合多工具来源，实现审批策略和并行执行 */
 export class LocalToolHost implements ToolHost {
   private registry: CapabilityRegistry = new CapabilityRegistry();
