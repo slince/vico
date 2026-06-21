@@ -1,8 +1,17 @@
 // src/skill/fs-skill-loader.ts
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
+import {homedir} from 'node:os';
 import {resolve} from 'node:path';
 import matter from 'gray-matter';
 import type {Skill, SkillLoader} from './types.js';
+
+/** 展开路径中的 ~ 前缀为家目录 */
+function expandTilde(p: string): string {
+  if (p.startsWith('~/') || p === '~') {
+    return resolve(homedir(), p.slice(p.startsWith('~/') ? 2 : 1));
+  }
+  return p;
+}
 
 /** 验证 SKILL.md 的 name 字段：1-64 字符，小写字母+连字符 */
 function validateSkillName(name: unknown): name is string {
@@ -27,7 +36,7 @@ export class FSSkillLoader implements SkillLoader {
     const candidates: string[] = [];
 
     for (const root of roots) {
-      const fullPath = resolve(root);
+      const fullPath = resolve(expandTilde(root));
 
       // root 本身是否包含 SKILL.md？
       const directMd = resolve(fullPath, 'SKILL.md');
@@ -65,7 +74,7 @@ export class FSSkillLoader implements SkillLoader {
   }
 
   async load(skillPath: string): Promise<Skill> {
-    const fullPath = resolve(skillPath);
+    const fullPath = resolve(expandTilde(skillPath));
     if (!existsSync(resolve(fullPath, 'SKILL.md'))) {
       throw new Error(`SKILL.md not found in ${fullPath}`);
     }
