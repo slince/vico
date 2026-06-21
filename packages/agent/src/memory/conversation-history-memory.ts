@@ -4,12 +4,15 @@ import type { ModelMessage, MessageRole } from '../model/types.js';
 
 /** 包装 SessionStore，以 FIFO 滑动窗口读取会话历史并转为模型格式 */
 export class ConversationHistoryMemory {
-  constructor(private readonly sessionStore: SessionStore) {}
+  constructor(readonly sessionStore: SessionStore) {}
 
   async get(threadId: string, window: number): Promise<ModelMessage[]> {
-    const entries = await this.sessionStore.getEntries(threadId, { limit: window });
+    const entries = await this.sessionStore.getEntries(threadId);
 
-    return entries.map((entry) => {
+    // 从尾部取最近 window 条（FIFO 滑动窗口）
+    const recent = entries.length > window ? entries.slice(entries.length - window) : entries;
+
+    return recent.map((entry) => {
       const msg: ModelMessage = {
         role: entry.role as MessageRole,
         content: entry.content,

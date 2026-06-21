@@ -1,6 +1,24 @@
 // src/tool/builtin-tools.ts
 import type { ToolSpec } from '../contracts/tool.js';
 
+const UPDATE_WORKING_MEMORY_TOOL: ToolSpec = {
+  name: 'updateWorkingMemory',
+  description:
+    'Update the working memory with user facts and context. Call this whenever you learn new information about the user that might be useful later. Provide the complete updated Markdown content — it will replace the existing working memory.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      memory: {
+        type: 'string',
+        description: 'The complete updated working memory content in Markdown format, matching the template structure.',
+      },
+    },
+    required: ['memory'],
+  },
+  policy: 'auto',
+  kind: 'mutation',
+};
+
 /** 框架内置工具集 */
 export const BuiltinTools: { list(): ToolSpec[] } = {
   list(): ToolSpec[] {
@@ -23,6 +41,7 @@ export const BuiltinTools: { list(): ToolSpec[] } = {
         policy: 'auto',
         kind: 'readonly',
       },
+      UPDATE_WORKING_MEMORY_TOOL,
     ];
   },
 };

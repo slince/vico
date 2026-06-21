@@ -51,6 +51,29 @@ export class AgentLoop {
       return text ? [text] : [];
     });
     this.pipeline = new OnionPipeline([...userProcessors, steerProcessor]);
+
+    // 注册 updateWorkingMemory 工具 handler
+    if (options.workingMemory) {
+      const wm = options.workingMemory;
+      const template = wm.getTemplate();
+
+      this.toolHost.registerHandler('updateWorkingMemory', {
+        execute: async (call, ctx) => {
+          const args = call.args as { memory: string };
+          if (!args.memory || typeof args.memory !== 'string') {
+            throw new Error('updateWorkingMemory requires a "memory" string argument');
+          }
+          const scopeId = wm.scope === 'user' ? ctx.userId : ctx.workspace;
+          // 防退化保护：拒绝用空模板覆盖已有数据
+          const current = await wm.get(scopeId);
+          if (current && args.memory.trim() === template.trim()) {
+            throw new Error('Refusing to replace working memory with empty template');
+          }
+          await wm.set(scopeId, args.memory);
+          return 'Working memory updated';
+        },
+      });
+    }
   }
 
   /**
@@ -61,6 +84,7 @@ export class AgentLoop {
     history: ModelMessage[],
     userMessage: ModelMessage,
     signal: AbortSignal,
+    opts?: { scopeId?: string; userId?: string; workspace?: string },
   ): Promise<TurnResult> {
     const turnSpan = this.spanTracker.startSpan('agent_run');
     this.interrupted = false;
@@ -68,6 +92,9 @@ export class AgentLoop {
     const messages = [...history, userMessage];
     let steps = 0;
     const usage = { input: 0, output: 0 };
+    const scopeId = opts?.scopeId ?? '';
+    const toolUserId = opts?.userId ?? '';
+    const toolWorkspace = opts?.workspace ?? '';
 
     try {
       // 1. 前置：排干 steer 缓冲区，作为用户消息追加
@@ -114,6 +141,8 @@ export class AgentLoop {
           agent: this.config,
           messages: [...messages],
           tools: [...this.boundTools],
+          threadId,
+          scopeId,
         });
         await this.pipeline.run(ctx);
         const request = buildModelRequest(ctx);
@@ -177,7 +206,7 @@ export class AgentLoop {
         const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
         let toolResults: ToolResult[];
         try {
-          toolResults = await this.dispatchTools(toolCalls, threadId);
+          toolResults = await this.dispatchTools(toolCalls, threadId, toolUserId, toolWorkspace);
           toolSpan.end({ results: toolResults.length });
         } catch (err) {
           toolSpan.error(err as Error);
@@ -212,6 +241,8 @@ export class AgentLoop {
           agent: this.config,
           messages: [...messages],
           tools: [...this.boundTools],
+          threadId,
+          scopeId,
         }),
       );
 
@@ -236,12 +267,12 @@ export class AgentLoop {
     }
   }
 
-  private async dispatchTools(calls: ToolCall[], threadId: string): Promise<ToolResult[]> {
+  private async dispatchTools(calls: ToolCall[], threadId: string, userId: string, workspace: string): Promise<ToolResult[]> {
     const context: ToolExecutionContext = {
-      userId: '',
+      userId,
       agentId: this.config.id,
       threadId,
-      workspace: '',
+      workspace,
       awaitApproval: async (call: ToolCall) => {
         if (this.approvalGate) {
           return this.approvalGate.requestApproval(call);

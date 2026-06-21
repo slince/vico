@@ -8,10 +8,7 @@ export class MemoryProcessor implements ContextProcessor {
   readonly name = 'memory';
   readonly priority = Priority.NORMAL;
 
-  constructor(
-    private readonly memoryStore: MemoryStore,
-    private readonly threadId: string,
-  ) {}
+  constructor(private readonly memoryStore: MemoryStore) {}
 
   async process(ctx: ModelRequestContext): Promise<void> {
     await this.injectConversationHistory(ctx);
@@ -21,32 +18,35 @@ export class MemoryProcessor implements ContextProcessor {
 
   /** 注入会话历史（FIFO 滑动窗口） */
   private async injectConversationHistory(ctx: ModelRequestContext): Promise<void> {
-    if (!this.memoryStore.conversation) return;
+    if (!this.memoryStore.conversation || !ctx.threadId) return;
     const history = await this.memoryStore.conversation.get(
-      this.threadId,
+      ctx.threadId,
       this.memoryStore.conversationWindow,
     );
     if (history.length === 0) return;
 
-    // 会话历史插入到消息列表最前面，保持时间顺序
     ctx.messages.unshift(...history);
   }
 
-  /** 注入工作记忆实体 */
+  /** 注入工作记忆模板 + 当前数据，引导 LLM 自主更新 */
   private async injectWorkingMemory(ctx: ModelRequestContext): Promise<void> {
-    const keys = await this.memoryStore.working.keys();
-    if (keys.length === 0) return;
+    if (!ctx.scopeId) return;
+    const wm = this.memoryStore.working;
+    const template = wm.getTemplate();
+    const current = await wm.get(ctx.scopeId);
 
-    const entries: string[] = [];
-    for (const key of keys) {
-      const value = await this.memoryStore.working.get(key);
-      if (value !== undefined) {
-        entries.push(`- ${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`);
-      }
-    }
-    if (entries.length === 0) return;
+    const dataBlock = current || template;
 
-    ctx.messages.push({ role: 'system', content: `User profile:\n${entries.join('\n')}` });
+    ctx.messages.push({
+      role: 'system',
+      content:
+        `Store and update user facts by calling the updateWorkingMemory tool. If information might be referenced again — store it!\n\n` +
+        `Guidelines:\n` +
+        `1. Update proactively when you learn new facts about the user\n` +
+        `2. Replace only the changed parts, keep the rest intact\n` +
+        `3. Use the exact Markdown format shown below\n\n` +
+        `<working_memory>\n${dataBlock}\n</working_memory>`,
+    });
   }
 
   /** 语义召回长期记忆 */

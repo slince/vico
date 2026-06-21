@@ -45,6 +45,7 @@ export function chatV2Routes(app: Hono<{ Variables: Variables }>): void {
             [],
             userMessage,
             signal,
+            { scopeId: auth.userId, userId: auth.userId },
           );
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);

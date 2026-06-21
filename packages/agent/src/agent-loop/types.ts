@@ -13,6 +13,7 @@ import type { AgentConfig } from '../contracts/agent.js';
 import type { AgentLoop } from './agent-loop.js';
 import type { Skill } from '../skill/types.js';
 import type { MemoryStore } from '../memory/memory-store.js';
+import type { WorkingMemory } from '../memory/types.js';
 
 /** 一次 turn 的执行结果 */
 export interface TurnResult {
@@ -37,6 +38,8 @@ export interface AgentLoopOptions {
   hooks?: CompositeHookRunner;
   events: EventRecorder;
   spanTracker: SpanTracker;
+  /** 工作记忆（提供时自动注册 updateWorkingMemory 工具 handler） */
+  workingMemory?: WorkingMemory;
 }
 
 /** Agent — 配置 + 运行时 loop（延迟构建）+ 绑定（memory/skills/tools） */

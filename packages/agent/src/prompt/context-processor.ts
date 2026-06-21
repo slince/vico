@@ -23,17 +23,25 @@ export class ModelRequestContext {
   messages: ModelMessage[];
   /** 暴露给 LLM 的工具 */
   tools: ToolSpec[];
+  /** 当前线程标识 */
+  threadId: string;
+  /** 工作记忆作用域标识（userId 或 workspace 路径） */
+  scopeId: string;
 
   constructor(init: {
     agent: AgentConfig;
     systemPrompt?: string;
     messages?: ModelMessage[];
     tools?: ToolSpec[];
+    threadId?: string;
+    scopeId?: string;
   }) {
     this.agent = init.agent;
     this.systemPrompt = init.systemPrompt ?? '';
     this.messages = init.messages ?? [];
     this.tools = init.tools ?? [];
+    this.threadId = init.threadId ?? '';
+    this.scopeId = init.scopeId ?? '';
   }
 
   /** 获取最后一条用户消息内容 */

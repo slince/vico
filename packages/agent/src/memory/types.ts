@@ -25,17 +25,15 @@ export interface SemanticRecallMemory {
   delete(id: string): Promise<void>;
 }
 
-/** 工作记忆 — 对话期间的临时实体/键值存储 */
+/** 工作记忆 — 模板驱动的用户事实存储，LLM 自主更新 */
 export interface WorkingMemory {
-  /** 设置实体 */
-  set(key: string, value: unknown): Promise<void>;
-  /** 获取实体 */
-  get(key: string): Promise<unknown | undefined>;
-  /** 删除实体 */
-  delete(key: string): Promise<void>;
-  /** 列出所有实体键 */
-  keys(): Promise<string[]>;
-  /** 清空全部实体 */
-  clear(): Promise<void>;
+  /** 作用域 */
+  readonly scope: 'user' | 'workspace';
+  /** 获取当前工作记忆内容（Markdown） */
+  get(scopeId: string): Promise<string>;
+  /** 全量替换工作记忆内容 */
+  set(scopeId: string, content: string): Promise<void>;
+  /** 获取模板（用于注入 system prompt） */
+  getTemplate(): string;
 }
 

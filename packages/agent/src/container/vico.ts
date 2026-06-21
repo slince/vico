@@ -11,8 +11,11 @@ import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import {createSkillToolHandlers, createSkillTools} from '../skill/skill-tools.js';
 import {AgentLoop} from '../agent-loop/agent-loop.js';
+import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillCatalogProcessor} from '../skill/skill-catalog-processor.js';
+import {MemoryProcessor} from '../memory/memory-processor.js';
+import type {MemoryStore} from '../memory/memory-store.js';
 import {MittEventRecorder} from '../observable/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {CompositeHookRunner, type HookRunner} from '../hook/hook-runner.js';
@@ -31,6 +34,8 @@ export interface VicoOptions {
   modelFactory?: ModelClientFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
   maxCached?: number;
+  /** MemoryStore（提供时自动注入 MemoryProcessor + 注册 workMemory 工具） */
+  memoryStore?: MemoryStore;
 }
 
 /**
@@ -118,19 +123,27 @@ export class Vico {
       location: s.path,
     }));
 
-    const loopFactory = () => new AgentLoop({
-      config,
-      model: modelClient,
-      toolHost: this.toolHost,
-      processors: [
+    const loopFactory = () => {
+      const processors: ContextProcessor[] = [
         new SystemPromptProcessor(),
         new SkillCatalogProcessor(skillCatalog),
-      ],
-      events: this.events,
-      spanTracker: this.spanTracker,
-      hooks: this.hooks,
-      boundTools,
-    });
+      ];
+      if (this.options.memoryStore) {
+        processors.push(new MemoryProcessor(this.options.memoryStore));
+      }
+
+      return new AgentLoop({
+        config,
+        model: modelClient,
+        toolHost: this.toolHost,
+        processors,
+        events: this.events,
+        spanTracker: this.spanTracker,
+        hooks: this.hooks,
+        boundTools,
+        workingMemory: this.options.memoryStore?.working,
+      });
+    };
 
     return new Agent({
       config,

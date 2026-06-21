@@ -6,7 +6,7 @@ export const ToolPolicySchema = z.enum(['auto', 'on-request', 'suggest', 'never'
 export type ToolPolicy = z.infer<typeof ToolPolicySchema>;
 
 /** 工具类别 */
-export const ToolKindSchema = z.enum(['readonly', 'command', 'file_change', 'delegate']);
+export const ToolKindSchema = z.enum(['readonly', 'command', 'file_change', 'delegate', 'mutation']);
 export type ToolKind = z.infer<typeof ToolKindSchema>;
 
 /** 工具规格定义（发给 LLM 的 tool description） */

@@ -30,9 +30,30 @@ function makeCtx(overrides?: Partial<ModelRequestContext>): ModelRequestContext 
   return new ModelRequestContext({
     agent: makeConfig(),
     messages: [{ role: 'user', content: 'hello' }],
+    threadId: 't1',
+    scopeId: 'u1',
     ...overrides,
   });
 }
+
+function makeMemoryStore(overrides?: Record<string, unknown>) {
+  return {
+    semanticEnabled: false,
+    conversationWindow: 20,
+    conversation: { sessionStore: {} as any, get: vi.fn(async () => []) },
+    semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    working: {
+      scope: 'user' as const,
+      getTemplate: () => '# User Facts\n- **Name**:\n',
+      get: vi.fn(async () => ''),
+      set: vi.fn(),
+    },
+    rag: { search: vi.fn() },
+    ...overrides,
+  };
+}
+
+// --- SystemPromptProcessor ---
 
 describe('SystemPromptProcessor', () => {
   it('sets systemPrompt from agent config', async () => {
@@ -42,6 +63,8 @@ describe('SystemPromptProcessor', () => {
     expect(ctx.systemPrompt).toBe('You are a helpful assistant.');
   });
 });
+
+// --- SkillCatalogProcessor ---
 
 describe('SkillCatalogProcessor', () => {
   it('appends skill catalog to system prompt', async () => {
@@ -65,39 +88,43 @@ describe('SkillCatalogProcessor', () => {
   });
 });
 
+// --- MemoryProcessor ---
+
 describe('MemoryProcessor', () => {
-  it('injects conversation history', () => {
-    const memoryStore = {
-      semanticEnabled: false,
-      conversationWindow: 20,
-      conversation: { push: vi.fn(), get: vi.fn(() => [{ role: 'user' as const, content: 'previous msg' }]) },
-      semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
-      working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(async () => []), clear: vi.fn() },
-      rag: { search: vi.fn() },
-    };
-    const p = new MemoryProcessor(memoryStore, 't1');
+  it('injects conversation history', async () => {
+    const memoryStore = makeMemoryStore({
+      conversation: { sessionStore: {} as any, get: vi.fn(async () => [{ role: 'user' as const, content: 'previous msg' }]) },
+    });
+    const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     ctx.messages = [{ role: 'user', content: 'current msg' }];
-    p.process(ctx);
+    await p.process(ctx);
     expect(ctx.messages[0]).toMatchObject({ role: 'user', content: 'previous msg' });
     expect(memoryStore.conversation.get).toHaveBeenCalledWith('t1', 20);
   });
 
+  it('skip conversation injection when conversation not configured', async () => {
+    const memoryStore = makeMemoryStore({ conversation: undefined });
+    const p = new MemoryProcessor(memoryStore);
+    const ctx = makeCtx();
+    await p.process(ctx);
+    // 仅用户消息 + 工作记忆注入，不含会话历史
+    expect(ctx.messages).toHaveLength(2);
+    expect(ctx.messages[0].role).toBe('user');
+    expect(ctx.messages[1]).toMatchObject({ role: 'system', content: expect.stringContaining('updateWorkingMemory') });
+  });
+
   it('appends memory results as system message', async () => {
-    const memoryStore = {
+    const memoryStore = makeMemoryStore({
       semanticEnabled: true,
-      conversationWindow: 20,
-      conversation: { push: vi.fn(), get: vi.fn(() => []) },
       semantic: {
         search: vi.fn(async () => [
           { id: 'm1', content: 'user prefers dark mode', createdAt: 1 },
         ]),
         create: vi.fn(), update: vi.fn(), delete: vi.fn(),
       },
-      working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(async () => []), clear: vi.fn() },
-      rag: { search: vi.fn(async () => []) },
-    };
-    const p = new MemoryProcessor(memoryStore, 't1');
+    });
+    const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     ctx.messages = [{ role: 'user', content: 'what theme do I use?' }];
     await p.process(ctx);
@@ -106,58 +133,70 @@ describe('MemoryProcessor', () => {
   });
 
   it('no-op when semantic recall is disabled', async () => {
-    const memoryStore = {
-      semanticEnabled: false,
-      conversationWindow: 20,
-      conversation: { push: vi.fn(), get: vi.fn(() => []) },
-      semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
-      working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(async () => []), clear: vi.fn() },
-      rag: { search: vi.fn() },
-    };
-    const p = new MemoryProcessor(memoryStore, 't1');
+    const memoryStore = makeMemoryStore({ semanticEnabled: false });
+    const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     ctx.messages = [{ role: 'user', content: 'hello' }];
     await p.process(ctx);
     expect(memoryStore.semantic.search).not.toHaveBeenCalled();
   });
 
-  it('no-op when no user message found', async () => {
-    const memoryStore = {
-      semanticEnabled: true,
-      conversationWindow: 20,
-      conversation: { push: vi.fn(), get: vi.fn(() => []) },
-      semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
-      working: { set: vi.fn(), get: vi.fn(), delete: vi.fn(), keys: vi.fn(async () => []), clear: vi.fn() },
-      rag: { search: vi.fn() },
-    };
-    const p = new MemoryProcessor(memoryStore, 't1');
+  it('no-op when no user message found for semantic search', async () => {
+    const memoryStore = makeMemoryStore({ semanticEnabled: true });
+    const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     ctx.messages = [{ role: 'system', content: 'system only' }];
     await p.process(ctx);
     expect(memoryStore.semantic.search).not.toHaveBeenCalled();
   });
 
-  it('injects working memory entities as system message', async () => {
-    const memoryStore = {
-      semanticEnabled: false,
-      conversationWindow: 20,
-      conversation: { push: vi.fn(), get: vi.fn(() => []) },
-      semantic: { search: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  it('injects working memory template + data as system message', async () => {
+    const memoryStore = makeMemoryStore({
       working: {
+        scope: 'user' as const,
+        getTemplate: () => '# User Facts\n- **Name**:\n- **Location**:\n',
+        get: vi.fn(async () => ''),
         set: vi.fn(),
-        get: vi.fn(async (key: string) => (key === 'name' ? 'Alice' : undefined)),
-        delete: vi.fn(),
-        keys: vi.fn(async () => ['name']),
-        clear: vi.fn(),
       },
-      rag: { search: vi.fn() },
-    };
-    const p = new MemoryProcessor(memoryStore, 't1');
+    });
+    const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     await p.process(ctx);
-    expect(ctx.messages.some((m) => m.role === 'system' && m.content.includes('User profile') && m.content.includes('Alice'))).toBe(true);
+    const wmMsg = ctx.messages.find((m) => m.role === 'system' && m.content.includes('working_memory'));
+    expect(wmMsg).toBeDefined();
+    expect(wmMsg!.content).toContain('updateWorkingMemory');
+    expect(wmMsg!.content).toContain('# User Facts');
+  });
+
+  it('injects existing working memory data when present', async () => {
+    const memoryStore = makeMemoryStore({
+      working: {
+        scope: 'user' as const,
+        getTemplate: () => '# User Facts\n- **Name**:\n- **Location**:\n',
+        get: vi.fn(async () => '- **Name**: Alice\n- **Location**: Shanghai'),
+        set: vi.fn(),
+      },
+    });
+    const p = new MemoryProcessor(memoryStore);
+    const ctx = makeCtx();
+    await p.process(ctx);
+    const wmMsg = ctx.messages.find((m) => m.role === 'system' && m.content.includes('working_memory'));
+    expect(wmMsg!.content).toContain('Alice');
+    expect(memoryStore.working.get).toHaveBeenCalledWith('u1');
+  });
+
+  it('skips working memory injection when scopeId is empty', async () => {
+    const memoryStore = makeMemoryStore();
+    const p = new MemoryProcessor(memoryStore);
+    const ctx = makeCtx({ scopeId: '' });
+    ctx.messages = [{ role: 'user', content: 'hello' }];
+    await p.process(ctx);
+    const wmMsg = ctx.messages.find((m) => m.content.includes('working_memory'));
+    expect(wmMsg).toBeUndefined();
   });
 });
+
+// --- RagProcessor ---
 
 describe('RagProcessor', () => {
   it('appends RAG results as system message', async () => {
@@ -181,6 +220,8 @@ describe('RagProcessor', () => {
   });
 });
 
+// --- DynamicInstructionProcessor ---
+
 describe('DynamicInstructionProcessor', () => {
   it('appends instructions as system message', async () => {
     const getInstructions = () => ['hint1', 'hint2'];
@@ -198,6 +239,8 @@ describe('DynamicInstructionProcessor', () => {
     expect(ctx.messages).toHaveLength(1);
   });
 });
+
+// --- OnionPipeline ---
 
 describe('OnionPipeline', () => {
   it('runs processors in priority order', async () => {
@@ -245,6 +288,8 @@ describe('OnionPipeline', () => {
   });
 });
 
+// --- buildModelRequest ---
+
 describe('buildModelRequest', () => {
   it('converts ModelRequestContext to ModelRequest', () => {
     const config = makeConfig();
@@ -270,6 +315,8 @@ describe('buildModelRequest', () => {
     expect(req.system).toBeUndefined();
   });
 });
+
+// --- Priority constants ---
 
 describe('Priority constants', () => {
   it('HIGH < NORMAL < LOW', () => {

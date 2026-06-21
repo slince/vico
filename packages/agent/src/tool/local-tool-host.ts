@@ -17,6 +17,8 @@ export class LocalToolHost implements ToolHost {
   private stormBreaker: StormBreaker = new StormBreaker();
   /** 跟踪 on-request 工具的审批状态 */
   private approvalState: Map<string, boolean> = new Map();
+  /** 动态注册的 handler（优先级高于 source handler） */
+  private dynamicHandlers: Map<string, ToolHandler> = new Map();
 
   constructor() {
     this.addBuiltinSource();
@@ -74,7 +76,7 @@ export class LocalToolHost implements ToolHost {
     }
 
     try {
-      const handler = this.handlers.get(call.name);
+      const handler = this.dynamicHandlers.get(call.name) ?? this.handlers.get(call.name);
       if (!handler) {
         return { callId: call.id, name: call.name, status: 'error', output: null, error: `No handler for ${call.name}` };
       }
@@ -144,6 +146,11 @@ export class LocalToolHost implements ToolHost {
         return handlers[name] ?? { execute: async () => `No handler for builtin:${name}` };
       },
     });
+  }
+
+  /** 动态注册工具处理器（覆盖已有同名 handler） */
+  registerHandler(name: string, handler: ToolHandler): void {
+    this.dynamicHandlers.set(name, handler);
   }
 
   /** 暴露 storm breaker 供外部重置 */
