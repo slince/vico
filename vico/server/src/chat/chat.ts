@@ -15,11 +15,8 @@ import {
   type TurnEvent, type TurnResult, type ModelMessage, type Tool,
   type ToolStore, type ThreadStore,
 } from '@vico/agent';
-import { DrizzleThreadStore } from '@vico/libsql-adapter';
 import { agentManager } from '../services/agent/agent-manager.js';
 import { modelManager } from '../services/model/model-manager.js';
-import { getDb } from '../db/db.js';
-import { TenantThreadStore } from '../agent/thread-store-wrapper.js';
 import { vico } from '../vico.js';
 import logger from '../lib/logger.js';
 
@@ -44,7 +41,7 @@ export interface ExecuteChatResult {
 // Agent 缓存（key = tenantId:agentId）
 // ---------------------------------------------------------------------------
 
-const agentCache = new Map<string, { agent: import('@vico/agent').Agent; thread: TenantThreadStore }>();
+const agentCache = new Map<string, import('@vico/agent').Agent>();
 
 function cacheKey(tenantId: string, agentId: string): string {
   return `${tenantId}:${agentId}`;
@@ -77,16 +74,14 @@ export async function executeAgentChat(
   if (!agentConfig) throw new Error('Agent not found');
 
   const key = cacheKey(tenantId, rawAgentId);
-  let cached = agentCache.get(key);
-  if (!cached) {
-    cached = await createAgentWithVico(tenantId, userId, agentConfig);
-    agentCache.set(key, cached);
+  let agent = agentCache.get(key);
+  if (!agent) {
+    agent = await createAgentWithVico(tenantId, userId, agentConfig);
+    agentCache.set(key, agent);
   }
 
-  const { agent, thread: threadStore } = cached;
-
   // 加载历史消息
-  const history = await loadRecentHistory(threadStore, threadId);
+  const history = await loadRecentHistory(vico.thread, threadId);
   const userMessage: ModelMessage = { role: 'user', content: message };
 
   // Vico AgentLoop — 所有 processor + 工具已由 Vico 注入
@@ -107,19 +102,12 @@ async function createAgentWithVico(
   tenantId: string,
   userId: string,
   runtimeConfig: NonNullable<Awaited<ReturnType<typeof agentManager.getAgentRuntimeConfig>>>,
-): Promise<{ agent: import('@vico/agent').Agent; thread: TenantThreadStore }> {
+): Promise<import('@vico/agent').Agent> {
   const { agent } = runtimeConfig;
 
   // 模型配置
   const modelConfig = await modelManager.getDefault(tenantId);
   if (!modelConfig) throw new Error('No LLM model configured');
-
-  // ThreadStore（多租户隔离 + 持久化，表已由 initVico 创建）
-  const db = getDb();
-  const threadStore = new TenantThreadStore(
-    tenantId,
-    new DrizzleThreadStore({ db: db as any }),
-  );
 
   // Tools（Skill + RAG）→ ToolStore
   const tools = await buildTools(agent, tenantId, userId);
@@ -148,11 +136,11 @@ async function createAgentWithVico(
     maxSteps: agent.max_steps ?? 10,
     tools: asToolStore(tools),
     skills: { load: async () => [] },
-    thread: threadStore as ThreadStore,
+    thread: vico.thread as ThreadStore,
   });
 
   logger.info({ agentId: agent.id, name: agent.name }, 'Agent created via Vico');
-  return { agent: agentInst, thread: threadStore };
+  return agentInst;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +203,7 @@ function asToolStore(tools: Tool[]): ToolStore {
 
 /** 加载 thread 中最近的历史消息 */
 async function loadRecentHistory(
-  threadStore: TenantThreadStore,
+  threadStore: ThreadStore,
   threadId: string,
 ): Promise<ModelMessage[]> {
   try {

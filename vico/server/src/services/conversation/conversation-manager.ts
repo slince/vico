@@ -1,7 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { getDb, schema } from '../../db/db.js';
-import { resourceId as buildResourceId } from '../../lib/resource.js';
-import { DrizzleThreadStore, ensureTables } from '@vico/libsql-adapter';
+import { vico } from '../../vico.js';
 import type { ConversationItem, ConversationDetail, MessageItem, RecentConversation } from './types.js';
 
 const { agents } = schema;
@@ -27,20 +26,18 @@ function extractMessageText(msg: any): string {
   }
 }
 
-/** 获取或创建共享的 ThreadStore 实例 */
-async function getThreadStore(): Promise<DrizzleThreadStore> {
-  const db = getDb();
-  await ensureTables(db as any);
-  return new DrizzleThreadStore({ db: db as any });
-}
-
 class ConversationManager {
+  /** Vico 容器的共享 ThreadStore */
+  private get store() {
+    return vico.thread;
+  }
+
   private threadToConversation(thread: any): ConversationItem {
     const meta = (thread.metadata || {}) as Record<string, unknown>;
 
     return {
       id: thread.id,
-      tenant_id: (thread.resourceId as string)?.split(':')[0] ?? '',
+      tenant_id: (meta.tenant_id as string) || '',
       agent_id: thread.agentId || (meta.agent_id as string) || '',
       user_id: thread.userId || (meta.user_id as string) || '',
       title: thread.title || '',
@@ -53,21 +50,19 @@ class ConversationManager {
   }
 
   async list(
-    tenantId: string,
     userId: string,
     filters?: { search?: string; agent_id?: string },
   ): Promise<ConversationItem[]> {
     const search = filters?.search?.toLowerCase();
     const agentIdFilter = filters?.agent_id;
-    const store = await getThreadStore();
-    const threads = await store.listThreads({ userId, agentId: agentIdFilter || undefined });
+    const threads = await this.store.listThreads({ userId, agentId: agentIdFilter || undefined });
 
     let convs: ConversationItem[] = [];
     for (const thread of threads) {
       const conv = this.threadToConversation(thread);
 
       try {
-        const entries = await store.getEntries(thread.id);
+        const entries = await this.store.getEntries(thread.id);
         conv.message_count = entries.length;
       } catch {
         conv.message_count = 0;
@@ -83,16 +78,15 @@ class ConversationManager {
     return convs;
   }
 
-  async getById(tenantId: string, userId: string, id: string): Promise<ConversationDetail | null> {
-    const store = await getThreadStore();
-    const thread = await store.getThread(id);
+  async getById(userId: string, id: string): Promise<ConversationDetail | null> {
+    const thread = await this.store.getThread(id);
     if (!thread) return null;
 
     const conv = this.threadToConversation(thread);
 
     let messages: MessageItem[] = [];
     try {
-      const entries = await store.getEntries(id);
+      const entries = await this.store.getEntries(id);
       conv.message_count = entries.length;
 
       messages = entries.map((msg: any) => ({
@@ -111,15 +105,13 @@ class ConversationManager {
     return { ...conv, messages };
   }
 
-  async count(tenantId: string, userId: string): Promise<number> {
-    const store = await getThreadStore();
-    const threads = await store.listThreads({ userId });
+  async count(userId: string): Promise<number> {
+    const threads = await this.store.listThreads({ userId });
     return threads.length;
   }
 
-  async recent(tenantId: string, userId: string, limit = 5): Promise<RecentConversation[]> {
-    const store = await getThreadStore();
-    const threads = (await store.listThreads({ userId })).slice(0, limit);
+  async recent(userId: string, limit = 5): Promise<RecentConversation[]> {
+    const threads = (await this.store.listThreads({ userId })).slice(0, limit);
 
     const items: RecentConversation[] = [];
     for (const thread of threads) {
@@ -138,7 +130,7 @@ class ConversationManager {
       let lastMessage: string | undefined;
       let messageCount = 0;
       try {
-        const entries = await store.getEntries(thread.id);
+        const entries = await this.store.getEntries(thread.id);
         messageCount = entries.length;
         if (entries.length > 0) {
           const last = entries[entries.length - 1];
@@ -159,14 +151,12 @@ class ConversationManager {
     return items;
   }
 
-  async delete(tenantId: string, userId: string, id: string): Promise<boolean> {
-    // ThreadStore has no delete method; drop via raw SQL
-    const db = getDb();
-    const store = await getThreadStore();
-    const thread = await store.getThread(id);
+  async delete(userId: string, id: string): Promise<boolean> {
+    const thread = await this.store.getThread(id);
     if (!thread) return false;
 
     try {
+      const db = getDb();
       await (db as any).run('DELETE FROM vico_messages WHERE thread_id = ?', [id]);
       await (db as any).run('DELETE FROM vico_turns WHERE thread_id = ?', [id]);
       await (db as any).run('DELETE FROM vico_threads WHERE id = ?', [id]);

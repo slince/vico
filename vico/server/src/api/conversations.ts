@@ -12,14 +12,14 @@ export function conversationRoutes(app: Hono<{ Variables: Variables }>) {
       search: c.req.query('search')?.toLowerCase(),
       agent_id: c.req.query('agent_id'),
     };
-    return c.json(await conversationManager.list(auth.tenantId, auth.userId, filters));
+    return c.json(await conversationManager.list(auth.userId, filters));
   });
 
   /** GET /api/v1/conversations/:id — 对话详情（含消息） */
   app.get('/api/v1/conversations/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const conv = await conversationManager.getById(auth.tenantId, auth.userId, c.req.param('id'));
+    const conv = await conversationManager.getById(auth.userId, c.req.param('id'));
     if (!conv) return c.json({ error: 'Conversation not found' }, 404);
     return c.json(conv);
   });
@@ -28,7 +28,7 @@ export function conversationRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/conversations/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const deleted = await conversationManager.delete(auth.tenantId, auth.userId, c.req.param('id'));
+    const deleted = await conversationManager.delete(auth.userId, c.req.param('id'));
     if (!deleted) return c.json({ error: 'Conversation not found' }, 404);
     return c.json({ success: true });
   });
