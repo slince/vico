@@ -46,6 +46,8 @@ export { type SkillCatalogEntry } from './skill/types.js';
 export {
   type RagChunk,
   type RagProvider,
+} from './rag/types.js';
+export {
   type Embedder,
   type SemanticRecallMemory,
   type WorkingMemory,

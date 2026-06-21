@@ -14,18 +14,6 @@ export type MemoryRecord = z.infer<typeof MemoryRecordSchema>;
 /** 嵌入器 — 将文本转换为向量 */
 export type Embedder = (text: string) => Promise<number[]>;
 
-/** RAG 检索结果 */
-export interface RagChunk {
-  content: string;
-  score: number;
-  source: string;
-}
-
-/** RAG 知识库检索端口 */
-export interface RagProvider {
-  search(query: string, knowledgeBaseId: string, limit?: number): Promise<RagChunk[]>;
-}
-
 /** 语义召回记忆 — 基于向量检索的长期记忆 */
 export interface SemanticRecallMemory {
   /** 按语义搜索记忆记录 */

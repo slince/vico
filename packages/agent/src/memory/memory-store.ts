@@ -4,8 +4,8 @@ import type {
   Embedder,
   SemanticRecallMemory,
   WorkingMemory,
-  RagProvider,
 } from './types.js';
+import type { RagProvider } from '../rag/types.js';
 import { InMemorySemanticRecall } from './semantic/in-memory-semantic-recall.js';
 import { InMemoryWorkingMemory } from './working/in-memory-working-memory.js';
 import { InMemoryRagProvider } from '../rag/in-memory-rag-provider.js';
