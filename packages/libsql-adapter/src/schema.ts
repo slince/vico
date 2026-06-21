@@ -4,7 +4,7 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 // --- Session tables ---
 
 /** 会话线程 */
-export const sessionThreads = sqliteTable('session_threads', {
+export const sessionThreads = sqliteTable('vico_session_threads', {
   id: text('id').primaryKey(),
   agent_id: text('agent_id').notNull(),
   title: text('title'),
@@ -13,7 +13,7 @@ export const sessionThreads = sqliteTable('session_threads', {
 });
 
 /** 对话轮次 */
-export const sessionTurns = sqliteTable('session_turns', {
+export const sessionTurns = sqliteTable('vico_session_turns', {
   id: text('id').primaryKey(),
   thread_id: text('thread_id')
     .notNull()
@@ -25,7 +25,7 @@ export const sessionTurns = sqliteTable('session_turns', {
 
 /** 消息 */
 export const sessionMessages = sqliteTable(
-  'session_messages',
+  'vico_session_messages',
   {
     id: text('id').primaryKey(),
     thread_id: text('thread_id')
@@ -50,7 +50,7 @@ export const sessionMessages = sqliteTable(
 
 /** 记忆条目 — working 和 semantic 共享表，通过 type 字段区分 */
 export const memoryEntries = sqliteTable(
-  'memory_entries',
+  'vico_memory_entries',
   {
     id: text('id').primaryKey(),
     thread_id: text('thread_id'),

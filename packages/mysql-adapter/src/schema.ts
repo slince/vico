@@ -4,7 +4,7 @@ import { mysqlTable, varchar, text, bigint, int, json, index } from 'drizzle-orm
 // --- Session tables ---
 
 /** session threads */
-export const sessionThreads = mysqlTable('session_threads', {
+export const sessionThreads = mysqlTable('vico_session_threads', {
   id: varchar('id', { length: 36 }).primaryKey(),
   agent_id: varchar('agent_id', { length: 36 }).notNull(),
   title: text('title'),
@@ -13,7 +13,7 @@ export const sessionThreads = mysqlTable('session_threads', {
 });
 
 /** conversation turns */
-export const sessionTurns = mysqlTable('session_turns', {
+export const sessionTurns = mysqlTable('vico_session_turns', {
   id: varchar('id', { length: 36 }).primaryKey(),
   thread_id: varchar('thread_id', { length: 36 })
     .notNull()
@@ -25,7 +25,7 @@ export const sessionTurns = mysqlTable('session_turns', {
 
 /** messages */
 export const sessionMessages = mysqlTable(
-  'session_messages',
+  'vico_session_messages',
   {
     id: varchar('id', { length: 36 }).primaryKey(),
     thread_id: varchar('thread_id', { length: 36 })
@@ -50,7 +50,7 @@ export const sessionMessages = mysqlTable(
 
 /** memory entries — working and semantic share table, distinguished by type field */
 export const memoryEntries = mysqlTable(
-  'memory_entries',
+  'vico_memory_entries',
   {
     id: varchar('id', { length: 255 }).primaryKey(),
     thread_id: varchar('thread_id', { length: 36 }),

@@ -21,7 +21,7 @@ export async function ensureTables(
 ): Promise<void> {
   // 会话线程表 — 每个对话会话一条记录
   await db.run(sql`
-    CREATE TABLE IF NOT EXISTS session_threads (
+    CREATE TABLE IF NOT EXISTS vico_session_threads (
       id TEXT PRIMARY KEY,
       agent_id TEXT NOT NULL,
       title TEXT,
@@ -32,9 +32,9 @@ export async function ensureTables(
 
   // 对话轮次表 — 一次 Agent 交互为一个 turn
   await db.run(sql`
-    CREATE TABLE IF NOT EXISTS session_turns (
+    CREATE TABLE IF NOT EXISTS vico_session_turns (
       id TEXT PRIMARY KEY,
-      thread_id TEXT NOT NULL REFERENCES session_threads(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL REFERENCES vico_session_threads(id) ON DELETE CASCADE,
       status TEXT NOT NULL DEFAULT 'running',
       steps INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
@@ -43,10 +43,10 @@ export async function ensureTables(
 
   // 消息表 — 单条对话记录（user/assistant/tool）
   await db.run(sql`
-    CREATE TABLE IF NOT EXISTS session_messages (
+    CREATE TABLE IF NOT EXISTS vico_session_messages (
       id TEXT PRIMARY KEY,
-      thread_id TEXT NOT NULL REFERENCES session_threads(id) ON DELETE CASCADE,
-      turn_id TEXT NOT NULL REFERENCES session_turns(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL REFERENCES vico_session_threads(id) ON DELETE CASCADE,
+      turn_id TEXT NOT NULL REFERENCES vico_session_turns(id) ON DELETE CASCADE,
       role TEXT NOT NULL,
       content TEXT NOT NULL,
       tool_call_id TEXT,
@@ -59,12 +59,12 @@ export async function ensureTables(
   // 消息按 thread_id 检索索引
   await db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_sm_thread
-    ON session_messages(thread_id)
+    ON vico_session_messages(thread_id)
   `);
 
   // 记忆条目表 — type='working' 为工作记忆，type='semantic' 为语义记忆
   await db.run(sql`
-    CREATE TABLE IF NOT EXISTS memory_entries (
+    CREATE TABLE IF NOT EXISTS vico_memory_entries (
       id TEXT PRIMARY KEY,
       thread_id TEXT,
       scope_type TEXT NOT NULL,
@@ -81,18 +81,18 @@ export async function ensureTables(
   // 按 (scope_type, scope_id, type) 检索记忆
   await db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_me_scope
-    ON memory_entries(scope_type, scope_id, type)
+    ON vico_memory_entries(scope_type, scope_id, type)
   `);
 
   // 按类型 + 重要度排序
   await db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_me_type_imp
-    ON memory_entries(type, importance)
+    ON vico_memory_entries(type, importance)
   `);
 
   // 按 thread_id 回溯关联记忆
   await db.run(sql`
     CREATE INDEX IF NOT EXISTS idx_me_thread
-    ON memory_entries(thread_id)
+    ON vico_memory_entries(thread_id)
   `);
 }

@@ -25,7 +25,7 @@ export async function ensureTables(
 ): Promise<void> {
   // Session threads table — one record per conversation session
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS session_threads (
+    CREATE TABLE IF NOT EXISTS vico_session_threads (
       id VARCHAR(36) PRIMARY KEY,
       agent_id VARCHAR(36) NOT NULL,
       title TEXT,
@@ -36,19 +36,19 @@ export async function ensureTables(
 
   // Conversation turns table — one Agent interaction = one turn
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS session_turns (
+    CREATE TABLE IF NOT EXISTS vico_session_turns (
       id VARCHAR(36) PRIMARY KEY,
       thread_id VARCHAR(36) NOT NULL,
       status VARCHAR(36) NOT NULL DEFAULT 'running',
       steps INT NOT NULL DEFAULT 0,
       created_at BIGINT NOT NULL,
-      FOREIGN KEY (thread_id) REFERENCES session_threads(id) ON DELETE CASCADE
+      FOREIGN KEY (thread_id) REFERENCES vico_session_threads(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
   // Messages table — single conversation record (user/assistant/tool)
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS session_messages (
+    CREATE TABLE IF NOT EXISTS vico_session_messages (
       id VARCHAR(36) PRIMARY KEY,
       thread_id VARCHAR(36) NOT NULL,
       turn_id VARCHAR(36) NOT NULL,
@@ -58,15 +58,15 @@ export async function ensureTables(
       tool_calls JSON,
       tool_results JSON,
       created_at BIGINT NOT NULL,
-      FOREIGN KEY (thread_id) REFERENCES session_threads(id) ON DELETE CASCADE,
-      FOREIGN KEY (turn_id) REFERENCES session_turns(id) ON DELETE CASCADE
+      FOREIGN KEY (thread_id) REFERENCES vico_session_threads(id) ON DELETE CASCADE,
+      FOREIGN KEY (turn_id) REFERENCES vico_session_turns(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
   // Index for message retrieval by thread_id
   await _addIndexIfNotExists(
     db,
-    'session_messages',
+    'vico_session_messages',
     'idx_sm_thread',
     'thread_id',
   );
@@ -74,7 +74,7 @@ export async function ensureTables(
   // Memory entries table — type='working' for working memory,
   // type='semantic' for semantic memory
   await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS memory_entries (
+    CREATE TABLE IF NOT EXISTS vico_memory_entries (
       id VARCHAR(255) PRIMARY KEY,
       thread_id VARCHAR(36),
       scope_type VARCHAR(36) NOT NULL,
@@ -91,7 +91,7 @@ export async function ensureTables(
   // Index for memory retrieval by (scope_type, scope_id, type)
   await _addIndexIfNotExists(
     db,
-    'memory_entries',
+    'vico_memory_entries',
     'idx_me_scope',
     'scope_type, scope_id, type',
   );
@@ -99,7 +99,7 @@ export async function ensureTables(
   // Index for ordering by type + importance
   await _addIndexIfNotExists(
     db,
-    'memory_entries',
+    'vico_memory_entries',
     'idx_me_type_imp',
     'type, importance',
   );
@@ -107,7 +107,7 @@ export async function ensureTables(
   // Index for tracing associated memory by thread_id
   await _addIndexIfNotExists(
     db,
-    'memory_entries',
+    'vico_memory_entries',
     'idx_me_thread',
     'thread_id',
   );
