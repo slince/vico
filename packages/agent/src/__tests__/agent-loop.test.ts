@@ -33,8 +33,8 @@ function mockModelClient(chunks: ModelStreamChunk[]): ModelClient {
   };
 }
 
-/** mock ToolHost — 总是返回 success */
-const mockToolHost = {
+/** mock ToolBroker — 总是返回 success */
+const mockToolBroker = {
   listTools: async () => [],
   execute: async (call: any) => ({ callId: call.id, name: call.name, status: 'success' as const, output: 'ok' }),
   executeBatch: async (calls: any[]) =>
@@ -59,7 +59,7 @@ describe('AgentLoop', () => {
     const loop = new AgentLoop({
       agent,
       model,
-      toolHost: mockToolHost as any,
+      toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,
       spanTracker: tracker,
@@ -98,7 +98,7 @@ describe('AgentLoop', () => {
     const loop = new AgentLoop({
       agent,
       model,
-      toolHost: mockToolHost as any,
+      toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,
       spanTracker: tracker,
@@ -152,7 +152,7 @@ describe('AgentLoop', () => {
     const loop = new AgentLoop({
       agent,
       model,
-      toolHost: mockToolHost as any,
+      toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,
       spanTracker: tracker,

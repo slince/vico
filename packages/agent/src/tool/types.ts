@@ -55,15 +55,6 @@ export interface ApprovalDecision {
   reason?: string;
 }
 
-/** 工具系统端口 */
-export interface ToolHost {
-  listTools(context: ToolExecutionContext): Promise<ToolSpec[]>;
-  execute(call: ToolCall, context: ToolExecutionContext): Promise<ToolResult>;
-  executeBatch(calls: ToolCall[], context: ToolExecutionContext): Promise<ToolResult[]>;
-  /** 动态注册工具处理器（覆盖已有同名 handler） */
-  registerHandler(name: string, handler: ToolHandler): void;
-}
-
 /** 工具存储端口 — 加载工具列表 */
 export interface ToolStore {
   load(): Promise<ToolSpec[]>;

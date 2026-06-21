@@ -6,7 +6,7 @@ import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import type {ModelClient, ModelClientFactory, ModelMessage} from '../model/types.js';
 import {defaultModelFactory} from '../model/factory.js';
 import type {ToolSource} from '../tool/types.js';
-import {LocalToolHost} from '../tool/local-tool-host.js';
+import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import {createSkillToolHandlers, createSkillTools} from '../skill/skill-tools.js';
@@ -63,7 +63,7 @@ export interface InvokeOptions {
 export class Vico {
   readonly events = new MittEventRecorder();
   readonly spanTracker = new InMemorySpanTracker();
-  readonly toolHost = new LocalToolHost();
+  readonly toolBroker = new ToolBroker();
   readonly hooks = new CompositeHookRunner();
 
   private readonly skillManager: SkillManager;
@@ -80,7 +80,7 @@ export class Vico {
 
     if (options.toolSources) {
       for (const source of options.toolSources) {
-        this.toolHost.addSource(source);
+        this.toolBroker.addSource(source);
       }
     }
 
@@ -97,7 +97,7 @@ export class Vico {
       await this.skillManager.discover(this.options.skillRoots);
     }
 
-    this.toolHost.addSource(this.createSkillToolSource());
+    this.toolBroker.addSource(this.createSkillToolSource());
     this.initialized = true;
   }
 
@@ -110,7 +110,7 @@ export class Vico {
     }
 
     // 加载 agent 绑定的 tools 和 skills
-    const boundTools = config.tools ? await config.tools.load() : await this.toolHost.listTools({
+    const boundTools = config.tools ? await config.tools.load() : await this.toolBroker.listTools({
       userId: '',
       agentId: config.id,
       threadId: '',
@@ -144,7 +144,7 @@ export class Vico {
         return new AgentLoop({
           agent,
           model: modelClient,
-          toolHost: this.toolHost,
+          toolBroker: this.toolBroker,
           processors,
           events: this.events,
           spanTracker: this.spanTracker,

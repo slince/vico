@@ -1,14 +1,13 @@
-// src/tool/local-tool-host.ts
-import type { ToolSpec, ToolCall, ToolResult } from './types.js';
+// src/tool/tool-broker.ts
+import type { ToolSpec, ToolCall, ToolResult, ToolExecutionContext } from './types.js';
 import type { ToolHandler, ToolSource } from './types.js';
-import type { ToolHost, ToolExecutionContext } from './types.js';
 import { CapabilityRegistry } from './capability-registry.js';
 import { resolvePolicy } from './tool-policy.js';
 import { StormBreaker } from './storm-breaker.js';
 import { BuiltinTools } from './builtin-tools.js';
 
-/** LocalToolHost — 聚合多工具来源，实现审批策略和并行执行 */
-export class LocalToolHost implements ToolHost {
+/** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
+export class ToolBroker {
   private registry: CapabilityRegistry = new CapabilityRegistry();
   private sources: ToolSource[] = [];
   private handlers: Map<string, ToolHandler> = new Map();

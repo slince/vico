@@ -1,7 +1,8 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {Agent, AgentLoopOptions, RunTurnOptions, TurnEvent, TurnResult} from './types.js';
 import type {ModelClient, ModelMessage} from '../model/types.js';
-import type {ToolCall, ToolExecutionContext, ToolHost, ToolResult} from '../tool/types.js';
+import type {ToolBroker} from '../tool/tool-broker.js';
+import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventRecorder, SpanTracker, SSEEvent} from '../observable/types.js';
 import type {CompositeHookRunner} from '../hook/hook-runner.js';
 import {ContextCompactor} from './context-compactor.js';
@@ -15,7 +16,7 @@ import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
 export class AgentLoop {
   private agent: Agent;
   private model: ModelClient;
-  private toolHost: ToolHost;
+  private toolBroker: ToolBroker;
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalGate?: ApprovalGate;
@@ -30,7 +31,7 @@ export class AgentLoop {
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
     this.model = options.model;
-    this.toolHost = options.toolHost;
+    this.toolBroker = options.toolBroker;
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
     this.approvalGate = options.approvalGate;
@@ -51,7 +52,7 @@ export class AgentLoop {
       const wm = options.workingMemory;
       const template = wm.getTemplate();
 
-      this.toolHost.registerHandler('updateWorkingMemory', {
+      this.toolBroker.registerHandler('updateWorkingMemory', {
         execute: async (call, ctx) => {
           const args = call.args as { memory: string };
           if (!args.memory || typeof args.memory !== 'string') {
@@ -290,7 +291,7 @@ export class AgentLoop {
       signal: new AbortController().signal,
     };
 
-    return this.toolHost.executeBatch(calls, context);
+    return this.toolBroker.executeBatch(calls, context);
   }
 
   /** 排干 steer 缓冲区 */

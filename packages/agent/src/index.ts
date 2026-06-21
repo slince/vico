@@ -53,16 +53,13 @@ export {
   type VectorStore,
 } from './memory/types.js';
 
-// Ports — ToolHost
+// Tool system
+export { ToolBroker } from './tool/tool-broker.js';
 export {
-  type ToolHost,
   type ToolExecutionContext,
   type ApprovalDecision,
   type ToolStore,
 } from './tool/types.js';
-
-// Tool system
-export { LocalToolHost } from './tool/local-tool-host.js';
 export { type ToolSource, type ToolHandler } from './tool/types.js';
 export { ChildAgentExecutor } from './tool/child-agent-executor.js';
 export { type ChildAgentRef, type DelegateStrategy } from './tool/types.js';

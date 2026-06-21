@@ -2,7 +2,8 @@
 import { z } from 'zod';
 import type { ModelClient, ModelMessage } from '../model/types.js';
 import type { ContextProcessor } from '../prompt/context-processor.js';
-import type { ToolHost, ToolExecutionContext } from '../tool/types.js';
+import type { ToolExecutionContext } from '../tool/types.js';
+import type { ToolBroker } from '../tool/tool-broker.js';
 import type { ToolCall, ToolResult, ToolSpec } from '../tool/types.js';
 import type { EventRecorder } from '../observable/types.js';
 import type { SpanTracker } from '../observable/types.js';
@@ -73,7 +74,7 @@ export type TurnEvent =
 export interface AgentLoopOptions {
   agent: Agent;
   model: ModelClient;
-  toolHost: ToolHost;
+  toolBroker: ToolBroker;
   /** 上下文处理器列表 — 在 model 调用前按优先级依次执行。缺少时回退到无增强的裸模式 */
   processors?: ContextProcessor[];
   compactor?: ContextCompactor;
