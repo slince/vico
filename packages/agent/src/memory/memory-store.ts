@@ -8,7 +8,7 @@ import type {
 } from './types.js';
 import { InMemorySemanticRecall } from './semantic/in-memory-semantic-recall.js';
 import { InMemoryWorkingMemory } from './working/in-memory-working-memory.js';
-import { InMemoryRagProvider } from './rag/in-memory-rag-provider.js';
+import { InMemoryRagProvider } from '../rag/in-memory-rag-provider.js';
 import { VectorSemanticRecall } from './semantic/vector-semantic-recall.js';
 import { InMemoryVectorStore } from './semantic/in-memory-vector-store.js';
 

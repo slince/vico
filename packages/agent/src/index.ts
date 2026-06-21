@@ -39,7 +39,7 @@ export {
 export { SystemPromptProcessor } from './prompt/system-prompt-processor.js';
 export { SkillProcessor } from './skill/skill-processor.js';
 export { MemoryProcessor } from './memory/memory-processor.js';
-export { RagProcessor } from './memory/rag/rag-processor.js';
+export { RagProcessor } from './rag/rag-processor.js';
 export { DynamicInstructionProcessor } from './agent-loop/dynamic-instruction-processor.js';
 
 export { type SkillCatalogEntry } from './skill/types.js';
@@ -85,7 +85,7 @@ export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
 export { ConversationHistoryMemory } from './memory/conversation-history-memory.js';
 export { InMemorySemanticRecall } from './memory/semantic/in-memory-semantic-recall.js';
 export { InMemoryWorkingMemory } from './memory/working/in-memory-working-memory.js';
-export { InMemoryRagProvider } from './memory/rag/in-memory-rag-provider.js';
+export { InMemoryRagProvider } from './rag/in-memory-rag-provider.js';
 export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/working/file-working-memory.js';
 export { createUpdateWorkingMemoryTool } from './memory/working/working-memory-tool.js';
 export { InMemoryVectorStore } from './memory/semantic/in-memory-vector-store.js';

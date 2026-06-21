@@ -1,5 +1,5 @@
 // src/memory/in-memory-rag-provider.ts
-import type { RagProvider, RagChunk } from '../types.js';
+import type { RagProvider, RagChunk } from '../memory/types.js';
 
 /** 基于 Map 关键词匹配的内存版 RAG 检索 */
 export class InMemoryRagProvider implements RagProvider {
