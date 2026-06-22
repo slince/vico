@@ -1,5 +1,5 @@
 // @vico/agent - Model module type definitions
-import type { ToolSet, TextStreamPart } from 'ai';
+import type { AsyncIterableStream, ToolSet, TextStreamPart } from 'ai';
 import type { Tool } from '../tool/types.js';
 import type { ModelRef } from '../agent-loop/types.js';
 
@@ -35,6 +35,6 @@ export interface ModelClient {
   readonly provider: string;
   readonly model: string;
 
-  /** 流式调用 LLM，返回 AI SDK 标准 chunk 迭代器 */
-  stream(request: ModelRequest): AsyncIterable<ModelStreamChunk>;
+  /** 流式调用 LLM，返回 AI SDK 标准 AsyncIterableStream（兼具 AsyncIterable + ReadableStream 能力） */
+  stream(request: ModelRequest): AsyncIterableStream<ModelStreamChunk>;
 }

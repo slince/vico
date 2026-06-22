@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent, type AgentLoopOptions } from '../agent-loop/types.js';
 import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/types.js';
+import type { AsyncIterableStream } from 'ai';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
@@ -36,10 +37,12 @@ function mockModelClient(chunks: ModelStreamChunk[]): ModelClient {
   return {
     provider: 'mock',
     model: 'mock',
-    async *stream(_request: ModelRequest): AsyncIterable<ModelStreamChunk> {
-      for (const chunk of chunks) {
-        yield chunk;
-      }
+    stream(_request: ModelRequest): AsyncIterableStream<ModelStreamChunk> {
+      return (async function* () {
+        for (const chunk of chunks) {
+          yield chunk;
+        }
+      })() as unknown as AsyncIterableStream<ModelStreamChunk>;
     },
   };
 }
@@ -131,19 +134,21 @@ describe('AgentLoop', () => {
     const model: ModelClient = {
       provider: 'mock',
       model: 'mock',
-      async *stream(request: ModelRequest): AsyncIterable<ModelStreamChunk> {
-        yield { type: 'text-delta' as const, id: '1', text: 'thinking...' } as ModelStreamChunk;
-        await new Promise<void>((resolve) => {
-          if (request.abortSignal.aborted) {
-            resolve();
-            return;
-          }
-          const onAbort = () => {
-            request.abortSignal.removeEventListener('abort', onAbort);
-            resolve();
-          };
-          request.abortSignal.addEventListener('abort', onAbort);
-        });
+      stream(request: ModelRequest): AsyncIterableStream<ModelStreamChunk> {
+        return (async function* () {
+          yield { type: 'text-delta' as const, id: '1', text: 'thinking...' } as ModelStreamChunk;
+          await new Promise<void>((resolve) => {
+            if (request.abortSignal.aborted) {
+              resolve();
+              return;
+            }
+            const onAbort = () => {
+              request.abortSignal.removeEventListener('abort', onAbort);
+              resolve();
+            };
+            request.abortSignal.addEventListener('abort', onAbort);
+          });
+        })() as unknown as AsyncIterableStream<ModelStreamChunk>;
       },
     };
 

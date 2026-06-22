@@ -1,5 +1,5 @@
 // @vico/agent - AISDKModelClient: AI SDK v6 适配器，实现 ModelClient 端口
-import type {LanguageModel} from 'ai';
+import type {AsyncIterableStream, LanguageModel} from 'ai';
 import {streamText} from 'ai';
 import type {ModelClient, ModelRequest, ModelStreamChunk,} from './types.js';
 import type {Tool} from '../tool/types.js';
@@ -41,8 +41,8 @@ export class AISDKModelClient implements ModelClient {
     public readonly model: string,
   ) {}
 
-  /** 流式调用 LLM，直接透传 AI SDK fullStream chunk */
-  async *stream(request: ModelRequest): AsyncIterable<ModelStreamChunk> {
+  /** 流式调用 LLM，直接返回 AI SDK fullStream */
+  stream(request: ModelRequest): AsyncIterableStream<ModelStreamChunk> {
     const result = streamText({
       model: this.languageModel,
       system: request.system,
@@ -53,8 +53,6 @@ export class AISDKModelClient implements ModelClient {
       abortSignal: request.abortSignal,
     });
 
-    for await (const chunk of result.fullStream) {
-      yield chunk as unknown as ModelStreamChunk;
-    }
+    return result.fullStream as unknown as AsyncIterableStream<ModelStreamChunk>;
   }
 }
