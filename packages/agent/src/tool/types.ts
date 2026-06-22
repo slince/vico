@@ -1,6 +1,7 @@
 // @vico/agent - Tool module type definitions
 import { z } from 'zod';
 import type { AgentLoop } from '../agent-loop/agent-loop.js';
+import type { Thread, Turn } from '../thread/types.js';
 
 /** 工具审批策略 */
 export const ToolPolicySchema = z.enum(['auto', 'on-request', 'suggest', 'never']);
@@ -43,9 +44,9 @@ export type ToolResult = z.infer<typeof ToolResultSchema>;
 
 /** 工具调用所需的会话标识 */
 export interface ToolCallSession {
-  threadId: string;
-  userId: string;
   workspace: string;
+  thread: Thread;
+  turn: Turn;
 }
 
 /** 工具执行上下文 */

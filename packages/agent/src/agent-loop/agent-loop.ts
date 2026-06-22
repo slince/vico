@@ -31,7 +31,6 @@ export class AgentLoop {
   private spanTracker: SpanTracker;
   private steerBuffer: string[] = [];
   private interrupted = false;
-  private currentTurnId = '';
 
   private pipeline: ProcessorPipeline;
 
@@ -70,11 +69,8 @@ export class AgentLoop {
     let steps = 0;
     const usage = { input: 0, output: 0 };
     const scopeId = opts?.scopeId ?? '';
-    const session: ToolCallSession = {
-      threadId,
-      userId: opts?.userId ?? '',
-      workspace: opts?.workspace ?? '',
-    };
+    const userId = opts?.userId ?? '';
+    const workspace = opts?.workspace ?? '';
 
     // 确保 threadStore 中的 thread 和 turn 存在
     const threadStore = this.agent.thread;
@@ -83,16 +79,17 @@ export class AgentLoop {
       const title = typeof userMessage.content === 'string'
         ? userMessage.content.slice(0, 50)
         : 'New thread';
-      thread = await threadStore.createThread(this.agent.config.id, title, threadId, { userId: session.userId || undefined });
+      thread = await threadStore.createThread(this.agent.config.id, title, threadId, { userId: userId || undefined });
     }
-    const turn = await threadStore?.createTurn(threadId);
-    this.currentTurnId = turn?.id ?? '';
+    const turn = await threadStore.createTurn(threadId);
+
+    const session: ToolCallSession = { workspace, thread, turn };
 
     // 记录用户消息
-    if (threadStore && this.currentTurnId) {
+    if (threadStore && turn) {
       await threadStore.appendEntry({
         threadId,
-        turnId: this.currentTurnId,
+        turnId: turn.id,
         role: userMessage.role,
         content: typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content),
       });
@@ -103,8 +100,8 @@ export class AgentLoop {
 
       while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
-          if (threadStore && this.currentTurnId) {
-            await threadStore.updateTurn(this.currentTurnId, { status: 'aborted', steps });
+          if (threadStore && turn) {
+            await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
           }
           turnSpan.end({ status: 'aborted' });
           return { status: 'aborted', steps, usage, messages };
@@ -123,10 +120,10 @@ export class AgentLoop {
 
         // 记录 assistant 消息到 threadStore
         const assistantMsg = messages.at(-1);
-        if (threadStore && this.currentTurnId && assistantMsg?.role === 'assistant') {
+        if (threadStore && turn && assistantMsg?.role === 'assistant') {
           await threadStore.appendEntry({
             threadId,
-            turnId: this.currentTurnId,
+            turnId: turn.id,
             role: assistantMsg.role,
             content: assistantMsg.content,
             toolCalls: assistantMsg.toolCalls,
@@ -142,12 +139,12 @@ export class AgentLoop {
         yield* this.executeToolCalls(toolCalls, messages, session);
 
         // 记录 tool 消息到 threadStore
-        if (threadStore && this.currentTurnId) {
+        if (threadStore && turn) {
           for (const msg of messages.slice(-toolCalls.length)) {
             if (msg.role === 'tool') {
               await threadStore.appendEntry({
                 threadId,
-                turnId: this.currentTurnId,
+                turnId: turn.id,
                 role: msg.role,
                 content: msg.content,
                 toolCallId: msg.toolCallId,
@@ -170,9 +167,9 @@ export class AgentLoop {
         }),
       );
 
-      if (threadStore && this.currentTurnId) {
+      if (threadStore && turn) {
         const finalStatus = this.interrupted ? 'aborted' : 'completed';
-        await threadStore.updateTurn(this.currentTurnId, { status: finalStatus, steps });
+        await threadStore.updateTurn(turn.id, { status: finalStatus, steps });
       }
 
       turnSpan.end({ status: 'completed', steps });
@@ -185,8 +182,8 @@ export class AgentLoop {
         messages,
       };
     } catch (err) {
-      if (threadStore && this.currentTurnId) {
-        await threadStore.updateTurn(this.currentTurnId, { status: 'failed', steps });
+      if (threadStore && turn) {
+        await threadStore.updateTurn(turn.id, { status: 'failed', steps });
       }
       const message = err instanceof Error ? err.message : String(err);
       turnSpan.error(err as Error);
