@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { executeAgentChat } from '../chat/chat.js';
-import { turnEventsToSSE, turnEventsToAISDK } from '../agent/vico-stream-utils.js';
+import { turnEventsToAISDK } from '@vico/agent';
 import logger from '../lib/logger.js';
 
 /** AI SDK transport message part 类型 */

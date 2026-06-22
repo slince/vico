@@ -3,22 +3,14 @@ import {streamText} from 'ai';
 import type {Agent, AgentLoopOptions, RunTurnOptions, ToolCallSession, TurnEvent, TurnResult} from './types.js';
 import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
-import type {Tool as VicoTool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
+import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventRecorder, SpanTracker} from '../observable/types.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
 import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
-
-/** Vico Tool[] 转为 AI SDK tools 格式 */
-function toAISDKTools(tools: VicoTool[]): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const tool of tools) {
-    result[tool.name] = { description: tool.description, inputSchema: tool.inputSchema };
-  }
-  return result;
-}
+import {toAISDKTools} from '../tool/utils.js';
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {

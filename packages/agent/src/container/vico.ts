@@ -2,7 +2,7 @@
 import {homedir} from 'node:os';
 import {resolve} from 'node:path';
 import type {LanguageModel} from 'ai';
-import type {AgentConfig, TurnEvent, TurnResult, ModelRef} from '../agent-loop/types.js';
+import type {AgentConfig, ModelRef, TurnEvent, TurnResult} from '../agent-loop/types.js';
 import {Agent} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import type {ModelMessage} from '../model/types.js';
@@ -100,7 +100,7 @@ export interface InvokeOptions {
  * ```
  */
 export class Vico {
-  readonly events = new MittEventRecorder();
+  readonly events = new MittEventRecorder<TurnEvent>();
   readonly spanTracker = new InMemorySpanTracker();
 
   private readonly skillManager: SkillManager;

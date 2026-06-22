@@ -128,6 +128,9 @@ export { type AgentLoopOptions, type TurnResult, type TurnEvent, type RunTurnOpt
 export { TokenEconomy } from './agent-loop/token-economy.js';
 export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';
 
+// Stream
+export { turnEventsToAISDK } from './stream/turn-stream.js';
+
 // Container
 export {
   Vico,
