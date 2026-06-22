@@ -1,7 +1,7 @@
 /**
  * TurnEvent 流 → AI SDK UI 流转换
  */
-import { createUIMessageStreamResponse } from 'ai';
+import { createUIMessageStreamResponse, type UIMessageChunk } from 'ai';
 import type { TurnEvent, TurnResult } from '../agent-loop/types.js';
 
 /** TurnEvent generator → AI SDK UI stream Response */
@@ -11,9 +11,9 @@ export async function turnEventsToAISDK(
 ): Promise<Response> {
   let fullText = '';
 
-  const stream = new ReadableStream({
+  const stream = new ReadableStream<UIMessageChunk>({
     async start(controller) {
-      const enqueue = (chunk: unknown) => {
+      const enqueue = (chunk: UIMessageChunk) => {
         controller.enqueue(chunk);
       };
 
@@ -75,12 +75,12 @@ export async function turnEventsToAISDK(
               if (!inStep) { enqueue({ type: 'start-step' }); inStep = true; }
               enqueue({ type: 'tool-input-start', toolCallId: event.id, toolName: event.name });
               enqueue({ type: 'tool-input-delta', toolCallId: event.id, inputTextDelta: JSON.stringify(event.args) });
-              enqueue({ type: 'tool-input-available', toolCallId: event.id, toolName: event.name });
+              enqueue({ type: 'tool-input-available', toolCallId: event.id, toolName: event.name, input: event.args });
               break;
 
             case 'tool-result':
               if (event.status === 'success') {
-                enqueue({ type: 'tool-output-available', toolCallId: event.id });
+                enqueue({ type: 'tool-output-available', toolCallId: event.id, output: event.output });
               } else {
                 enqueue({ type: 'tool-output-error', toolCallId: event.id, errorText: String(event.output) });
               }
@@ -110,7 +110,7 @@ export async function turnEventsToAISDK(
   });
 
   const response = createUIMessageStreamResponse({
-    stream: stream as any,
+    stream,
     headers: {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
