@@ -49,7 +49,7 @@ export class ContextCompactor {
       };
       let text = '';
       for await (const chunk of model.stream(request)) {
-        if (chunk.type === 'text_delta') text += chunk.content;
+        if (chunk.type === 'text-delta') text += chunk.text;
       }
       summaryContent = text;
     } catch {

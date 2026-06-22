@@ -234,26 +234,30 @@ export class AgentLoop {
 
     for await (const chunk of this.agent.model.stream(request)) {
       switch (chunk.type) {
-        case 'text_delta':
-          fullText += chunk.content;
-          yield this.emit({ type: 'text_delta', content: chunk.content });
+        case 'text-delta':
+          fullText += chunk.text;
+          yield this.emit({ type: 'text_delta', content: chunk.text });
           break;
-        case 'reasoning_delta':
-          yield this.emit({ type: 'reasoning_delta', content: chunk.content });
+        case 'reasoning-delta':
+          yield this.emit({ type: 'reasoning_delta', content: chunk.text });
           break;
-        case 'tool_call_complete':
-          toolCalls.push({ id: chunk.id, name: chunk.name, args: chunk.args });
-          yield this.emit({ type: 'tool_call_start', id: chunk.id, name: chunk.name, args: chunk.args });
+        case 'tool-call':
+          toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
+          yield this.emit({ type: 'tool_call_start', id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
           break;
-        case 'usage':
-          usage.input += chunk.input;
-          usage.output += chunk.output;
-          this.tokenEconomy?.track(chunk.input, chunk.output);
+        case 'finish':
+          if (chunk.totalUsage) {
+            usage.input += chunk.totalUsage.inputTokens ?? 0;
+            usage.output += chunk.totalUsage.outputTokens ?? 0;
+            this.tokenEconomy?.track(chunk.totalUsage.inputTokens ?? 0, chunk.totalUsage.outputTokens ?? 0);
+          }
           break;
-        case 'error':
-          modelSpan.error(new Error(chunk.message));
-          yield this.emit({ type: 'error', message: chunk.message });
+        case 'error': {
+          const msg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error ?? 'unknown error');
+          modelSpan.error(new Error(msg));
+          yield this.emit({ type: 'error', message: msg });
           break;
+        }
       }
     }
 

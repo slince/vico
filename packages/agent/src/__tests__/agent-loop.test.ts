@@ -58,8 +58,8 @@ describe('AgentLoop', () => {
     const tracker = new InMemorySpanTracker();
 
     const model = mockModelClient([
-      { type: 'text_delta', content: 'Hello!' },
-      { type: 'completed', finishReason: 'stop' },
+      { type: 'text-delta', id: '1', text: 'Hello!' } as ModelStreamChunk,
+      { type: 'finish', finishReason: 'stop', rawFinishReason: 'stop', totalUsage: { inputTokens: 10, outputTokens: 5 } } as ModelStreamChunk,
     ]);
 
     const agent = makeAgent(model);
@@ -90,11 +90,11 @@ describe('AgentLoop', () => {
     events.on('done', (e) => doneEvents.push(e));
 
     const model = mockModelClient([
-      { type: 'text_delta', content: 'Let me search.' },
-      { type: 'tool_call_complete', id: 'call-1', name: 'search', args: { q: 'test' } },
-      { type: 'completed', finishReason: 'tool_calls' },
-      { type: 'text_delta', content: 'Found results.' },
-      { type: 'completed', finishReason: 'stop' },
+      { type: 'text-delta', id: '1', text: 'Let me search.' } as ModelStreamChunk,
+      { type: 'tool-call', toolCallId: 'call-1', toolName: 'search', input: { q: 'test' } } as ModelStreamChunk,
+      { type: 'finish', finishReason: 'tool-calls', rawFinishReason: 'tool_calls', totalUsage: { inputTokens: 20, outputTokens: 10 } } as ModelStreamChunk,
+      { type: 'text-delta', id: '2', text: 'Found results.' } as ModelStreamChunk,
+      { type: 'finish', finishReason: 'stop', rawFinishReason: 'stop', totalUsage: { inputTokens: 15, outputTokens: 8 } } as ModelStreamChunk,
     ]);
 
     const agent = makeAgent(model);
@@ -132,7 +132,7 @@ describe('AgentLoop', () => {
       provider: 'mock',
       model: 'mock',
       async *stream(request: ModelRequest): AsyncIterable<ModelStreamChunk> {
-        yield { type: 'text_delta', content: 'thinking...' };
+        yield { type: 'text-delta' as const, id: '1', text: 'thinking...' } as ModelStreamChunk;
         await new Promise<void>((resolve) => {
           if (request.abortSignal.aborted) {
             resolve();

@@ -1,4 +1,5 @@
 // @vico/agent - Model module type definitions
+import type { ToolSet, TextStreamPart } from 'ai';
 import type { Tool } from '../tool/types.js';
 import type { ModelRef } from '../agent-loop/types.js';
 
@@ -26,21 +27,14 @@ export interface ModelRequest {
   abortSignal: AbortSignal;
 }
 
-/** 标准化流式块 — 屏蔽 AI SDK 版本差异 */
-export type ModelStreamChunk =
-  | { type: 'text_delta'; content: string }
-  | { type: 'reasoning_delta'; content: string }
-  | { type: 'tool_call_delta'; id: string; name: string; args: string }
-  | { type: 'tool_call_complete'; id: string; name: string; args: Record<string, unknown> }
-  | { type: 'usage'; input: number; output: number }
-  | { type: 'completed'; finishReason: string }
-  | { type: 'error'; message: string };
+/** 流式块类型 — 别名到 AI SDK 标准 TextStreamPart */
+export type ModelStreamChunk = TextStreamPart<ToolSet>;
 
 /** 模型客户端端口 — 封装 LLM 调用 */
 export interface ModelClient {
   readonly provider: string;
   readonly model: string;
 
-  /** 流式调用 LLM，返回标准化 chunk 迭代器 */
+  /** 流式调用 LLM，返回 AI SDK 标准 chunk 迭代器 */
   stream(request: ModelRequest): AsyncIterable<ModelStreamChunk>;
 }
