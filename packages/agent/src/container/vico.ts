@@ -81,7 +81,9 @@ export interface VicoOptions {
 /** invoke 调用选项 */
 export interface InvokeOptions {
   threadId?: string;
-  [key: string]: unknown;
+  userId?: string;
+  workspace?: string;
+  scopeId?: string;
 }
 
 /**
@@ -237,7 +239,11 @@ export class Vico {
     }
     const userMessage: ModelMessage = { role: 'user', content: message };
     const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
-    return agent.getLoop().runTurn(threadId, [], userMessage, new AbortController().signal);
+    return agent.getLoop().runTurn(threadId, [], userMessage, new AbortController().signal, {
+      userId: options?.userId,
+      workspace: options?.workspace,
+      scopeId: options?.scopeId,
+    });
   }
 
   getSkillManager(): SkillManager {
