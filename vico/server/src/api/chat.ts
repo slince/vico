@@ -34,11 +34,15 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     const agentId: string | undefined = body.agentId;
     const message = extractMessage(body);
-    const threadId: string | undefined = body.threadId as string;
+    const requestedThreadId: string | undefined = body.threadId as string;
 
-    if (!agentId || !message || !threadId) {
+    if (!agentId || !message || !requestedThreadId) {
       return c.json({ error: 'agentId, message and threadId are required' }, 400);
     }
+
+    // 前端本地临时 ID（如 __LOCALID_xxx）替换为真实 UUID
+    const isLocalThreadId = requestedThreadId.startsWith('__LOCALID_');
+    const threadId = isLocalThreadId ? crypto.randomUUID() : requestedThreadId;
 
     try {
       const { stream } = await executeAgentChat({
@@ -49,7 +53,11 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         userId: auth.userId,
       });
 
-      return turnEventsToAISDK(stream);
+      const response = await turnEventsToAISDK(stream);
+      if (isLocalThreadId) {
+        response.headers.set('X-Thread-Id', threadId);
+      }
+      return response;
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'An internal error occurred';
       logger.error({ err: error, agentId, tenantId: auth.tenantId }, 'Chat stream error');
