@@ -53,7 +53,7 @@ export const bashTool: Tool = {
     const args = call.args as unknown as BashArgs;
     const action = args.action ?? 'run';
     const timeout = Math.min(args.timeout ?? 120000, 600000);
-    const cwd = resolve(ctx.workspace, '.');
+    const cwd = resolve(ctx.session.workspace, '.');
 
     // ---- stop ----
     if (action === 'stop') {

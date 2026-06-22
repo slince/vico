@@ -69,7 +69,7 @@ export const readTool: Tool = {
       throw new Error('"path" is required and must be a string');
     }
 
-    const absPath = resolvePath(ctx.workspace, args.path);
+    const absPath = resolvePath(ctx.session.workspace, args.path);
     const stat = statSync(absPath);
 
     if (!stat.isFile()) {
@@ -89,7 +89,7 @@ export const readTool: Tool = {
       };
       const mime = mimeTypes[ext] ?? 'application/octet-stream';
       return JSON.stringify({
-        path: relative(ctx.workspace, absPath),
+        path: relative(ctx.session.workspace, absPath),
         type: 'image',
         mimeType: mime,
         size: stat.size,
@@ -99,7 +99,7 @@ export const readTool: Tool = {
 
     const buffer = readFileSync(absPath);
     if (isBinary(buffer)) {
-      const rel = relative(ctx.workspace, absPath);
+      const rel = relative(ctx.session.workspace, absPath);
       return `[Binary file: ${rel} (${stat.size} bytes)]`;
     }
 

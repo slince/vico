@@ -36,7 +36,7 @@ export const writeTool: Tool = {
       throw new Error('"content" is required and must be a string');
     }
 
-    const absPath = resolvePath(ctx.workspace, args.path);
+    const absPath = resolvePath(ctx.session.workspace, args.path);
     const dir = dirname(absPath);
 
     mkdirSync(dir, { recursive: true });
@@ -44,7 +44,7 @@ export const writeTool: Tool = {
     const existed = existsSync(absPath);
     writeFileSync(absPath, args.content, 'utf-8');
 
-    const rel = relative(ctx.workspace, absPath);
+    const rel = relative(ctx.session.workspace, absPath);
     const action = existed ? 'Updated' : 'Created';
     const lines = args.content.split('\n').length;
     const size = Buffer.byteLength(args.content, 'utf-8');

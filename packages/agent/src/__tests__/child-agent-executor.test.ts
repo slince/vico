@@ -15,7 +15,7 @@ describe('ChildAgentExecutor', () => {
     const executor = new ChildAgentExecutor();
     const result = await executor.executeDelegate(
       { id: '1', name: 'delegate_unknown', args: {} },
-      { userId: 'u1', agentId: 'a1', threadId: 'th1', workspace: '/', signal: new AbortController().signal, awaitApproval: async () => ({ approved: true }) },
+      { session: { userId: 'u1', threadId: 'th1', workspace: '/' }, agentId: 'a1', signal: new AbortController().signal, awaitApproval: async () => ({ approved: true }) },
     );
     expect(result.status).toBe('error');
   });

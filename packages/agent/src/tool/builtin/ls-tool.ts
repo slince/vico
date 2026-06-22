@@ -29,7 +29,7 @@ export const lsTool: Tool = {
   async execute(call, ctx) {
     const args = call.args as { path?: string; limit?: number };
     const limit = args.limit ?? 200;
-    const absPath = args.path ? resolvePath(ctx.workspace, args.path) : resolve(ctx.workspace, '.');
+    const absPath = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
     const stat = statSync(absPath);
     if (!stat.isDirectory()) {
@@ -48,7 +48,7 @@ export const lsTool: Tool = {
       });
 
     const truncated = sorted.slice(0, limit);
-    const rel = args.path ? relative(ctx.workspace, absPath) : '.';
+    const rel = args.path ? relative(ctx.session.workspace, absPath) : '.';
 
     let output = truncated.join('\n');
     if (sorted.length > limit) {

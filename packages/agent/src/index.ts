@@ -55,6 +55,7 @@ export {
 // Tool system
 export { ToolBroker } from './tool/tool-broker.js';
 export {
+  type ToolCallSession,
   type ToolExecutionContext,
   type ApprovalDecision,
   type ToolStore,

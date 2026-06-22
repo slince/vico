@@ -1,8 +1,8 @@
 // src/tool/builtin/grep-tool.ts
-import { execSync } from 'node:child_process';
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { resolve, relative, extname } from 'node:path';
-import type { Tool } from '../types.js';
+import {execSync} from 'node:child_process';
+import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
+import {relative, resolve} from 'node:path';
+import type {Tool} from '../types.js';
 
 interface GrepArgs {
   pattern: string;
@@ -137,12 +137,12 @@ export const grepTool: Tool = {
   kind: 'readonly',
   tags: ['builtin', 'read'],
   async execute(call, ctx) {
-    const args = call.args as GrepArgs;
+    const args = call.args as unknown as GrepArgs;
     if (!args.pattern || typeof args.pattern !== 'string') {
       throw new Error('"pattern" is required and must be a string');
     }
 
-    const searchDir = args.path ? resolvePath(ctx.workspace, args.path) : resolve(ctx.workspace, '.');
+    const searchDir = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
     // 优先尝试 ripgrep
     const rgOutput = ripgrep(args, searchDir);

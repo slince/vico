@@ -61,6 +61,8 @@ export interface RunTurnOptions {
   workspace?: string;
 }
 
+export type { ToolCallSession } from '../tool/types.js';
+
 /** turn 执行过程中的流式事件 */
 export type TurnEvent =
   | { type: 'text_delta'; content: string }

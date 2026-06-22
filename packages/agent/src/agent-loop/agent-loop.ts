@@ -1,6 +1,6 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import {streamText} from 'ai';
-import type {Agent, AgentLoopOptions, RunTurnOptions, TurnEvent, TurnResult} from './types.js';
+import type {Agent, AgentLoopOptions, RunTurnOptions, ToolCallSession, TurnEvent, TurnResult} from './types.js';
 import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {Tool as VicoTool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
@@ -70,8 +70,11 @@ export class AgentLoop {
     let steps = 0;
     const usage = { input: 0, output: 0 };
     const scopeId = opts?.scopeId ?? '';
-    const toolUserId = opts?.userId ?? '';
-    const toolWorkspace = opts?.workspace ?? '';
+    const session: ToolCallSession = {
+      threadId,
+      userId: opts?.userId ?? '',
+      workspace: opts?.workspace ?? '',
+    };
 
     // 确保 threadStore 中的 thread 和 turn 存在
     const threadStore = this.agent.thread;
@@ -80,7 +83,7 @@ export class AgentLoop {
       const title = typeof userMessage.content === 'string'
         ? userMessage.content.slice(0, 50)
         : 'New thread';
-      thread = await threadStore.createThread(this.agent.config.id, title, threadId, { userId: toolUserId || undefined });
+      thread = await threadStore.createThread(this.agent.config.id, title, threadId, { userId: session.userId || undefined });
     }
     const turn = await threadStore?.createTurn(threadId);
     this.currentTurnId = turn?.id ?? '';
@@ -130,13 +133,13 @@ export class AgentLoop {
           });
         }
 
-        const toolCalls = (messages.at(-1) as { toolCalls?: ToolCall[] } | undefined)?.toolCalls ?? [];
+        const toolCalls = messages.at(-1)?.toolCalls ?? [];
         if (toolCalls.length === 0) {
           yield this.emit({ type: 'step_end', step: steps + 1 });
           break;
         }
 
-        yield* this.executeToolCalls(toolCalls, messages, threadId, toolUserId, toolWorkspace);
+        yield* this.executeToolCalls(toolCalls, messages, session);
 
         // 记录 tool 消息到 threadStore
         if (threadStore && this.currentTurnId) {
@@ -296,14 +299,12 @@ export class AgentLoop {
   private async *executeToolCalls(
     toolCalls: ToolCall[],
     messages: ModelMessage[],
-    threadId: string,
-    userId: string,
-    workspace: string,
+    session: ToolCallSession,
   ): AsyncGenerator<TurnEvent> {
     const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
     let results: ToolResult[];
     try {
-      results = await this.dispatchTools(toolCalls, threadId, userId, workspace);
+      results = await this.dispatchTools(toolCalls, session);
       toolSpan.end({ results: results.length });
     } catch (err) {
       toolSpan.error(err as Error);
@@ -324,12 +325,10 @@ export class AgentLoop {
     }
   }
 
-  private async dispatchTools(calls: ToolCall[], threadId: string, userId: string, workspace: string): Promise<ToolResult[]> {
+  private async dispatchTools(calls: ToolCall[], session: ToolCallSession): Promise<ToolResult[]> {
     const context: ToolExecutionContext = {
-      userId,
+      session,
       agentId: this.agent.config.id,
-      threadId,
-      workspace,
       awaitApproval: async (call: ToolCall) => {
         if (this.approvalGate) {
           return this.approvalGate.requestApproval(call);

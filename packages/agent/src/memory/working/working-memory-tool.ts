@@ -28,7 +28,7 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory): Tool {
       if (!args.memory || typeof args.memory !== 'string') {
         throw new Error('updateWorkingMemory requires a "memory" string argument');
       }
-      const scopeId = wm.scope === 'user' ? ctx.userId : ctx.workspace;
+      const scopeId = wm.scope === 'user' ? ctx.session.userId : ctx.session.workspace;
       // 防退化保护：拒绝用空模板覆盖已有数据
       const current = await wm.get(scopeId);
       if (current && args.memory.trim() === template.trim()) {

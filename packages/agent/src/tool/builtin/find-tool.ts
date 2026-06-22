@@ -45,7 +45,7 @@ export const findTool: Tool = {
     const args = call.args as FindArgs;
     const pattern = args.pattern ?? '*';
     const limit = args.limit ?? 200;
-    const searchDir = args.path ? resolvePath(ctx.workspace, args.path) : resolve(ctx.workspace, '.');
+    const searchDir = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
     const regex = globToRegex(pattern);
     const results: Array<{ path: string; mtime: number }> = [];
@@ -81,7 +81,7 @@ export const findTool: Tool = {
     const sorted = results
       .sort((a, b) => b.mtime - a.mtime)
       .slice(0, limit)
-      .map((r) => relative(ctx.workspace, r.path));
+      .map((r) => relative(ctx.session.workspace, r.path));
 
     if (sorted.length === 0) {
       return `No files found matching "${pattern}"`;

@@ -88,7 +88,7 @@ export const editTool: Tool = {
       throw new Error('Either "oldText"+"newText" or "edits" array must be provided');
     }
 
-    const absPath = resolvePath(ctx.workspace, args.path);
+    const absPath = resolvePath(ctx.session.workspace, args.path);
     const original = readFileSync(absPath, 'utf-8');
 
     let modified = original;
@@ -108,7 +108,7 @@ export const editTool: Tool = {
 
     writeFileSync(absPath, modified, 'utf-8');
 
-    const rel = relative(ctx.workspace, absPath);
+    const rel = relative(ctx.session.workspace, absPath);
     const diff = generateDiff(original, modified);
 
     return `Edited ${rel} (${edits.length} replacement(s)):\n\n${diff}`;
