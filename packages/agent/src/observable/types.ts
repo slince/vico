@@ -12,29 +12,23 @@ export const SpanTypeSchema = z.enum([
 ]);
 export type SpanType = z.infer<typeof SpanTypeSchema>;
 
-export const SSEEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('text_delta'), content: z.string() }),
-  z.object({ type: z.literal('reasoning_delta'), content: z.string() }),
-  z.object({ type: z.literal('tool_call_start'), id: z.string(), name: z.string() }),
-  z.object({ type: z.literal('tool_call_delta'), id: z.string(), args: z.string() }),
-  z.object({ type: z.literal('tool_result'), id: z.string(), name: z.string(), status: z.enum(['success', 'error']), output: z.unknown() }),
-  z.object({ type: z.literal('step_start'), step: z.number() }),
-  z.object({ type: z.literal('step_end'), step: z.number() }),
-  z.object({ type: z.literal('compacted'), removedTokens: z.number() }),
-  z.object({ type: z.literal('approval_request'), callId: z.string(), name: z.string(), args: z.record(z.string(), z.unknown()) }),
-  z.object({ type: z.literal('done'), usage: z.object({ input: z.number(), output: z.number() }).optional() }),
-  z.object({ type: z.literal('error'), message: z.string() }),
-]);
-export type SSEEvent = z.infer<typeof SSEEventSchema>;
+/** 事件基础约束：每个事件必须包含 type 判别字段 */
+export interface TypedEvent {
+  type: string;
+}
 
-/** SSE 事件广播器端口 */
-export interface EventRecorder {
+/** 从联合事件类型中按 type 字段提取对应的完整 payload（含 type）。无匹配时回退到完整 TEvent */
+export type EventPayload<TEvent extends TypedEvent, K extends string> =
+  [Extract<TEvent, { type: K }>] extends [never] ? TEvent : Extract<TEvent, { type: K }>;
+
+/** SSE 事件广播器端口。TEvent 为事件联合类型，默认兜底兼容旧代码 */
+export interface EventRecorder<TEvent extends TypedEvent = TypedEvent> {
   /** 发射 SSE 事件 */
-  emit(event: SSEEvent): void;
-  /** 注册事件监听器 */
-  on(event: string, handler: (data: unknown) => void): void;
+  emit(event: TEvent): void;
+  /** 注册事件监听器。K 为事件 type 字符串或 '*' 通配符 */
+  on<K extends string>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void;
   /** 移除事件监听器 */
-  off(event: string, handler: (data: unknown) => void): void;
+  off<K extends string>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void;
 }
 
 /** 追踪 Span — 表示一个操作的时间段 */

@@ -82,7 +82,7 @@ export interface AgentLoopOptions {
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
   approvalGate?: ApprovalGate;
-  events: EventRecorder;
+  events: EventRecorder<TurnEvent>;
   spanTracker: SpanTracker;
   /** 工作记忆（提供时自动注册 updateWorkingMemory 工具 handler） */
   workingMemory?: WorkingMemory;

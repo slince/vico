@@ -3,8 +3,8 @@ import {streamText} from 'ai';
 import type {Agent, AgentLoopOptions, RunTurnOptions, TurnEvent, TurnResult} from './types.js';
 import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
-import type {ToolCall, ToolExecutionContext, ToolResult, Tool as VicoTool} from '../tool/types.js';
-import type {EventRecorder, SpanTracker, SSEEvent} from '../observable/types.js';
+import type {Tool as VicoTool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
+import type {EventRecorder, SpanTracker} from '../observable/types.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
@@ -193,8 +193,8 @@ export class AgentLoop {
   }
 
   /** emit 并返回事件，方便 yield this.emit(...) 一行走两路 */
-  private emit<T extends TurnEvent>(event: T): T {
-    this.events.emit(event as unknown as SSEEvent);
+  private emit(event: TurnEvent): TurnEvent {
+    this.events.emit(event);
     return event;
   }
 

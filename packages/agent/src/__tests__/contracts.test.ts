@@ -3,8 +3,6 @@ import { describe, it, expect } from 'vitest';
 import { AgentConfigSchema } from '../agent-loop/types.js';
 
 import { MemoryRecordSchema } from '../memory/types.js';
-import { SSEEventSchema } from '../observable/types.js';
-
 describe('AgentConfigSchema', () => {
   it('parses valid config', () => {
     const result = AgentConfigSchema.safeParse({
@@ -44,25 +42,5 @@ describe('MemoryRecordSchema', () => {
       createdAt: 1700000000000,
     });
     expect(result.success).toBe(true);
-  });
-});
-
-describe('SSEEventSchema', () => {
-  it('parses text_delta event', () => {
-    const result = SSEEventSchema.safeParse({ type: 'text_delta', content: 'hello' });
-    expect(result.success).toBe(true);
-  });
-
-  it('parses done event', () => {
-    const result = SSEEventSchema.safeParse({
-      type: 'done',
-      usage: { input: 100, output: 50 },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects unknown event type', () => {
-    const result = SSEEventSchema.safeParse({ type: 'unknown' });
-    expect(result.success).toBe(false);
   });
 });

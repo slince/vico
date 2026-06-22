@@ -13,7 +13,7 @@ export {
   type ToolKind,
 } from './tool/types.js';
 export { MemoryRecordSchema, type MemoryRecord } from './memory/types.js';
-export { SSEEventSchema, SpanTypeSchema, type SSEEvent, type SpanType } from './observable/types.js';
+export { SpanTypeSchema, type SpanType } from './observable/types.js';
 
 // Ports — Model
 export {
@@ -113,7 +113,7 @@ export { ContextCompactor } from './agent-loop/context-compactor.js';
 
 // Observable
 export { MittEventRecorder } from './observable/event-recorder.js';
-export { type EventRecorder } from './observable/types.js';
+export { type EventRecorder, type EventPayload, type TypedEvent } from './observable/types.js';
 export { InMemorySpanTracker } from './observable/span-tracker.js';
 export { type SpanTracker, type Span } from './observable/types.js';
 
