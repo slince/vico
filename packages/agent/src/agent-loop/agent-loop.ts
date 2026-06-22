@@ -76,9 +76,7 @@ export class AgentLoop {
     const threadStore = this.agent.thread;
     let thread = await threadStore.getThread(threadId);
     if (!thread) {
-      const title = typeof userMessage.content === 'string'
-        ? userMessage.content.slice(0, 50)
-        : 'New thread';
+      const title = userMessage.content.slice(0, 50);
       thread = await threadStore.createThread(this.agent.config.id, title, threadId, { userId: userId || undefined });
     }
     const turn = await threadStore.createTurn(threadId);
@@ -91,7 +89,7 @@ export class AgentLoop {
         threadId,
         turnId: turn.id,
         role: userMessage.role,
-        content: typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content),
+        content: userMessage.content,
       });
     }
 
