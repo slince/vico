@@ -53,11 +53,13 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         userId: auth.userId,
       });
 
-      const response = await turnEventsToAISDK(stream);
-      if (isLocalThreadId) {
-        response.headers.set('X-Thread-Id', threadId);
-      }
-      return response;
+      return turnEventsToAISDK(stream, {
+        onFinish: (finish) => {
+          if (isLocalThreadId) {
+            finish.messageMetadata = { threadId };
+          }
+        },
+      });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'An internal error occurred';
       logger.error({ err: error, agentId, tenantId: auth.tenantId }, 'Chat stream error');

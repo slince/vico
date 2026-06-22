@@ -7,7 +7,7 @@ import type { TurnEvent, TurnResult } from '../agent-loop/types.js';
 /** TurnEvent generator → AI SDK UI stream Response */
 export async function turnEventsToAISDK(
   generator: AsyncGenerator<TurnEvent, TurnResult>,
-  options?: { onComplete?: (fullText: string) => void | Promise<void> },
+  options?: { onFinish?: (finish: Extract<UIMessageChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },
 ): Promise<Response> {
   let fullText = '';
 
@@ -41,10 +41,12 @@ export async function turnEventsToAISDK(
             if (inStep) {
               enqueue({ type: 'finish-step' });
             }
-            enqueue({
+            const finish: UIMessageChunk = {
               type: 'finish',
               finishReason: result?.status === 'completed' ? 'stop' : 'error',
-            });
+            };
+            await options?.onFinish?.(finish, fullText);
+            enqueue(finish);
             break;
           }
 
@@ -116,10 +118,6 @@ export async function turnEventsToAISDK(
       'Connection': 'keep-alive',
     },
   });
-
-  if (options?.onComplete) {
-    Promise.resolve(options.onComplete(fullText)).catch(() => {});
-  }
 
   return response;
 }
