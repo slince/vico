@@ -6,11 +6,11 @@ describe('MittEventRecorder', () => {
     const recorder = new MittEventRecorder();
     const handler = vi.fn();
 
-    recorder.on('text_delta', handler);
-    recorder.emit({ type: 'text_delta', content: 'hello' });
+    recorder.on('text-delta', handler);
+    recorder.emit({ type: 'text-delta', content: 'hello' });
 
     expect(handler).toHaveBeenCalledOnce();
-    expect(handler.mock.calls[0][0]).toMatchObject({ type: 'text_delta', content: 'hello' });
+    expect(handler.mock.calls[0][0]).toMatchObject({ type: 'text-delta', content: 'hello' });
   });
 
   it('supports wildcard listener', () => {
@@ -18,7 +18,7 @@ describe('MittEventRecorder', () => {
     const handler = vi.fn();
 
     recorder.on('*', handler);
-    recorder.emit({ type: 'text_delta', content: 'a' });
+    recorder.emit({ type: 'text-delta', content: 'a' });
     recorder.emit({ type: 'done' });
 
     expect(handler).toHaveBeenCalledTimes(2); // mitt wildcard catches both event types
@@ -28,9 +28,9 @@ describe('MittEventRecorder', () => {
     const recorder = new MittEventRecorder();
     const handler = vi.fn();
 
-    recorder.on('text_delta', handler);
-    recorder.off('text_delta', handler);
-    recorder.emit({ type: 'text_delta', content: 'hello' });
+    recorder.on('text-delta', handler);
+    recorder.off('text-delta', handler);
+    recorder.emit({ type: 'text-delta', content: 'hello' });
 
     expect(handler).not.toHaveBeenCalled();
   });

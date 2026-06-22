@@ -110,7 +110,7 @@ export class AgentLoop {
           return { status: 'aborted', steps, usage, messages };
         }
 
-        yield this.emit({ type: 'step_start', step: steps + 1 });
+        yield this.emit({ type: 'step-start', step: steps + 1 });
 
         yield* this.tryCompact(messages, signal);
 
@@ -135,7 +135,7 @@ export class AgentLoop {
 
         const toolCalls = messages.at(-1)?.toolCalls ?? [];
         if (toolCalls.length === 0) {
-          yield this.emit({ type: 'step_end', step: steps + 1 });
+          yield this.emit({ type: 'step-end', step: steps + 1 });
           break;
         }
 
@@ -156,7 +156,7 @@ export class AgentLoop {
           }
         }
 
-        yield this.emit({ type: 'step_end', step: steps + 1 });
+        yield this.emit({ type: 'step-end', step: steps + 1 });
         steps++;
       }
 
@@ -258,14 +258,14 @@ export class AgentLoop {
         switch (chunk.type) {
           case 'text-delta':
             fullText += chunk.text;
-            yield this.emit({ type: 'text_delta', content: chunk.text });
+            yield this.emit({ type: 'text-delta', content: chunk.text });
             break;
           case 'reasoning-delta':
-            yield this.emit({ type: 'reasoning_delta', content: chunk.text });
+            yield this.emit({ type: 'reasoning-delta', content: chunk.text });
             break;
           case 'tool-call':
             toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
-            yield this.emit({ type: 'tool_call_start', id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
+            yield this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
             break;
           case 'finish':
             if (chunk.totalUsage) {
@@ -316,7 +316,7 @@ export class AgentLoop {
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
       yield this.emit({
-        type: 'tool_result',
+        type: 'tool-result',
         id: r.callId,
         name: r.name,
         status: r.status,
