@@ -1,11 +1,12 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
 import {homedir} from 'node:os';
 import {resolve} from 'node:path';
-import type {AgentConfig, TurnEvent, TurnResult} from '../agent-loop/types.js';
+import type {LanguageModel} from 'ai';
+import type {AgentConfig, TurnEvent, TurnResult, ModelRef} from '../agent-loop/types.js';
 import {Agent} from '../agent-loop/types.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import type {ModelClient, ModelClientFactory, ModelMessage} from '../model/types.js';
-import {defaultModelFactory} from '../model/factory.js';
+import type {ModelMessage} from '../model/types.js';
+import {createLanguageModel} from '../model/factory.js';
 import type {ToolSource} from '../tool/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillManager} from '../skill/skill-manager.js';
@@ -25,7 +26,8 @@ import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 import {createSkillToolSource} from "../skill/skill-tool-source.js";
 
-export type { ModelClientFactory } from '../model/types.js';
+/** LanguageModel 工厂类型 */
+export type LanguageModelFactory = (ref: ModelRef) => LanguageModel;
 
 
 type SkillSettings = {
@@ -66,8 +68,8 @@ export interface VicoOptions {
   skills?: SkillOptions;
   /** 额外的工具来源 */
   toolSources?: ToolSource[];
-  /** ModelClient 工厂（不传则使用 defaultModelFactory） */
-  modelFactory?: ModelClientFactory;
+  /** LanguageModel 工厂（不传则使用内置 createLanguageModel） */
+  languageModelFactory?: LanguageModelFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
   maxCached?: number;
   /** 全局 MemoryStore（agent 自身未配置时使用） */
@@ -104,14 +106,14 @@ export class Vico {
   private readonly skillManager: SkillManager;
   private initialized = false;
   private options: VicoOptions;
-  private readonly modelFactory: ModelClientFactory;
+  private readonly languageModelFactory: LanguageModelFactory;
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
-    this.modelFactory = options.modelFactory ?? defaultModelFactory;
+    this.languageModelFactory = options.languageModelFactory ?? createLanguageModel;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
     this.thread = options.thread ?? new InMemoryThreadStore();
@@ -131,8 +133,8 @@ export class Vico {
 
   /** 构建 Agent 并注册到 Runtime */
   async createAgent(config: AgentConfig): Promise<Agent> {
-    const mc = this.modelFactory(config.model);
-    const agent = await this.buildAgent(config, mc);
+    const languageModel = this.languageModelFactory(config.model);
+    const agent = await this.buildAgent(config, languageModel);
     this.runtime.register(agent);
     return agent;
   }
@@ -140,7 +142,7 @@ export class Vico {
   /**
    * 创建单个 Agent（无缓存），绑定 skills / tools。
    */
-  private async buildAgent(config: AgentConfig, model: ModelClient): Promise<Agent> {
+  private async buildAgent(config: AgentConfig, languageModel: LanguageModel): Promise<Agent> {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
@@ -155,7 +157,7 @@ export class Vico {
 
     const agent = new Agent({
       config,
-      model,
+      languageModel,
       skills,
       tools,
       memory,

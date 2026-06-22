@@ -1,5 +1,7 @@
 // src/agent-loop/context-compactor.ts
-import type { ModelMessage, ModelClient } from '../model/types.js';
+import {streamText} from 'ai';
+import type {LanguageModel} from 'ai';
+import type {ModelMessage} from '../model/types.js';
 
 /** 简单的 Token 估算（4 字符 ≈ 1 token） */
 function estimateTokens(messages: ModelMessage[]): number {
@@ -23,7 +25,7 @@ export class ContextCompactor {
 
   async compactIfNeeded(
     items: ModelMessage[],
-    model: ModelClient,
+    languageModel: LanguageModel,
     signal: AbortSignal,
   ): Promise<{ compacted: ModelMessage[]; wasCompacted: boolean; removedTokens: number }> {
     const estimated = estimateTokens(items);
@@ -41,14 +43,14 @@ export class ContextCompactor {
 
     let summaryContent: string;
     try {
-      const request = {
+      const result = streamText({
         system: 'Summarize the following conversation concisely. Keep key decisions, facts, and action items.',
-        messages: head,
-        tools: [],
+        model: languageModel,
+        messages: head as any,
         abortSignal: signal,
-      };
+      });
       let text = '';
-      for await (const chunk of model.stream(request)) {
+      for await (const chunk of result.fullStream) {
         if (chunk.type === 'text-delta') text += chunk.text;
       }
       summaryContent = text;

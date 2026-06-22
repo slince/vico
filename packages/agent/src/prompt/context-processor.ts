@@ -1,6 +1,6 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
 import type {AgentConfig} from '../agent-loop/types.js';
-import type {ModelMessage, ModelRequest} from '../model/types.js';
+import type {ModelMessage} from '../model/types.js';
 import type {Tool} from '../tool/types.js';
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */
@@ -104,14 +104,13 @@ export class ProcessorPipeline {
   }
 }
 
-/** 将处理完成的 ModelRequestContext 转换为 ModelRequest */
-export function buildModelRequest(ctx: ModelRequestContext): ModelRequest {
+/** 从 ModelRequestContext 提取 streamText 所需参数 */
+export function buildModelRequest(ctx: ModelRequestContext) {
   return {
     system: ctx.systemPrompt || undefined,
     messages: ctx.messages,
     tools: ctx.tools,
     maxTokens: ctx.agent.maxTokens,
     temperature: ctx.agent.temperature,
-    abortSignal: new AbortController().signal, // caller overrides
   };
 }

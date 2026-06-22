@@ -1,15 +1,30 @@
 // agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
 import { describe, it, expect, vi } from 'vitest';
+import type { LanguageModel } from 'ai';
+
+const { streamText } = vi.hoisted(() => ({ streamText: vi.fn() }));
+vi.mock('ai', () => ({ streamText }));
+
 import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent, type AgentLoopOptions } from '../agent-loop/types.js';
-import type { ModelClient, ModelStreamChunk, ModelRequest } from '../model/types.js';
-import type { AsyncIterableStream } from 'ai';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
 import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
+
+/** 创建模拟 fullStream 的异步迭代器 */
+function mockFullStream(chunks: any[]) {
+  return (async function* () {
+    for (const chunk of chunks) {
+      yield chunk;
+    }
+  })();
+}
+
+/** mock LanguageModel */
+const mockLM: LanguageModel = 'mock-model' as unknown as LanguageModel;
 
 function makeConfig(): AgentConfig {
   return {
@@ -23,28 +38,13 @@ function makeConfig(): AgentConfig {
   };
 }
 
-function makeAgent(model: ModelClient) {
+function makeAgent() {
   return new Agent({
     config: makeConfig(),
-    model,
+    languageModel: mockLM,
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
   });
-}
-
-/** 创建一个返回预设 chunks 的 mock ModelClient */
-function mockModelClient(chunks: ModelStreamChunk[]): ModelClient {
-  return {
-    provider: 'mock',
-    model: 'mock',
-    stream(_request: ModelRequest): AsyncIterableStream<ModelStreamChunk> {
-      return (async function* () {
-        for (const chunk of chunks) {
-          yield chunk;
-        }
-      })() as unknown as AsyncIterableStream<ModelStreamChunk>;
-    },
-  };
 }
 
 /** mock ToolBroker — 总是返回 success */
@@ -57,15 +57,16 @@ const mockToolBroker = {
 
 describe('AgentLoop', () => {
   it('completes a turn with text-only response', async () => {
+    streamText.mockReturnValue({
+      fullStream: mockFullStream([
+        { type: 'text-delta', id: '1', text: 'Hello!' },
+        { type: 'finish', finishReason: 'stop', rawFinishReason: 'stop', totalUsage: { inputTokens: 10, outputTokens: 5 } },
+      ]),
+    });
+
     const events = new MittEventRecorder();
     const tracker = new InMemorySpanTracker();
-
-    const model = mockModelClient([
-      { type: 'text-delta', id: '1', text: 'Hello!' } as ModelStreamChunk,
-      { type: 'finish', finishReason: 'stop', rawFinishReason: 'stop', totalUsage: { inputTokens: 10, outputTokens: 5 } } as ModelStreamChunk,
-    ]);
-
-    const agent = makeAgent(model);
+    const agent = makeAgent();
 
     const loop = new AgentLoop({
       agent,
@@ -87,20 +88,21 @@ describe('AgentLoop', () => {
   });
 
   it('executes tool calls and continues loop', async () => {
+    streamText.mockReturnValue({
+      fullStream: mockFullStream([
+        { type: 'text-delta', id: '1', text: 'Let me search.' },
+        { type: 'tool-call', toolCallId: 'call-1', toolName: 'search', input: { q: 'test' } },
+        { type: 'finish', finishReason: 'tool-calls', rawFinishReason: 'tool_calls', totalUsage: { inputTokens: 20, outputTokens: 10 } },
+        { type: 'text-delta', id: '2', text: 'Found results.' },
+        { type: 'finish', finishReason: 'stop', rawFinishReason: 'stop', totalUsage: { inputTokens: 15, outputTokens: 8 } },
+      ]),
+    });
+
     const events = new MittEventRecorder();
     const tracker = new InMemorySpanTracker();
     const doneEvents: any[] = [];
     events.on('done', (e) => doneEvents.push(e));
-
-    const model = mockModelClient([
-      { type: 'text-delta', id: '1', text: 'Let me search.' } as ModelStreamChunk,
-      { type: 'tool-call', toolCallId: 'call-1', toolName: 'search', input: { q: 'test' } } as ModelStreamChunk,
-      { type: 'finish', finishReason: 'tool-calls', rawFinishReason: 'tool_calls', totalUsage: { inputTokens: 20, outputTokens: 10 } } as ModelStreamChunk,
-      { type: 'text-delta', id: '2', text: 'Found results.' } as ModelStreamChunk,
-      { type: 'finish', finishReason: 'stop', rawFinishReason: 'stop', totalUsage: { inputTokens: 15, outputTokens: 8 } } as ModelStreamChunk,
-    ]);
-
-    const agent = makeAgent(model);
+    const agent = makeAgent();
 
     const loop = new AgentLoop({
       agent,
@@ -127,32 +129,21 @@ describe('AgentLoop', () => {
   });
 
   it('interrupts mid-turn', async () => {
+    streamText.mockImplementation(({ abortSignal }: any) => ({
+      fullStream: (async function* () {
+        yield { type: 'text-delta', id: '1', text: 'thinking...' };
+        // 等待 abort 信号
+        await new Promise<void>((resolve) => {
+          if (abortSignal?.aborted) { resolve(); return; }
+          abortSignal?.addEventListener('abort', () => resolve(), { once: true });
+        });
+      })(),
+    }));
+
     const events = new MittEventRecorder();
     const tracker = new InMemorySpanTracker();
+    const agent = makeAgent();
     const controller = new AbortController();
-
-    const model: ModelClient = {
-      provider: 'mock',
-      model: 'mock',
-      stream(request: ModelRequest): AsyncIterableStream<ModelStreamChunk> {
-        return (async function* () {
-          yield { type: 'text-delta' as const, id: '1', text: 'thinking...' } as ModelStreamChunk;
-          await new Promise<void>((resolve) => {
-            if (request.abortSignal.aborted) {
-              resolve();
-              return;
-            }
-            const onAbort = () => {
-              request.abortSignal.removeEventListener('abort', onAbort);
-              resolve();
-            };
-            request.abortSignal.addEventListener('abort', onAbort);
-          });
-        })() as unknown as AsyncIterableStream<ModelStreamChunk>;
-      },
-    };
-
-    const agent = makeAgent(model);
 
     const loop = new AgentLoop({
       agent,

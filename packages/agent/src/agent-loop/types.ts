@@ -1,6 +1,7 @@
 // @vico/agent - AgentLoop module type definitions
 import {z} from 'zod';
-import type {ModelClient, ModelMessage} from '../model/types.js';
+import type {LanguageModel} from 'ai';
+import type {ModelMessage} from '../model/types.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import type {Tool, ToolStore} from '../tool/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
@@ -90,7 +91,7 @@ export interface AgentLoopOptions {
 /** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
 export class Agent {
   readonly config: AgentConfig;
-  readonly model: ModelClient;
+  readonly languageModel: LanguageModel;
   readonly skills: Skill[];
   readonly tools: Tool[];
   readonly memory?: MemoryStore;
@@ -101,14 +102,14 @@ export class Agent {
 
   constructor(params: {
     config: AgentConfig;
-    model: ModelClient,
+    languageModel: LanguageModel;
     skills?: Skill[];
     tools?: Tool[];
     memory?: MemoryStore;
     thread: ThreadStore;
   }) {
     this.config = params.config;
-    this.model = params.model;
+    this.languageModel = params.languageModel;
     this.skills = params.skills ?? [];
     this.tools = params.tools ?? [];
     this.memory = params.memory;

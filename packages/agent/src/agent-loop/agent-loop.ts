@@ -1,8 +1,9 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
+import {streamText} from 'ai';
 import type {Agent, AgentLoopOptions, RunTurnOptions, TurnEvent, TurnResult} from './types.js';
 import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
-import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
+import type {ToolCall, ToolExecutionContext, ToolResult, Tool as VicoTool} from '../tool/types.js';
 import type {EventRecorder, SpanTracker, SSEEvent} from '../observable/types.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
@@ -10,6 +11,14 @@ import type {ApprovalGate} from './approval-gate.js';
 import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
 
+/** Vico Tool[] 转为 AI SDK tools 格式 */
+function toAISDKTools(tools: VicoTool[]): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const tool of tools) {
+    result[tool.name] = { description: tool.description, inputSchema: tool.inputSchema };
+  }
+  return result;
+}
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {
@@ -200,7 +209,7 @@ export class AgentLoop {
   /** 压缩检查 */
   private async *tryCompact(messages: ModelMessage[], signal: AbortSignal): AsyncGenerator<TurnEvent> {
     if (!this.compactor) return;
-    const result = await this.compactor.compactIfNeeded(messages, this.agent.model, signal);
+    const result = await this.compactor.compactIfNeeded(messages, this.agent.languageModel, signal);
     if (result.wasCompacted) {
       messages.length = 0;
       messages.push(...result.compacted);
@@ -226,39 +235,54 @@ export class AgentLoop {
     });
     await this.pipeline.run(ctx);
     const request = buildModelRequest(ctx);
-    request.abortSignal = signal;
 
     let fullText = '';
     const toolCalls: ToolCall[] = [];
     const modelSpan = this.spanTracker.startSpan('model_step', { step: step + 1 });
 
-    for await (const chunk of this.agent.model.stream(request)) {
-      switch (chunk.type) {
-        case 'text-delta':
-          fullText += chunk.text;
-          yield this.emit({ type: 'text_delta', content: chunk.text });
-          break;
-        case 'reasoning-delta':
-          yield this.emit({ type: 'reasoning_delta', content: chunk.text });
-          break;
-        case 'tool-call':
-          toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
-          yield this.emit({ type: 'tool_call_start', id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
-          break;
-        case 'finish':
-          if (chunk.totalUsage) {
-            usage.input += chunk.totalUsage.inputTokens ?? 0;
-            usage.output += chunk.totalUsage.outputTokens ?? 0;
-            this.tokenEconomy?.track(chunk.totalUsage.inputTokens ?? 0, chunk.totalUsage.outputTokens ?? 0);
+    const result = streamText({
+      model: this.agent.languageModel,
+      system: request.system,
+      messages: request.messages as any,
+      tools: toAISDKTools(request.tools) as any,
+      maxOutputTokens: request.maxTokens,
+      temperature: request.temperature,
+      abortSignal: signal,
+    });
+
+    try {
+      for await (const chunk of result.fullStream) {
+        switch (chunk.type) {
+          case 'text-delta':
+            fullText += chunk.text;
+            yield this.emit({ type: 'text_delta', content: chunk.text });
+            break;
+          case 'reasoning-delta':
+            yield this.emit({ type: 'reasoning_delta', content: chunk.text });
+            break;
+          case 'tool-call':
+            toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
+            yield this.emit({ type: 'tool_call_start', id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
+            break;
+          case 'finish':
+            if (chunk.totalUsage) {
+              usage.input += chunk.totalUsage.inputTokens ?? 0;
+              usage.output += chunk.totalUsage.outputTokens ?? 0;
+              this.tokenEconomy?.track(chunk.totalUsage.inputTokens ?? 0, chunk.totalUsage.outputTokens ?? 0);
+            }
+            break;
+          case 'error': {
+            const msg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error ?? 'unknown error');
+            modelSpan.error(new Error(msg));
+            yield this.emit({ type: 'error', message: msg });
+            break;
           }
-          break;
-        case 'error': {
-          const msg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error ?? 'unknown error');
-          modelSpan.error(new Error(msg));
-          yield this.emit({ type: 'error', message: msg });
-          break;
         }
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      modelSpan.error(new Error(msg));
+      yield this.emit({ type: 'error', message: msg });
     }
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });

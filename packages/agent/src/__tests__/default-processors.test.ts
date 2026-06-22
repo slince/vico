@@ -331,7 +331,7 @@ describe('OnionPipeline', () => {
 // --- buildModelRequest ---
 
 describe('buildModelRequest', () => {
-  it('converts ModelRequestContext to ModelRequest', () => {
+  it('extracts streamText params from ModelRequestContext', () => {
     const config = makeConfig();
     const ctx = new ModelRequestContext({
       agent: config,
@@ -345,7 +345,6 @@ describe('buildModelRequest', () => {
     expect(req.tools).toHaveLength(1);
     expect(req.maxTokens).toBe(4096);
     expect(req.temperature).toBe(0.7);
-    expect(req.abortSignal).toBeDefined();
   });
 
   it('omits system when empty', () => {

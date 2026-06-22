@@ -15,17 +15,12 @@ export {
 export { MemoryRecordSchema, type MemoryRecord } from './memory/types.js';
 export { SSEEventSchema, SpanTypeSchema, type SSEEvent, type SpanType } from './observable/types.js';
 
-// Ports — ModelClient
+// Ports — Model
 export {
-  type ModelClient,
-  type ModelRequest,
   type ModelMessage,
-  type ModelStreamChunk,
   type MessageRole,
-  type ModelClientFactory,
 } from './model/types.js';
-export { AISDKModelClient } from './model/ai-sdk-adapter.js';
-export { defaultModelFactory } from './model/factory.js';
+export { createLanguageModel } from './model/factory.js';
 
 // Context processors (onion model)
 export {
