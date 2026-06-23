@@ -120,11 +120,12 @@ export { type SpanTracker, type Span } from './observable/types.js';
 
 // AgentRuntime
 export { AgentRuntime } from './agent-loop/agent-runtime.js';
-export { Agent } from './agent-loop/types.js';
+export { Agent } from './agent-loop/agent.js';
 
 // AgentLoop
 export { AgentLoop, collectTurnResult } from './agent-loop/agent-loop.js';
-export { type AgentLoopOptions, type TurnResult, type TurnEvent, type RunTurnOptions } from './agent-loop/types.js';
+export { type AgentLoopOptions } from './agent-loop/agent-loop.js';
+export { type TurnResult, type TurnEvent, type RunTurnOptions } from './agent-loop/types.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
 export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';
 

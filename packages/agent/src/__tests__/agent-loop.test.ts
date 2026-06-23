@@ -7,7 +7,7 @@ vi.mock('ai', () => ({ streamText }));
 
 import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent } from '../agent-loop/agent.js';
-import type { AgentLoopOptions } from '../agent-loop/types.js';
+import type { AgentLoopOptions } from '../agent-loop/agent-loop.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';

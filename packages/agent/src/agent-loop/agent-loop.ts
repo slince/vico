@@ -1,6 +1,6 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import {streamText} from 'ai';
-import type {AgentLoopOptions, RunTurnOptions, ToolCallSession, TurnEvent, TurnResult} from './types.js';
+import type {RunTurnOptions, ToolCallSession, TurnEvent, TurnResult} from './types.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
@@ -9,9 +9,24 @@ import type {EventRecorder, SpanTracker} from '../observable/types.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
+import type {ContextProcessor} from '../prompt/context-processor.js';
 import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
+import type {WorkingMemory} from '../memory/types.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
 import {toAISDKTools} from '../tool/utils.js';
+
+/** AgentLoop 构造选项 */
+export interface AgentLoopOptions {
+  agent: Agent;
+  toolBroker: ToolBroker;
+  processors?: ContextProcessor[];
+  compactor?: ContextCompactor;
+  tokenEconomy?: TokenEconomy;
+  approvalGate?: ApprovalGate;
+  events: EventRecorder<TurnEvent>;
+  spanTracker: SpanTracker;
+  workingMemory?: WorkingMemory;
+}
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {

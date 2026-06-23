@@ -1,20 +1,10 @@
 // @vico/agent - AgentLoop module type definitions
 import {z} from 'zod';
-import type {LanguageModel} from 'ai';
 import type {ModelMessage} from '../model/types.js';
-import type {ContextProcessor} from '../prompt/context-processor.js';
 import type {ToolStore} from '../tool/types.js';
-import type {ToolBroker} from '../tool/tool-broker.js';
-import type {EventRecorder, SpanTracker} from '../observable/types.js';
-import type {ContextCompactor} from './context-compactor.js';
-import type {TokenEconomy} from './token-economy.js';
-import type {ApprovalGate} from './approval-gate.js';
-import type {AgentLoop} from './agent-loop.js';
 import type {SkillStore} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
-import type {WorkingMemory} from '../memory/types.js';
 import type {ThreadStore} from '../thread/types.js';
-import type {Agent} from './agent.js';
 
 /** 模型引用 */
 export const ModelRefSchema = z.object({
@@ -75,18 +65,3 @@ export type TurnEvent =
   | { type: 'compacted'; removedTokens: number }
   | { type: 'error'; message: string }
   | { type: 'done'; usage: { input: number; output: number } };
-
-/** AgentLoop 构造选项 */
-export interface AgentLoopOptions {
-  agent: Agent;
-  toolBroker: ToolBroker;
-  /** 上下文处理器列表 — 在 model 调用前按优先级依次执行。缺少时回退到无增强的裸模式 */
-  processors?: ContextProcessor[];
-  compactor?: ContextCompactor;
-  tokenEconomy?: TokenEconomy;
-  approvalGate?: ApprovalGate;
-  events: EventRecorder<TurnEvent>;
-  spanTracker: SpanTracker;
-  /** 工作记忆（提供时自动注册 updateWorkingMemory 工具 handler） */
-  workingMemory?: WorkingMemory;
-}
