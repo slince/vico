@@ -22,6 +22,20 @@ export {
 } from './model/types.js';
 export { createLanguageModel } from './model/factory.js';
 
+// ModelClient and types
+export { ModelClient } from './model/model-client.js';
+export type {
+  ModelStreamChunk,
+  ModelCallOptions,
+  ModelStreamResult,
+  ModelUsage,
+  ToolDescriptor,
+} from './model/types.js';
+
+// Stream
+export type { UIStreamChunk } from './stream/types.js';
+export { createSSEResponse } from './stream/sse.js';
+
 // Context processors (onion model)
 export {
   type ContextProcessor,
