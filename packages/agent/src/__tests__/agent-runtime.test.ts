@@ -1,13 +1,13 @@
 // agent-runtime.test.ts — tests for AgentRuntime: register, destroy, LRU eviction
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV3 } from '@ai-sdk/provider';
 import { AgentRuntime } from '../agent-loop/agent-runtime.js';
 import { Agent } from '../agent-loop/agent.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
 
-const mockLM: LanguageModel = 'mock-model' as unknown as LanguageModel;
+const mockLM: LanguageModelV3 = 'mock-model' as unknown as LanguageModelV3;
 
 function makeConfig(id: string): AgentConfig {
   return {
@@ -24,7 +24,7 @@ function makeConfig(id: string): AgentConfig {
 function makeAgent(id: string): Agent {
   return new Agent({
     config: makeConfig(id),
-    languageModel: mockLM,
+    model: mockLM,
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
   });

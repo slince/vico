@@ -1,9 +1,8 @@
 // agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
 import { describe, it, expect, vi } from 'vitest';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV3 } from '@ai-sdk/provider';
 
 const { streamText } = vi.hoisted(() => ({ streamText: vi.fn() }));
-vi.mock('ai', () => ({ streamText }));
 
 import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent } from '../agent-loop/agent.js';
@@ -25,7 +24,7 @@ function mockFullStream(chunks: any[]) {
 }
 
 /** mock LanguageModel */
-const mockLM: LanguageModel = 'mock-model' as unknown as LanguageModel;
+const mockLM: LanguageModelV3 = 'mock-model' as unknown as LanguageModelV3;
 
 function makeConfig(): AgentConfig {
   return {
@@ -42,7 +41,7 @@ function makeConfig(): AgentConfig {
 function makeAgent() {
   return new Agent({
     config: makeConfig(),
-    languageModel: mockLM,
+    model: mockLM,
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
   });

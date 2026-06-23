@@ -1,7 +1,7 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
 import {homedir} from 'node:os';
 import {resolve} from 'node:path';
-import type {LanguageModel} from 'ai';
+import type {LanguageModelV3} from '@ai-sdk/provider';
 import type {AgentConfig, ModelRef, TurnEvent, TurnResult} from '../agent-loop/types.js';
 import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
@@ -27,7 +27,7 @@ import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 import {createSkillToolSource} from "../skill/skill-tool-source.js";
 
 /** LanguageModel 工厂类型 */
-export type LanguageModelFactory = (ref: ModelRef) => LanguageModel;
+export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
 
 
 type SkillSettings = {
@@ -135,8 +135,8 @@ export class Vico {
 
   /** 构建 Agent 并注册到 Runtime */
   async createAgent(config: AgentConfig): Promise<Agent> {
-    const languageModel = this.languageModelFactory(config.model);
-    const agent = await this.buildAgent(config, languageModel);
+    const model = this.languageModelFactory(config.model);
+    const agent = await this.buildAgent(config, model);
     this.runtime.register(agent);
     return agent;
   }
@@ -144,7 +144,7 @@ export class Vico {
   /**
    * 创建单个 Agent（无缓存），绑定 skills / tools。
    */
-  private async buildAgent(config: AgentConfig, languageModel: LanguageModel): Promise<Agent> {
+  private async buildAgent(config: AgentConfig, model: LanguageModelV3): Promise<Agent> {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
@@ -159,7 +159,7 @@ export class Vico {
 
     const agent = new Agent({
       config,
-      languageModel,
+      model,
       skills,
       tools,
       memory,
