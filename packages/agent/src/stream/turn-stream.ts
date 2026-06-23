@@ -1,19 +1,20 @@
 /**
  * TurnEvent 流 → AI SDK UI 流转换
  */
-import { createUIMessageStreamResponse, type UIMessageChunk } from 'ai';
+import { createSSEResponse } from './sse.js';
+import type { UIStreamChunk } from './types.js';
 import type { TurnEvent, TurnResult } from '../agent-loop/types.js';
 
 /** TurnEvent generator → AI SDK UI stream Response */
 export async function turnEventsToAISDK(
   generator: AsyncGenerator<TurnEvent, TurnResult>,
-  options?: { onFinish?: (finish: Extract<UIMessageChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },
+  options?: { onFinish?: (finish: Extract<UIStreamChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },
 ): Promise<Response> {
   let fullText = '';
 
-  const stream = new ReadableStream<UIMessageChunk>({
+  const stream = new ReadableStream<UIStreamChunk>({
     async start(controller) {
-      const enqueue = (chunk: UIMessageChunk) => {
+      const enqueue = (chunk: UIStreamChunk) => {
         controller.enqueue(chunk);
       };
 
@@ -41,7 +42,7 @@ export async function turnEventsToAISDK(
             if (inStep) {
               enqueue({ type: 'finish-step' });
             }
-            const finish: UIMessageChunk = {
+            const finish: UIStreamChunk = {
               type: 'finish',
               finishReason: result?.status === 'completed' ? 'stop' : 'error',
             };
@@ -111,13 +112,13 @@ export async function turnEventsToAISDK(
     },
   });
 
-  const response = createUIMessageStreamResponse({
+  const response = createSSEResponse(
     stream,
-    headers: {
+    {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     },
-  });
+  );
 
   return response;
 }
