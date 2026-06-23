@@ -1,12 +1,9 @@
 // agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
 import { describe, it, expect, vi } from 'vitest';
-import type { LanguageModelV3 } from '@ai-sdk/provider';
-
-const { streamText } = vi.hoisted(() => ({ streamText: vi.fn() }));
+import type { LanguageModelV3, LanguageModelV3StreamResult } from '@ai-sdk/provider';
 
 import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent } from '../agent-loop/agent.js';
-import type { AgentLoopOptions } from '../agent-loop/agent-loop.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../observable/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
@@ -14,17 +11,26 @@ import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
 
-/** 创建模拟 fullStream 的异步迭代器 */
-function mockFullStream(chunks: any[]) {
-  return (async function* () {
-    for (const chunk of chunks) {
-      yield chunk;
-    }
-  })();
+/** Create a mock LanguageModelV3 whose doStream yields given stream parts */
+function createMockModel(chunks: any[]): LanguageModelV3 {
+  return {
+    specificationVersion: 'v3',
+    provider: 'mock',
+    modelId: 'mock-model',
+    supportedUrls: {},
+    doGenerate: vi.fn().mockRejectedValue(new Error('not implemented')),
+    doStream: vi.fn().mockResolvedValue({
+      stream: new ReadableStream({
+        start(controller) {
+          for (const chunk of chunks) {
+            controller.enqueue(chunk);
+          }
+          controller.close();
+        },
+      }),
+    } satisfies LanguageModelV3StreamResult),
+  };
 }
-
-/** mock LanguageModel */
-const mockLM: LanguageModelV3 = 'mock-model' as unknown as LanguageModelV3;
 
 function makeConfig(): AgentConfig {
   return {
@@ -38,10 +44,10 @@ function makeConfig(): AgentConfig {
   };
 }
 
-function makeAgent() {
+function makeAgent(chunks: any[]) {
   return new Agent({
     config: makeConfig(),
-    model: mockLM,
+    model: createMockModel(chunks),
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
   });
@@ -57,16 +63,14 @@ const mockToolBroker = {
 
 describe('AgentLoop', () => {
   it('completes a turn with text-only response', async () => {
-    streamText.mockReturnValue({
-      fullStream: mockFullStream([
-        { type: 'text-delta', id: '1', text: 'Hello!' },
-        { type: 'finish', finishReason: 'stop', rawFinishReason: 'stop', totalUsage: { inputTokens: 10, outputTokens: 5 } },
-      ]),
-    });
-
     const events = new MittEventRecorder();
     const tracker = new InMemorySpanTracker();
-    const agent = makeAgent();
+    const agent = makeAgent([
+      { type: 'text-start', id: '1' },
+      { type: 'text-delta', id: '1', delta: 'Hello!' },
+      { type: 'text-end', id: '1' },
+      { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: { inputTokens: { total: 10 }, outputTokens: { total: 5 } } },
+    ]);
 
     const loop = new AgentLoop({
       agent,
@@ -88,21 +92,48 @@ describe('AgentLoop', () => {
   });
 
   it('executes tool calls and continues loop', async () => {
-    streamText.mockReturnValue({
-      fullStream: mockFullStream([
-        { type: 'text-delta', id: '1', text: 'Let me search.' },
-        { type: 'tool-call', toolCallId: 'call-1', toolName: 'search', input: { q: 'test' } },
-        { type: 'finish', finishReason: 'tool-calls', rawFinishReason: 'tool_calls', totalUsage: { inputTokens: 20, outputTokens: 10 } },
-        { type: 'text-delta', id: '2', text: 'Found results.' },
-        { type: 'finish', finishReason: 'stop', rawFinishReason: 'stop', totalUsage: { inputTokens: 15, outputTokens: 8 } },
-      ]),
+    // doStream is called twice: first for the initial response, then again with tool results
+    let callCount = 0;
+    const makeStream = () => new ReadableStream({
+      start(controller) {
+        if (callCount === 0) {
+          controller.enqueue({ type: 'text-start', id: '1' });
+          controller.enqueue({ type: 'text-delta', id: '1', delta: 'Let me search.' });
+          controller.enqueue({ type: 'text-end', id: '1' });
+          controller.enqueue({ type: 'tool-call', toolCallId: 'call-1', toolName: 'search', input: JSON.stringify({ q: 'test' }) });
+          controller.enqueue({ type: 'finish', finishReason: { unified: 'tool-calls', raw: 'tool_calls' }, usage: { inputTokens: { total: 20 }, outputTokens: { total: 10 } } });
+        } else {
+          controller.enqueue({ type: 'text-start', id: '2' });
+          controller.enqueue({ type: 'text-delta', id: '2', delta: 'Found results.' });
+          controller.enqueue({ type: 'text-end', id: '2' });
+          controller.enqueue({ type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: { inputTokens: { total: 15 }, outputTokens: { total: 8 } } });
+        }
+        callCount++;
+        controller.close();
+      },
     });
+
+    const mockModel: LanguageModelV3 = {
+      specificationVersion: 'v3',
+      provider: 'mock',
+      modelId: 'mock-model',
+      supportedUrls: {},
+      doGenerate: vi.fn().mockRejectedValue(new Error('not implemented')),
+      doStream: vi.fn().mockImplementation(() => Promise.resolve({
+        stream: makeStream(),
+      } satisfies LanguageModelV3StreamResult)),
+    };
 
     const events = new MittEventRecorder();
     const tracker = new InMemorySpanTracker();
     const doneEvents: any[] = [];
     events.on('done', (e) => doneEvents.push(e));
-    const agent = makeAgent();
+    const agent = new Agent({
+      config: makeConfig(),
+      model: mockModel,
+      memory: new MemoryStore(),
+      thread: new InMemoryThreadStore(),
+    });
 
     const loop = new AgentLoop({
       agent,
@@ -129,20 +160,37 @@ describe('AgentLoop', () => {
   });
 
   it('interrupts mid-turn', async () => {
-    streamText.mockImplementation(({ abortSignal }: any) => ({
-      fullStream: (async function* () {
-        yield { type: 'text-delta', id: '1', text: 'thinking...' };
-        // 等待 abort 信号
-        await new Promise<void>((resolve) => {
-          if (abortSignal?.aborted) { resolve(); return; }
-          abortSignal?.addEventListener('abort', () => resolve(), { once: true });
-        });
-      })(),
-    }));
+    const mockModel: LanguageModelV3 = {
+      specificationVersion: 'v3',
+      provider: 'mock',
+      modelId: 'mock-model',
+      supportedUrls: {},
+      doGenerate: vi.fn().mockRejectedValue(new Error('not implemented')),
+      doStream: vi.fn().mockImplementation(async ({ abortSignal }: any) => ({
+        stream: new ReadableStream({
+          async start(controller) {
+            controller.enqueue({ type: 'text-start', id: '1' });
+            controller.enqueue({ type: 'text-delta', id: '1', delta: 'thinking...' });
+            // Wait for abort
+            await new Promise<void>((resolve) => {
+              if (abortSignal?.aborted) { resolve(); return; }
+              abortSignal?.addEventListener('abort', () => resolve(), { once: true });
+            });
+            controller.enqueue({ type: 'text-end', id: '1' });
+            controller.close();
+          },
+        }),
+      } satisfies LanguageModelV3StreamResult)),
+    };
 
     const events = new MittEventRecorder();
     const tracker = new InMemorySpanTracker();
-    const agent = makeAgent();
+    const agent = new Agent({
+      config: makeConfig(),
+      model: mockModel,
+      memory: new MemoryStore(),
+      thread: new InMemoryThreadStore(),
+    });
     const controller = new AbortController();
 
     const loop = new AgentLoop({
