@@ -26,18 +26,15 @@ importers:
 
   packages/agent:
     dependencies:
-      '@ai-sdk/anthropic':
-        specifier: ^3.0.0
-        version: 3.0.84(zod@4.4.3)
-      '@ai-sdk/openai':
-        specifier: ^3.0.0
-        version: 3.0.71(zod@4.4.3)
+      '@ai-sdk/provider':
+        specifier: ^3.0.10
+        version: 3.0.10
+      '@ai-sdk/provider-utils':
+        specifier: ^4.0.30
+        version: 4.0.30(zod@4.4.3)
       '@vico/rag':
         specifier: workspace:*
         version: link:../rag
-      ai:
-        specifier: ^6.0.0
-        version: 6.0.207(zod@4.4.3)
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3

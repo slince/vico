@@ -13,16 +13,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.0",
-    "@ai-sdk/openai": "^3.0.0",
+    "@ai-sdk/provider": "^3.0.10",
+    "@ai-sdk/provider-utils": "^4.0.30",
     "@vico/rag": "workspace:*",
     "gray-matter": "^4.0.3",
     "mitt": "^3.0.1",
     "p-limit": "^7.3.0",
     "zod": "^4.4.3"
-  },
-  "peerDependencies": {
-    "ai": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
