@@ -1,5 +1,4 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import {streamText} from 'ai';
 import type {RunTurnOptions, ToolCallSession, TurnEvent, TurnResult} from './types.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage} from '../model/types.js';
@@ -13,7 +12,6 @@ import type {ContextProcessor} from '../prompt/context-processor.js';
 import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import type {WorkingMemory} from '../memory/types.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
-import {toAISDKTools} from '../tool/utils.js';
 
 /** AgentLoop 构造选项 */
 export interface AgentLoopOptions {
@@ -215,7 +213,7 @@ export class AgentLoop {
   /** 压缩检查 */
   private async *tryCompact(messages: ModelMessage[], signal: AbortSignal): AsyncGenerator<TurnEvent> {
     if (!this.compactor) return;
-    const result = await this.compactor.compactIfNeeded(messages, this.agent.languageModel, signal);
+    const result = await this.compactor.compactIfNeeded(messages, this.agent.modelClient, signal);
     if (result.wasCompacted) {
       messages.length = 0;
       messages.push(...result.compacted);
@@ -246,43 +244,40 @@ export class AgentLoop {
     const toolCalls: ToolCall[] = [];
     const modelSpan = this.spanTracker.startSpan('model_step', { step: step + 1 });
 
-    const result = streamText({
-      model: this.agent.languageModel,
+    const { stream } = await this.agent.modelClient.stream({
       system: request.system,
-      messages: request.messages as any,
-      tools: toAISDKTools(request.tools) as any,
+      messages: request.messages,
+      tools: request.tools,
       maxOutputTokens: request.maxTokens,
       temperature: request.temperature,
       abortSignal: signal,
     });
 
     try {
-      for await (const chunk of result.fullStream) {
+      for await (const chunk of stream) {
         switch (chunk.type) {
           case 'text-delta':
-            fullText += chunk.text;
-            yield this.emit({ type: 'text-delta', content: chunk.text });
+            fullText += chunk.delta;
+            yield this.emit({ type: 'text-delta', content: chunk.delta });
             break;
           case 'reasoning-delta':
-            yield this.emit({ type: 'reasoning-delta', content: chunk.text });
+            yield this.emit({ type: 'reasoning-delta', content: chunk.delta });
             break;
           case 'tool-call':
-            toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
-            yield this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: chunk.input as Record<string, unknown> });
+            toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+            yield this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
             break;
           case 'finish':
-            if (chunk.totalUsage) {
-              usage.input += chunk.totalUsage.inputTokens ?? 0;
-              usage.output += chunk.totalUsage.outputTokens ?? 0;
-              this.tokenEconomy?.track(chunk.totalUsage.inputTokens ?? 0, chunk.totalUsage.outputTokens ?? 0);
+            if (chunk.usage) {
+              usage.input += chunk.usage.inputTokens;
+              usage.output += chunk.usage.outputTokens;
+              this.tokenEconomy?.track(chunk.usage.inputTokens, chunk.usage.outputTokens);
             }
             break;
-          case 'error': {
-            const msg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error ?? 'unknown error');
-            modelSpan.error(new Error(msg));
-            yield this.emit({ type: 'error', message: msg });
+          case 'error':
+            modelSpan.error(new Error(chunk.message));
+            yield this.emit({ type: 'error', message: chunk.message });
             break;
-          }
         }
       }
     } catch (err) {
