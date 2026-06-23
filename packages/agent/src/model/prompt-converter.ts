@@ -1,5 +1,11 @@
 // @vico/agent - Convert internal ModelMessage[] to LanguageModelV3Prompt
-import type { LanguageModelV3Prompt, LanguageModelV3Message } from '@ai-sdk/provider';
+import type {
+  LanguageModelV3Prompt,
+  LanguageModelV3Message,
+  LanguageModelV3TextPart,
+  LanguageModelV3ToolCallPart,
+  LanguageModelV3ToolResultPart,
+} from '@ai-sdk/provider';
 import type { ModelMessage } from './types.js';
 
 /**
@@ -26,10 +32,10 @@ function convertMessage(msg: ModelMessage): LanguageModelV3Message {
       return {
         role: 'user',
         content: [{ type: 'text', text: msg.content }],
-      };
+      } as LanguageModelV3Message;
 
     case 'assistant': {
-      const parts: LanguageModelV3Message['content'] = [];
+      const parts: Array<LanguageModelV3TextPart | LanguageModelV3ToolCallPart | LanguageModelV3ToolResultPart> = [];
       if (msg.content) {
         parts.push({ type: 'text', text: msg.content });
       }
@@ -45,7 +51,7 @@ function convertMessage(msg: ModelMessage): LanguageModelV3Message {
       if (parts.length === 0) {
         parts.push({ type: 'text', text: '' });
       }
-      return { role: 'assistant', content: parts };
+      return { role: 'assistant', content: parts } as LanguageModelV3Message;
     }
 
     case 'tool':
@@ -57,13 +63,13 @@ function convertMessage(msg: ModelMessage): LanguageModelV3Message {
           toolName: '',
           output: { type: 'text', value: msg.content },
         }],
-      };
+      } as LanguageModelV3Message;
 
     default:
       // system messages in history are treated as user (shouldn't normally happen)
       return {
         role: 'user',
         content: [{ type: 'text', text: msg.content }],
-      };
+      } as LanguageModelV3Message;
   }
 }
