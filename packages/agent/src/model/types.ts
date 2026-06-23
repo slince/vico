@@ -1,4 +1,4 @@
-// @vico/agent - Model module type definitions
+// @vico/agent - 模型模块类型定义
 
 /** 消息角色 */
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
@@ -11,32 +11,32 @@ export interface ModelMessage {
   toolCalls?: { id: string; name: string; args: Record<string, unknown> }[];
 }
 
-// ── ModelClient types ──
+// ── ModelClient 类型 ──
 
-/** Provider metadata — keyed by provider name */
+/** Provider 元数据 — 按 provider 名称索引 */
 type ProviderMetadata = Record<string, Record<string, unknown>>;
 
-/** Warning from provider */
+/** Provider 发出的警告 */
 export type StreamWarning = {
   type: 'unsupported' | 'compatibility' | 'other';
   feature?: string;
   message?: string;
 };
 
-/** Token usage snapshot */
+/** Token 用量快照 */
 export interface ModelUsage {
   inputTokens: number;
   outputTokens: number;
 }
 
-/** Tool shape ModelClient accepts */
+/** ModelClient 接受的工具格式 */
 export interface ToolDescriptor {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
 }
 
-/** ModelClient.stream() options */
+/** ModelClient.stream() 调用参数 */
 export interface ModelCallOptions {
   system?: string;
   messages: ModelMessage[];
@@ -46,40 +46,40 @@ export interface ModelCallOptions {
   abortSignal?: AbortSignal;
 }
 
-/** ModelClient.stream() return */
+/** ModelClient.stream() 返回值 */
 export interface ModelStreamResult {
   stream: AsyncGenerator<ModelStreamChunk>;
 }
 
 /**
- * ModelStreamChunk — complete mirror of LanguageModelV3StreamPart.
- * Every variant mapped 1:1; only tool-call.input parsed from string to unknown.
+ * ModelStreamChunk — 完整映射 LanguageModelV3StreamPart 的所有变体。
+ * 每种变体 1:1 对应；仅 tool-call.input 从 JSON 字符串解析为 unknown。
  */
 export type ModelStreamChunk =
-  // Text lifecycle
+  // 文本生命周期
   | { type: 'text-start'; id: string; providerMetadata?: ProviderMetadata }
   | { type: 'text-delta'; id: string; delta: string; providerMetadata?: ProviderMetadata }
   | { type: 'text-end'; id: string; providerMetadata?: ProviderMetadata }
-  // Reasoning lifecycle
+  // 推理生命周期
   | { type: 'reasoning-start'; id: string; providerMetadata?: ProviderMetadata }
   | { type: 'reasoning-delta'; id: string; delta: string; providerMetadata?: ProviderMetadata }
   | { type: 'reasoning-end'; id: string; providerMetadata?: ProviderMetadata }
-  // Tool input lifecycle
+  // 工具输入生命周期
   | { type: 'tool-input-start'; id: string; toolName: string; providerExecuted?: boolean; dynamic?: boolean; title?: string; providerMetadata?: ProviderMetadata }
   | { type: 'tool-input-delta'; id: string; delta: string; providerMetadata?: ProviderMetadata }
   | { type: 'tool-input-end'; id: string; providerMetadata?: ProviderMetadata }
-  // Tool call (aggregated, input parsed)
+  // 工具调用（聚合后，input 已解析）
   | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown; providerExecuted?: boolean; dynamic?: boolean; providerMetadata?: ProviderMetadata }
-  // Tool result (from provider)
+  // 工具结果（来自 provider）
   | { type: 'tool-result'; toolCallId: string; toolName: string; result: unknown; isError?: boolean; preliminary?: boolean; dynamic?: boolean; providerMetadata?: ProviderMetadata }
-  // Tool approval request
+  // 工具审批请求
   | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; providerMetadata?: ProviderMetadata }
-  // File
+  // 文件
   | { type: 'file'; mediaType: string; data: string | Uint8Array; providerMetadata?: ProviderMetadata }
-  // Source (discriminated by sourceType)
+  // 来源（按 sourceType 区分）
   | { type: 'source'; sourceType: 'url'; id: string; url: string; title?: string; providerMetadata?: ProviderMetadata }
   | { type: 'source'; sourceType: 'document'; id: string; mediaType: string; title: string; filename?: string; providerMetadata?: ProviderMetadata }
-  // Metadata
+  // 元数据
   | { type: 'stream-start'; warnings: StreamWarning[] }
   | { type: 'response-metadata'; id?: string; timestamp?: Date; modelId?: string }
   | { type: 'finish'; finishReason: string; rawFinishReason?: string; usage: ModelUsage; providerMetadata?: ProviderMetadata }

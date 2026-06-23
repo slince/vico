@@ -1,4 +1,4 @@
-// @vico/agent - Convert internal ModelMessage[] to LanguageModelV3Prompt
+// @vico/agent - 将内部 ModelMessage[] 转换为 LanguageModelV3Prompt
 import type {
   LanguageModelV3Prompt,
   LanguageModelV3Message,
@@ -9,8 +9,8 @@ import type {
 import type { ModelMessage } from './types.js';
 
 /**
- * Convert Vico ModelMessage[] to provider-level LanguageModelV3Prompt.
- * System prompt is passed separately as the first message.
+ * 将 Vico 的 ModelMessage[] 转换为 provider 层的 LanguageModelV3Prompt。
+ * system 提示词作为第一条消息单独传入。
  */
 export function convertToPrompt(messages: ModelMessage[], system?: string): LanguageModelV3Prompt {
   const prompt: LanguageModelV3Prompt = [];
@@ -47,7 +47,7 @@ function convertMessage(msg: ModelMessage): LanguageModelV3Message {
           input: tc.args,
         });
       }
-      // Content array must not be empty
+      // content 数组不能为空
       if (parts.length === 0) {
         parts.push({ type: 'text', text: '' });
       }
@@ -66,7 +66,7 @@ function convertMessage(msg: ModelMessage): LanguageModelV3Message {
       } as LanguageModelV3Message;
 
     default:
-      // system messages in history are treated as user (shouldn't normally happen)
+      // 历史中的 system 消息按 user 处理（通常不应出现）
       return {
         role: 'user',
         content: [{ type: 'text', text: msg.content }],

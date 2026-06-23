@@ -1,18 +1,18 @@
-// @vico/agent - Convert ReadableStream<LanguageModelV3StreamPart> to AsyncGenerator<ModelStreamChunk>
+// @vico/agent - 将 ReadableStream<LanguageModelV3StreamPart> 转换为 AsyncGenerator<ModelStreamChunk>
 import type { LanguageModelV3StreamPart } from '@ai-sdk/provider';
 import type { ModelStreamChunk } from './types.js';
 
 /**
- * Process raw provider stream parts into our typed ModelStreamChunk generator.
- * Every LanguageModelV3StreamPart variant is mapped. Tool call input is parsed
- * from string to unknown, with buffered delta fallback.
+ * 将 provider 原始流转换为类型化的 ModelStreamChunk 异步生成器。
+ * 完整映射 LanguageModelV3StreamPart 的所有变体。工具调用输入从 JSON 字符串解析，
+ * 解析失败时回退到缓冲的增量文本。
  */
 export async function* processStreamParts(
   stream: ReadableStream<LanguageModelV3StreamPart>,
 ): AsyncGenerator<ModelStreamChunk> {
   const reader = stream.getReader();
 
-  // Buffer incremental tool input deltas keyed by tool call id
+  // 按 toolCallId 缓冲增量工具输入
   const toolInputBuffers = new Map<string, string>();
 
   try {
@@ -21,7 +21,7 @@ export async function* processStreamParts(
       if (done) break;
 
       switch (value.type) {
-        // ── Text lifecycle ──
+        // ── 文本生命周期 ──
         case 'text-start':
           yield { type: 'text-start', id: value.id, providerMetadata: value.providerMetadata };
           break;
@@ -32,7 +32,7 @@ export async function* processStreamParts(
           yield { type: 'text-end', id: value.id, providerMetadata: value.providerMetadata };
           break;
 
-        // ── Reasoning lifecycle ──
+        // ── 推理生命周期 ──
         case 'reasoning-start':
           yield { type: 'reasoning-start', id: value.id, providerMetadata: value.providerMetadata };
           break;
@@ -43,7 +43,7 @@ export async function* processStreamParts(
           yield { type: 'reasoning-end', id: value.id, providerMetadata: value.providerMetadata };
           break;
 
-        // ── Tool input lifecycle ──
+        // ── 工具输入生命周期 ──
         case 'tool-input-start':
           toolInputBuffers.set(value.id, '');
           yield {
@@ -66,7 +66,7 @@ export async function* processStreamParts(
           yield { type: 'tool-input-end', id: value.id, providerMetadata: value.providerMetadata };
           break;
 
-        // ── Tool call (parse input) ──
+        // ── 工具调用（解析输入） ──
         case 'tool-call': {
           const buffered = toolInputBuffers.get(value.toolCallId);
           toolInputBuffers.delete(value.toolCallId);
@@ -94,7 +94,7 @@ export async function* processStreamParts(
           break;
         }
 
-        // ── Tool result (provider-executed) ──
+        // ── 工具结果（provider 自行执行的工具） ──
         case 'tool-result':
           yield {
             type: 'tool-result',
@@ -108,7 +108,7 @@ export async function* processStreamParts(
           };
           break;
 
-        // ── Tool approval request ──
+        // ── 工具审批请求 ──
         case 'tool-approval-request':
           yield {
             type: 'tool-approval-request',
@@ -118,7 +118,7 @@ export async function* processStreamParts(
           };
           break;
 
-        // ── File ──
+        // ── 文件 ──
         case 'file':
           yield {
             type: 'file',
@@ -128,7 +128,7 @@ export async function* processStreamParts(
           };
           break;
 
-        // ── Source ──
+        // ── 来源 ──
         case 'source':
           if (value.sourceType === 'url') {
             yield {
@@ -152,7 +152,7 @@ export async function* processStreamParts(
           }
           break;
 
-        // ── Metadata ──
+        // ── 元数据 ──
         case 'stream-start':
           yield { type: 'stream-start', warnings: value.warnings };
           break;
@@ -165,7 +165,7 @@ export async function* processStreamParts(
           };
           break;
 
-        // ── Finish ──
+        // ── 结束 ──
         case 'finish':
           yield {
             type: 'finish',
@@ -179,12 +179,12 @@ export async function* processStreamParts(
           };
           break;
 
-        // ── Raw ──
+        // ── 原始数据 ──
         case 'raw':
           yield { type: 'raw', rawValue: value.rawValue };
           break;
 
-        // ── Error ──
+        // ── 错误 ──
         case 'error':
           yield {
             type: 'error',

@@ -1,15 +1,15 @@
-// @vico/agent - SSE response formatter (replaces ai's createUIMessageStreamResponse)
+// @vico/agent - SSE 响应格式化（替代 ai 包的 createUIMessageStreamResponse）
+
+const encoder = new TextEncoder();
 
 /**
- * Create an SSE (Server-Sent Events) Response from a ReadableStream of chunks.
- * Each chunk is serialized as `data: <JSON>\n\n`.
+ * 从 ReadableStream 创建 SSE（Server-Sent Events）响应。
+ * 每个 chunk 序列化为 `data: <JSON>\n\n` 格式。
  */
 export function createSSEResponse(
   stream: ReadableStream<unknown>,
   headers?: Record<string, string>,
 ): Response {
-  const encoder = new TextEncoder();
-
   const sseStream = new ReadableStream({
     async start(controller) {
       const reader = stream.getReader();
