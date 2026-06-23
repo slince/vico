@@ -3,17 +3,18 @@ import {z} from 'zod';
 import type {LanguageModel} from 'ai';
 import type {ModelMessage} from '../model/types.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
-import type {Tool, ToolStore} from '../tool/types.js';
+import type {ToolStore} from '../tool/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {EventRecorder, SpanTracker} from '../observable/types.js';
 import type {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
 import type {AgentLoop} from './agent-loop.js';
-import type {Skill, SkillStore} from '../skill/types.js';
+import type {SkillStore} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {WorkingMemory} from '../memory/types.js';
 import type {ThreadStore} from '../thread/types.js';
+import type {Agent} from './agent.js';
 
 /** 模型引用 */
 export const ModelRefSchema = z.object({
@@ -88,37 +89,4 @@ export interface AgentLoopOptions {
   spanTracker: SpanTracker;
   /** 工作记忆（提供时自动注册 updateWorkingMemory 工具 handler） */
   workingMemory?: WorkingMemory;
-}
-
-/** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
-export class Agent {
-  readonly config: AgentConfig;
-  readonly languageModel: LanguageModel;
-  readonly skills: Skill[];
-  readonly tools: Tool[];
-  readonly memory?: MemoryStore;
-  readonly thread: ThreadStore;
-
-  /** AgentLoop 实例，由容器在构建时注入 */
-  loop?: AgentLoop;
-
-  constructor(params: {
-    config: AgentConfig;
-    languageModel: LanguageModel;
-    skills?: Skill[];
-    tools?: Tool[];
-    memory?: MemoryStore;
-    thread: ThreadStore;
-  }) {
-    this.config = params.config;
-    this.languageModel = params.languageModel;
-    this.skills = params.skills ?? [];
-    this.tools = params.tools ?? [];
-    this.memory = params.memory;
-    this.thread = params.thread;
-  }
-
-  getLoop(): AgentLoop {
-    return this.loop!;
-  }
 }

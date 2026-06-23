@@ -3,7 +3,7 @@ import {homedir} from 'node:os';
 import {resolve} from 'node:path';
 import type {LanguageModel} from 'ai';
 import type {AgentConfig, ModelRef, TurnEvent, TurnResult} from '../agent-loop/types.js';
-import {Agent} from '../agent-loop/types.js';
+import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import type {ModelMessage} from '../model/types.js';
 import {createLanguageModel} from '../model/factory.js';

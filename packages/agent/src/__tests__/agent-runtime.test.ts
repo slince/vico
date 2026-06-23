@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { LanguageModel } from 'ai';
 import { AgentRuntime } from '../agent-loop/agent-runtime.js';
-import { Agent } from '../agent-loop/types.js';
+import { Agent } from '../agent-loop/agent.js';
 import type { AgentConfig } from '../agent-loop/types.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
