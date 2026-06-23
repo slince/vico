@@ -1,7 +1,7 @@
 // @vico/agent - LanguageModel 工厂：根据 ModelRef 创建 AI SDK LanguageModel
 import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
-import type {LanguageModel} from 'ai';
+import type {LanguageModelV3} from '@ai-sdk/provider';
 import type {ModelRef} from '../agent-loop/types.js';
 
 /**
@@ -9,7 +9,7 @@ import type {ModelRef} from '../agent-loop/types.js';
  * openai 提供商标配 OpenAI、DeepSeek、Qwen、custom 等兼容接口；
  * anthropic 使用原生 SDK。
  */
-export function createLanguageModel(ref: ModelRef): LanguageModel {
+export function createLanguageModel(ref: ModelRef): LanguageModelV3 {
   const apiKey = ref.apiKey ?? undefined;
   const baseURL = ref.baseUrl ?? undefined;
   const provider = ref.provider.toLowerCase();
