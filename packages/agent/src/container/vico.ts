@@ -20,7 +20,7 @@ import {MemoryProcessor} from '../memory/memory-processor.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
-import {MittEventRecorder} from '../observable/event-recorder.js';
+import {MittEventRecorder} from '../events/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
 import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";

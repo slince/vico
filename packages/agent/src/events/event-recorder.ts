@@ -1,4 +1,4 @@
-// @vico/agent - EventRecorder port interface + Mitt-based implementation
+// @vico/agent - Mitt-based EventRecorder 实现
 import mitt, { type Emitter } from 'mitt';
 import type { EventPayload, EventRecorder, TypedEvent } from './types.js';
 

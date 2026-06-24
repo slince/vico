@@ -1,7 +1,7 @@
 // src/__tests__/approval-gate.test.ts
 import { describe, it, expect, vi } from 'vitest';
 import { ApprovalGate } from '../agent-loop/approval-gate.js';
-import { MittEventRecorder } from '../observable/event-recorder.js';
+import { MittEventRecorder } from '../events/event-recorder.js';
 
 describe('ApprovalGate', () => {
   it('calls handler and returns decision', async () => {

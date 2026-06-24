@@ -1,7 +1,7 @@
 // src/agent-loop/approval-gate.ts
 import type { ToolCall } from '../tool/types.js';
 import type { ApprovalDecision } from '../tool/types.js';
-import type { EventRecorder } from '../observable/types.js';
+import type { EventRecorder } from '../events/types.js';
 
 /** 外部审批处理函数 — 返回决策或 timeout 后默认拒绝 */
 export type ApprovalHandler = (call: ToolCall) => Promise<ApprovalDecision>;

@@ -125,11 +125,13 @@ export { FileThreadStore, type FileThreadStoreOptions } from './thread/file-thre
 // ContextCompactor
 export { ContextCompactor } from './agent-loop/context-compactor.js';
 
-// Observable
-export { MittEventRecorder } from './observable/event-recorder.js';
-export { type EventRecorder, type EventPayload, type TypedEvent } from './observable/types.js';
+// Observable (Span)
 export { InMemorySpanTracker } from './observable/span-tracker.js';
 export { type SpanTracker, type Span } from './observable/types.js';
+
+// Events
+export { MittEventRecorder } from './events/event-recorder.js';
+export { type EventRecorder, type EventPayload, type TypedEvent } from './events/types.js';
 
 // AgentRuntime
 export { AgentRuntime } from './agent-loop/agent-runtime.js';

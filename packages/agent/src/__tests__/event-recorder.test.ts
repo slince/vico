@@ -1,6 +1,6 @@
 // event-recorder.test.ts — tests for MittEventRecorder: emit, on, off, wildcard
 import { describe, it, expect, vi } from 'vitest';
-import { MittEventRecorder } from '../observable/event-recorder.js';
+import { MittEventRecorder } from '../events/event-recorder.js';
 describe('MittEventRecorder', () => {
   it('emits and receives events', () => {
     const recorder = new MittEventRecorder();

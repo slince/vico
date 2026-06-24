@@ -5,7 +5,7 @@ import type { LanguageModelV3, LanguageModelV3StreamResult } from '@ai-sdk/provi
 import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent } from '../agent-loop/agent.js';
 import type { AgentConfig } from '../agent-loop/types.js';
-import { MittEventRecorder } from '../observable/event-recorder.js';
+import { MittEventRecorder } from '../events/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
 import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
 import { MemoryStore } from '../memory/memory-store.js';

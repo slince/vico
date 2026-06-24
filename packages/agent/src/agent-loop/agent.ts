@@ -5,7 +5,7 @@ import type {Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
-import type {EventPayload} from '../observable/types.js';
+import type {EventPayload} from '../events/types.js';
 import type {TurnEvent} from './types.js';
 import type {AgentLoop} from './agent-loop.js';
 
