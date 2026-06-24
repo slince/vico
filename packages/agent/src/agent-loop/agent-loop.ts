@@ -4,7 +4,7 @@ import type {Agent} from './agent.js';
 import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
-import type {EventRecorder, SpanTracker} from '../observable/types.js';
+import type {EventPayload, EventRecorder, SpanTracker} from '../observable/types.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
@@ -33,7 +33,7 @@ export class AgentLoop {
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalGate?: ApprovalGate;
-  private events: EventRecorder;
+  private events: EventRecorder<TurnEvent>;
   private spanTracker: SpanTracker;
   private steerBuffer: string[] = [];
   private interrupted = false;
@@ -200,6 +200,16 @@ export class AgentLoop {
   private emit(event: TurnEvent): TurnEvent {
     this.events.emit(event);
     return event;
+  }
+
+  /** 订阅 turn 事件 */
+  on<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
+    this.events.on(event, handler);
+  }
+
+  /** 取消订阅 turn 事件 */
+  off<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
+    this.events.off(event, handler);
   }
 
   /** 排干 steer 缓冲区并追加到消息列表 */
