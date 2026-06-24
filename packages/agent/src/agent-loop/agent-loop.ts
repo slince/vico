@@ -1,5 +1,6 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {RunTurnOptions, ToolCallSession, TurnEvent, TurnResult} from './types.js';
+import type {RunTurnOptions, ToolCallSession, TurnEvent, TurnResult, TurnStreamChunk} from './types.js';
+import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage} from '../model/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
@@ -13,6 +14,28 @@ import type {ContextProcessor} from '../prompt/context-processor.js';
 import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import type {WorkingMemory} from '../memory/types.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
+
+/** TurnEvent → TurnStreamChunk 映射：仅 stream 消费端需要的事件 */
+function eventToChunk(event: TurnEvent): TurnStreamChunk | undefined {
+  switch (event.type) {
+    case 'text-delta':
+      return { type: 'text-delta', content: event.content };
+    case 'reasoning-delta':
+      return { type: 'reasoning-delta', content: event.content };
+    case 'tool-call-start':
+      return { type: 'tool-call', id: event.id, name: event.name, args: event.args };
+    case 'tool-result':
+      return { type: 'tool-result', id: event.id, name: event.name, status: event.status, output: event.output };
+    case 'step-end':
+      return { type: 'step-end' };
+    case 'compacted':
+      return { type: 'compacted', removedTokens: event.removedTokens };
+    case 'error':
+      return { type: 'error', message: event.message };
+    default:
+      return undefined;
+  }
+}
 
 /** AgentLoop 构造选项 */
 export interface AgentLoopOptions {
@@ -59,16 +82,68 @@ export class AgentLoop {
     this.pipeline = new ProcessorPipeline([...userProcessors, steerProcessor]);
   }
 
-  /**
-   * 执行一个完整的 turn，流式返回过程详情。
-   */
-  async *runTurn(
+  /** 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise） */
+  runTurn(
     threadId: string,
     history: ModelMessage[],
     userMessage: ModelMessage,
     signal: AbortSignal,
     opts?: RunTurnOptions,
-  ): AsyncGenerator<TurnEvent, TurnResult> {
+  ): TurnOutput {
+    let resolveResult!: (result: TurnResult) => void;
+    let rejectResult!: (err: Error) => void;
+    const resultPromise = new Promise<TurnResult>((resolve, reject) => {
+      resolveResult = resolve;
+      rejectResult = reject;
+    });
+
+    // 创建内部 AbortController，供 TurnOutput.abort() 调用
+    const internalAc = new AbortController();
+    const combinedSignal = signal;
+
+    const abort = () => {
+      this.interrupt();
+      internalAc.abort();
+    };
+
+    const stream = new ReadableStream<TurnStreamChunk>({
+      start: async (controller) => {
+        try {
+          const result = await this._run({
+            threadId, history, userMessage, signal: combinedSignal,
+            controller, opts,
+          });
+          resolveResult(result);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.emit({ type: 'error', message: msg });
+          controller.enqueue({ type: 'error', message: msg });
+          rejectResult(err instanceof Error ? err : new Error(msg));
+        } finally {
+          try { controller.close(); } catch { /* already closed */ }
+        }
+      },
+    });
+
+    // 监听外部 signal
+    if (signal.aborted) {
+      abort();
+    }
+    signal.addEventListener('abort', abort, { once: true });
+
+    return new TurnOutput(stream, resultPromise, abort);
+  }
+
+  /** runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用 */
+  private async _run(ctx: {
+    threadId: string;
+    history: ModelMessage[];
+    userMessage: ModelMessage;
+    signal: AbortSignal;
+    controller: ReadableStreamDefaultController<TurnStreamChunk>;
+    opts?: RunTurnOptions;
+  }): Promise<TurnResult> {
+    const { threadId, history, userMessage, signal, controller, opts } = ctx;
     const turnSpan = this.spanTracker.startSpan('agent_run');
     this.interrupted = false;
 
@@ -78,6 +153,13 @@ export class AgentLoop {
     const scopeId = opts?.scopeId ?? '';
     const userId = opts?.userId ?? '';
     const workspace = opts?.workspace ?? '';
+
+    // emit + enqueue 到 stream
+    const fire = (event: TurnEvent) => {
+      this.emit(event);
+      const chunk = eventToChunk(event);
+      if (chunk) controller.enqueue(chunk);
+    };
 
     // 确保 threadStore 中的 thread 和 turn 存在
     const threadStore = this.agent.thread;
@@ -112,16 +194,16 @@ export class AgentLoop {
           return { status: 'aborted', steps, usage, messages };
         }
 
-        yield this.emit({ type: 'step-start', step: steps + 1 });
+        fire({ type: 'step-start', step: steps + 1 });
 
-        yield* this.tryCompact(messages, signal);
+        await this.tryCompact(messages, signal, fire);
 
         if (this.tokenEconomy?.isInputExhausted()) {
-          yield this.emit({ type: 'error', message: 'Input token budget exhausted' });
+          fire({ type: 'error', message: 'Input token budget exhausted' });
           break;
         }
 
-        yield* this.callModel(messages, threadId, scopeId, signal, usage, steps);
+        await this.callModel(messages, threadId, scopeId, signal, usage, steps, fire);
 
         // 记录 assistant 消息到 threadStore
         const assistantMsg = messages.at(-1);
@@ -137,11 +219,11 @@ export class AgentLoop {
 
         const toolCalls = messages.at(-1)?.toolCalls ?? [];
         if (toolCalls.length === 0) {
-          yield this.emit({ type: 'step-end', step: steps + 1 });
+          fire({ type: 'step-end', step: steps + 1 });
           break;
         }
 
-        yield* this.executeToolCalls(toolCalls, messages, session);
+        await this.executeToolCalls(toolCalls, messages, session, fire);
 
         // 记录 tool 消息到 threadStore
         if (threadStore && turn) {
@@ -158,7 +240,7 @@ export class AgentLoop {
           }
         }
 
-        yield this.emit({ type: 'step-end', step: steps + 1 });
+        fire({ type: 'step-end', step: steps + 1 });
         steps++;
       }
 
@@ -178,7 +260,7 @@ export class AgentLoop {
       }
 
       turnSpan.end({ status: 'completed', steps });
-      yield this.emit({ type: 'done', usage });
+      this.emit({ type: 'done', usage });
 
       return {
         status: this.interrupted ? 'interrupted' : 'completed',
@@ -190,17 +272,14 @@ export class AgentLoop {
       if (threadStore && turn) {
         await threadStore.updateTurn(turn.id, { status: 'failed', steps });
       }
-      const message = err instanceof Error ? err.message : String(err);
       turnSpan.error(err as Error);
-      yield this.emit({ type: 'error', message });
-      return { status: 'failed', steps, usage, messages };
+      throw err;
     }
   }
 
-  /** emit 并返回事件，方便 yield this.emit(...) 一行走两路 */
-  private emit(event: TurnEvent): TurnEvent {
+  /** emit 事件到订阅者 */
+  private emit(event: TurnEvent): void {
     this.events.emit(event);
-    return event;
   }
 
   /** 订阅 turn 事件 */
@@ -222,25 +301,30 @@ export class AgentLoop {
   }
 
   /** 压缩检查 */
-  private async *tryCompact(messages: ModelMessage[], signal: AbortSignal): AsyncGenerator<TurnEvent> {
+  private async tryCompact(
+    messages: ModelMessage[],
+    signal: AbortSignal,
+    fire: (e: TurnEvent) => void,
+  ): Promise<void> {
     if (!this.compactor) return;
     const result = await this.compactor.compactIfNeeded(messages, this.agent.modelClient, signal);
     if (result.wasCompacted) {
       messages.length = 0;
       messages.push(...result.compacted);
-      yield this.emit({ type: 'compacted', removedTokens: result.removedTokens });
+      fire({ type: 'compacted', removedTokens: result.removedTokens });
     }
   }
 
-  /** 洋葱管道 + 调用模型，流式返回过程事件，结果直接追加到 messages */
-  private async *callModel(
+  /** 洋葱管道 + 调用模型，结果直接追加到 messages */
+  private async callModel(
     messages: ModelMessage[],
     threadId: string,
     scopeId: string,
     signal: AbortSignal,
     usage: { input: number; output: number },
     step: number,
-  ): AsyncGenerator<TurnEvent> {
+    fire: (e: TurnEvent) => void,
+  ): Promise<void> {
     const ctx = new ModelRequestContext({
       agent: this.agent.config,
       messages: [...messages],
@@ -269,14 +353,14 @@ export class AgentLoop {
         switch (chunk.type) {
           case 'text-delta':
             fullText += chunk.delta;
-            yield this.emit({ type: 'text-delta', content: chunk.delta });
+            fire({ type: 'text-delta', content: chunk.delta });
             break;
           case 'reasoning-delta':
-            yield this.emit({ type: 'reasoning-delta', content: chunk.delta });
+            fire({ type: 'reasoning-delta', content: chunk.delta });
             break;
           case 'tool-call':
             toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
-            yield this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+            fire({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
             break;
           case 'finish':
             if (chunk.usage) {
@@ -288,14 +372,14 @@ export class AgentLoop {
           case 'error':
             const errMsg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
             modelSpan.error(new Error(errMsg));
-            yield this.emit({ type: 'error', message: errMsg });
+            fire({ type: 'error', message: errMsg });
             break;
         }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       modelSpan.error(new Error(msg));
-      yield this.emit({ type: 'error', message: msg });
+      fire({ type: 'error', message: msg });
     }
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
@@ -306,11 +390,12 @@ export class AgentLoop {
   }
 
   /** 执行工具调用并将结果追加到 messages */
-  private async *executeToolCalls(
+  private async executeToolCalls(
     toolCalls: ToolCall[],
     messages: ModelMessage[],
     session: ToolCallSession,
-  ): AsyncGenerator<TurnEvent> {
+    fire: (e: TurnEvent) => void,
+  ): Promise<void> {
     const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
     let results: ToolResult[];
     try {
@@ -325,7 +410,7 @@ export class AgentLoop {
       const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
-      yield this.emit({
+      fire({
         type: 'tool-result',
         id: r.callId,
         name: r.name,
@@ -367,17 +452,9 @@ export class AgentLoop {
   }
 }
 
-/** 消费流式 turn 并返回最终结果（丢弃中间事件） */
+/** 消费 TurnOutput 并返回最终结果（丢弃流数据） */
 export async function collectTurnResult(
-  stream: AsyncGenerator<TurnEvent, TurnResult>,
+  output: TurnOutput,
 ): Promise<TurnResult> {
-  let result: TurnResult | undefined;
-  while (true) {
-    const { done, value } = await stream.next();
-    if (done) {
-      result = value;
-      break;
-    }
-  }
-  return result!;
+  return output.result;
 }

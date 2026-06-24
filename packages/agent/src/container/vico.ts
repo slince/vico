@@ -12,6 +12,7 @@ import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
+import type {TurnOutput} from '../agent-loop/turn-output.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillProcessor} from '../skill/skill-processor.js';
@@ -224,8 +225,8 @@ export class Vico {
     return collectTurnResult(this.run(agentId, message, options));
   }
 
-  /** 流式对话 — 返回异步迭代器，逐条获得过程事件 */
-  stream(agentId: string, message: string, options?: InvokeOptions): AsyncGenerator<TurnEvent, TurnResult> {
+  /** 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise */
+  stream(agentId: string, message: string, options?: InvokeOptions): TurnOutput {
     return this.run(agentId, message, options);
   }
 

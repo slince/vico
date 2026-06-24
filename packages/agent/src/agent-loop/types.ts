@@ -54,7 +54,7 @@ export interface RunTurnOptions {
 
 export type { ToolCallSession } from '../tool/types.js';
 
-/** turn 执行过程中的流式事件 */
+/** turn 执行过程中的流式事件（仅用于 agent.on() 订阅） */
 export type TurnEvent =
   | { type: 'text-delta'; content: string }
   | { type: 'reasoning-delta'; content: string }
@@ -65,3 +65,13 @@ export type TurnEvent =
   | { type: 'compacted'; removedTokens: number }
   | { type: 'error'; message: string }
   | { type: 'done'; usage: { input: number; output: number } };
+
+/** runTurn 返回的流式数据块 */
+export type TurnStreamChunk =
+  | { type: 'text-delta'; content: string }
+  | { type: 'reasoning-delta'; content: string }
+  | { type: 'tool-call'; id: string; name: string; args: Record<string, unknown> }
+  | { type: 'tool-result'; id: string; name: string; status: 'success' | 'error'; output: unknown }
+  | { type: 'step-end' }
+  | { type: 'compacted'; removedTokens: number }
+  | { type: 'error'; message: string };

@@ -1,13 +1,14 @@
 /**
- * TurnEvent 流 → AI SDK UI 流转换
+ * TurnOutput 流 → AI SDK UI 流转换
  */
 import { createSSEResponse } from './sse.js';
 import type { UIStreamChunk } from './types.js';
-import type { TurnEvent, TurnResult } from '../agent-loop/types.js';
+import type { TurnStreamChunk, TurnResult } from '../agent-loop/types.js';
+import type { TurnOutput } from '../agent-loop/turn-output.js';
 
-/** TurnEvent generator → AI SDK UI stream Response */
+/** TurnOutput → AI SDK UI stream Response */
 export async function turnEventsToAISDK(
-  generator: AsyncGenerator<TurnEvent, TurnResult>,
+  output: TurnOutput,
   options?: { onFinish?: (finish: Extract<UIStreamChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },
 ): Promise<Response> {
   let fullText = '';
@@ -33,76 +34,79 @@ export async function turnEventsToAISDK(
         };
         const closeBlocks = () => { closeText(); closeReasoning(); };
 
-        while (true) {
-          const { done, value } = await generator.next();
-          if (done) {
-            closeBlocks();
-            const result = value as TurnResult;
+        const reader = output.stream.getReader();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-            if (inStep) {
-              enqueue({ type: 'finish-step' });
+            switch (value.type) {
+              case 'text-delta':
+                closeReasoning();
+                if (!inStep) { enqueue({ type: 'start-step' }); inStep = true; }
+                if (!textId) {
+                  textId = crypto.randomUUID();
+                  enqueue({ type: 'text-start', id: textId });
+                }
+                fullText += value.content;
+                enqueue({ type: 'text-delta', id: textId, delta: value.content });
+                break;
+
+              case 'reasoning-delta':
+                closeText();
+                if (!reasoningId) {
+                  reasoningId = crypto.randomUUID();
+                  enqueue({ type: 'reasoning-start', id: reasoningId });
+                }
+                enqueue({ type: 'reasoning-delta', id: reasoningId, delta: value.content });
+                break;
+
+              case 'tool-call':
+                closeBlocks();
+                if (!inStep) { enqueue({ type: 'start-step' }); inStep = true; }
+                enqueue({ type: 'tool-input-start', toolCallId: value.id, toolName: value.name });
+                enqueue({ type: 'tool-input-delta', toolCallId: value.id, inputTextDelta: JSON.stringify(value.args) });
+                enqueue({ type: 'tool-input-available', toolCallId: value.id, toolName: value.name, input: value.args });
+                break;
+
+              case 'tool-result':
+                if (value.status === 'success') {
+                  enqueue({ type: 'tool-output-available', toolCallId: value.id, output: value.output });
+                } else {
+                  enqueue({ type: 'tool-output-error', toolCallId: value.id, errorText: String(value.output) });
+                }
+                break;
+
+              case 'step-end':
+                closeBlocks();
+                if (inStep) { enqueue({ type: 'finish-step' }); inStep = false; }
+                break;
+
+              case 'error':
+                enqueue({ type: 'error', errorText: value.message });
+                break;
+
+              case 'compacted':
+                break;
             }
-            const finish: UIStreamChunk = {
-              type: 'finish',
-              finishReason: result?.status === 'completed' ? 'stop' : 'error',
-            };
-            await options?.onFinish?.(finish, fullText);
-            enqueue(finish);
-            break;
           }
-
-          const event = value as TurnEvent;
-          switch (event.type) {
-            case 'text-delta':
-              closeReasoning();
-              if (!inStep) { enqueue({ type: 'start-step' }); inStep = true; }
-              if (!textId) {
-                textId = crypto.randomUUID();
-                enqueue({ type: 'text-start', id: textId });
-              }
-              fullText += event.content;
-              enqueue({ type: 'text-delta', id: textId, delta: event.content });
-              break;
-
-            case 'reasoning-delta':
-              closeText();
-              if (!reasoningId) {
-                reasoningId = crypto.randomUUID();
-                enqueue({ type: 'reasoning-start', id: reasoningId });
-              }
-              enqueue({ type: 'reasoning-delta', id: reasoningId, delta: event.content });
-              break;
-
-            case 'tool-call-start':
-              closeBlocks();
-              if (!inStep) { enqueue({ type: 'start-step' }); inStep = true; }
-              enqueue({ type: 'tool-input-start', toolCallId: event.id, toolName: event.name });
-              enqueue({ type: 'tool-input-delta', toolCallId: event.id, inputTextDelta: JSON.stringify(event.args) });
-              enqueue({ type: 'tool-input-available', toolCallId: event.id, toolName: event.name, input: event.args });
-              break;
-
-            case 'tool-result':
-              if (event.status === 'success') {
-                enqueue({ type: 'tool-output-available', toolCallId: event.id, output: event.output });
-              } else {
-                enqueue({ type: 'tool-output-error', toolCallId: event.id, errorText: String(event.output) });
-              }
-              break;
-
-            case 'step-end':
-              closeBlocks();
-              if (inStep) { enqueue({ type: 'finish-step' }); inStep = false; }
-              break;
-
-            case 'error':
-              enqueue({ type: 'error', errorText: event.message });
-              break;
-
-            case 'step-start':
-            case 'compacted':
-              break;
-          }
+        } finally {
+          reader.releaseLock();
         }
+
+        closeBlocks();
+
+        const result: TurnResult = await output.result;
+
+        if (inStep) {
+          enqueue({ type: 'finish-step' });
+        }
+        const finish: UIStreamChunk = {
+          type: 'finish',
+          finishReason: result.status === 'completed' ? 'stop' : 'error',
+        };
+        await options?.onFinish?.(finish, fullText);
+        enqueue(finish);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         enqueue({ type: 'error', errorText: message });
