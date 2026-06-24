@@ -54,6 +54,33 @@ export interface RunTurnOptions {
 
 export type { ToolCallSession } from '../tool/types.js';
 
+// ── 核心领域模型：Thread > Turn > Step ──
+
+/**
+ * Step — turn 内的一次 LLM 调用 + 可选工具执行。
+ * 由 _run 在每轮迭代时创建，随 callModel / executeToolCalls / dispatchTools 流转。
+ */
+export interface Step {
+  /** 当前步骤编号（0 起始） */
+  index: number;
+  /** 所属 thread */
+  threadId: string;
+  /** 执行作用域 */
+  scopeId: string;
+  /** 中断信号 */
+  signal: AbortSignal;
+  /** 事件触发（消息和状态变化同时通知 agent.on() 订阅者和 stream 消费端） */
+  fire: (e: TurnEvent) => void;
+}
+
+/**
+ * Turn — 用户发送一条消息到 agent 完成响应的完整对话轮次。
+ * Thread（会话）包含多个 Turn，Turn 包含多个 Step。
+ *
+ * 与 thread/types.ts 中的 Turn（存储模型）对应：
+ * 存储 Turn 记录运行时元数据，TurnResult 作为 runTurn 的最终返回值。
+ */
+
 /** turn 执行过程中的流式事件（仅用于 agent.on() 订阅） */
 export type TurnEvent =
   | { type: 'text-delta'; content: string }

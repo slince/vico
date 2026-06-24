@@ -4,7 +4,7 @@ import type { LanguageModelV3, LanguageModelV3StreamResult } from '@ai-sdk/provi
 
 import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent } from '../agent-loop/agent.js';
-import type { AgentConfig } from '../agent-loop/types.js';
+import type { AgentConfig, TurnEvent } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../events/event-recorder.js';
 import { InMemorySpanTracker } from '../observable/span-tracker.js';
 import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
@@ -63,7 +63,7 @@ const mockToolBroker = {
 
 describe('AgentLoop', () => {
   it('completes a turn with text-only response', async () => {
-    const events = new MittEventRecorder();
+    const events = new MittEventRecorder<TurnEvent>();
     const tracker = new InMemorySpanTracker();
     const agent = makeAgent([
       { type: 'text-start', id: '1' },
@@ -124,7 +124,7 @@ describe('AgentLoop', () => {
       } satisfies LanguageModelV3StreamResult)),
     };
 
-    const events = new MittEventRecorder();
+    const events = new MittEventRecorder<TurnEvent>();
     const tracker = new InMemorySpanTracker();
     const doneEvents: any[] = [];
     events.on('done', (e) => doneEvents.push(e));
@@ -183,7 +183,7 @@ describe('AgentLoop', () => {
       } satisfies LanguageModelV3StreamResult)),
     };
 
-    const events = new MittEventRecorder();
+    const events = new MittEventRecorder<TurnEvent>();
     const tracker = new InMemorySpanTracker();
     const agent = new Agent({
       config: makeConfig(),

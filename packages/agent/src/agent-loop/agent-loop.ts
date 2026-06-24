@@ -1,5 +1,5 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {RunTurnOptions, ToolCallSession, TurnEvent, TurnResult, TurnStreamChunk} from './types.js';
+import type {RunTurnOptions, Step, ToolCallSession, TurnEvent, TurnResult, TurnStreamChunk} from './types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage} from '../model/types.js';
@@ -35,6 +35,18 @@ function eventToChunk(event: TurnEvent): TurnStreamChunk | undefined {
     default:
       return undefined;
   }
+}
+
+/** callModel 的返回值 */
+interface CallModelResult {
+  /** 模型生成的完整文本 */
+  text: string;
+  /** 模型请求的工具调用 */
+  toolCalls: ToolCall[];
+  /** 本次调用的 token 用量 */
+  usage: { input: number; output: number };
+  /** 错误信息（如有） */
+  error?: string;
 }
 
 /** AgentLoop 构造选项 */
@@ -194,7 +206,9 @@ export class AgentLoop {
           return { status: 'aborted', steps, usage, messages };
         }
 
-        fire({ type: 'step-start', step: steps + 1 });
+        const step: Step = { index: steps, threadId, scopeId, signal, fire };
+
+        fire({ type: 'step-start', step: step.index + 1 });
 
         await this.tryCompact(messages, signal, fire);
 
@@ -203,7 +217,16 @@ export class AgentLoop {
           break;
         }
 
-        await this.callModel(messages, threadId, scopeId, signal, usage, steps, fire);
+        const modelResult = await this.callModel(messages, step);
+
+        // 从返回值应用副作用，不修改 callModel 的入参
+        usage.input += modelResult.usage.input;
+        usage.output += modelResult.usage.output;
+        this.tokenEconomy?.track(modelResult.usage.input, modelResult.usage.output);
+
+        if (modelResult.text || modelResult.toolCalls.length > 0) {
+          messages.push({ role: 'assistant', content: modelResult.text, ...(modelResult.toolCalls.length > 0 && { toolCalls: modelResult.toolCalls }) });
+        }
 
         // 记录 assistant 消息到 threadStore
         const assistantMsg = messages.at(-1);
@@ -217,17 +240,16 @@ export class AgentLoop {
           });
         }
 
-        const toolCalls = messages.at(-1)?.toolCalls ?? [];
-        if (toolCalls.length === 0) {
+        if (modelResult.toolCalls.length === 0) {
           fire({ type: 'step-end', step: steps + 1 });
           break;
         }
 
-        await this.executeToolCalls(toolCalls, messages, session, fire);
+        await this.executeToolCalls(modelResult.toolCalls, messages, session, step);
 
         // 记录 tool 消息到 threadStore
         if (threadStore && turn) {
-          for (const msg of messages.slice(-toolCalls.length)) {
+          for (const msg of messages.slice(-modelResult.toolCalls.length)) {
             if (msg.role === 'tool') {
               await threadStore.appendEntry({
                 threadId,
@@ -315,29 +337,26 @@ export class AgentLoop {
     }
   }
 
-  /** 洋葱管道 + 调用模型，结果直接追加到 messages */
+  /** 单次模型调用。仅从 messages 读取上下文，不修改入参，结果通过 CallModelResult 返回 */
   private async callModel(
     messages: ModelMessage[],
-    threadId: string,
-    scopeId: string,
-    signal: AbortSignal,
-    usage: { input: number; output: number },
-    step: number,
-    fire: (e: TurnEvent) => void,
-  ): Promise<void> {
+    step: Step,
+  ): Promise<CallModelResult> {
+    const modelUsage = { input: 0, output: 0 };
+
     const ctx = new ModelRequestContext({
       agent: this.agent.config,
       messages: [...messages],
       tools: [...this.agent.tools],
-      threadId,
-      scopeId,
+      threadId: step.threadId,
+      scopeId: step.scopeId,
     });
     await this.pipeline.run(ctx);
     const request = buildModelRequest(ctx);
 
     let fullText = '';
     const toolCalls: ToolCall[] = [];
-    const modelSpan = this.spanTracker.startSpan('model_step', { step: step + 1 });
+    const modelSpan = this.spanTracker.startSpan('model_step', { step: step.index + 1 });
 
     const { stream } = await this.agent.modelClient.stream({
       system: request.system,
@@ -345,7 +364,7 @@ export class AgentLoop {
       tools: request.tools,
       maxOutputTokens: request.maxTokens,
       temperature: request.temperature,
-      abortSignal: signal,
+      abortSignal: step.signal,
     });
 
     try {
@@ -353,40 +372,38 @@ export class AgentLoop {
         switch (chunk.type) {
           case 'text-delta':
             fullText += chunk.delta;
-            fire({ type: 'text-delta', content: chunk.delta });
+            step.fire({ type: 'text-delta', content: chunk.delta });
             break;
           case 'reasoning-delta':
-            fire({ type: 'reasoning-delta', content: chunk.delta });
+            step.fire({ type: 'reasoning-delta', content: chunk.delta });
             break;
           case 'tool-call':
             toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
-            fire({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+            step.fire({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
             break;
           case 'finish':
             if (chunk.usage) {
-              usage.input += chunk.usage.inputTokens.total ?? 0;
-              usage.output += chunk.usage.outputTokens.total ?? 0;
-              this.tokenEconomy?.track(chunk.usage.inputTokens.total ?? 0, chunk.usage.outputTokens.total ?? 0);
+              modelUsage.input = chunk.usage.inputTokens.total ?? 0;
+              modelUsage.output = chunk.usage.outputTokens.total ?? 0;
             }
             break;
           case 'error':
             const errMsg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
             modelSpan.error(new Error(errMsg));
-            fire({ type: 'error', message: errMsg });
+            step.fire({ type: 'error', message: errMsg });
             break;
         }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       modelSpan.error(new Error(msg));
-      fire({ type: 'error', message: msg });
+      step.fire({ type: 'error', message: msg });
+      return { text: fullText, toolCalls, usage: modelUsage, error: msg };
     }
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
-    if (fullText || toolCalls.length > 0) {
-      messages.push({ role: 'assistant', content: fullText, ...(toolCalls.length > 0 && { toolCalls }) });
-    }
+    return { text: fullText, toolCalls, usage: modelUsage };
   }
 
   /** 执行工具调用并将结果追加到 messages */
@@ -394,12 +411,12 @@ export class AgentLoop {
     toolCalls: ToolCall[],
     messages: ModelMessage[],
     session: ToolCallSession,
-    fire: (e: TurnEvent) => void,
+    step: Step,
   ): Promise<void> {
     const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
     let results: ToolResult[];
     try {
-      results = await this.dispatchTools(toolCalls, session);
+      results = await this.dispatchTools(toolCalls, session, step);
       toolSpan.end({ results: results.length });
     } catch (err) {
       toolSpan.error(err as Error);
@@ -410,7 +427,7 @@ export class AgentLoop {
       const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
-      fire({
+      step.fire({
         type: 'tool-result',
         id: r.callId,
         name: r.name,
@@ -420,7 +437,7 @@ export class AgentLoop {
     }
   }
 
-  private async dispatchTools(calls: ToolCall[], session: ToolCallSession): Promise<ToolResult[]> {
+  private async dispatchTools(calls: ToolCall[], session: ToolCallSession, step: Step): Promise<ToolResult[]> {
     const context: ToolExecutionContext = {
       session,
       agentId: this.agent.config.id,
@@ -430,7 +447,7 @@ export class AgentLoop {
         }
         return { approved: true };
       },
-      signal: new AbortController().signal,
+      signal: step.signal,
     };
 
     return this.toolBroker.executeBatch(calls, context);

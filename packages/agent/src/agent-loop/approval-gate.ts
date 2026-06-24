@@ -9,10 +9,10 @@ export type ApprovalHandler = (call: ToolCall) => Promise<ApprovalDecision>;
 /** 审批门控 — 管理需要用户审批的工具调用 */
 export class ApprovalGate {
   private handler: ApprovalHandler;
-  private events: EventRecorder;
+  private events: EventRecorder<any>;
   private defaultTimeout: number;
 
-  constructor(handler: ApprovalHandler, events: EventRecorder, defaultTimeout = 60_000) {
+  constructor(handler: ApprovalHandler, events: EventRecorder<any>, defaultTimeout = 60_000) {
     this.handler = handler;
     this.events = events;
     this.defaultTimeout = defaultTimeout;
