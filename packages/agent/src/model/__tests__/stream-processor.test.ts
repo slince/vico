@@ -110,9 +110,11 @@ describe('processStreamParts', () => {
     const chunks = await collect(processStreamParts(stream));
     expect(chunks).toEqual([{
       type: 'finish',
-      finishReason: 'stop',
-      rawFinishReason: 'stop',
-      usage: { inputTokens: 100, outputTokens: 50 },
+      finishReason: { unified: 'stop', raw: 'stop' },
+      usage: {
+        inputTokens: { total: 100, noCache: 50, cacheRead: 30, cacheWrite: 20 },
+        outputTokens: { total: 50, text: 50, reasoning: 0 },
+      },
       providerMetadata: undefined,
     }]);
   });
@@ -123,10 +125,10 @@ describe('processStreamParts', () => {
       { type: 'error', error: err },
     ]);
     const chunks = await collect(processStreamParts(stream));
-    expect(chunks).toEqual([{
+    expect(chunks[0]).toMatchObject({
       type: 'error',
-      message: 'API error',
-    }]);
+      error: expect.any(Error),
+    });
   });
 
   it('processes stream-start with warnings', async () => {

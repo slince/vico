@@ -269,14 +269,15 @@ export class AgentLoop {
             break;
           case 'finish':
             if (chunk.usage) {
-              usage.input += chunk.usage.inputTokens;
-              usage.output += chunk.usage.outputTokens;
-              this.tokenEconomy?.track(chunk.usage.inputTokens, chunk.usage.outputTokens);
+              usage.input += chunk.usage.inputTokens.total ?? 0;
+              usage.output += chunk.usage.outputTokens.total ?? 0;
+              this.tokenEconomy?.track(chunk.usage.inputTokens.total ?? 0, chunk.usage.outputTokens.total ?? 0);
             }
             break;
           case 'error':
-            modelSpan.error(new Error(chunk.message));
-            yield this.emit({ type: 'error', message: chunk.message });
+            const errMsg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
+            modelSpan.error(new Error(errMsg));
+            yield this.emit({ type: 'error', message: errMsg });
             break;
         }
       }

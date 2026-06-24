@@ -28,7 +28,6 @@ export type {
   ModelStreamChunk,
   ModelCallOptions,
   ModelStreamResult,
-  ModelUsage,
   ToolDescriptor,
 } from './model/types.js';
 

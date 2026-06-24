@@ -1,4 +1,5 @@
 // @vico/agent - 模型模块类型定义
+import type { LanguageModelV3FinishReason, LanguageModelV3Usage } from '@ai-sdk/provider';
 
 /** 消息角色 */
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
@@ -23,12 +24,6 @@ export type StreamWarning = {
   message?: string;
 };
 
-/** Token 用量快照 */
-export interface ModelUsage {
-  inputTokens: number;
-  outputTokens: number;
-}
-
 /** ModelClient 接受的工具格式 */
 export interface ToolDescriptor {
   name: string;
@@ -52,8 +47,8 @@ export interface ModelStreamResult {
 }
 
 /**
- * ModelStreamChunk — 完整映射 LanguageModelV3StreamPart 的所有变体。
- * 每种变体 1:1 对应；仅 tool-call.input 从 JSON 字符串解析为 unknown。
+ * ModelStreamChunk — 映射 LanguageModelV3StreamPart 的所有变体。
+ * 仅 tool-call.input 从 JSON 字符串解析为 unknown，其余字段与 SDK 一致。
  */
 export type ModelStreamChunk =
   // 文本生命周期
@@ -68,7 +63,7 @@ export type ModelStreamChunk =
   | { type: 'tool-input-start'; id: string; toolName: string; providerExecuted?: boolean; dynamic?: boolean; title?: string; providerMetadata?: ProviderMetadata }
   | { type: 'tool-input-delta'; id: string; delta: string; providerMetadata?: ProviderMetadata }
   | { type: 'tool-input-end'; id: string; providerMetadata?: ProviderMetadata }
-  // 工具调用（聚合后，input 已解析）
+  // 工具调用（input 已解析）
   | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown; providerExecuted?: boolean; dynamic?: boolean; providerMetadata?: ProviderMetadata }
   // 工具结果（来自 provider）
   | { type: 'tool-result'; toolCallId: string; toolName: string; result: unknown; isError?: boolean; preliminary?: boolean; dynamic?: boolean; providerMetadata?: ProviderMetadata }
@@ -82,6 +77,6 @@ export type ModelStreamChunk =
   // 元数据
   | { type: 'stream-start'; warnings: StreamWarning[] }
   | { type: 'response-metadata'; id?: string; timestamp?: Date; modelId?: string }
-  | { type: 'finish'; finishReason: string; rawFinishReason?: string; usage: ModelUsage; providerMetadata?: ProviderMetadata }
+  | { type: 'finish'; finishReason: LanguageModelV3FinishReason; usage: LanguageModelV3Usage; providerMetadata?: ProviderMetadata }
   | { type: 'raw'; rawValue: unknown }
-  | { type: 'error'; message: string };
+  | { type: 'error'; error: unknown };
