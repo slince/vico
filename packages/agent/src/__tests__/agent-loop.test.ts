@@ -82,9 +82,7 @@ describe('AgentLoop', () => {
 
     const result = await collectTurnResult(loop.runTurn(
       'thread-1',
-      [],
       { role: 'user', content: 'hi' },
-      new AbortController().signal,
     ));
 
     expect(result.status).toBe('completed');
@@ -145,9 +143,7 @@ describe('AgentLoop', () => {
 
     const result = await collectTurnResult(loop.runTurn(
       'thread-1',
-      [],
       { role: 'user', content: 'search for test' },
-      new AbortController().signal,
     ));
 
     expect(result.status).toBe('completed');
@@ -191,8 +187,6 @@ describe('AgentLoop', () => {
       memory: new MemoryStore(),
       thread: new InMemoryThreadStore(),
     });
-    const controller = new AbortController();
-
     const loop = new AgentLoop({
       agent,
       toolBroker: mockToolBroker as any,
@@ -201,17 +195,10 @@ describe('AgentLoop', () => {
       spanTracker: tracker,
     });
 
-    setTimeout(() => {
-      loop.interrupt();
-      controller.abort();
-    }, 10);
+    const output = loop.runTurn('thread-1', { role: 'user', content: 'hi' });
+    setTimeout(() => output.abort(), 10);
 
-    const result = await collectTurnResult(loop.runTurn(
-      'thread-1',
-      [],
-      { role: 'user', content: 'hi' },
-      controller.signal,
-    ));
+    const result = await collectTurnResult(output);
 
     expect(result.status).toBe('interrupted');
   });

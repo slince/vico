@@ -94,12 +94,10 @@ export class AgentLoop {
     this.pipeline = new ProcessorPipeline([...userProcessors, steerProcessor]);
   }
 
-  /** 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise） */
+  /** 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise）。历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止 */
   runTurn(
     threadId: string,
-    history: ModelMessage[],
     userMessage: ModelMessage,
-    signal: AbortSignal,
     opts?: RunTurnOptions,
   ): TurnOutput {
     let resolveResult!: (result: TurnResult) => void;
@@ -109,9 +107,7 @@ export class AgentLoop {
       rejectResult = reject;
     });
 
-    // 创建内部 AbortController，供 TurnOutput.abort() 调用
     const internalAc = new AbortController();
-    const combinedSignal = signal;
 
     const abort = () => {
       this.interrupt();
@@ -122,7 +118,7 @@ export class AgentLoop {
       start: async (controller) => {
         try {
           const result = await this._run({
-            threadId, history, userMessage, signal: combinedSignal,
+            threadId, userMessage, signal: internalAc.signal,
             controller, opts,
           });
           resolveResult(result);
@@ -137,29 +133,23 @@ export class AgentLoop {
       },
     });
 
-    // 监听外部 signal
-    if (signal.aborted) {
-      abort();
-    }
-    signal.addEventListener('abort', abort, { once: true });
-
     return new TurnOutput(stream, resultPromise, abort);
   }
 
   /** runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用 */
   private async _run(ctx: {
     threadId: string;
-    history: ModelMessage[];
     userMessage: ModelMessage;
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<TurnStreamChunk>;
     opts?: RunTurnOptions;
   }): Promise<TurnResult> {
-    const { threadId, history, userMessage, signal, controller, opts } = ctx;
+    const { threadId, userMessage, signal, controller, opts } = ctx;
     const turnSpan = this.spanTracker.startSpan('agent_run');
     this.interrupted = false;
 
-    const messages = [...history, userMessage];
+    // 历史消息由 MemoryProcessor 在 pipeline 中注入，这里只放当前用户消息
+    const messages: ModelMessage[] = [userMessage];
     let steps = 0;
     const usage = { input: 0, output: 0 };
     const scopeId = opts?.scopeId ?? '';

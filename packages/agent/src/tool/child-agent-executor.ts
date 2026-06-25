@@ -62,9 +62,7 @@ export class ChildAgentExecutor {
     try {
       const result = await collectTurnResult(ref.loop.runTurn(
         `delegate-${agentId}-${Date.now()}`,
-        [],
         userMessage,
-        ctx.signal,
       ));
 
       const output = result.messages
