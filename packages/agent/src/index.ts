@@ -141,7 +141,7 @@ export { Agent } from './agent-loop/agent.js';
 export { AgentLoop, collectTurnResult } from './agent-loop/agent-loop.js';
 export { type AgentLoopOptions } from './agent-loop/agent-loop.js';
 export { TurnOutput } from './agent-loop/turn-output.js';
-export { type TurnResult, type TurnEvent, type TurnStreamChunk, type RunTurnOptions } from './agent-loop/types.js';
+export { type TurnResult, type TurnEvent, type RunTurnOptions } from './agent-loop/types.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
 export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';
 

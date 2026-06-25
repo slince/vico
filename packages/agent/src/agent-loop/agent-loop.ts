@@ -1,8 +1,8 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {RunTurnOptions, Step, ToolCallSession, TurnEvent, TurnResult, TurnStreamChunk} from './types.js';
+import type {RunTurnOptions, Step, ToolCallSession, TurnEvent, TurnResult} from './types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
-import type {ModelMessage} from '../model/types.js';
+import type {ModelMessage, ModelStreamChunk} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
@@ -15,28 +15,6 @@ import type {ContextProcessor} from '../prompt/context-processor.js';
 import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import type {WorkingMemory} from '../memory/types.js';
 import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
-
-/** TurnEvent → TurnStreamChunk 映射：仅 stream 消费端需要的事件 */
-function eventToChunk(event: TurnEvent): TurnStreamChunk | undefined {
-  switch (event.type) {
-    case 'text-delta':
-      return { type: 'text-delta', content: event.content };
-    case 'reasoning-delta':
-      return { type: 'reasoning-delta', content: event.content };
-    case 'tool-call-start':
-      return { type: 'tool-call', id: event.id, name: event.name, args: event.args };
-    case 'tool-result':
-      return { type: 'tool-result', id: event.id, name: event.name, status: event.status, output: event.output };
-    case 'step-end':
-      return { type: 'step-end' };
-    case 'compacted':
-      return { type: 'compacted', removedTokens: event.removedTokens };
-    case 'error':
-      return { type: 'error', message: event.message };
-    default:
-      return undefined;
-  }
-}
 
 /** callModel 的返回值 */
 interface CallModelResult {
@@ -115,7 +93,7 @@ export class AgentLoop {
       internalAc.abort();
     };
 
-    const stream = new ReadableStream<TurnStreamChunk>({
+    const stream = new ReadableStream<ModelStreamChunk>({
       start: async (controller) => {
         try {
           const result = await this._run({
@@ -126,7 +104,6 @@ export class AgentLoop {
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           this.emit({ type: 'error', message: msg });
-          controller.enqueue({ type: 'error', message: msg });
           rejectResult(err instanceof Error ? err : new Error(msg));
         } finally {
           try { controller.close(); } catch { /* already closed */ }
@@ -142,7 +119,7 @@ export class AgentLoop {
     threadId: string;
     userMessage: ModelMessage;
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<TurnStreamChunk>;
+    controller: ReadableStreamDefaultController<ModelStreamChunk>;
     opts?: RunTurnOptions;
   }): Promise<TurnResult> {
     const { threadId, userMessage, signal, controller, opts } = ctx;
@@ -157,11 +134,9 @@ export class AgentLoop {
     const userId = opts?.userId ?? '';
     const workspace = opts?.workspace ?? '';
 
-    // emit + enqueue 到 stream
+    // 仅 emit TurnEvent，模型 chunk 由 callModel 直接 enqueue 到 stream
     const fire = (event: TurnEvent) => {
       this.emit(event);
-      const chunk = eventToChunk(event);
-      if (chunk) controller.enqueue(chunk);
     };
 
     // 确保 threadStore 中的 thread 和 turn 存在
@@ -208,7 +183,7 @@ export class AgentLoop {
           break;
         }
 
-        const modelResult = await this.callModel(messages, thread, step);
+        const modelResult = await this.callModel(messages, thread, step, controller);
 
         // 从返回值应用副作用，不修改 callModel 的入参
         usage.input += modelResult.usage.input;
@@ -335,11 +310,12 @@ export class AgentLoop {
     }
   }
 
-  /** 单次模型调用。仅从 messages 读取上下文，不修改入参，结果通过 CallModelResult 返回 */
+  /** 单次模型调用。仅从 messages 读取上下文，不修改入参，结果通过 CallModelResult 返回。模型 chunk 直接 enqueue 到 stream */
   private async callModel(
     messages: ModelMessage[],
     thread: Thread,
     step: Step,
+    controller: ReadableStreamDefaultController<ModelStreamChunk>,
   ): Promise<CallModelResult> {
     const modelUsage = { input: 0, output: 0 };
 
@@ -369,6 +345,8 @@ export class AgentLoop {
 
     try {
       for await (const chunk of stream) {
+        controller.enqueue(chunk);
+
         switch (chunk.type) {
           case 'text-delta':
             fullText += chunk.delta;

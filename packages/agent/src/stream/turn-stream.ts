@@ -1,10 +1,12 @@
 /**
- * TurnOutput 流 → AI SDK UI 流转换
+ * TurnOutput 流（ModelStreamChunk）→ AI SDK UI 流（UIStreamChunk）转换。
+ * ModelStreamChunk 来自 AI SDK provider 层，UIStreamChunk 供 @assistant-ui/react 消费。
  */
 import { createSSEResponse } from './sse.js';
 import type { UIStreamChunk } from './types.js';
-import type { TurnStreamChunk, TurnResult } from '../agent-loop/types.js';
+import type { TurnResult } from '../agent-loop/types.js';
 import type { TurnOutput } from '../agent-loop/turn-output.js';
+import type { ModelStreamChunk } from '../model/types.js';
 
 /** TurnOutput → AI SDK UI stream Response */
 export async function turnEventsToAISDK(
@@ -23,78 +25,76 @@ export async function turnEventsToAISDK(
 
       try {
         let inStep = false;
-        let textId: string | null = null;
-        let reasoningId: string | null = null;
-
-        const closeText = () => {
-          if (textId) { enqueue({ type: 'text-end', id: textId }); textId = null; }
-        };
-        const closeReasoning = () => {
-          if (reasoningId) { enqueue({ type: 'reasoning-end', id: reasoningId }); reasoningId = null; }
-        };
-        const closeBlocks = () => { closeText(); closeReasoning(); };
-
         const reader = output.stream.getReader();
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            switch (value.type) {
-              case 'text-delta':
-                closeReasoning();
+            const c = value as ModelStreamChunk;
+
+            switch (c.type) {
+              case 'text-start':
                 if (!inStep) { enqueue({ type: 'start-step' }); inStep = true; }
-                if (!textId) {
-                  textId = crypto.randomUUID();
-                  enqueue({ type: 'text-start', id: textId });
-                }
-                fullText += value.content;
-                enqueue({ type: 'text-delta', id: textId, delta: value.content });
+                enqueue({ type: 'text-start', id: c.id, providerMetadata: c.providerMetadata });
+                break;
+
+              case 'text-delta':
+                fullText += c.delta;
+                enqueue({ type: 'text-delta', id: c.id, delta: c.delta, providerMetadata: c.providerMetadata });
+                break;
+
+              case 'text-end':
+                enqueue({ type: 'text-end', id: c.id, providerMetadata: c.providerMetadata });
+                break;
+
+              case 'reasoning-start':
+                enqueue({ type: 'reasoning-start', id: c.id, providerMetadata: c.providerMetadata });
                 break;
 
               case 'reasoning-delta':
-                closeText();
-                if (!reasoningId) {
-                  reasoningId = crypto.randomUUID();
-                  enqueue({ type: 'reasoning-start', id: reasoningId });
-                }
-                enqueue({ type: 'reasoning-delta', id: reasoningId, delta: value.content });
+                enqueue({ type: 'reasoning-delta', id: c.id, delta: c.delta, providerMetadata: c.providerMetadata });
+                break;
+
+              case 'reasoning-end':
+                enqueue({ type: 'reasoning-end', id: c.id, providerMetadata: c.providerMetadata });
+                break;
+
+              case 'tool-input-start':
+                enqueue({ type: 'tool-input-start', toolCallId: c.id, toolName: c.toolName });
+                break;
+
+              case 'tool-input-delta':
+                enqueue({ type: 'tool-input-delta', toolCallId: c.id, inputTextDelta: c.delta });
                 break;
 
               case 'tool-call':
-                closeBlocks();
-                if (!inStep) { enqueue({ type: 'start-step' }); inStep = true; }
-                enqueue({ type: 'tool-input-start', toolCallId: value.id, toolName: value.name });
-                enqueue({ type: 'tool-input-delta', toolCallId: value.id, inputTextDelta: JSON.stringify(value.args) });
-                enqueue({ type: 'tool-input-available', toolCallId: value.id, toolName: value.name, input: value.args });
+                enqueue({ type: 'tool-input-available', toolCallId: c.toolCallId, toolName: c.toolName, input: c.input });
                 break;
 
               case 'tool-result':
-                if (value.status === 'success') {
-                  enqueue({ type: 'tool-output-available', toolCallId: value.id, output: value.output });
+                if (c.isError) {
+                  enqueue({ type: 'tool-output-error', toolCallId: c.toolCallId, errorText: String(c.result) });
                 } else {
-                  enqueue({ type: 'tool-output-error', toolCallId: value.id, errorText: String(value.output) });
+                  enqueue({ type: 'tool-output-available', toolCallId: c.toolCallId, output: c.result });
                 }
                 break;
 
-              case 'step-end':
-                closeBlocks();
-                if (inStep) { enqueue({ type: 'finish-step' }); inStep = false; }
+              case 'finish':
                 break;
 
               case 'error':
-                enqueue({ type: 'error', errorText: value.message });
+                const errMsg = c.error instanceof Error ? c.error.message : String(c.error);
+                enqueue({ type: 'error', errorText: errMsg });
                 break;
 
-              case 'compacted':
+              default:
                 break;
             }
           }
         } finally {
           reader.releaseLock();
         }
-
-        closeBlocks();
 
         const result: TurnResult = await output.result;
 

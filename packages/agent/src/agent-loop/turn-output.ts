@@ -1,10 +1,11 @@
 // @vico/agent - TurnOutput: runTurn 的返回值，封装流和结果
-import type { TurnStreamChunk, TurnResult } from './types.js';
+import type { TurnResult } from './types.js';
+import type { ModelStreamChunk } from '../model/types.js';
 
 /** runTurn 的返回值，包含输出流、结果 Promise 和控制方法 */
 export class TurnOutput {
   /** 模型输出流 */
-  readonly stream: ReadableStream<TurnStreamChunk>;
+  readonly stream: ReadableStream<ModelStreamChunk>;
 
   /** turn 完成后的最终结果 */
   readonly result: Promise<TurnResult>;
@@ -12,7 +13,7 @@ export class TurnOutput {
   private _abort: () => void;
 
   constructor(
-    stream: ReadableStream<TurnStreamChunk>,
+    stream: ReadableStream<ModelStreamChunk>,
     result: Promise<TurnResult>,
     abort: () => void,
   ) {
@@ -35,7 +36,7 @@ export class TurnOutput {
         const { done, value } = await reader.read();
         if (done) break;
         if (value.type === 'text-delta') {
-          text += value.content;
+          text += value.delta;
         }
       }
     } finally {
