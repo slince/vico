@@ -134,11 +134,6 @@ export class AgentLoop {
     const userId = opts?.userId ?? '';
     const workspace = opts?.workspace ?? '';
 
-    // 仅 emit TurnEvent，模型 chunk 由 callModel 直接 enqueue 到 stream
-    const fire = (event: TurnEvent) => {
-      this.emit(event);
-    };
-
     // 确保 threadStore 中的 thread 和 turn 存在
     const threadStore = this.agent.thread;
     let thread = await threadStore.getThread(threadId);
@@ -172,14 +167,14 @@ export class AgentLoop {
           return { status: 'aborted', steps, usage, messages };
         }
 
-        const step: Step = { index: steps, threadId, scopeId, signal, fire };
+        const step: Step = { index: steps, threadId, scopeId, signal };
 
-        fire({ type: 'step-start', step: step.index + 1 });
+        this.emit({ type: 'step-start', step: step.index + 1 });
 
-        await this.tryCompact(messages, signal, fire);
+        await this.tryCompact(messages, signal);
 
         if (this.tokenEconomy?.isInputExhausted()) {
-          fire({ type: 'error', message: 'Input token budget exhausted' });
+          this.emit({ type: 'error', message: 'Input token budget exhausted' });
           break;
         }
 
@@ -207,7 +202,7 @@ export class AgentLoop {
         }
 
         if (modelResult.toolCalls.length === 0) {
-          fire({ type: 'step-end', step: steps + 1 });
+          this.emit({ type: 'step-end', step: steps + 1 });
           break;
         }
 
@@ -235,7 +230,7 @@ export class AgentLoop {
           }
         }
 
-        fire({ type: 'step-end', step: steps + 1 });
+        this.emit({ type: 'step-end', step: steps + 1 });
         steps++;
       }
 
@@ -272,10 +267,10 @@ export class AgentLoop {
     }
   }
 
-  /** emit 事件到订阅者 */
-  private emit(event: TurnEvent): void {
+  /** emit 事件到订阅者（箭头函数绑定 this，可直接作为回调传递） */
+  private emit = (event: TurnEvent): void => {
     this.events.emit(event);
-  }
+  };
 
   /** 订阅 turn 事件 */
   on<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
@@ -299,14 +294,13 @@ export class AgentLoop {
   private async tryCompact(
     messages: ModelMessage[],
     signal: AbortSignal,
-    fire: (e: TurnEvent) => void,
   ): Promise<void> {
     if (!this.compactor) return;
     const result = await this.compactor.compactIfNeeded(messages, this.agent.modelClient, signal);
     if (result.wasCompacted) {
       messages.length = 0;
       messages.push(...result.compacted);
-      fire({ type: 'compacted', removedTokens: result.removedTokens });
+      this.emit({ type: 'compacted', removedTokens: result.removedTokens });
     }
   }
 
@@ -345,19 +339,37 @@ export class AgentLoop {
 
     try {
       for await (const chunk of stream) {
-        controller.enqueue(chunk);
+        switch (chunk.type) {
+          // 模型输出：直接 enqueue 到 stream
+          case 'text-start':
+          case 'text-delta':
+          case 'text-end':
+          case 'reasoning-start':
+          case 'reasoning-delta':
+          case 'reasoning-end':
+          case 'tool-call':
+          case 'tool-result':
+          case 'finish':
+          case 'error':
+          case 'file':
+          case 'source':
+            controller.enqueue(chunk);
+            break;
+          // 工具输入中间态（tool-input-start/delta/end）：superseded by tool-call
+          // stream-start/response-metadata/raw/tool-approval-request：内部使用
+        }
 
         switch (chunk.type) {
           case 'text-delta':
             fullText += chunk.delta;
-            step.fire({ type: 'text-delta', content: chunk.delta });
+            this.emit({ type: 'text-delta', content: chunk.delta });
             break;
           case 'reasoning-delta':
-            step.fire({ type: 'reasoning-delta', content: chunk.delta });
+            this.emit({ type: 'reasoning-delta', content: chunk.delta });
             break;
           case 'tool-call':
             toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
-            step.fire({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+            this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
             break;
           case 'finish':
             if (chunk.usage) {
@@ -368,14 +380,14 @@ export class AgentLoop {
           case 'error':
             const errMsg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
             modelSpan.error(new Error(errMsg));
-            step.fire({ type: 'error', message: errMsg });
+            this.emit({ type: 'error', message: errMsg });
             break;
         }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       modelSpan.error(new Error(msg));
-      step.fire({ type: 'error', message: msg });
+      this.emit({ type: 'error', message: msg });
       return { text: fullText, toolCalls, usage: modelUsage, error: msg };
     }
 
@@ -401,7 +413,7 @@ export class AgentLoop {
     }
 
     for (const r of results) {
-      step.fire({
+      this.emit({
         type: 'tool-result',
         id: r.callId,
         name: r.name,

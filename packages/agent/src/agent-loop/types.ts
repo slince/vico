@@ -69,8 +69,6 @@ export interface Step {
   scopeId: string;
   /** 中断信号 */
   signal: AbortSignal;
-  /** 事件触发（消息和状态变化同时通知 agent.on() 订阅者和 stream 消费端） */
-  fire: (e: TurnEvent) => void;
 }
 
 /**
