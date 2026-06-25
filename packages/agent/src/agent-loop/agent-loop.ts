@@ -3,6 +3,7 @@ import type {RunTurnOptions, Step, ToolCallSession, TurnEvent, TurnResult, TurnS
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage} from '../model/types.js';
+import type {Thread} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
@@ -200,14 +201,19 @@ export class AgentLoop {
 
         fire({ type: 'step-start', step: step.index + 1 });
 
-        await this.tryCompact(messages, signal, fire);
+        const compacted = await this.tryCompact(messages, signal);
+        if (compacted !== messages) {
+          messages.length = 0;
+          messages.push(...compacted);
+          fire({ type: 'compacted', removedTokens: 0 });
+        }
 
         if (this.tokenEconomy?.isInputExhausted()) {
           fire({ type: 'error', message: 'Input token budget exhausted' });
           break;
         }
 
-        const modelResult = await this.callModel(messages, step);
+        const modelResult = await this.callModel(messages, thread, step);
 
         // 从返回值应用副作用，不修改 callModel 的入参
         usage.input += modelResult.usage.input;
@@ -235,20 +241,27 @@ export class AgentLoop {
           break;
         }
 
-        await this.executeToolCalls(modelResult.toolCalls, messages, session, step);
+        const toolResults = await this.executeToolCalls(modelResult.toolCalls, session, step);
+
+        // 追加 tool 消息
+        for (const r of toolResults) {
+          const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
+          const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
+          messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
+        }
 
         // 记录 tool 消息到 threadStore
         if (threadStore && turn) {
-          for (const msg of messages.slice(-modelResult.toolCalls.length)) {
-            if (msg.role === 'tool') {
-              await threadStore.appendEntry({
-                threadId,
-                turnId: turn.id,
-                role: msg.role,
-                content: msg.content,
-                toolCallId: msg.toolCallId,
-              });
-            }
+          for (const r of toolResults) {
+            const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
+            const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
+            await threadStore.appendEntry({
+              threadId,
+              turnId: turn.id,
+              role: 'tool',
+              content: truncated,
+              toolCallId: r.callId,
+            });
           }
         }
 
@@ -261,7 +274,7 @@ export class AgentLoop {
           agent: this.agent.config,
           messages: [...messages],
           tools: [...this.agent.tools],
-          threadId,
+          thread,
           scopeId,
         }),
       );
@@ -312,24 +325,20 @@ export class AgentLoop {
     }
   }
 
-  /** 压缩检查 */
+  /** 压缩检查，返回压缩后的消息。不修改入参 */
   private async tryCompact(
     messages: ModelMessage[],
     signal: AbortSignal,
-    fire: (e: TurnEvent) => void,
-  ): Promise<void> {
-    if (!this.compactor) return;
+  ): Promise<ModelMessage[]> {
+    if (!this.compactor) return messages;
     const result = await this.compactor.compactIfNeeded(messages, this.agent.modelClient, signal);
-    if (result.wasCompacted) {
-      messages.length = 0;
-      messages.push(...result.compacted);
-      fire({ type: 'compacted', removedTokens: result.removedTokens });
-    }
+    return result.wasCompacted ? result.compacted : messages;
   }
 
   /** 单次模型调用。仅从 messages 读取上下文，不修改入参，结果通过 CallModelResult 返回 */
   private async callModel(
     messages: ModelMessage[],
+    thread: Thread,
     step: Step,
   ): Promise<CallModelResult> {
     const modelUsage = { input: 0, output: 0 };
@@ -338,7 +347,8 @@ export class AgentLoop {
       agent: this.agent.config,
       messages: [...messages],
       tools: [...this.agent.tools],
-      threadId: step.threadId,
+      thread,
+      step,
       scopeId: step.scopeId,
     });
     await this.pipeline.run(ctx);
@@ -396,13 +406,12 @@ export class AgentLoop {
     return { text: fullText, toolCalls, usage: modelUsage };
   }
 
-  /** 执行工具调用并将结果追加到 messages */
+  /** 执行工具调用，返回结果数组。不修改入参，事件通过 fire 触发 */
   private async executeToolCalls(
     toolCalls: ToolCall[],
-    messages: ModelMessage[],
     session: ToolCallSession,
     step: Step,
-  ): Promise<void> {
+  ): Promise<ToolResult[]> {
     const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
     let results: ToolResult[];
     try {
@@ -414,9 +423,6 @@ export class AgentLoop {
     }
 
     for (const r of results) {
-      const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
-      const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
-      messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
       step.fire({
         type: 'tool-result',
         id: r.callId,
@@ -425,6 +431,7 @@ export class AgentLoop {
         output: r.output,
       });
     }
+    return results;
   }
 
   private async dispatchTools(calls: ToolCall[], session: ToolCallSession, step: Step): Promise<ToolResult[]> {

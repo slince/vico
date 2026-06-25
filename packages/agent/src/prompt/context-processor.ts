@@ -1,7 +1,8 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
-import type {AgentConfig} from '../agent-loop/types.js';
+import type {AgentConfig, Step} from '../agent-loop/types.js';
 import type {ModelMessage} from '../model/types.js';
 import type {Tool} from '../tool/types.js';
+import type {Thread} from '../thread/types.js';
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */
 export const Priority = {
@@ -23,8 +24,10 @@ export class ModelRequestContext {
   messages: ModelMessage[];
   /** 暴露给 LLM 的工具 */
   tools: Tool[];
-  /** 当前线程标识 */
-  threadId: string;
+  /** 当前会话线程 */
+  thread?: Thread;
+  /** 当前 step（一次 LLM 调用 + 可选工具执行） */
+  step?: Step;
   /** 工作记忆作用域标识（userId 或 workspace 路径） */
   scopeId: string;
 
@@ -33,15 +36,22 @@ export class ModelRequestContext {
     systemPrompt?: string;
     messages?: ModelMessage[];
     tools?: Tool[];
-    threadId?: string;
+    thread?: Thread;
+    step?: Step;
     scopeId?: string;
   }) {
     this.agent = init.agent;
     this.systemPrompt = init.systemPrompt ?? '';
     this.messages = init.messages ?? [];
     this.tools = init.tools ?? [];
-    this.threadId = init.threadId ?? '';
+    this.thread = init.thread;
+    this.step = init.step;
     this.scopeId = init.scopeId ?? '';
+  }
+
+  /** 便捷获取 threadId */
+  get threadId(): string {
+    return this.thread?.id ?? '';
   }
 
   /** 获取最后一条用户消息内容 */

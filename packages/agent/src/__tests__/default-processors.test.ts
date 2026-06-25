@@ -26,13 +26,15 @@ function makeConfig(): AgentConfig {
   };
 }
 
-function makeCtx(overrides?: Partial<ModelRequestContext>): ModelRequestContext {
+function makeCtx(overrides?: Partial<ModelRequestContext> & { threadId?: string }): ModelRequestContext {
+  const { threadId, ...rest } = overrides ?? {};
+  const defaultThread = { id: 't1', agentId: 'a1', userId: 'u1', createdAt: 0, updatedAt: 0 };
   return new ModelRequestContext({
     agent: makeConfig(),
     messages: [{ role: 'user', content: 'hello' }],
-    threadId: 't1',
+    thread: threadId ? { ...defaultThread, id: threadId } : defaultThread,
     scopeId: 'u1',
-    ...overrides,
+    ...rest,
   });
 }
 
