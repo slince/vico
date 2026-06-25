@@ -340,48 +340,53 @@ export class AgentLoop {
     try {
       for await (const chunk of stream) {
         switch (chunk.type) {
-          // 模型输出：直接 enqueue 到 stream
           case 'text-start':
-          case 'text-delta':
           case 'text-end':
-          case 'reasoning-start':
-          case 'reasoning-delta':
-          case 'reasoning-end':
-          case 'tool-call':
           case 'tool-result':
-          case 'finish':
-          case 'error':
           case 'file':
           case 'source':
             controller.enqueue(chunk);
             break;
-          // 工具输入中间态（tool-input-start/delta/end）：superseded by tool-call
-          // stream-start/response-metadata/raw/tool-approval-request：内部使用
-        }
 
-        switch (chunk.type) {
           case 'text-delta':
+            controller.enqueue(chunk);
             fullText += chunk.delta;
             this.emit({ type: 'text-delta', content: chunk.delta });
             break;
+
+          case 'reasoning-start':
+          case 'reasoning-end':
+            controller.enqueue(chunk);
+            break;
+
           case 'reasoning-delta':
+            controller.enqueue(chunk);
             this.emit({ type: 'reasoning-delta', content: chunk.delta });
             break;
+
           case 'tool-call':
+            controller.enqueue(chunk);
             toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
             this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
             break;
+
           case 'finish':
+            controller.enqueue(chunk);
             if (chunk.usage) {
               modelUsage.input = chunk.usage.inputTokens.total ?? 0;
               modelUsage.output = chunk.usage.outputTokens.total ?? 0;
             }
             break;
+
           case 'error':
+            controller.enqueue(chunk);
             const errMsg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
             modelSpan.error(new Error(errMsg));
             this.emit({ type: 'error', message: errMsg });
             break;
+
+          // 工具输入中间态（tool-input-start/delta/end）：superseded by tool-call
+          // stream-start/response-metadata/raw/tool-approval-request：内部使用
         }
       }
     } catch (err) {
