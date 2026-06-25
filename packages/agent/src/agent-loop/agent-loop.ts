@@ -201,12 +201,7 @@ export class AgentLoop {
 
         fire({ type: 'step-start', step: step.index + 1 });
 
-        const compacted = await this.tryCompact(messages, signal);
-        if (compacted !== messages) {
-          messages.length = 0;
-          messages.push(...compacted);
-          fire({ type: 'compacted', removedTokens: 0 });
-        }
+        await this.tryCompact(messages, signal, fire);
 
         if (this.tokenEconomy?.isInputExhausted()) {
           fire({ type: 'error', message: 'Input token budget exhausted' });
@@ -325,14 +320,19 @@ export class AgentLoop {
     }
   }
 
-  /** 压缩检查，返回压缩后的消息。不修改入参 */
+  /** 压缩检查，按需原地替换 messages */
   private async tryCompact(
     messages: ModelMessage[],
     signal: AbortSignal,
-  ): Promise<ModelMessage[]> {
-    if (!this.compactor) return messages;
+    fire: (e: TurnEvent) => void,
+  ): Promise<void> {
+    if (!this.compactor) return;
     const result = await this.compactor.compactIfNeeded(messages, this.agent.modelClient, signal);
-    return result.wasCompacted ? result.compacted : messages;
+    if (result.wasCompacted) {
+      messages.length = 0;
+      messages.push(...result.compacted);
+      fire({ type: 'compacted', removedTokens: result.removedTokens });
+    }
   }
 
   /** 单次模型调用。仅从 messages 读取上下文，不修改入参，结果通过 CallModelResult 返回 */
