@@ -20,7 +20,9 @@ export class ModelRequestContext {
   readonly agent: AgentConfig;
   /** 系统提示词 — 处理器追加内容 */
   systemPrompt: string;
-  /** 消息列表 — 处理器可追加 system 消息 */
+  /** 当前用户消息 */
+  readonly userMessage: ModelMessage;
+  /** 消息列表 — 处理器可追加 history（unshift）和 system/memory 消息（push） */
   messages: ModelMessage[];
   /** 暴露给 LLM 的工具 */
   tools: Tool[];
@@ -33,20 +35,34 @@ export class ModelRequestContext {
 
   constructor(init: {
     agent: AgentConfig;
-    systemPrompt?: string;
+    userMessage?: ModelMessage;
     messages?: ModelMessage[];
+    systemPrompt?: string;
     tools?: Tool[];
     thread?: Thread;
     step?: Step;
     scopeId?: string;
   }) {
     this.agent = init.agent;
+    this.userMessage = init.userMessage ?? init.messages?.find(m => m.role === 'user')!;
+    this.messages = init.userMessage ? [init.userMessage] : (init.messages ?? []);
     this.systemPrompt = init.systemPrompt ?? '';
-    this.messages = init.messages ?? [];
     this.tools = init.tools ?? [];
     this.thread = init.thread;
     this.step = init.step;
     this.scopeId = init.scopeId ?? '';
+  }
+
+  /** 用户消息之前的消息（history） */
+  get before(): ModelMessage[] {
+    const idx = this.messages.indexOf(this.userMessage);
+    return idx > 0 ? this.messages.slice(0, idx) : [];
+  }
+
+  /** 用户消息之后的消息（system/memory） */
+  get after(): ModelMessage[] {
+    const idx = this.messages.indexOf(this.userMessage);
+    return idx >= 0 ? this.messages.slice(idx + 1) : [];
   }
 
   /** 便捷获取 threadId */

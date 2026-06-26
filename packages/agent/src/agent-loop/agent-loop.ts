@@ -156,7 +156,7 @@ export class AgentLoop {
       // 运行 pipeline 一次，提取不变的上下文前缀/后缀
       const enrichCtx = new ModelRequestContext({
         agent: this.agent.config,
-        messages: [userMessage],
+        userMessage,
         tools: [...this.agent.tools],
         thread,
         scopeId,
@@ -164,10 +164,6 @@ export class AgentLoop {
       await this.pipeline.enter(enrichCtx);
       const enrichedSystemPrompt = enrichCtx.systemPrompt;
       const enrichedTools = enrichCtx.tools;
-      // enrichCtx.messages = [...history, userMessage, ...systemMessages]
-      const userIdx = enrichCtx.messages.indexOf(userMessage);
-      const msgPrefix = enrichCtx.messages.slice(0, userIdx + 1);
-      const msgSuffix = enrichCtx.messages.slice(userIdx + 1);
 
       while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
@@ -194,7 +190,7 @@ export class AgentLoop {
         if (steerText) {
           messages.push({ role: 'user', content: steerText });
         }
-        const fullMessages = [...msgPrefix, ...messages.slice(1), ...msgSuffix];
+        const fullMessages = [...enrichCtx.before, ...messages, ...enrichCtx.after];
         const modelResult = await this.callModel(enrichedSystemPrompt, fullMessages, enrichedTools, thread, step, controller);
 
         // 从返回值应用副作用，不修改 callModel 的入参
