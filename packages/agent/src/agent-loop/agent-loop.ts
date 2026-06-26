@@ -234,7 +234,7 @@ export class AgentLoop {
         steps++;
       }
 
-      await this.pipeline.resolve(
+      await this.pipeline.leave(
         new ModelRequestContext({
           agent: this.agent.config,
           messages: [...messages],
@@ -321,7 +321,7 @@ export class AgentLoop {
       step,
       scopeId: step.scopeId,
     });
-    await this.pipeline.run(ctx);
+    await this.pipeline.enter(ctx);
     const request = buildModelRequest(ctx);
 
     let fullText = '';

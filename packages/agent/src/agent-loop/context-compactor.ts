@@ -2,6 +2,16 @@
 import type {ModelClient} from '../model/model-client.js';
 import type {ModelMessage} from '../model/types.js';
 
+/** 压缩结果 */
+export interface CompactResult {
+  /** 压缩后的消息列表 */
+  compacted: ModelMessage[];
+  /** 是否实际执行了压缩 */
+  wasCompacted: boolean;
+  /** 被移除的 token 数 */
+  removedTokens: number;
+}
+
 /** 简单的 Token 估算（4 字符 ≈ 1 token） */
 function estimateTokens(messages: ModelMessage[]): number {
   let chars = 0;
@@ -26,7 +36,7 @@ export class ContextCompactor {
     items: ModelMessage[],
     modelClient: ModelClient,
     signal: AbortSignal,
-  ): Promise<{ compacted: ModelMessage[]; wasCompacted: boolean; removedTokens: number }> {
+  ): Promise<CompactResult> {
     const estimated = estimateTokens(items);
     if (estimated < this.softThreshold) {
       return { compacted: items, wasCompacted: false, removedTokens: 0 };

@@ -80,12 +80,20 @@ export interface ContextProcessor {
 
 /** 洋葱管道 — 按优先级排序后依次执行所有处理器 */
 export class ProcessorPipeline {
-  constructor(private readonly processors: ContextProcessor[]) {}
+  /** 升序排列（enter 用） */
+  private readonly asc: ContextProcessor[];
+  /** 降序排列（leave 用） */
+  private readonly desc: ContextProcessor[];
+
+  constructor(private readonly processors: ContextProcessor[]) {
+    const sorted = [...processors].sort((a, b) => a.priority - b.priority);
+    this.asc = sorted;
+    this.desc = [...sorted].reverse();
+  }
 
   /** 进入阶段：按优先级升序依次执行 process()。单个处理器异常不阻塞后续处理器。 */
-  async run(ctx: ModelRequestContext): Promise<void> {
-    const sorted = [...this.processors].sort((a, b) => a.priority - b.priority);
-    for (const processor of sorted) {
+  async enter(ctx: ModelRequestContext): Promise<void> {
+    for (const processor of this.asc) {
       try {
         await processor.process(ctx);
       } catch (err) {
@@ -98,9 +106,8 @@ export class ProcessorPipeline {
   }
 
   /** 离开阶段：循环结束后，按优先级降序（内层先执行）执行 resolve()。不抛异常，不阻塞后续处理器。 */
-  async resolve(ctx: ModelRequestContext): Promise<void> {
-    const sorted = [...this.processors].sort((a, b) => b.priority - a.priority);
-    for (const processor of sorted) {
+  async leave(ctx: ModelRequestContext): Promise<void> {
+    for (const processor of this.desc) {
       if (!processor.resolve) continue;
       try {
         await processor.resolve(ctx);

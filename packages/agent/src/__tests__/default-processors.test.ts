@@ -298,7 +298,7 @@ describe('OnionPipeline', () => {
       makeProcessor('a', -100),
       makeProcessor('b', 0),
     ]);
-    await pipeline.run(makeCtx());
+    await pipeline.enter(makeCtx());
     expect(order).toEqual(['a', 'b', 'c']);
   });
 
@@ -316,7 +316,7 @@ describe('OnionPipeline', () => {
     };
 
     const pipeline = new ProcessorPipeline([throwing, good]);
-    await pipeline.run(makeCtx());
+    await pipeline.enter(makeCtx());
     expect(order).toEqual(['good']);
   });
 
@@ -324,7 +324,7 @@ describe('OnionPipeline', () => {
     const pipeline = new ProcessorPipeline([]);
     const ctx = makeCtx();
     ctx.systemPrompt = 'original';
-    await pipeline.run(ctx);
+    await pipeline.enter(ctx);
     expect(ctx.systemPrompt).toBe('original');
     expect(ctx.messages).toHaveLength(1);
   });
