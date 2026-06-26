@@ -15,6 +15,14 @@ import type {ContextProcessor} from '../prompt/context-processor.js';
 import {ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import type {WorkingMemory} from '../memory/types.js';
 
+/** executeModelStep 的返回值 */
+interface ModelStepResult {
+  /** 是否终止循环 */
+  shouldBreak: boolean;
+  /** 本 step 的 token 用量 */
+  usage: { input: number; output: number };
+}
+
 /** callModel 的返回值 */
 interface CallModelResult {
   /** 模型生成的完整文本 */
@@ -152,14 +160,14 @@ export class AgentLoop {
       this.applySteerBuffer(messages);
 
       // 运行 pipeline 一次，提取不变的上下文前缀/后缀
-      const enrichCtx = new ModelRequestContext({
+      const ctx = new ModelRequestContext({
         agent: this.agent.config,
         userMessage,
         tools: [...this.agent.tools],
         thread,
         scopeId,
       });
-      await this.pipeline.enter(enrichCtx);
+      await this.pipeline.enter(ctx);
 
       while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
@@ -169,11 +177,13 @@ export class AgentLoop {
         }
 
         const step: Step = { index: steps, threadId, scopeId, signal };
-        const shouldBreak = await this.executeModelStep(step, messages, usage, controller, {
-          enrichCtx,
+        const { shouldBreak, usage: stepUsage } = await this.executeModelStep(step, messages, controller, {
+          ctx: ctx,
           session,
           persistence: { store: threadStore },
         });
+        usage.input += stepUsage.input;
+        usage.output += stepUsage.output;
 
         if (shouldBreak) break;
         steps++;
@@ -208,25 +218,26 @@ export class AgentLoop {
     }
   }
 
-  /** 执行一个 model step：压缩 → model 调用 → 审批 → 工具执行 → 持久化。返回 true 表示循环终止 */
+  /** 执行一个 model step：压缩 → model 调用 → 审批 → 工具执行 → 持久化 */
   private async executeModelStep(
     step: Step,
     messages: ModelMessage[],
-    usage: { input: number; output: number },
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     shared: {
-      enrichCtx: ModelRequestContext;
+      ctx: ModelRequestContext;
       session: TurnSession;
       persistence: { store: ThreadStore };
     },
-  ): Promise<boolean> {
+  ): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
+
+    const usage = { input: 0, output: 0 };
 
     await this.tryCompact(messages, step.signal);
 
     if (this.tokenEconomy?.isInputExhausted()) {
       this.emit({ type: 'error', message: 'Input token budget exhausted' });
-      return true;
+      return { shouldBreak: true, usage };
     }
 
     // mid-turn steer 追加到 loop messages
@@ -235,7 +246,7 @@ export class AgentLoop {
       messages.push({ role: 'user', content: steerText });
     }
 
-    const { enrichCtx: ctx } = shared;
+    const { ctx } = shared;
     const fullMessages = [...ctx.before, ...messages, ...ctx.after];
     const modelResult = await this.callModel(ctx.systemPrompt, fullMessages, ctx.tools, shared.session.thread, step, controller);
 
@@ -261,7 +272,7 @@ export class AgentLoop {
 
     if (modelResult.toolCalls.length === 0) {
       this.emit({ type: 'step-end', step: step.index + 1 });
-      return true;
+      return { shouldBreak: true, usage };
     }
 
     // 审批阶段
@@ -354,7 +365,7 @@ export class AgentLoop {
     }
 
     this.emit({ type: 'step-end', step: step.index + 1 });
-    return false;
+    return { shouldBreak: false, usage };
   }
 
   /** emit 事件到订阅者（箭头函数绑定 this，可直接作为回调传递） */
