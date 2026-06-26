@@ -175,148 +175,14 @@ export class AgentLoop {
         }
 
         const step: Step = { index: steps, threadId, scopeId, signal };
+        const shouldBreak = await this.executeModelStep(step, messages, usage, controller, {
+          enriched: { ctx: enrichCtx, systemPrompt: enrichedSystemPrompt, tools: enrichedTools },
+          thread,
+          session,
+          persistence: threadStore && turn ? { store: threadStore, threadId, turnId: turn.id } : undefined,
+        });
 
-        this.emit({ type: 'step-start', step: step.index + 1 });
-
-        await this.tryCompact(messages, signal);
-
-        if (this.tokenEconomy?.isInputExhausted()) {
-          this.emit({ type: 'error', message: 'Input token budget exhausted' });
-          break;
-        }
-
-        // 检查 mid-turn steer 并追加到 loop messages
-        const steerText = this.drainSteerBuffer();
-        if (steerText) {
-          messages.push({ role: 'user', content: steerText });
-        }
-        const fullMessages = [...enrichCtx.before, ...messages, ...enrichCtx.after];
-        const modelResult = await this.callModel(enrichedSystemPrompt, fullMessages, enrichedTools, thread, step, controller);
-
-        // 从返回值应用副作用，不修改 callModel 的入参
-        usage.input += modelResult.usage.input;
-        usage.output += modelResult.usage.output;
-        this.tokenEconomy?.track(modelResult.usage.input, modelResult.usage.output);
-
-        if (modelResult.text || modelResult.toolCalls.length > 0) {
-          messages.push({ role: 'assistant', content: modelResult.text, ...(modelResult.toolCalls.length > 0 && { toolCalls: modelResult.toolCalls }) });
-        }
-
-        // 记录 assistant 消息到 threadStore
-        const assistantMsg = messages.at(-1);
-        if (threadStore && turn && assistantMsg?.role === 'assistant') {
-          await threadStore.appendEntry({
-            threadId,
-            turnId: turn.id,
-            role: assistantMsg.role,
-            content: assistantMsg.content,
-            toolCalls: assistantMsg.toolCalls,
-          });
-        }
-
-        if (modelResult.toolCalls.length === 0) {
-          this.emit({ type: 'step-end', step: steps + 1 });
-          break;
-        }
-
-        // 审批阶段：检查 tool policy，对需要审批的工具发出 tool-approval-request 并等待决策
-        const approvedCalls: ToolCall[] = [];
-        const deniedResults: ToolResult[] = [];
-
-        for (const call of modelResult.toolCalls) {
-          const tool = this.toolBroker.findTool(call.name);
-          const policy = tool?.policy ?? 'auto';
-
-          if (policy === 'never') {
-            deniedResults.push({ callId: call.id, name: call.name, status: 'error', output: null, error: 'Blocked by policy' });
-            continue;
-          }
-
-          if (policy === 'auto' || policy === 'suggest') {
-            approvedCalls.push(call);
-            continue;
-          }
-
-          // policy === 'on-request'
-          const isFirstUse = !this.toolApprovalState.has(call.name);
-          const wasApproved = this.toolApprovalState.get(call.name) ?? false;
-          if (!isFirstUse && wasApproved) {
-            approvedCalls.push(call);
-            continue;
-          }
-
-          if (!this.approvalGate) {
-            // 无审批门控：自动批准
-            this.toolApprovalState.set(call.name, true);
-            approvedCalls.push(call);
-            continue;
-          }
-
-          // 需要用户审批
-          const approvalId = crypto.randomUUID();
-          controller.enqueue({
-            type: 'tool-approval-request',
-            approvalId,
-            toolCallId: call.id,
-            toolName: call.name,
-            input: call.args,
-          });
-
-          const { decision } = this.approvalGate.requestApproval(call, undefined, approvalId);
-          const result = await decision;
-
-          if (result.approved) {
-            this.toolApprovalState.set(call.name, true);
-            approvedCalls.push(call);
-          } else {
-            controller.enqueue({
-              type: 'tool-output-denied',
-              toolCallId: call.id,
-              toolName: call.name,
-              reason: result.reason,
-            });
-            deniedResults.push({
-              callId: call.id,
-              name: call.name,
-              status: 'error',
-              output: null,
-              error: result.reason ?? 'User denied',
-            });
-          }
-        }
-
-        // 执行已批准的工具调用
-        const toolResults: ToolResult[] = [];
-        if (approvedCalls.length > 0) {
-          const execResults = await this.executeToolCalls(approvedCalls, session, step);
-          toolResults.push(...execResults);
-        }
-        // 合并被拒结果（与执行结果统一处理）
-        toolResults.push(...deniedResults);
-
-        // 追加 tool 消息
-        for (const r of toolResults) {
-          const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
-          const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
-          messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
-        }
-
-        // 记录 tool 消息到 threadStore
-        if (threadStore && turn) {
-          for (const r of toolResults) {
-            const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
-            const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
-            await threadStore.appendEntry({
-              threadId,
-              turnId: turn.id,
-              role: 'tool',
-              content: truncated,
-              toolCallId: r.callId,
-            });
-          }
-        }
-
-        this.emit({ type: 'step-end', step: steps + 1 });
+        if (shouldBreak) break;
         steps++;
       }
 
@@ -351,6 +217,160 @@ export class AgentLoop {
       turnSpan.error(err as Error);
       throw err;
     }
+  }
+
+  /** 执行一个 model step：压缩 → model 调用 → 审批 → 工具执行 → 持久化。返回 true 表示循环终止 */
+  private async executeModelStep(
+    step: Step,
+    messages: ModelMessage[],
+    usage: { input: number; output: number },
+    controller: ReadableStreamDefaultController<ModelStreamChunk>,
+    shared: {
+      enriched: { ctx: ModelRequestContext; systemPrompt: string; tools: Tool[] };
+      thread: Thread;
+      session: ToolCallSession;
+      persistence?: { store: import('../thread/types.js').ThreadStore; threadId: string; turnId: string };
+    },
+  ): Promise<boolean> {
+    this.emit({ type: 'step-start', step: step.index + 1 });
+
+    await this.tryCompact(messages, step.signal);
+
+    if (this.tokenEconomy?.isInputExhausted()) {
+      this.emit({ type: 'error', message: 'Input token budget exhausted' });
+      return true;
+    }
+
+    // mid-turn steer 追加到 loop messages
+    const steerText = this.drainSteerBuffer();
+    if (steerText) {
+      messages.push({ role: 'user', content: steerText });
+    }
+
+    const { ctx, systemPrompt, tools } = shared.enriched;
+    const fullMessages = [...ctx.before, ...messages, ...ctx.after];
+    const modelResult = await this.callModel(systemPrompt, fullMessages, tools, shared.thread, step, controller);
+
+    usage.input += modelResult.usage.input;
+    usage.output += modelResult.usage.output;
+    this.tokenEconomy?.track(modelResult.usage.input, modelResult.usage.output);
+
+    if (modelResult.text || modelResult.toolCalls.length > 0) {
+      messages.push({ role: 'assistant', content: modelResult.text, ...(modelResult.toolCalls.length > 0 && { toolCalls: modelResult.toolCalls }) });
+    }
+
+    // 持久化 assistant 消息
+    if (shared.persistence) {
+      const last = messages.at(-1);
+      if (last?.role === 'assistant') {
+        await shared.persistence.store.appendEntry({
+          threadId: shared.persistence.threadId,
+          turnId: shared.persistence.turnId,
+          role: last.role,
+          content: last.content,
+          toolCalls: last.toolCalls,
+        });
+      }
+    }
+
+    if (modelResult.toolCalls.length === 0) {
+      this.emit({ type: 'step-end', step: step.index + 1 });
+      return true;
+    }
+
+    // 审批阶段
+    const approvedCalls: ToolCall[] = [];
+    const deniedResults: ToolResult[] = [];
+
+    for (const call of modelResult.toolCalls) {
+      const tool = this.toolBroker.findTool(call.name);
+      const policy = tool?.policy ?? 'auto';
+
+      if (policy === 'never') {
+        deniedResults.push({ callId: call.id, name: call.name, status: 'error', output: null, error: 'Blocked by policy' });
+        continue;
+      }
+
+      if (policy === 'auto' || policy === 'suggest') {
+        approvedCalls.push(call);
+        continue;
+      }
+
+      // on-request: 首次使用需审批
+      const isFirstUse = !this.toolApprovalState.has(call.name);
+      const wasApproved = this.toolApprovalState.get(call.name) ?? false;
+      if (!isFirstUse && wasApproved) {
+        approvedCalls.push(call);
+        continue;
+      }
+
+      if (!this.approvalGate) {
+        this.toolApprovalState.set(call.name, true);
+        approvedCalls.push(call);
+        continue;
+      }
+
+      const approvalId = crypto.randomUUID();
+      controller.enqueue({
+        type: 'tool-approval-request',
+        approvalId,
+        toolCallId: call.id,
+        toolName: call.name,
+        input: call.args,
+      });
+
+      const { decision } = this.approvalGate.requestApproval(call, undefined, approvalId);
+      const result = await decision;
+
+      if (result.approved) {
+        this.toolApprovalState.set(call.name, true);
+        approvedCalls.push(call);
+      } else {
+        controller.enqueue({
+          type: 'tool-output-denied',
+          toolCallId: call.id,
+          toolName: call.name,
+          reason: result.reason,
+        });
+        deniedResults.push({
+          callId: call.id, name: call.name,
+          status: 'error', output: null,
+          error: result.reason ?? 'User denied',
+        });
+      }
+    }
+
+    // 执行 + 合并结果
+    const toolResults: ToolResult[] = [];
+    if (approvedCalls.length > 0) {
+      toolResults.push(...await this.executeToolCalls(approvedCalls, shared.session, step));
+    }
+    toolResults.push(...deniedResults);
+
+    // 追加 tool 消息
+    for (const r of toolResults) {
+      const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
+      const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
+      messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
+    }
+
+    // 持久化 tool 消息
+    if (shared.persistence) {
+      for (const r of toolResults) {
+        const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
+        const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
+        await shared.persistence.store.appendEntry({
+          threadId: shared.persistence.threadId,
+          turnId: shared.persistence.turnId,
+          role: 'tool',
+          content: truncated,
+          toolCallId: r.callId,
+        });
+      }
+    }
+
+    this.emit({ type: 'step-end', step: step.index + 1 });
+    return false;
   }
 
   /** emit 事件到订阅者（箭头函数绑定 this，可直接作为回调传递） */
