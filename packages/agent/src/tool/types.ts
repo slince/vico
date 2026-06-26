@@ -43,7 +43,7 @@ export const ToolResultSchema = z.object({
 export type ToolResult = z.infer<typeof ToolResultSchema>;
 
 /** 工具调用所需的会话标识 */
-export interface ToolCallSession {
+export interface TurnSession {
   workspace: string;
   thread: Thread;
   turn: Turn;
@@ -51,7 +51,7 @@ export interface ToolCallSession {
 
 /** 工具执行上下文 */
 export interface ToolExecutionContext {
-  session: ToolCallSession;
+  session: TurnSession;
   agentId: string;
   awaitApproval: (call: ToolCall) => Promise<ApprovalDecision>;
   signal: AbortSignal;

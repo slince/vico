@@ -52,7 +52,7 @@ export interface RunTurnOptions {
   workspace?: string;
 }
 
-export type { ToolCallSession } from '../tool/types.js';
+export type { TurnSession } from '../tool/types.js';
 
 // ── 核心领域模型：Thread > Turn > Step ──
 

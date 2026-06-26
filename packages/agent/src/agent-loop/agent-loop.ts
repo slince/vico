@@ -1,5 +1,5 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {RunTurnOptions, Step, ToolCallSession, TurnEvent, TurnResult} from './types.js';
+import type {RunTurnOptions, Step, TurnSession, TurnEvent, TurnResult} from './types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelStreamChunk} from '../model/types.js';
@@ -138,7 +138,7 @@ export class AgentLoop {
     }
     const turn = await threadStore.createTurn(threadId);
 
-    const session: ToolCallSession = { workspace, thread, turn };
+    const session: TurnSession = { workspace, thread, turn };
 
     // 记录用户消息
     if (threadStore && turn) {
@@ -228,7 +228,7 @@ export class AgentLoop {
     shared: {
       enriched: { ctx: ModelRequestContext; systemPrompt: string; tools: Tool[] };
       thread: Thread;
-      session: ToolCallSession;
+      session: TurnSession;
       persistence?: { store: import('../thread/types.js').ThreadStore; threadId: string; turnId: string };
     },
   ): Promise<boolean> {
@@ -515,7 +515,7 @@ export class AgentLoop {
   /** 执行工具调用，返回结果数组。不修改入参，事件通过 fire 触发 */
   private async executeToolCalls(
     toolCalls: ToolCall[],
-    session: ToolCallSession,
+    session: TurnSession,
     step: Step,
   ): Promise<ToolResult[]> {
     const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
@@ -540,7 +540,7 @@ export class AgentLoop {
     return results;
   }
 
-  private async dispatchTools(calls: ToolCall[], session: ToolCallSession, step: Step): Promise<ToolResult[]> {
+  private async dispatchTools(calls: ToolCall[], session: TurnSession, step: Step): Promise<ToolResult[]> {
     const context: ToolExecutionContext = {
       session,
       agentId: this.agent.config.id,
