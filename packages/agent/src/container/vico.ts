@@ -11,8 +11,9 @@ import type {ToolSource} from '../tool/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
-import {AgentLoop, collectTurnResult} from '../agent-loop/agent-loop.js';
+import {AgentLoop, collectTurnResult, type AgentLoopOptions} from '../agent-loop/agent-loop.js';
 import type {TurnOutput} from '../agent-loop/turn-output.js';
+import type {ApprovalGate} from '../agent-loop/approval-gate.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
 import {SkillProcessor} from '../skill/skill-processor.js';
@@ -77,6 +78,8 @@ export interface VicoOptions {
   memory?: MemoryStore;
   /** 全局 ThreadStore（agent 自身未配置时使用） */
   thread?: ThreadStore;
+  /** 工具审批门控（不传则不启用审批） */
+  approvalGate?: ApprovalGate;
 }
 
 /** invoke 调用选项 */
@@ -113,12 +116,14 @@ export class Vico {
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
+  private readonly approvalGate?: ApprovalGate;
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.languageModelFactory = options.languageModelFactory ?? createLanguageModel;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
+    this.approvalGate = options.approvalGate;
     this.thread = options.thread ?? new InMemoryThreadStore();
     this.skillManager = new SkillManager(new FSSkillLoader());
   }
@@ -215,6 +220,7 @@ export class Vico {
       processors,
       events: this.events,
       spanTracker: this.spanTracker,
+      approvalGate: this.approvalGate,
     });
   }
 

@@ -85,7 +85,11 @@ export async function turnEventsToAISDK(
                 break;
 
               case 'tool-approval-request':
-                enqueue({ type: 'tool-approval-request', approvalId: c.approvalId, toolCallId: c.toolCallId });
+                enqueue({ type: 'tool-approval-request', approvalId: c.approvalId, toolCallId: c.toolCallId, toolName: c.toolName, input: c.input });
+                break;
+
+              case 'tool-output-denied':
+                enqueue({ type: 'tool-output-denied', toolCallId: c.toolCallId, toolName: c.toolName, reason: c.reason });
                 break;
 
               case 'source':

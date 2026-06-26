@@ -1,6 +1,5 @@
 // src/tool/tool-broker.ts
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult, ToolSource} from './types.js';
-import {resolvePolicy} from './tool-policy.js';
 import {StormBreaker} from './storm-breaker.js';
 
 /** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
@@ -8,8 +7,6 @@ export class ToolBroker {
   private tools: Map<string, Tool> = new Map();
   private sources: ToolSource[] = [];
   private stormBreaker: StormBreaker = new StormBreaker();
-  /** 跟踪 on-request 工具的审批状态 */
-  private approvalState: Map<string, boolean> = new Map();
 
   /** 注册工具来源 */
   addSource(source: ToolSource): void {
@@ -28,28 +25,20 @@ export class ToolBroker {
     return all;
   }
 
+  /** 查找工具（供 AgentLoop 检查 policy） */
+  findTool(name: string): Tool | undefined {
+    return this.tools.get(name);
+  }
+
   async execute(call: ToolCall, ctx: ToolExecutionContext): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `Tool ${call.name} not found` };
     }
 
-    // 审批策略
-    const firstUse = !this.approvalState.has(call.name);
-    const previousApproved = this.approvalState.get(call.name) ?? false;
-    const decision = resolvePolicy(tool.policy, call, { firstUse, previousApproved });
-
-    if (!decision.approved) {
-      // on-request: 需要外部审批
-      if (tool.policy === 'on-request') {
-        const approval = await ctx.awaitApproval(call);
-        if (!approval.approved) {
-          return { callId: call.id, name: call.name, status: 'error', output: null, error: approval.reason ?? 'User denied' };
-        }
-        this.approvalState.set(call.name, true);
-      } else {
-        return { callId: call.id, name: call.name, status: 'error', output: null, error: decision.reason ?? 'Blocked by policy' };
-      }
+    // 审批策略：_run 已处理 on-request 审批，此处只处理 never 阻断
+    if (tool.policy === 'never') {
+      return { callId: call.id, name: call.name, status: 'error', output: null, error: `Tool ${call.name} is blocked by policy` };
     }
 
     // 风暴检测

@@ -67,8 +67,10 @@ export type ModelStreamChunk =
   | { type: 'tool-call'; toolCallId: string; toolName: string; input: unknown; providerExecuted?: boolean; dynamic?: boolean; providerMetadata?: ProviderMetadata }
   // 工具结果（来自 provider）
   | { type: 'tool-result'; toolCallId: string; toolName: string; result: unknown; isError?: boolean; preliminary?: boolean; dynamic?: boolean; providerMetadata?: ProviderMetadata }
-  // 工具审批请求
-  | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; providerMetadata?: ProviderMetadata }
+  // 工具审批请求（provider 发出或 Vico policy 触发）
+  | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName: string; input: unknown; providerMetadata?: ProviderMetadata }
+  // 工具审批被拒
+  | { type: 'tool-output-denied'; toolCallId: string; toolName: string; reason?: string }
   // 文件
   | { type: 'file'; mediaType: string; data: string | Uint8Array; providerMetadata?: ProviderMetadata }
   // 来源（按 sourceType 区分）

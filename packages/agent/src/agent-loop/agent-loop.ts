@@ -5,16 +5,15 @@ import type {Agent} from './agent.js';
 import type {ModelMessage, ModelStreamChunk} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
-import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
+import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {SpanTracker} from '../observable/types.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
-import {buildModelRequest, ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
+import {ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
 import type {WorkingMemory} from '../memory/types.js';
-import {DynamicInstructionProcessor} from './dynamic-instruction-processor.js';
 
 /** callModel 的返回值 */
 interface CallModelResult {
@@ -52,6 +51,8 @@ export class AgentLoop {
   private spanTracker: SpanTracker;
   private steerBuffer: string[] = [];
   private interrupted = false;
+  /** 已批准的工具名缓存（同一 turn 内 on-request 工具只需批准一次） */
+  private toolApprovalState = new Map<string, boolean>();
 
   private pipeline: ProcessorPipeline;
 
@@ -64,13 +65,7 @@ export class AgentLoop {
     this.events = options.events;
     this.spanTracker = options.spanTracker;
 
-    // 用户提供的处理器 + 内置 DynamicInstructionProcessor
-    const userProcessors = options.processors ?? [];
-    const steerProcessor = new DynamicInstructionProcessor(() => {
-      const text = this.drainSteerBuffer();
-      return text ? [text] : [];
-    });
-    this.pipeline = new ProcessorPipeline([...userProcessors, steerProcessor]);
+    this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
 
   /** 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise）。历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止 */
@@ -158,6 +153,22 @@ export class AgentLoop {
     try {
       this.applySteerBuffer(messages);
 
+      // 运行 pipeline 一次，提取不变的上下文前缀/后缀
+      const enrichCtx = new ModelRequestContext({
+        agent: this.agent.config,
+        messages: [userMessage],
+        tools: [...this.agent.tools],
+        thread,
+        scopeId,
+      });
+      await this.pipeline.enter(enrichCtx);
+      const enrichedSystemPrompt = enrichCtx.systemPrompt;
+      const enrichedTools = enrichCtx.tools;
+      // enrichCtx.messages = [...history, userMessage, ...systemMessages]
+      const userIdx = enrichCtx.messages.indexOf(userMessage);
+      const msgPrefix = enrichCtx.messages.slice(0, userIdx + 1);
+      const msgSuffix = enrichCtx.messages.slice(userIdx + 1);
+
       while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
           if (threadStore && turn) {
@@ -178,7 +189,13 @@ export class AgentLoop {
           break;
         }
 
-        const modelResult = await this.callModel(messages, thread, step, controller);
+        // 检查 mid-turn steer 并追加到 loop messages
+        const steerText = this.drainSteerBuffer();
+        if (steerText) {
+          messages.push({ role: 'user', content: steerText });
+        }
+        const fullMessages = [...msgPrefix, ...messages.slice(1), ...msgSuffix];
+        const modelResult = await this.callModel(enrichedSystemPrompt, fullMessages, enrichedTools, thread, step, controller);
 
         // 从返回值应用副作用，不修改 callModel 的入参
         usage.input += modelResult.usage.input;
@@ -206,7 +223,80 @@ export class AgentLoop {
           break;
         }
 
-        const toolResults = await this.executeToolCalls(modelResult.toolCalls, session, step);
+        // 审批阶段：检查 tool policy，对需要审批的工具发出 tool-approval-request 并等待决策
+        const approvedCalls: ToolCall[] = [];
+        const deniedResults: ToolResult[] = [];
+
+        for (const call of modelResult.toolCalls) {
+          const tool = this.toolBroker.findTool(call.name);
+          const policy = tool?.policy ?? 'auto';
+
+          if (policy === 'never') {
+            deniedResults.push({ callId: call.id, name: call.name, status: 'error', output: null, error: 'Blocked by policy' });
+            continue;
+          }
+
+          if (policy === 'auto' || policy === 'suggest') {
+            approvedCalls.push(call);
+            continue;
+          }
+
+          // policy === 'on-request'
+          const isFirstUse = !this.toolApprovalState.has(call.name);
+          const wasApproved = this.toolApprovalState.get(call.name) ?? false;
+          if (!isFirstUse && wasApproved) {
+            approvedCalls.push(call);
+            continue;
+          }
+
+          if (!this.approvalGate) {
+            // 无审批门控：自动批准
+            this.toolApprovalState.set(call.name, true);
+            approvedCalls.push(call);
+            continue;
+          }
+
+          // 需要用户审批
+          const approvalId = crypto.randomUUID();
+          controller.enqueue({
+            type: 'tool-approval-request',
+            approvalId,
+            toolCallId: call.id,
+            toolName: call.name,
+            input: call.args,
+          });
+
+          const { decision } = this.approvalGate.requestApproval(call, undefined, approvalId);
+          const result = await decision;
+
+          if (result.approved) {
+            this.toolApprovalState.set(call.name, true);
+            approvedCalls.push(call);
+          } else {
+            controller.enqueue({
+              type: 'tool-output-denied',
+              toolCallId: call.id,
+              toolName: call.name,
+              reason: result.reason,
+            });
+            deniedResults.push({
+              callId: call.id,
+              name: call.name,
+              status: 'error',
+              output: null,
+              error: result.reason ?? 'User denied',
+            });
+          }
+        }
+
+        // 执行已批准的工具调用
+        const toolResults: ToolResult[] = [];
+        if (approvedCalls.length > 0) {
+          const execResults = await this.executeToolCalls(approvedCalls, session, step);
+          toolResults.push(...execResults);
+        }
+        // 合并被拒结果（与执行结果统一处理）
+        toolResults.push(...deniedResults);
 
         // 追加 tool 消息
         for (const r of toolResults) {
@@ -304,25 +394,24 @@ export class AgentLoop {
     }
   }
 
-  /** 单次模型调用。仅从 messages 读取上下文，不修改入参，结果通过 CallModelResult 返回。模型 chunk 直接 enqueue 到 stream */
+  /** 单次模型调用。systemPrompt/messages/tools 已由调用方预处理，不修改入参，结果通过 CallModelResult 返回 */
   private async callModel(
+    systemPrompt: string,
     messages: ModelMessage[],
+    tools: Tool[],
     thread: Thread,
     step: Step,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
   ): Promise<CallModelResult> {
     const modelUsage = { input: 0, output: 0 };
 
-    const ctx = new ModelRequestContext({
-      agent: this.agent.config,
-      messages: [...messages],
-      tools: [...this.agent.tools],
-      thread,
-      step,
-      scopeId: step.scopeId,
-    });
-    await this.pipeline.enter(ctx);
-    const request = buildModelRequest(ctx);
+    const request = {
+      system: systemPrompt || undefined,
+      messages,
+      tools,
+      maxTokens: this.agent.config.maxTokens,
+      temperature: this.agent.config.temperature,
+    };
 
     let fullText = '';
     const toolCalls: ToolCall[] = [];
@@ -373,6 +462,10 @@ export class AgentLoop {
             this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
             break;
 
+          case 'tool-approval-request':
+            controller.enqueue(chunk);
+            break;
+
           case 'finish':
             controller.enqueue(chunk);
             if (chunk.usage) {
@@ -388,7 +481,7 @@ export class AgentLoop {
             this.emit({ type: 'error', message: errMsg });
             break;
 
-          // stream-start/response-metadata/raw/tool-approval-request：内部使用
+          // stream-start/response-metadata/raw：内部使用
         }
       }
     } catch (err) {
@@ -437,7 +530,8 @@ export class AgentLoop {
       agentId: this.agent.config.id,
       awaitApproval: async (call: ToolCall) => {
         if (this.approvalGate) {
-          return this.approvalGate.requestApproval(call);
+          const { decision } = this.approvalGate.requestApproval(call);
+          return decision;
         }
         return { approved: true };
       },
