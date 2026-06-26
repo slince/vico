@@ -3,7 +3,7 @@ import type {RunTurnOptions, Step, TurnSession, TurnEvent, TurnResult} from './t
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelStreamChunk} from '../model/types.js';
-import type {Thread} from '../thread/types.js';
+import type {Thread, ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
@@ -141,14 +141,12 @@ export class AgentLoop {
     const session: TurnSession = { workspace, thread, turn };
 
     // 记录用户消息
-    if (threadStore && turn) {
-      await threadStore.appendEntry({
-        threadId,
-        turnId: turn.id,
-        role: userMessage.role,
-        content: userMessage.content,
-      });
-    }
+    await threadStore.appendEntry({
+      threadId,
+      turnId: turn.id,
+      role: userMessage.role,
+      content: userMessage.content,
+    });
 
     try {
       this.applySteerBuffer(messages);
@@ -162,24 +160,19 @@ export class AgentLoop {
         scopeId,
       });
       await this.pipeline.enter(enrichCtx);
-      const enrichedSystemPrompt = enrichCtx.systemPrompt;
-      const enrichedTools = enrichCtx.tools;
 
       while (steps < this.agent.config.maxSteps && !this.interrupted) {
         if (signal.aborted) {
-          if (threadStore && turn) {
-            await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
-          }
+          await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
           turnSpan.end({ status: 'aborted' });
           return { status: 'aborted', steps, usage, messages };
         }
 
         const step: Step = { index: steps, threadId, scopeId, signal };
         const shouldBreak = await this.executeModelStep(step, messages, usage, controller, {
-          enriched: { ctx: enrichCtx, systemPrompt: enrichedSystemPrompt, tools: enrichedTools },
-          thread,
+          enrichCtx,
           session,
-          persistence: threadStore && turn ? { store: threadStore, threadId, turnId: turn.id } : undefined,
+          persistence: { store: threadStore },
         });
 
         if (shouldBreak) break;
@@ -196,10 +189,8 @@ export class AgentLoop {
         }),
       );
 
-      if (threadStore && turn) {
-        const finalStatus = this.interrupted ? 'aborted' : 'completed';
-        await threadStore.updateTurn(turn.id, { status: finalStatus, steps });
-      }
+      const finalStatus = this.interrupted ? 'aborted' : 'completed';
+      await threadStore.updateTurn(turn.id, { status: finalStatus, steps });
 
       turnSpan.end({ status: 'completed', steps });
       this.emit({ type: 'done', usage });
@@ -211,9 +202,7 @@ export class AgentLoop {
         messages,
       };
     } catch (err) {
-      if (threadStore && turn) {
-        await threadStore.updateTurn(turn.id, { status: 'failed', steps });
-      }
+      await threadStore.updateTurn(turn.id, { status: 'failed', steps });
       turnSpan.error(err as Error);
       throw err;
     }
@@ -226,10 +215,9 @@ export class AgentLoop {
     usage: { input: number; output: number },
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     shared: {
-      enriched: { ctx: ModelRequestContext; systemPrompt: string; tools: Tool[] };
-      thread: Thread;
+      enrichCtx: ModelRequestContext;
       session: TurnSession;
-      persistence?: { store: import('../thread/types.js').ThreadStore; threadId: string; turnId: string };
+      persistence: { store: ThreadStore };
     },
   ): Promise<boolean> {
     this.emit({ type: 'step-start', step: step.index + 1 });
@@ -247,9 +235,9 @@ export class AgentLoop {
       messages.push({ role: 'user', content: steerText });
     }
 
-    const { ctx, systemPrompt, tools } = shared.enriched;
+    const { enrichCtx: ctx } = shared;
     const fullMessages = [...ctx.before, ...messages, ...ctx.after];
-    const modelResult = await this.callModel(systemPrompt, fullMessages, tools, shared.thread, step, controller);
+    const modelResult = await this.callModel(ctx.systemPrompt, fullMessages, ctx.tools, shared.session.thread, step, controller);
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
@@ -260,17 +248,15 @@ export class AgentLoop {
     }
 
     // 持久化 assistant 消息
-    if (shared.persistence) {
-      const last = messages.at(-1);
-      if (last?.role === 'assistant') {
-        await shared.persistence.store.appendEntry({
-          threadId: shared.persistence.threadId,
-          turnId: shared.persistence.turnId,
-          role: last.role,
-          content: last.content,
-          toolCalls: last.toolCalls,
-        });
-      }
+    const last = messages.at(-1);
+    if (last?.role === 'assistant') {
+      await shared.persistence.store.appendEntry({
+        threadId: shared.session.thread.id,
+        turnId: shared.session.turn.id,
+        role: last.role,
+        content: last.content,
+        toolCalls: last.toolCalls,
+      });
     }
 
     if (modelResult.toolCalls.length === 0) {
@@ -355,18 +341,16 @@ export class AgentLoop {
     }
 
     // 持久化 tool 消息
-    if (shared.persistence) {
-      for (const r of toolResults) {
-        const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
-        const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
-        await shared.persistence.store.appendEntry({
-          threadId: shared.persistence.threadId,
-          turnId: shared.persistence.turnId,
-          role: 'tool',
-          content: truncated,
-          toolCallId: r.callId,
-        });
-      }
+    for (const r of toolResults) {
+      const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
+      const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
+      await shared.persistence.store.appendEntry({
+        threadId: shared.session.thread.id,
+        turnId: shared.session.turn.id,
+        role: 'tool',
+        content: truncated,
+        toolCallId: r.callId,
+      });
     }
 
     this.emit({ type: 'step-end', step: step.index + 1 });
