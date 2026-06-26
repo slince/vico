@@ -342,6 +342,9 @@ export class AgentLoop {
         switch (chunk.type) {
           case 'text-start':
           case 'text-end':
+          case 'tool-input-start':
+          case 'tool-input-delta':
+          case 'tool-input-end':
           case 'tool-result':
           case 'file':
           case 'source':
@@ -385,7 +388,6 @@ export class AgentLoop {
             this.emit({ type: 'error', message: errMsg });
             break;
 
-          // 工具输入中间态（tool-input-start/delta/end）：superseded by tool-call
           // stream-start/response-metadata/raw/tool-approval-request：内部使用
         }
       }

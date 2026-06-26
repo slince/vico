@@ -68,6 +68,10 @@ export async function turnEventsToAISDK(
                 enqueue({ type: 'tool-input-delta', toolCallId: c.id, inputTextDelta: c.delta });
                 break;
 
+              case 'tool-input-end':
+                // tool-input 流式结束，tool-call 会紧随发出 tool-input-available
+                break;
+
               case 'tool-call':
                 enqueue({ type: 'tool-input-available', toolCallId: c.toolCallId, toolName: c.toolName, input: c.input });
                 break;
@@ -78,6 +82,26 @@ export async function turnEventsToAISDK(
                 } else {
                   enqueue({ type: 'tool-output-available', toolCallId: c.toolCallId, output: c.result });
                 }
+                break;
+
+              case 'tool-approval-request':
+                enqueue({ type: 'tool-approval-request', approvalId: c.approvalId, toolCallId: c.toolCallId });
+                break;
+
+              case 'source':
+                if (c.sourceType === 'url') {
+                  enqueue({ type: 'source-url', sourceId: c.id, url: c.url, title: c.title, providerMetadata: c.providerMetadata });
+                } else {
+                  enqueue({ type: 'source-document', sourceId: c.id, mediaType: c.mediaType, title: c.title, filename: c.filename, providerMetadata: c.providerMetadata });
+                }
+                break;
+
+              case 'file':
+                enqueue({ type: 'file', url: typeof c.data === 'string' ? c.data : `data:${c.mediaType};base64,${Buffer.from(c.data).toString('base64')}`, mediaType: c.mediaType, providerMetadata: c.providerMetadata });
+                break;
+
+              case 'response-metadata':
+                enqueue({ type: 'message-metadata', messageMetadata: { modelId: c.modelId, timestamp: c.timestamp } });
                 break;
 
               case 'finish':
@@ -98,6 +122,9 @@ export async function turnEventsToAISDK(
 
         const result: TurnResult = await output.result;
 
+        if (result.status === 'aborted') {
+          enqueue({ type: 'abort' });
+        }
         if (inStep) {
           enqueue({ type: 'finish-step' });
         }
@@ -108,8 +135,13 @@ export async function turnEventsToAISDK(
         await options?.onFinish?.(finish, fullText);
         enqueue(finish);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        enqueue({ type: 'error', errorText: message });
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          enqueue({ type: 'abort' });
+          enqueue({ type: 'finish', finishReason: 'error' });
+        } else {
+          const message = err instanceof Error ? err.message : String(err);
+          enqueue({ type: 'error', errorText: message });
+        }
       } finally {
         controller.close();
       }
