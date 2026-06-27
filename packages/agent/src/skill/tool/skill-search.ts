@@ -12,6 +12,7 @@ export function createSkillSearchTool(manager: SkillManager) {
       query: z.string().describe('Search query'),
       limit: z.number().int().default(10).describe('Max results'),
     }),
+    outputSchema: z.string(),
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],

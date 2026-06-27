@@ -14,6 +14,7 @@ export const lspTool = createTool({
   description:
     'Language Server Protocol support: request diagnostics, go-to-definition, and code completions. Requires a configured LSP server for the target language.',
   inputSchema: lspParams,
+  outputSchema: z.string(),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read', 'optional'],

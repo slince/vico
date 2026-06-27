@@ -127,6 +127,7 @@ export const grepTool = createTool({
   description:
     'Search file contents using a regular expression pattern. Supports glob pattern filtering, case-insensitive search, and context lines. Uses system ripgrep (rg) when available, falling back to Node.js regex.',
   inputSchema: grepParams,
+  outputSchema: z.string(),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

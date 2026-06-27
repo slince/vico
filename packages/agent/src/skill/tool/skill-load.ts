@@ -12,6 +12,7 @@ export function createSkillLoadTool(manager: SkillManager) {
     inputSchema: z.object({
       name: z.string().describe('The skill name to load'),
     }),
+    outputSchema: z.string(),
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],

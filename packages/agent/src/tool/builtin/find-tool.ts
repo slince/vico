@@ -92,6 +92,7 @@ export const findTool = createTool({
   description:
     'Find files by glob pattern in the workspace. Results are sorted by modification time (newest first). Use this to locate files matching a naming pattern.',
   inputSchema: findParams,
+  outputSchema: z.string(),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

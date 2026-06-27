@@ -7,6 +7,7 @@ export const echoTool = createTool({
   inputSchema: z.object({
     message: z.string().describe('Message to echo'),
   }),
+  outputSchema: z.string(),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin'],

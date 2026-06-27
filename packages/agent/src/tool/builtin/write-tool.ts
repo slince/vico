@@ -42,6 +42,7 @@ export const writeTool = createTool({
   description:
     'Create a new file or overwrite an existing file in the workspace. Parent directories are created automatically if they do not exist.',
   inputSchema: writeParams,
+  outputSchema: z.string(),
   policy: 'on-request',
   kind: 'file_change',
   tags: ['builtin', 'write'],

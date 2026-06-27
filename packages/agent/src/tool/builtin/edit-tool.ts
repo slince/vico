@@ -91,6 +91,7 @@ export const editTool = createTool({
   description:
     'Edit a file using exact string replacement. Supports single replace (oldText → newText) or multiple replacements via the edits array. Each oldText must appear exactly once in the file. Returns a unified diff of the changes.',
   inputSchema: editParams,
+  outputSchema: z.string(),
   policy: 'on-request',
   kind: 'file_change',
   tags: ['builtin', 'edit'],

@@ -106,6 +106,7 @@ export const readTool = createTool({
   description:
     'Read a file from the workspace. Supports line offset and line count limits. Image files are automatically detected and returned as base64. Use this to inspect file contents in the current workspace.',
   inputSchema: readParams,
+  outputSchema: z.string(),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

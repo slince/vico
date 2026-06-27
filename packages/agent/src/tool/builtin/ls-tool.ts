@@ -54,6 +54,7 @@ export const lsTool = createTool({
   description:
     'List the contents of a directory in the workspace. Entries are sorted alphabetically with directories marked by a trailing "/". Use this to explore the file structure of the project.',
   inputSchema: lsParams,
+  outputSchema: z.string(),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

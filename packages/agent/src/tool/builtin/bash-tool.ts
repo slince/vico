@@ -150,6 +150,7 @@ export const bashTool = createTool({
   description:
     'Execute a shell command in a persistent session. Supports long-running commands with timeout and session management (run/poll/write/stop actions). The working directory is the workspace root. Use "run" to start a command, "poll" to check status, "write" to send input, and "stop" to terminate.',
   inputSchema: bashParams,
+  outputSchema: z.string(),
   policy: 'on-request',
   kind: 'command',
   tags: ['builtin', 'command'],

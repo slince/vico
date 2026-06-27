@@ -30,6 +30,7 @@ export class ChildAgentExecutor {
         task: z.string().describe('The task to delegate'),
         context: z.string().optional().describe('Additional context'),
       }),
+      outputSchema: z.string(),
       policy: 'auto',
       kind: 'delegate',
       tags: ['delegate', `agent:${agentId}`],

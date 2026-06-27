@@ -15,6 +15,7 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
     inputSchema: z.object({
       memory: z.string().describe('The complete updated working memory content in Markdown format'),
     }),
+    outputSchema: z.string(),
     policy: 'auto',
     kind: 'mutation',
     tags: ['builtin'],

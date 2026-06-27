@@ -14,6 +14,7 @@ export function createSkillReadTool(manager: SkillManager) {
       skillName: z.string().describe('The skill name'),
       filePath: z.string().describe('Relative path within the skill directory'),
     }),
+    outputSchema: z.string(),
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],
