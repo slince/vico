@@ -126,10 +126,19 @@ export { FileThreadStore, type FileThreadStoreOptions } from './thread/file-thre
 export { ContextCompactor } from './agent-loop/context-compactor.js';
 
 // Observable (Span + Trace)
-export { InMemorySpanTracker } from './observable/span-tracker.js';
-export { type SpanTracker, type SpanSession, type Span, type SpanState } from './observable/types.js';
-export { LoopTracer, TurnTraceSession, type TraceLevel, type TurnTrace } from './observable/loop-tracer.js';
-export { TraceExporter } from './observable/trace-exporter.js';
+export { type Span, type SpanState } from './observable/types.js';
+export {
+  LoopTracer,
+  TurnTraceSession,
+  ConsoleTraceAdapter,
+  FileTraceAdapter,
+  createAdaptersFromLevel,
+  DEFAULT_TRACE_DIR,
+  type TraceLevel,
+  type TurnTrace,
+  type TraceAdapter,
+  type FileTraceAdapterOptions,
+} from './observable/loop-tracer.js';
 
 // Events
 export { MittEventRecorder } from './events/event-recorder.js';

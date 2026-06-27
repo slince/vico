@@ -22,7 +22,7 @@ export interface Span {
   error(error: Error): void;
 }
 
-/** Span 内部状态（导出给 LoopTracer 使用） */
+/** Span 内部状态（导出给 trace 模块使用） */
 export interface SpanState {
   id: string;
   type: SpanType;
@@ -31,18 +31,4 @@ export interface SpanState {
   endTime?: number;
   error?: string;
   result?: Record<string, unknown>;
-}
-
-/** 单次 turn 的 Span 收集器 — 持有独立的 span 集合，并发安全 */
-export interface SpanSession {
-  /** 启动一个追踪 Span */
-  startSpan(type: SpanType, metadata?: Record<string, unknown>): Span;
-  /** 获取本次 session 内所有已记录的 span（用于导出/追踪） */
-  getAllSpans(): ReadonlyArray<SpanState>;
-}
-
-/** Span 追踪器工厂 — 每个 turn 通过 startSession() 创建隔离的 SpanSession */
-export interface SpanTracker {
-  /** 创建独立的 Span 收集会话 */
-  startSession(): SpanSession;
 }

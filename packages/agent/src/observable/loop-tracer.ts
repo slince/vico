@@ -1,11 +1,14 @@
-// @vico/agent - LoopTracer: subscribes to AgentLoop events + spans, outputs structured trace on turn end
-import type {EventRecorder} from '../events/types.js';
-import type {Step, TurnEvent, TurnResult} from '../agent-loop/types.js';
-import type {CallModelResult} from '../agent-loop/agent-loop.js';
-import type {ModelRequest, ModelMessage} from '../model/types.js';
-import type {Thread} from '../thread/types.js';
-import type {SpanSession, SpanState} from './types.js';
-import {TraceExporter} from './trace-exporter.js';
+// @vico/agent - LoopTracer: subscribes to AgentLoop events, collects spans, outputs structured trace on turn end
+import { randomUUID } from 'node:crypto';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { homedir } from 'node:os';
+import type { EventRecorder } from '../events/types.js';
+import type { Step, TurnEvent, TurnResult } from '../agent-loop/types.js';
+import type { CallModelResult } from '../agent-loop/agent-loop.js';
+import type { ModelRequest, ModelMessage } from '../model/types.js';
+import type { Thread } from '../thread/types.js';
+import type { Span, SpanState, SpanType } from './types.js';
 
 /** 追踪级别：0=关闭，1=console，2=console+文件 */
 export type TraceLevel = 0 | 1 | 2;
@@ -34,12 +37,162 @@ export interface TurnTrace {
   steps: StepTrace[];
   modelCalls: ModelCallTrace[];
   events: TurnEvent[];
+  /** 本 turn 内所有 span（跟随 trace 持久化） */
+  spans: SpanState[];
   result?: TurnResult;
 }
 
+// ── 持久化适配器 ──
+
+/** Trace 持久化适配器 — 负责将 trace + spans 输出到目标 */
+export interface TraceAdapter {
+  write(trace: TurnTrace, spans: ReadonlyArray<SpanState>): void | Promise<void>;
+}
+
+/** 默认 trace 文件导出目录 */
+export const DEFAULT_TRACE_DIR = path.join(homedir(), '.vico', 'traces');
+
+/** Console 输出适配器 — 格式化 trace 并打印到 stdout */
+export class ConsoleTraceAdapter implements TraceAdapter {
+  write(trace: TurnTrace, spans: ReadonlyArray<SpanState>): void {
+    const duration = (trace.endTime ?? Date.now()) - trace.startTime;
+
+    // 按类型汇总 span 耗时
+    const spanMs = new Map<string, number>();
+    for (const s of spans) {
+      if (s.endTime) {
+        spanMs.set(s.type, (spanMs.get(s.type) ?? 0) + s.endTime - s.startTime);
+      }
+    }
+
+    const sep = '─'.repeat(60);
+
+    console.log(`\n${sep}`);
+    console.log(`  Turn  thread   : ${trace.threadId}`);
+    console.log(
+      `  User message   : ${trace.userMessage.slice(0, 80)}${trace.userMessage.length > 80 ? '…' : ''}`,
+    );
+    console.log(`${sep}`);
+
+    for (const step of trace.steps) {
+      const mc = trace.modelCalls.find((m) => m.stepIndex === step.index);
+
+      if (mc) {
+        const toolNames = mc.request.tools?.map((tool) => tool.name) ?? [];
+        const tools = toolNames.length > 0 ? ` | tools: [${toolNames.join(', ')}]` : '';
+        const sysLen = mc.request.system?.length ?? 0;
+        console.log(
+          `  [Step ${step.index}] temp=${mc.request.temperature ?? '?'} | maxTk=${mc.request.maxOutputTokens ?? '?'} | ${mc.request.messages.length} msgs | system=${sysLen}ch${tools}`,
+        );
+      } else {
+        console.log(`  [Step ${step.index}]`);
+      }
+
+      if (step.text) {
+        const preview = step.text.length > 100 ? step.text.slice(0, 100) + '…' : step.text;
+        console.log(`    ↳ text : ${preview}`);
+      }
+
+      for (const tc of step.toolCalls) {
+        const argsStr = JSON.stringify(tc.args);
+        const argsPreview = argsStr.length > 80 ? argsStr.slice(0, 80) + '…' : argsStr;
+        console.log(`    ↳ call : ${tc.name}(${argsPreview})`);
+      }
+
+      for (const tr of step.toolResults) {
+        const icon = tr.status === 'success' ? '✓' : '✗';
+        const outputStr = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
+        const outputPreview = outputStr.length > 80 ? outputStr.slice(0, 80) + '…' : outputStr;
+        console.log(`    ↳ ${icon}    : ${tr.name} → ${outputPreview}`);
+      }
+
+      if (mc?.response?.usage) {
+        console.log(`    ↳ usage: ${mc.response.usage.input}→${mc.response.usage.output} tokens`);
+      }
+    }
+
+    console.log(`${sep}`);
+    const totalTokens = trace.result?.usage;
+    console.log(
+      `  Duration: ${duration}ms  |  Steps: ${trace.steps.length}  |  Tokens: ${totalTokens?.input ?? '?'}→${totalTokens?.output ?? '?'}`,
+    );
+    const spanSummary = [...spanMs.entries()].map(([k, v]) => `${k} ${v}ms`).join('  ');
+    if (spanSummary) console.log(`  Spans  : ${spanSummary}`);
+    console.log(`${sep}\n`);
+  }
+}
+
+/** FileTraceAdapter 选项 */
+export interface FileTraceAdapterOptions {
+  /** 文件导出主目录，默认 ~/.vico/traces */
+  baseDir?: string;
+}
+
+/** 文件导出适配器 — 将 trace 序列化为 JSON 文件 */
+export class FileTraceAdapter implements TraceAdapter {
+  private baseDir: string;
+
+  constructor(options: FileTraceAdapterOptions = {}) {
+    this.baseDir = options.baseDir ?? DEFAULT_TRACE_DIR;
+  }
+
+  async write(trace: TurnTrace, spans: ReadonlyArray<SpanState>): Promise<void> {
+    try {
+      const dateDir = new Date().toISOString().slice(0, 10);
+      const dir = path.join(this.baseDir, dateDir);
+      await fs.mkdir(dir, { recursive: true });
+
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `turn-${trace.threadId.slice(0, 8)}-${ts}.json`;
+      const filepath = path.join(dir, filename);
+
+      const payload = {
+        threadId: trace.threadId,
+        userMessage: trace.userMessage,
+        duration: trace.endTime ? trace.endTime - trace.startTime : 0,
+        startTime: new Date(trace.startTime).toISOString(),
+        endTime: trace.endTime ? new Date(trace.endTime).toISOString() : undefined,
+        steps: trace.steps.map((s) => ({
+          index: s.index,
+          text: s.text,
+          toolCalls: s.toolCalls,
+          toolResults: s.toolResults,
+        })),
+        modelCalls: trace.modelCalls.map((mc) => ({
+          stepIndex: mc.stepIndex,
+          request: mc.request,
+          response: mc.response ?? undefined,
+        })),
+        spans: spans.map((s) => ({
+          id: s.id,
+          type: s.type,
+          metadata: s.metadata,
+          duration: s.endTime ? s.endTime - s.startTime : undefined,
+          error: s.error,
+          result: s.result,
+        })),
+        result: trace.result
+          ? { status: trace.result.status, steps: trace.result.steps, usage: trace.result.usage }
+          : undefined,
+        exportedAt: new Date().toISOString(),
+      };
+
+      await fs.writeFile(filepath, JSON.stringify(payload, null, 2), 'utf-8');
+      console.log(`[LoopTracer] Trace dumped → ${filepath}`);
+    } catch (err) {
+      console.warn(
+        '[LoopTracer] Failed to dump trace:',
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+}
+
+// ── TurnTraceSession — 数据收集 ──
+
 /**
  * TurnTraceSession — 单个 turn 的独立追踪会话。
- * 纯数据持有：负责事件订阅和 trace 数据收集，不涉及输出/导出逻辑。
+ * 负责事件订阅、trace 数据收集和 span 收集。
  * 每个 turn 实例完全隔离，并发安全。
  */
 export class TurnTraceSession {
@@ -47,6 +200,7 @@ export class TurnTraceSession {
   private currentStep?: StepTrace;
   private pendingModelCalls = new Map<number, ModelCallTrace>();
   private unsubscribe: () => void;
+  private spans: SpanState[] = [];
 
   constructor(
     thread: Thread,
@@ -60,8 +214,33 @@ export class TurnTraceSession {
       steps: [],
       modelCalls: [],
       events: [],
+      spans: this.spans,
     };
     this.unsubscribe = this.subscribe(events);
+  }
+
+  /** 启动一个追踪 Span */
+  startSpan(type: SpanType, metadata?: Record<string, unknown>): Span {
+    const id = randomUUID();
+    const state: SpanState = { id, type, metadata: metadata ?? {}, startTime: Date.now() };
+    this.spans.push(state);
+
+    return {
+      id,
+      end: (result?: Record<string, unknown>) => {
+        state.endTime = Date.now();
+        state.result = result;
+      },
+      error: (err: Error) => {
+        state.endTime = Date.now();
+        state.error = err.message;
+      },
+    };
+  }
+
+  /** 获取本次会话内所有 span */
+  getAllSpans(): ReadonlyArray<SpanState> {
+    return this.spans;
   }
 
   /** 记录 LLM 请求参数 */
@@ -90,48 +269,27 @@ export class TurnTraceSession {
 
   // ── 内部方法 ──
 
-  /** 订阅当前 turn 相关的 TurnEvent */
   private subscribe(events: EventRecorder<TurnEvent>): () => void {
     const handler = (event: TurnEvent) => {
       this.trace.events.push(event);
 
       switch (event.type) {
         case 'step-start':
-          this.currentStep = {
-            index: event.step,
-            text: '',
-            toolCalls: [],
-            toolResults: [],
-          };
+          this.currentStep = { index: event.step, text: '', toolCalls: [], toolResults: [] };
           break;
-
         case 'text-delta':
-          if (this.currentStep) {
-            this.currentStep.text += event.content;
-          }
+          if (this.currentStep) this.currentStep.text += event.content;
           break;
-
         case 'tool-call-start':
           if (this.currentStep) {
-            this.currentStep.toolCalls.push({
-              id: event.id,
-              name: event.name,
-              args: event.args,
-            });
+            this.currentStep.toolCalls.push({ id: event.id, name: event.name, args: event.args });
           }
           break;
-
         case 'tool-result':
           if (this.currentStep) {
-            this.currentStep.toolResults.push({
-              id: event.id,
-              name: event.name,
-              status: event.status,
-              output: event.output,
-            });
+            this.currentStep.toolResults.push({ id: event.id, name: event.name, status: event.status, output: event.output });
           }
           break;
-
         case 'step-end':
           if (this.currentStep) {
             this.trace.steps.push(this.currentStep);
@@ -146,128 +304,43 @@ export class TurnTraceSession {
   }
 }
 
+// ── LoopTracer — 协调器 ──
+
 /**
  * LoopTracer — 追踪协调器。
- * 负责 turn 级生命周期管理（clear span → 创建 session → 输出/导出）。
+ * 负责 turn 级生命周期管理（创建 session → 委托适配器输出/导出）。
  * 每个 turn 通过 startTurn() 创建独立的 TurnTraceSession，并发安全。
- *
- * level: 0 = 不追踪（无开销）；1 = console 输出；2 = console + JSON 文件导出
  */
 export class LoopTracer {
   constructor(
     private readonly events: EventRecorder<TurnEvent>,
-    private readonly level: TraceLevel = 0,
+    private readonly adapters: ReadonlyArray<TraceAdapter>,
   ) {}
 
-  /** 为当前 turn 创建独立的追踪会话。level=0 时返回 undefined（零开销） */
-  startTurn(thread: Thread, userMessage: ModelMessage): TurnTraceSession | undefined {
-    if (this.level === 0) return;
+  /** 为当前 turn 创建独立的追踪会话 */
+  startTurn(thread: Thread, userMessage: ModelMessage): TurnTraceSession {
     return new TurnTraceSession(thread, userMessage, this.events);
   }
 
-  /** 结束 turn：从 session 提取 trace 数据，结合 span 信息输出/导出 */
-  finish(traceSession: TurnTraceSession | undefined, spanSession: SpanSession, result: TurnResult): void {
-    if (!traceSession) return;
-
+  /** 结束 turn：从 session 提取数据，委托所有适配器输出/导出 */
+  async finish(traceSession: TurnTraceSession, result: TurnResult): Promise<void> {
     const trace = traceSession.finalize(result);
-    const duration = trace.endTime! - trace.startTime;
-    const spans = spanSession.getAllSpans();
+    const spans = traceSession.getAllSpans();
 
-    if (this.level >= 1) {
-      this.printConsole(trace, duration, spans);
-    }
-
-    if (this.level >= 2) {
-      TraceExporter.dump(trace, spans).catch(() => {
-        // 静默失败，不影响主流程
-      });
+    for (const adapter of this.adapters) {
+      try {
+        await adapter.write(trace, spans);
+      } catch {
+        // 适配器失败不影响主流程
+      }
     }
   }
+}
 
-  // ── 内部方法 ──
-
-  /** 格式化输出 console 日志 */
-  private printConsole(
-    t: TurnTrace,
-    duration: number,
-    spans: ReadonlyArray<SpanState>,
-  ): void {
-    // 按类型汇总 span 耗时
-    const spanMs = new Map<string, number>();
-    for (const s of spans) {
-      if (s.endTime) {
-        const elapsed = s.endTime - s.startTime;
-        spanMs.set(s.type, (spanMs.get(s.type) ?? 0) + elapsed);
-      }
-    }
-
-    const sep = '─'.repeat(60);
-
-    console.log(`\n${sep}`);
-    console.log(`  Turn  thread   : ${t.threadId}`);
-    console.log(
-      `  User message   : ${t.userMessage.slice(0, 80)}${t.userMessage.length > 80 ? '…' : ''}`,
-    );
-    console.log(`${sep}`);
-
-    // 按 step 输出，同时关联 model call 信息
-    for (const step of t.steps) {
-      const mc = t.modelCalls.find((m) => m.stepIndex === step.index);
-
-      // 模型请求摘要（从原始 request 对象中提取）
-      if (mc) {
-        const toolNames = mc.request.tools?.map((tool) => tool.name) ?? [];
-        const tools = toolNames.length > 0 ? ` | tools: [${toolNames.join(', ')}]` : '';
-        const sysLen = mc.request.system?.length ?? 0;
-        console.log(
-          `  [Step ${step.index}] temp=${mc.request.temperature ?? '?'} | maxTk=${mc.request.maxOutputTokens ?? '?'} | ${mc.request.messages.length} msgs | system=${sysLen}ch${tools}`,
-        );
-      } else {
-        console.log(`  [Step ${step.index}]`);
-      }
-
-      // 模型文本响应
-      if (step.text) {
-        const preview =
-          step.text.length > 100 ? step.text.slice(0, 100) + '…' : step.text;
-        console.log(`    ↳ text : ${preview}`);
-      }
-
-      // 工具调用
-      for (const tc of step.toolCalls) {
-        const argsStr = JSON.stringify(tc.args);
-        const argsPreview =
-          argsStr.length > 80 ? argsStr.slice(0, 80) + '…' : argsStr;
-        console.log(`    ↳ call : ${tc.name}(${argsPreview})`);
-      }
-
-      // 工具结果
-      for (const tr of step.toolResults) {
-        const icon = tr.status === 'success' ? '✓' : '✗';
-        const outputStr =
-          typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
-        const outputPreview =
-          outputStr.length > 80 ? outputStr.slice(0, 80) + '…' : outputStr;
-        console.log(`    ↳ ${icon}    : ${tr.name} → ${outputPreview}`);
-      }
-
-      // 该步 token 用量（从原始 response 对象中提取）
-      if (mc?.response?.usage) {
-        console.log(
-          `    ↳ usage: ${mc.response.usage.input}→${mc.response.usage.output} tokens`,
-        );
-      }
-    }
-
-    console.log(`${sep}`);
-    const totalTokens = t.result?.usage;
-    console.log(
-      `  Duration: ${duration}ms  |  Steps: ${t.steps.length}  |  Tokens: ${totalTokens?.input ?? '?'}→${totalTokens?.output ?? '?'}`,
-    );
-    const spanSummary = [...spanMs.entries()]
-      .map(([k, v]) => `${k} ${v}ms`)
-      .join('  ');
-    if (spanSummary) console.log(`  Spans  : ${spanSummary}`);
-    console.log(`${sep}\n`);
-  }
+/** 根据 TraceLevel 创建默认适配器列表 */
+export function createAdaptersFromLevel(level: TraceLevel): TraceAdapter[] {
+  const adapters: TraceAdapter[] = [];
+  if (level >= 1) adapters.push(new ConsoleTraceAdapter());
+  if (level >= 2) adapters.push(new FileTraceAdapter());
+  return adapters;
 }

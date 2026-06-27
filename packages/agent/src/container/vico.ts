@@ -23,8 +23,7 @@ import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
-import {InMemorySpanTracker} from '../observable/span-tracker.js';
-import {LoopTracer, type TraceLevel} from '../observable/loop-tracer.js';
+import {LoopTracer, createAdaptersFromLevel, type TraceLevel} from '../observable/loop-tracer.js';
 import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 import {createSkillToolSource} from "../skill/skill-tool-source.js";
@@ -110,7 +109,6 @@ export interface InvokeOptions {
  */
 export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
-  readonly spanTracker = new InMemorySpanTracker();
   readonly tracer: LoopTracer;
 
   private readonly skillManager: SkillManager;
@@ -125,7 +123,7 @@ export class Vico {
   constructor(options: VicoOptions = {}) {
     this.options = options;
     const traceLevel = options.trace ?? (parseInt(process.env.VICO_TRACE ?? '0', 10) as TraceLevel);
-    this.tracer = new LoopTracer(this.events, traceLevel);
+    this.tracer = new LoopTracer(this.events, createAdaptersFromLevel(traceLevel));
     this.languageModelFactory = options.languageModelFactory ?? createLanguageModel;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
@@ -225,7 +223,6 @@ export class Vico {
       toolBroker,
       processors,
       events: this.events,
-      spanTracker: this.spanTracker,
       approvalGate: this.approvalGate,
       tracer: this.tracer,
     });

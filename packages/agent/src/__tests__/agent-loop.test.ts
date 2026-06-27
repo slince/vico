@@ -6,7 +6,7 @@ import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
 import { Agent } from '../agent-loop/agent.js';
 import type { AgentConfig, TurnEvent } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../events/event-recorder.js';
-import { InMemorySpanTracker } from '../observable/span-tracker.js';
+import { LoopTracer } from '../observable/loop-tracer.js';
 import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
@@ -65,7 +65,6 @@ const mockToolBroker = {
 describe('AgentLoop', () => {
   it('completes a turn with text-only response', async () => {
     const events = new MittEventRecorder<TurnEvent>();
-    const tracker = new InMemorySpanTracker();
     const agent = makeAgent([
       { type: 'text-start', id: '1' },
       { type: 'text-delta', id: '1', delta: 'Hello!' },
@@ -78,7 +77,7 @@ describe('AgentLoop', () => {
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,
-      spanTracker: tracker,
+      tracer: new LoopTracer(events, []),
     });
 
     const result = await collectTurnResult(loop.runTurn(
@@ -124,7 +123,6 @@ describe('AgentLoop', () => {
     };
 
     const events = new MittEventRecorder<TurnEvent>();
-    const tracker = new InMemorySpanTracker();
     const doneEvents: any[] = [];
     events.on('done', (e) => doneEvents.push(e));
     const agent = new Agent({
@@ -139,7 +137,7 @@ describe('AgentLoop', () => {
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,
-      spanTracker: tracker,
+      tracer: new LoopTracer(events, []),
     });
 
     const output = loop.runTurn(
@@ -152,7 +150,7 @@ describe('AgentLoop', () => {
     expect(result.steps).toBeGreaterThan(0);
     expect(doneEvents.length).toBe(1);
 
-    const spans = output.spanSession.getAllSpans();
+    const spans = result.spans!;
     expect(spans.some((s) => s.type === 'agent_run')).toBe(true);
     expect(spans.some((s) => s.type === 'tool_call')).toBe(true);
   });
@@ -182,7 +180,6 @@ describe('AgentLoop', () => {
     };
 
     const events = new MittEventRecorder<TurnEvent>();
-    const tracker = new InMemorySpanTracker();
     const agent = new Agent({
       config: makeConfig(),
       model: mockModel,
@@ -194,7 +191,7 @@ describe('AgentLoop', () => {
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
       events,
-      spanTracker: tracker,
+      tracer: new LoopTracer(events, []),
     });
 
     const output = loop.runTurn('thread-1', { role: 'user', content: 'hi' });

@@ -43,6 +43,8 @@ export interface TurnResult {
   steps: number;
   usage: { input: number; output: number };
   messages: ModelMessage[];
+  /** 当前 turn 收集的 span 数据 */
+  spans?: ReadonlyArray<import('../observable/types.js').SpanState>;
 }
 
 /** runTurn 选项 */
