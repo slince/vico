@@ -8,6 +8,7 @@ import type {ToolBroker} from '../tool/tool-broker.js';
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {SpanTracker} from '../observable/types.js';
+import type {LoopTracer} from '../observable/loop-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
@@ -46,6 +47,7 @@ export interface AgentLoopOptions {
   events: EventRecorder<TurnEvent>;
   spanTracker: SpanTracker;
   workingMemory?: WorkingMemory;
+  tracer?: LoopTracer;
 }
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
@@ -57,6 +59,7 @@ export class AgentLoop {
   private approvalGate?: ApprovalGate;
   private events: EventRecorder<TurnEvent>;
   private spanTracker: SpanTracker;
+  private tracer?: LoopTracer;
   /** 已批准的工具名缓存（同一 turn 内 on-request 工具只需批准一次） */
   private toolApprovalState = new Map<string, boolean>();
 
@@ -70,6 +73,7 @@ export class AgentLoop {
     this.approvalGate = options.approvalGate;
     this.events = options.events;
     this.spanTracker = options.spanTracker;
+    this.tracer = options.tracer;
 
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
@@ -154,6 +158,8 @@ export class AgentLoop {
       content: userMessage.content,
     });
 
+    this.tracer?.startTurn(threadId, userMessage.content);
+
     try {
       // 运行 pipeline 一次，提取不变的上下文前缀/后缀
       const ctx = new ModelRequestContext({
@@ -169,7 +175,9 @@ export class AgentLoop {
         if (signal.aborted) {
           await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
           turnSpan.end({ status: 'aborted' });
-          return { status: 'aborted', steps, usage, messages };
+          const abortResult: TurnResult = { status: 'aborted', steps, usage, messages };
+          this.tracer?.endTurn(abortResult);
+          return abortResult;
         }
 
         const step: Step = { index: steps, threadId, scopeId, signal };
@@ -201,15 +209,19 @@ export class AgentLoop {
       turnSpan.end({ status: 'completed', steps });
       this.emit({ type: 'done', usage });
 
-      return {
+      const finalResult: TurnResult = {
         status: interrupted.value ? 'interrupted' : 'completed',
         steps,
         usage,
         messages,
       };
+      this.tracer?.endTurn(finalResult);
+      return finalResult;
     } catch (err) {
       await threadStore.updateTurn(turn.id, { status: 'failed', steps });
       turnSpan.error(err as Error);
+      const failResult: TurnResult = { status: 'failed', steps, usage, messages };
+      this.tracer?.endTurn(failResult);
       throw err;
     }
   }

@@ -9,10 +9,10 @@
  * - AgentRuntime（LRU 缓存）
  * - defaultModelFactory（自动匹配 OpenAI/Anthropic/DeepSeek 等 provider）
  */
-import { Vico, MemoryStore } from '@vico/agent';
-import { DrizzleThreadStore, ensureTables } from '@vico/libsql-adapter';
-import { getDb } from './db/db.js';
-import { createApp } from './app.js';
+import {MemoryStore, Vico} from '@vico/agent';
+import {DrizzleThreadStore, ensureTables} from '@vico/libsql-adapter';
+import {getDb} from './db/db.js';
+import {createApp} from './app.js';
 import logger from './lib/logger.js';
 
 const db = getDb();
@@ -23,6 +23,7 @@ export const vico = new Vico({
   skills: { skillDirs: ['~/.vico/skills'], compatible: true },
   memory: new MemoryStore(),
   thread: new DrizzleThreadStore({ db: db as any }),
+  trace: 2
 });
 
 /** 创建 Hono app 实例 */

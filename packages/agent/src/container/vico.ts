@@ -24,6 +24,7 @@ import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {InMemorySpanTracker} from '../observable/span-tracker.js';
+import {LoopTracer, type TraceLevel} from '../observable/loop-tracer.js';
 import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 import {createSkillToolSource} from "../skill/skill-tool-source.js";
@@ -80,6 +81,8 @@ export interface VicoOptions {
   thread?: ThreadStore;
   /** 工具审批门控（不传则不启用审批） */
   approvalGate?: ApprovalGate;
+  /** AgentLoop 追踪级别：0=关闭，1=console，2=console+文件（默认读取 VICO_TRACE 环境变量，不传等同 0） */
+  trace?: TraceLevel;
 }
 
 /** invoke 调用选项 */
@@ -108,6 +111,7 @@ export interface InvokeOptions {
 export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
   readonly spanTracker = new InMemorySpanTracker();
+  readonly tracer: LoopTracer;
 
   private readonly skillManager: SkillManager;
   private initialized = false;
@@ -120,6 +124,8 @@ export class Vico {
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
+    const traceLevel = options.trace ?? (parseInt(process.env.VICO_TRACE ?? '0', 10) as TraceLevel);
+    this.tracer = new LoopTracer(this.events, this.spanTracker, traceLevel);
     this.languageModelFactory = options.languageModelFactory ?? createLanguageModel;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
@@ -221,6 +227,7 @@ export class Vico {
       events: this.events,
       spanTracker: this.spanTracker,
       approvalGate: this.approvalGate,
+      tracer: this.tracer,
     });
   }
 

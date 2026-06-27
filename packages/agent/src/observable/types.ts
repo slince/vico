@@ -22,8 +22,23 @@ export interface Span {
   error(error: Error): void;
 }
 
+/** Span 内部状态（导出给 LoopTracer 使用） */
+export interface SpanState {
+  id: string;
+  type: SpanType;
+  metadata: Record<string, unknown>;
+  startTime: number;
+  endTime?: number;
+  error?: string;
+  result?: Record<string, unknown>;
+}
+
 /** Span 追踪器端口 — 创建和管理追踪 Span */
 export interface SpanTracker {
   /** 启动一个追踪 Span */
   startSpan(type: SpanType, metadata?: Record<string, unknown>): Span;
+  /** 获取所有已记录的 span（用于导出/追踪） */
+  getAllSpans(): ReadonlyArray<SpanState>;
+  /** 清空已记录的 span */
+  clear(): void;
 }
