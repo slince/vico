@@ -13,14 +13,12 @@ export interface ExecuteChatParams {
   userId: string;
 }
 
-export interface ExecuteChatResult {
-  stream: TurnOutput;
-}
+
 
 /** 执行 Agent 对话 — 通过 vico.stream */
 export async function executeAgentChat(
   params: ExecuteChatParams,
-): Promise<ExecuteChatResult> {
+): Promise<TurnOutput> {
   const { agentId, message, threadId, tenantId, userId } = params;
 
   if (!message?.trim()) throw new Error('Message is required');
@@ -33,7 +31,7 @@ export async function executeAgentChat(
     return {
       id: a.id,
       name: a.name,
-      systemPrompt: a.system_prompt || '',
+      systemPrompt: a.system_prompt,
       model: {
         provider: model.provider,
         model: model.model_name,
@@ -52,5 +50,5 @@ export async function executeAgentChat(
     scopeId: tenantId,
   });
 
-  return { stream };
+  return stream;
 }

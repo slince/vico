@@ -45,7 +45,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const threadId = isLocalThreadId ? crypto.randomUUID() : requestedThreadId;
 
     try {
-      const { stream } = await executeAgentChat({
+      const stream = await executeAgentChat({
         agentId,
         message,
         threadId,
