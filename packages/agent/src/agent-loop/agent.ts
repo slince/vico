@@ -1,13 +1,27 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {ModelClient} from '../model/model-client.js';
-import type {AgentConfig} from './types.js';
+import type {AgentConfig, TurnEvent, TurnResult} from './types.js';
 import type {Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
-import type {EventPayload} from '../events/types.js';
-import type {TurnEvent} from './types.js';
+import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {AgentLoop} from './agent-loop.js';
+import {buildLoop, collectTurnResult} from "./utils.js";
+import {TurnOutput} from "./turn-output.js";
+import {ModelMessage} from "../model/types.js";
+import type {ApprovalGate} from "./approval-gate.js";
+import {LoopTracer} from "../observable/loop-tracer.js";
+
+export type LoopFactory = (agent: Agent) => AgentLoop
+
+/** invoke 调用选项 */
+export interface InvokeOptions {
+  threadId?: string;
+  userId?: string;
+  workspace?: string;
+  scopeId?: string;
+}
 
 /** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
 export class Agent {
@@ -18,9 +32,10 @@ export class Agent {
   readonly tools: Tool[];
   readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
-
-  /** AgentLoop 实例，由容器在构建时注入 */
-  loop?: AgentLoop;
+  readonly approvalGate?: ApprovalGate;
+  readonly events: EventRecorder<TurnEvent>;
+  readonly tracer: LoopTracer;
+  readonly loop: AgentLoop;
 
   constructor(params: {
     config: AgentConfig;
@@ -29,6 +44,10 @@ export class Agent {
     tools?: Tool[];
     memory?: MemoryStore;
     thread: ThreadStore;
+    approvalGate?: ApprovalGate;
+    events: EventRecorder<TurnEvent>;
+    tracer: LoopTracer
+    loopFactory?: LoopFactory
   }) {
     this.config = params.config;
     this.model = params.model;
@@ -37,23 +56,45 @@ export class Agent {
     this.tools = params.tools ?? [];
     this.memory = params.memory;
     this.thread = params.thread;
-  }
+    this.approvalGate = params.approvalGate;
+    this.events = params.events;
+    this.tracer = params.tracer;
 
-  getLoop(): AgentLoop {
-    return this.loop!;
+    const loopFactory = params.loopFactory || buildLoop;
+    this.loop = loopFactory(this)
   }
 
   /** 订阅 turn 事件，委托给 AgentLoop */
   on<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
-    const loop = this.loop;
-    if (!loop) throw new Error('Agent.on() requires loop to be initialized');
-    loop.on(event, handler);
+    this.events.on(event, handler);
   }
 
   /** 取消订阅 turn 事件 */
   off<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
-    const loop = this.loop;
-    if (!loop) throw new Error('Agent.off() requires loop to be initialized');
-    loop.off(event, handler);
+    this.events.off(event, handler);
   }
+
+  /**
+   * 一行对话：从 Runtime 中查找 Agent，发送消息并返回结果。
+   */
+  async invoke(agentId: string, message: string, options?: InvokeOptions): Promise<TurnResult> {
+    return collectTurnResult(this.run(agentId, message, options));
+  }
+
+  /** 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise */
+  stream(agentId: string, message: string, options?: InvokeOptions): TurnOutput {
+    return this.run(agentId, message, options);
+  }
+
+  /** 获取 Agent 并构造 runTurn 参数 */
+  private run(agentId: string, message: string, options?: InvokeOptions) {
+    const userMessage: ModelMessage = { role: 'user', content: message };
+    const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
+    return this.loop.runTurn(threadId, userMessage, {
+      userId: options?.userId,
+      workspace: options?.workspace,
+      scopeId: options?.scopeId,
+    });
+  }
+
 }

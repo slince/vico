@@ -2,17 +2,15 @@
 import {homedir} from 'node:os';
 import {resolve} from 'node:path';
 import type {LanguageModelV3} from '@ai-sdk/provider';
-import type {AgentConfig, ModelRef, TurnEvent, TurnResult} from '../agent-loop/types.js';
+import type {AgentConfig, ModelRef, TurnEvent} from '../agent-loop/types.js';
 import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import type {ModelMessage} from '../model/types.js';
 import {createLanguageModel} from '../model/factory.js';
 import type {ToolSource} from '../tool/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
-import {AgentLoop, collectTurnResult, type AgentLoopOptions} from '../agent-loop/agent-loop.js';
-import type {TurnOutput} from '../agent-loop/turn-output.js';
+import {AgentLoop} from '../agent-loop/agent-loop.js';
 import type {ApprovalGate} from '../agent-loop/approval-gate.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
@@ -83,14 +81,6 @@ export interface VicoOptions {
   approvalGate?: ApprovalGate;
   /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（默认读取 VICO_TRACE 环境变量，不传等同 0） */
   trace?: TraceLevel | { adapters: TraceAdapter[] };
-}
-
-/** invoke 调用选项 */
-export interface InvokeOptions {
-  threadId?: string;
-  userId?: string;
-  workspace?: string;
-  scopeId?: string;
 }
 
 /**
@@ -169,22 +159,22 @@ export class Vico {
     const memory = config.memory ?? this.memory;
     const thread = config.thread ?? this.thread;
 
-    const agent = new Agent({
+    return new Agent({
       config,
       model,
       skills,
       tools,
       memory,
       thread,
+      tracer: this.tracer,
+      approvalGate: this.approvalGate,
+      events: this.events,
+      loopFactory: this.buildLoop
     });
-
-    agent.loop = this.buildLoop(agent);
-
-    return agent;
   }
 
   /** 为 Agent 构建 AgentLoop */
-  private buildLoop(agent: Agent): AgentLoop {
+  public buildLoop(agent: Agent): AgentLoop {
     const memory = agent.memory ?? this.memory;
 
     // prompt context processor
@@ -224,38 +214,6 @@ export class Vico {
       agent,
       toolBroker,
       processors,
-      events: this.events,
-      approvalGate: this.approvalGate,
-      tracer: this.tracer,
-    });
-  }
-
-  /**
-   * 一行对话：从 Runtime 中查找 Agent，发送消息并返回结果。
-   */
-  async invoke(agentId: string, message: string, options?: InvokeOptions): Promise<TurnResult> {
-    return collectTurnResult(this.run(agentId, message, options));
-  }
-
-  /** 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise */
-  stream(agentId: string, message: string, options?: InvokeOptions): TurnOutput {
-    return this.run(agentId, message, options);
-  }
-
-  /** 获取 Agent 并构造 runTurn 参数 */
-  private run(agentId: string, message: string, options?: InvokeOptions) {
-    const agent = this.runtime.getAgent(agentId);
-    if (!agent) {
-      throw new Error(
-        `Agent "${agentId}" not found in runtime. Create it first via vico.createAgent().`,
-      );
-    }
-    const userMessage: ModelMessage = { role: 'user', content: message };
-    const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
-    return agent.getLoop().runTurn(threadId, userMessage, {
-      userId: options?.userId,
-      workspace: options?.workspace,
-      scopeId: options?.scopeId,
     });
   }
 

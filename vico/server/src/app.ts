@@ -1,13 +1,13 @@
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
-import { eq } from 'drizzle-orm';
-import { auth } from './auth/index.js';
-import { registerRoutes } from './api/router.js';
-import { getDb } from './db/db.js';
-import { member, session as sessionTable } from './db/auth-schema.js';
-import { config } from './config.js';
+import {Hono} from 'hono';
+import {cors} from 'hono/cors';
+import {eq} from 'drizzle-orm';
+import {auth} from './auth';
+import {registerRoutes} from './api/router.js';
+import {getDb} from './db/db.js';
+import {member, session as sessionTable} from './db/auth-schema.js';
+import {config} from './config.js';
 import logger from './lib/logger.js';
-import type { Variables } from './index.js';
+import type {Variables} from './index.js';
 
 /** 创建并配置 Hono app，注册所有中间件和路由 */
 export function createApp(): Hono<{ Variables: Variables }> {

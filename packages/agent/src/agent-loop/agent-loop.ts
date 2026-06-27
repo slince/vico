@@ -6,14 +6,13 @@ import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import type {Thread, ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
-import type {EventPayload, EventRecorder} from '../events/types.js';
+import type {EventPayload} from '../events/types.js';
 import type {LoopTracer, TurnTraceSession} from '../observable/loop-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
 import type {ContextProcessor} from '../prompt/context-processor.js';
 import {ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
-import type {WorkingMemory} from '../memory/types.js';
 
 /** executeModelStep 的返回值 */
 interface ModelStepResult {
@@ -39,13 +38,9 @@ export interface CallModelResult {
 export interface AgentLoopOptions {
   agent: Agent;
   toolBroker: ToolBroker;
-  tracer: LoopTracer;
   processors?: ContextProcessor[];
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
-  approvalGate?: ApprovalGate;
-  events: EventRecorder<TurnEvent>;
-  workingMemory?: WorkingMemory;
 }
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
@@ -55,8 +50,7 @@ export class AgentLoop {
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalGate?: ApprovalGate;
-  private events: EventRecorder<TurnEvent>;
-  private tracer: LoopTracer;
+  private tracer?: LoopTracer;
   private pipeline: ProcessorPipeline;
 
   constructor(options: AgentLoopOptions) {
@@ -64,10 +58,6 @@ export class AgentLoop {
     this.toolBroker = options.toolBroker;
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
-    this.approvalGate = options.approvalGate;
-    this.events = options.events;
-    this.tracer = options.tracer;
-
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
 
@@ -150,8 +140,8 @@ export class AgentLoop {
       content: userMessage.content,
     });
 
-    const traceSession = this.tracer.startTurn(thread, userMessage);
-    const turnSpan = traceSession.startSpan('agent_run');
+    const traceSession = this.tracer?.startTurn(thread, userMessage);
+    const turnSpan = traceSession?.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
     try {
@@ -168,11 +158,12 @@ export class AgentLoop {
       while (steps < this.agent.config.maxSteps && !interrupted.value) {
         if (signal.aborted) {
           await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
-          turnSpan.end({ status: 'aborted' });
+          turnSpan?.end({ status: 'aborted' });
           const abortResult: TurnResult = {
             status: 'aborted', steps, usage, messages,
           };
-          await this.tracer.finish(traceSession, abortResult);
+
+          traceSession && await this.tracer?.finish(traceSession, abortResult);
           return abortResult;
         }
 
@@ -204,7 +195,7 @@ export class AgentLoop {
       const finalStatus = interrupted.value ? 'aborted' : 'completed';
       await threadStore.updateTurn(turn.id, { status: finalStatus, steps });
 
-      turnSpan.end({ status: 'completed', steps });
+      turnSpan?.end({ status: 'completed', steps });
       this.emit({ type: 'done', usage });
 
       const finalResult: TurnResult = {
@@ -213,15 +204,15 @@ export class AgentLoop {
         usage,
         messages,
       };
-      await this.tracer.finish(traceSession, finalResult);
+      traceSession && await this.tracer?.finish(traceSession, finalResult);
       return finalResult;
     } catch (err) {
       await threadStore.updateTurn(turn.id, { status: 'failed', steps });
-      turnSpan.error(err as Error);
+      turnSpan?.error(err as Error);
       const failResult: TurnResult = {
         status: 'failed', steps, usage, messages,
       };
-      await this.tracer.finish(traceSession, failResult);
+      traceSession && await this.tracer?.finish(traceSession, failResult);
       throw err;
     }
   }
@@ -235,7 +226,7 @@ export class AgentLoop {
       ctx: ModelRequestContext;
       session: TurnSession;
       persistence: { store: ThreadStore };
-      traceSession: TurnTraceSession;
+      traceSession?: TurnTraceSession;
       toolApprovalState: Map<string, boolean>;
     },
   ): Promise<ModelStepResult> {
@@ -374,17 +365,17 @@ export class AgentLoop {
 
   /** emit 事件到订阅者（箭头函数绑定 this，可直接作为回调传递） */
   private emit = (event: TurnEvent): void => {
-    this.events.emit(event);
+    this.agent.events.emit(event);
   };
 
   /** 订阅 turn 事件 */
   on<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
-    this.events.on(event, handler);
+    this.agent.events.on(event, handler);
   }
 
   /** 取消订阅 turn 事件 */
   off<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
-    this.events.off(event, handler);
+    this.agent.events.off(event, handler);
   }
 
   /** 压缩检查，按需原地替换 messages */
@@ -409,7 +400,7 @@ export class AgentLoop {
     thread: Thread,
     step: Step,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    traceSession: TurnTraceSession,
+    traceSession?: TurnTraceSession,
   ): Promise<CallModelResult> {
     const modelUsage = { input: 0, output: 0 };
 
@@ -423,10 +414,10 @@ export class AgentLoop {
 
     let fullText = '';
     const toolCalls: ToolCall[] = [];
-    const modelSpan = traceSession.startSpan('model_step', { step: step.index + 1 });
+    const modelSpan = traceSession?.startSpan('model_step', { step: step.index + 1 });
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
-    traceSession.recordModelRequest(step, request);
+    traceSession?.recordModelRequest(step, request);
 
     const { stream } = await this.agent.modelClient.stream({
       ...request,
@@ -484,7 +475,7 @@ export class AgentLoop {
           case 'error':
             controller.enqueue(chunk);
             const errMsg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
-            modelSpan.error(new Error(errMsg));
+            modelSpan?.error(new Error(errMsg));
             this.emit({ type: 'error', message: errMsg });
             break;
 
@@ -493,17 +484,17 @@ export class AgentLoop {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      modelSpan.error(new Error(msg));
+      modelSpan?.error(new Error(msg));
       this.emit({ type: 'error', message: msg });
       const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: msg };
-      traceSession.recordModelResponse(step, errorResult);
+      traceSession?.recordModelResponse(step, errorResult);
       return errorResult;
     }
 
-    modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
+    modelSpan?.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
     const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
-    traceSession.recordModelResponse(step, result);
+    traceSession?.recordModelResponse(step, result);
     return result;
   }
 
@@ -512,15 +503,15 @@ export class AgentLoop {
     toolCalls: ToolCall[],
     session: TurnSession,
     step: Step,
-    traceSession: TurnTraceSession,
+    traceSession?: TurnTraceSession,
   ): Promise<ToolResult[]> {
-    const toolSpan = traceSession.startSpan('tool_call', { count: toolCalls.length });
+    const toolSpan = traceSession?.startSpan('tool_call', { count: toolCalls.length });
     let results: ToolResult[];
     try {
       results = await this.dispatchTools(toolCalls, session, step);
-      toolSpan.end({ results: results.length });
+      toolSpan?.end({ results: results.length });
     } catch (err) {
-      toolSpan.error(err as Error);
+      toolSpan?.error(err as Error);
       throw err;
     }
 
@@ -553,11 +544,4 @@ export class AgentLoop {
     return this.toolBroker.executeBatch(calls, context);
   }
 
-}
-
-/** 消费 TurnOutput 并返回最终结果（丢弃流数据） */
-export async function collectTurnResult(
-  output: TurnOutput,
-): Promise<TurnResult> {
-  return output.result;
 }

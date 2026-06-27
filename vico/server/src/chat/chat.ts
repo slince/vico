@@ -1,7 +1,7 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，vico.stream 执行。
  */
-import type {Agent, TurnEvent, TurnResult} from '@vico/agent';
+import type {Agent, TurnOutput} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
 import {vico} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
@@ -15,7 +15,7 @@ export interface ExecuteChatParams {
 }
 
 export interface ExecuteChatResult {
-  stream: AsyncGenerator<TurnEvent, TurnResult>;
+  stream: TurnOutput;
 }
 
 /** 执行 Agent 对话 — 通过 vico.stream */
