@@ -32,7 +32,7 @@ export interface ToolDescriptor {
 }
 
 /** ModelClient.stream() 调用参数 */
-export interface ModelCallOptions {
+export interface ModelRequest {
   system?: string;
   messages: ModelMessage[];
   tools?: ToolDescriptor[];

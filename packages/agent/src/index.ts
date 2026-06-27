@@ -26,7 +26,7 @@ export { createLanguageModel } from './model/factory.js';
 export { ModelClient } from './model/model-client.js';
 export type {
   ModelStreamChunk,
-  ModelCallOptions,
+  ModelRequest,
   ModelStreamResult,
   ToolDescriptor,
 } from './model/types.js';
@@ -141,7 +141,7 @@ export { Agent } from './agent-loop/agent.js';
 
 // AgentLoop
 export { AgentLoop, collectTurnResult } from './agent-loop/agent-loop.js';
-export { type AgentLoopOptions } from './agent-loop/agent-loop.js';
+export { type AgentLoopOptions, type CallModelResult } from './agent-loop/agent-loop.js';
 export { TurnOutput } from './agent-loop/turn-output.js';
 export { type TurnResult, type TurnEvent, type RunTurnOptions } from './agent-loop/types.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';

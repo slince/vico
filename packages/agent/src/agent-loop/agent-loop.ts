@@ -2,7 +2,7 @@
 import type {RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
-import type {ModelMessage, ModelStreamChunk} from '../model/types.js';
+import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import type {Thread, ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
@@ -25,7 +25,7 @@ interface ModelStepResult {
 }
 
 /** callModel 的返回值 */
-interface CallModelResult {
+export interface CallModelResult {
   /** 模型生成的完整文本 */
   text: string;
   /** 模型请求的工具调用 */
@@ -410,11 +410,11 @@ export class AgentLoop {
   ): Promise<CallModelResult> {
     const modelUsage = { input: 0, output: 0 };
 
-    const request = {
+    const request: ModelRequest = {
       system: systemPrompt || undefined,
       messages,
       tools,
-      maxTokens: this.agent.config.maxTokens,
+      maxOutputTokens: this.agent.config.maxTokens,
       temperature: this.agent.config.temperature,
     };
 
@@ -422,12 +422,11 @@ export class AgentLoop {
     const toolCalls: ToolCall[] = [];
     const modelSpan = this.spanTracker.startSpan('model_step', { step: step.index + 1 });
 
+    // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
+    this.tracer?.recordModelRequest(step.index, request);
+
     const { stream } = await this.agent.modelClient.stream({
-      system: request.system,
-      messages: request.messages,
-      tools: request.tools,
-      maxOutputTokens: request.maxTokens,
-      temperature: request.temperature,
+      ...request,
       abortSignal: step.signal,
     });
 
@@ -493,12 +492,16 @@ export class AgentLoop {
       const msg = err instanceof Error ? err.message : String(err);
       modelSpan.error(new Error(msg));
       this.emit({ type: 'error', message: msg });
-      return { text: fullText, toolCalls, usage: modelUsage, error: msg };
+      const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: msg };
+      this.tracer?.recordModelResponse(step.index, errorResult);
+      return errorResult;
     }
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
-    return { text: fullText, toolCalls, usage: modelUsage };
+    const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
+    this.tracer?.recordModelResponse(step.index, result);
+    return result;
   }
 
   /** 执行工具调用，返回结果数组。不修改入参，事件通过 fire 触发 */

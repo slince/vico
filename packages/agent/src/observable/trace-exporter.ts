@@ -1,9 +1,9 @@
 // @vico/agent - TraceExporter: dumps TurnTrace to JSON file for offline analysis
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { homedir } from 'node:os';
-import type { TurnTrace } from './loop-tracer.js';
-import type { SpanState } from './types.js';
+import {homedir} from 'node:os';
+import type {TurnTrace} from './loop-tracer.js';
+import type {SpanState} from './types.js';
 
 /** Trace 文件导出器 — 将 turn 追踪数据 dump 为 JSON 文件 */
 export class TraceExporter {
@@ -19,7 +19,7 @@ export class TraceExporter {
     try {
       const dateDir = new Date().toISOString().slice(0, 10);
       const dir = path.join(this.baseDir, dateDir);
-      await fs.mkdir(dir, { recursive: true });
+      await fs.mkdir(dir, {recursive: true});
 
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `turn-${trace.threadId.slice(0, 8)}-${ts}.json`;
@@ -36,6 +36,11 @@ export class TraceExporter {
           text: s.text,
           toolCalls: s.toolCalls,
           toolResults: s.toolResults,
+        })),
+        modelCalls: trace.modelCalls.map((mc) => ({
+          stepIndex: mc.stepIndex,
+          request: mc.request,
+          response: mc.response ?? undefined,
         })),
         spans: spans.map((s) => ({
           id: s.id,
@@ -58,7 +63,10 @@ export class TraceExporter {
       await fs.writeFile(filepath, JSON.stringify(payload, null, 2), 'utf-8');
       console.log(`[LoopTracer] Trace dumped → ${filepath}`);
     } catch (err) {
-      console.warn('[LoopTracer] Failed to dump trace:', err instanceof Error ? err.message : String(err));
+      console.warn(
+        '[LoopTracer] Failed to dump trace:',
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 }

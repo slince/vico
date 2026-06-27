@@ -3,7 +3,7 @@ import type { LanguageModelV3 } from '@ai-sdk/provider';
 import { convertToPrompt } from './prompt-converter.js';
 import { convertTools } from './tool-converter.js';
 import { processStreamParts } from './stream-processor.js';
-import type { ModelCallOptions, ModelStreamResult } from './types.js';
+import type { ModelRequest, ModelStreamResult } from './types.js';
 
 /**
  * Provider 层语言模型的薄封装。
@@ -16,16 +16,16 @@ export class ModelClient {
    * 流式调用模型。将内部类型转换为 provider 格式，调用模型，
    * 返回类型化的异步生成器。
    */
-  async stream(options: ModelCallOptions): Promise<ModelStreamResult> {
-    const prompt = convertToPrompt(options.messages, options.system);
-    const tools = options.tools?.length ? convertTools(options.tools) : undefined;
+  async stream(request: ModelRequest): Promise<ModelStreamResult> {
+    const prompt = convertToPrompt(request.messages, request.system);
+    const tools = request.tools?.length ? convertTools(request.tools) : undefined;
 
     const result = await this.model.doStream({
       prompt,
       tools,
-      maxOutputTokens: options.maxOutputTokens,
-      temperature: options.temperature,
-      abortSignal: options.abortSignal,
+      maxOutputTokens: request.maxOutputTokens,
+      temperature: request.temperature,
+      abortSignal: request.abortSignal,
     });
 
     return {
