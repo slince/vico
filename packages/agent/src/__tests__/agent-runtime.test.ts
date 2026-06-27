@@ -1,9 +1,11 @@
 // agent-runtime.test.ts — tests for AgentRuntime: register, destroy, LRU eviction
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { LanguageModelV3 } from '@ai-sdk/provider';
 import { AgentRuntime } from '../agent-loop/agent-runtime.js';
 import { Agent } from '../agent-loop/agent.js';
-import type { AgentConfig } from '../agent-loop/types.js';
+import type { AgentConfig, TurnEvent } from '../agent-loop/types.js';
+import { MittEventRecorder } from '../events/event-recorder.js';
+import { LoopTracer } from '../observable/loop-tracer.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
 
@@ -22,11 +24,14 @@ function makeConfig(id: string): AgentConfig {
 }
 
 function makeAgent(id: string): Agent {
+  const events = new MittEventRecorder<TurnEvent>();
   return new Agent({
     config: makeConfig(id),
     model: mockLM,
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
+    events,
+    tracer: new LoopTracer(events, []),
   });
 }
 
@@ -85,15 +90,20 @@ describe('AgentRuntime', () => {
   });
 
   it('getAgent updates lastUsedAt (LRU tracking)', () => {
+    vi.useFakeTimers({ now: 0 });
     const smallRuntime = new AgentRuntime(2);
     smallRuntime.register(makeAgent('agent-1'));
+    vi.advanceTimersByTime(1);
     smallRuntime.register(makeAgent('agent-2'));
+    vi.advanceTimersByTime(1);
 
     // Touch agent-1 so agent-2 becomes the LRU target
     smallRuntime.getAgent('agent-1');
+    vi.advanceTimersByTime(1);
     smallRuntime.register(makeAgent('agent-3'));
 
     expect(smallRuntime.getAgent('agent-1')).toBeDefined();
     expect(smallRuntime.getAgent('agent-2')).toBeUndefined();
+    vi.useRealTimers();
   });
 });

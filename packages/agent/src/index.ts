@@ -148,11 +148,14 @@ export { type EventRecorder, type EventPayload, type TypedEvent } from './events
 
 // AgentRuntime
 export { AgentRuntime } from './agent-loop/agent-runtime.js';
-export { Agent } from './agent-loop/agent.js';
+
+// Agent
+export { Agent, type InvokeOptions } from './agent-loop/agent.js';
 
 // AgentLoop
-export { AgentLoop, collectTurnResult } from './agent-loop/agent-loop.js';
+export { AgentLoop } from './agent-loop/agent-loop.js';
 export { type AgentLoopOptions, type CallModelResult } from './agent-loop/agent-loop.js';
+export { collectTurnResult } from './agent-loop/utils.js';
 export { TurnOutput } from './agent-loop/turn-output.js';
 export { type TurnResult, type TurnEvent, type RunTurnOptions } from './agent-loop/types.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
@@ -165,5 +168,4 @@ export { turnEventsToAISDK } from './stream/turn-stream.js';
 export {
   Vico,
   type VicoOptions,
-  type InvokeOptions,
 } from './container/vico.js';

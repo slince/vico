@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { LanguageModelV3, LanguageModelV3StreamResult } from '@ai-sdk/provider';
 
-import { AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
+import { AgentLoop } from '../agent-loop/agent-loop.js';
 import { Agent } from '../agent-loop/agent.js';
 import type { AgentConfig, TurnEvent } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../events/event-recorder.js';
@@ -10,6 +10,7 @@ import { LoopTracer } from '../observable/loop-tracer.js';
 import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
+import { collectTurnResult } from '../agent-loop/utils.js';
 
 /** Create a mock LanguageModelV3 whose doStream yields given stream parts */
 function createMockModel(chunks: any[]): LanguageModelV3 {
@@ -45,11 +46,14 @@ function makeConfig(): AgentConfig {
 }
 
 function makeAgent(chunks: any[]) {
+  const events = new MittEventRecorder<TurnEvent>();
   return new Agent({
     config: makeConfig(),
     model: createMockModel(chunks),
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
+    events,
+    tracer: new LoopTracer(events, []),
   });
 }
 
@@ -64,7 +68,6 @@ const mockToolBroker = {
 
 describe('AgentLoop', () => {
   it('completes a turn with text-only response', async () => {
-    const events = new MittEventRecorder<TurnEvent>();
     const agent = makeAgent([
       { type: 'text-start', id: '1' },
       { type: 'text-delta', id: '1', delta: 'Hello!' },
@@ -76,8 +79,6 @@ describe('AgentLoop', () => {
       agent,
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
-      events,
-      tracer: new LoopTracer(events, []),
     });
 
     const result = await collectTurnResult(loop.runTurn(
@@ -130,14 +131,14 @@ describe('AgentLoop', () => {
       model: mockModel,
       memory: new MemoryStore(),
       thread: new InMemoryThreadStore(),
+      events,
+      tracer: new LoopTracer(events, []),
     });
 
     const loop = new AgentLoop({
       agent,
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
-      events,
-      tracer: new LoopTracer(events, []),
     });
 
     const output = loop.runTurn(
@@ -181,13 +182,13 @@ describe('AgentLoop', () => {
       model: mockModel,
       memory: new MemoryStore(),
       thread: new InMemoryThreadStore(),
+      events,
+      tracer: new LoopTracer(events, []),
     });
     const loop = new AgentLoop({
       agent,
       toolBroker: mockToolBroker as any,
       processors: [new SystemPromptProcessor()],
-      events,
-      tracer: new LoopTracer(events, []),
     });
 
     const output = loop.runTurn('thread-1', { role: 'user', content: 'hi' });

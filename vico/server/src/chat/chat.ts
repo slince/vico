@@ -33,6 +33,9 @@ export async function executeAgentChat(
     await createAgent(agentConfig);
   }
 
+  const agent = vico.getOrCreateAgent()
+
+
   const stream = vico.stream(agentId, message, {
     threadId,
     userId,
@@ -59,6 +62,5 @@ async function createAgent(runtimeConfig: AgentRuntimeConfig): Promise<Agent> {
     maxTokens: agent.max_tokens ?? 4096,
     maxSteps: agent.max_steps ?? 10,
     skills: { load: async () => [] },
-    thread: vico.thread,
   });
 }

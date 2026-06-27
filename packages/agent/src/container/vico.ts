@@ -135,6 +135,8 @@ export class Vico {
     this.initialized = true;
   }
 
+
+
   /** 构建 Agent 并注册到 Runtime */
   async createAgent(config: AgentConfig): Promise<Agent> {
     const model = this.languageModelFactory(config.model);
@@ -219,5 +221,12 @@ export class Vico {
 
   getSkillManager(): SkillManager {
     return this.skillManager;
+  }
+
+  /** 获取 Agent，若不存在则通过 factory 创建并注册 */
+  async getOrCreateAgent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
+    const existing = this.runtime.getAgent(agentId);
+    if (existing) return existing;
+    return this.createAgent(await factory());
   }
 }
