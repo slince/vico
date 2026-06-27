@@ -130,15 +130,17 @@ export { type Span, type SpanState } from './observable/types.js';
 export {
   LoopTracer,
   TurnTraceSession,
+  type TraceLevel,
+  type TurnTrace,
+} from './observable/loop-tracer.js';
+export {
   ConsoleTraceAdapter,
   FileTraceAdapter,
   createAdaptersFromLevel,
   DEFAULT_TRACE_DIR,
-  type TraceLevel,
-  type TurnTrace,
   type TraceAdapter,
   type FileTraceAdapterOptions,
-} from './observable/loop-tracer.js';
+} from './observable/trace-adapters.js';
 
 // Events
 export { MittEventRecorder } from './events/event-recorder.js';

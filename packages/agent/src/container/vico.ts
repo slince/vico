@@ -23,7 +23,8 @@ import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
-import {LoopTracer, createAdaptersFromLevel, type TraceLevel} from '../observable/loop-tracer.js';
+import {LoopTracer, type TraceLevel} from '../observable/loop-tracer.js';
+import {createAdaptersFromLevel, type TraceAdapter} from '../observable/trace-adapters.js';
 import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 import {createSkillToolSource} from "../skill/skill-tool-source.js";
@@ -80,8 +81,8 @@ export interface VicoOptions {
   thread?: ThreadStore;
   /** 工具审批门控（不传则不启用审批） */
   approvalGate?: ApprovalGate;
-  /** AgentLoop 追踪级别：0=关闭，1=console，2=console+文件（默认读取 VICO_TRACE 环境变量，不传等同 0） */
-  trace?: TraceLevel;
+  /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（默认读取 VICO_TRACE 环境变量，不传等同 0） */
+  trace?: TraceLevel | { adapters: TraceAdapter[] };
 }
 
 /** invoke 调用选项 */
@@ -122,8 +123,9 @@ export class Vico {
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
-    const traceLevel = options.trace ?? (parseInt(process.env.VICO_TRACE ?? '0', 10) as TraceLevel);
-    this.tracer = new LoopTracer(this.events, createAdaptersFromLevel(traceLevel));
+    const trace = options.trace ?? (parseInt(process.env.VICO_TRACE ?? '0', 10) as TraceLevel);
+    const adapters = typeof trace === 'object' ? trace.adapters : createAdaptersFromLevel(trace);
+    this.tracer = new LoopTracer(this.events, adapters);
     this.languageModelFactory = options.languageModelFactory ?? createLanguageModel;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
