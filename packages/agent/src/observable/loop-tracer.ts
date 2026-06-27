@@ -4,7 +4,7 @@ import type {Step, TurnEvent, TurnResult} from '../agent-loop/types.js';
 import type {CallModelResult} from '../agent-loop/agent-loop.js';
 import type {ModelRequest, ModelMessage} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
-import type {SpanTracker} from './types.js';
+import type {SpanState, SpanTracker} from './types.js';
 import {TraceExporter} from './trace-exporter.js';
 
 /** 追踪级别：0=关闭，1=console，2=console+文件 */
@@ -38,35 +38,22 @@ export interface TurnTrace {
 }
 
 /**
- * LoopTracer — 订阅 AgentLoop 的 TurnEvent 事件流，结合 SpanTracker 的计时数据，
- * 在 turn 结束时输出结构化追踪日志，方便排查 Agent 执行过程。
- *
- * level: 0 = 不追踪（无开销）；1 = console 输出；2 = console + JSON 文件导出
+ * TurnTraceSession — 单个 turn 的独立追踪会话。
+ * 纯数据持有：负责事件订阅和 trace 数据收集，不涉及输出/导出逻辑。
+ * 每个 turn 实例完全隔离，并发安全。
  */
-export class LoopTracer {
-  private currentTrace?: TurnTrace;
+export class TurnTraceSession {
+  private trace: TurnTrace;
   private currentStep?: StepTrace;
-  /** 当前 step 的 model call 引用，流结束后填充 response */
   private pendingModelCalls = new Map<number, ModelCallTrace>();
+  private unsubscribe: () => void;
 
   constructor(
-    private readonly events: EventRecorder<TurnEvent>,
-    private readonly spanTracker: SpanTracker,
-    private readonly level: TraceLevel = 0,
+    thread: Thread,
+    userMessage: ModelMessage,
+    events: EventRecorder<TurnEvent>,
   ) {
-    if (level > 0) {
-      this.subscribe();
-    }
-  }
-
-  // ── 公开方法（AgentLoop 调用）──
-
-  /** 开始追踪一个 turn。接收原始 Thread 和 ModelMessage，提取所需字段 */
-  startTurn(thread: Thread, userMessage: ModelMessage): void {
-    if (this.level === 0) return;
-    this.spanTracker.clear();
-    this.pendingModelCalls.clear();
-    this.currentTrace = {
+    this.trace = {
       threadId: thread.id,
       userMessage: userMessage.content,
       startTime: Date.now(),
@@ -74,17 +61,17 @@ export class LoopTracer {
       modelCalls: [],
       events: [],
     };
+    this.unsubscribe = this.subscribe(events);
   }
 
-  /** 记录 LLM 请求参数。接收原始 Step + ModelRequest，调用方直接传入即可 */
+  /** 记录 LLM 请求参数 */
   recordModelRequest(step: Step, request: ModelRequest): void {
-    if (!this.currentTrace) return;
     const entry: ModelCallTrace = { stepIndex: step.index, request };
     this.pendingModelCalls.set(step.index, entry);
-    this.currentTrace.modelCalls.push(entry);
+    this.trace.modelCalls.push(entry);
   }
 
-  /** 记录 LLM 响应结果。接收原始 Step + CallModelResult，调用方直接传入即可 */
+  /** 记录 LLM 响应结果 */
   recordModelResponse(step: Step, response: CallModelResult): void {
     const entry = this.pendingModelCalls.get(step.index);
     if (entry) {
@@ -93,35 +80,20 @@ export class LoopTracer {
     }
   }
 
-  /** 结束 turn，输出追踪结果 */
-  endTurn(result: TurnResult): void {
-    if (!this.currentTrace) return;
-    this.currentTrace.endTime = Date.now();
-    this.currentTrace.result = result;
-
-    const duration = this.currentTrace.endTime - this.currentTrace.startTime;
-    const spans = this.spanTracker.getAllSpans();
-
-    if (this.level >= 1) {
-      this.printConsole(duration, spans);
-    }
-
-    if (this.level >= 2) {
-      TraceExporter.dump(this.currentTrace, spans).catch(() => {
-        // 静默失败，不影响主流程
-      });
-    }
-
-    this.currentTrace = undefined;
+  /** 结束会话：取消事件订阅，填充 endTime 和 result，返回最终 trace */
+  finalize(result: TurnResult): TurnTrace {
+    this.unsubscribe();
+    this.trace.endTime = Date.now();
+    this.trace.result = result;
+    return this.trace;
   }
 
   // ── 内部方法 ──
 
-  /** 订阅所有 TurnEvent，按 type 分流收集 */
-  private subscribe(): void {
-    this.events.on('*', (event) => {
-      if (!this.currentTrace) return;
-      this.currentTrace.events.push(event);
+  /** 订阅当前 turn 相关的 TurnEvent */
+  private subscribe(events: EventRecorder<TurnEvent>): () => void {
+    const handler = (event: TurnEvent) => {
+      this.trace.events.push(event);
 
       switch (event.type) {
         case 'step-start':
@@ -162,27 +134,66 @@ export class LoopTracer {
 
         case 'step-end':
           if (this.currentStep) {
-            this.currentTrace.steps.push(this.currentStep);
+            this.trace.steps.push(this.currentStep);
             this.currentStep = undefined;
           }
           break;
       }
-    });
+    };
+
+    events.on('*', handler);
+    return () => events.off('*', handler);
   }
+}
+
+/**
+ * LoopTracer — 追踪协调器。
+ * 负责 turn 级生命周期管理（clear span → 创建 session → 输出/导出）。
+ * 每个 turn 通过 startTurn() 创建独立的 TurnTraceSession，并发安全。
+ *
+ * level: 0 = 不追踪（无开销）；1 = console 输出；2 = console + JSON 文件导出
+ */
+export class LoopTracer {
+  constructor(
+    private readonly events: EventRecorder<TurnEvent>,
+    private readonly spanTracker: SpanTracker,
+    private readonly level: TraceLevel = 0,
+  ) {}
+
+  /** 为当前 turn 创建独立的追踪会话。level=0 时返回 undefined（零开销） */
+  startTurn(thread: Thread, userMessage: ModelMessage): TurnTraceSession | undefined {
+    if (this.level === 0) return;
+    this.spanTracker.clear();
+    return new TurnTraceSession(thread, userMessage, this.events);
+  }
+
+  /** 结束 turn：从 session 提取 trace 数据，结合 span 信息输出/导出 */
+  finish(session: TurnTraceSession | undefined, result: TurnResult): void {
+    if (!session) return;
+
+    const trace = session.finalize(result);
+    const duration = trace.endTime! - trace.startTime;
+    const spans = this.spanTracker.getAllSpans();
+
+    if (this.level >= 1) {
+      this.printConsole(trace, duration, spans);
+    }
+
+    if (this.level >= 2) {
+      TraceExporter.dump(trace, spans).catch(() => {
+        // 静默失败，不影响主流程
+      });
+    }
+  }
+
+  // ── 内部方法 ──
 
   /** 格式化输出 console 日志 */
   private printConsole(
+    t: TurnTrace,
     duration: number,
-    spans: ReadonlyArray<{
-      type: string;
-      startTime: number;
-      endTime?: number;
-      error?: string;
-      result?: Record<string, unknown>;
-    }>,
+    spans: ReadonlyArray<SpanState>,
   ): void {
-    const t = this.currentTrace!;
-
     // 按类型汇总 span 耗时
     const spanMs = new Map<string, number>();
     for (const s of spans) {
@@ -207,7 +218,7 @@ export class LoopTracer {
 
       // 模型请求摘要（从原始 request 对象中提取）
       if (mc) {
-        const toolNames = mc.request.tools?.map((t) => t.name) ?? [];
+        const toolNames = mc.request.tools?.map((tool) => tool.name) ?? [];
         const tools = toolNames.length > 0 ? ` | tools: [${toolNames.join(', ')}]` : '';
         const sysLen = mc.request.system?.length ?? 0;
         console.log(

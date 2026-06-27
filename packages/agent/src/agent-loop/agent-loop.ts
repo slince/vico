@@ -8,7 +8,7 @@ import type {ToolBroker} from '../tool/tool-broker.js';
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {SpanTracker} from '../observable/types.js';
-import type {LoopTracer} from '../observable/loop-tracer.js';
+import type {LoopTracer, TurnTraceSession} from '../observable/loop-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
@@ -60,9 +60,6 @@ export class AgentLoop {
   private events: EventRecorder<TurnEvent>;
   private spanTracker: SpanTracker;
   private tracer?: LoopTracer;
-  /** 已批准的工具名缓存（同一 turn 内 on-request 工具只需批准一次） */
-  private toolApprovalState = new Map<string, boolean>();
-
   private pipeline: ProcessorPipeline;
 
   constructor(options: AgentLoopOptions) {
@@ -158,7 +155,8 @@ export class AgentLoop {
       content: userMessage.content,
     });
 
-    this.tracer?.startTurn(thread, userMessage);
+    const traceSession = this.tracer?.startTurn(thread, userMessage);
+    const toolApprovalState = new Map<string, boolean>();
 
     try {
       // 运行 pipeline 一次，提取不变的上下文前缀/后缀
@@ -176,7 +174,7 @@ export class AgentLoop {
           await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
           turnSpan.end({ status: 'aborted' });
           const abortResult: TurnResult = { status: 'aborted', steps, usage, messages };
-          this.tracer?.endTurn(abortResult);
+          this.tracer?.finish(traceSession, abortResult);
           return abortResult;
         }
 
@@ -185,6 +183,8 @@ export class AgentLoop {
           ctx: ctx,
           session,
           persistence: { store: threadStore },
+          traceSession,
+          toolApprovalState,
         });
         usage.input += stepUsage.input;
         usage.output += stepUsage.output;
@@ -215,13 +215,13 @@ export class AgentLoop {
         usage,
         messages,
       };
-      this.tracer?.endTurn(finalResult);
+      this.tracer?.finish(traceSession, finalResult);
       return finalResult;
     } catch (err) {
       await threadStore.updateTurn(turn.id, { status: 'failed', steps });
       turnSpan.error(err as Error);
       const failResult: TurnResult = { status: 'failed', steps, usage, messages };
-      this.tracer?.endTurn(failResult);
+      this.tracer?.finish(traceSession, failResult);
       throw err;
     }
   }
@@ -235,6 +235,8 @@ export class AgentLoop {
       ctx: ModelRequestContext;
       session: TurnSession;
       persistence: { store: ThreadStore };
+      traceSession?: TurnTraceSession;
+      toolApprovalState: Map<string, boolean>;
     },
   ): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
@@ -250,7 +252,7 @@ export class AgentLoop {
 
     const { ctx } = shared;
     const fullMessages = [...ctx.before, ...messages, ...ctx.after];
-    const modelResult = await this.callModel(ctx.systemPrompt, fullMessages, ctx.tools, shared.session.thread, step, controller);
+    const modelResult = await this.callModel(ctx.systemPrompt, fullMessages, ctx.tools, shared.session.thread, step, controller, shared.traceSession);
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
@@ -296,15 +298,15 @@ export class AgentLoop {
       }
 
       // on-request: 首次使用需审批
-      const isFirstUse = !this.toolApprovalState.has(call.name);
-      const wasApproved = this.toolApprovalState.get(call.name) ?? false;
+      const isFirstUse = !shared.toolApprovalState.has(call.name);
+      const wasApproved = shared.toolApprovalState.get(call.name) ?? false;
       if (!isFirstUse && wasApproved) {
         approvedCalls.push(call);
         continue;
       }
 
       if (!this.approvalGate) {
-        this.toolApprovalState.set(call.name, true);
+        shared.toolApprovalState.set(call.name, true);
         approvedCalls.push(call);
         continue;
       }
@@ -322,7 +324,7 @@ export class AgentLoop {
       const result = await decision;
 
       if (result.approved) {
-        this.toolApprovalState.set(call.name, true);
+        shared.toolApprovalState.set(call.name, true);
         approvedCalls.push(call);
       } else {
         controller.enqueue({
@@ -407,6 +409,7 @@ export class AgentLoop {
     thread: Thread,
     step: Step,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
+    traceSession?: TurnTraceSession,
   ): Promise<CallModelResult> {
     const modelUsage = { input: 0, output: 0 };
 
@@ -423,7 +426,7 @@ export class AgentLoop {
     const modelSpan = this.spanTracker.startSpan('model_step', { step: step.index + 1 });
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
-    this.tracer?.recordModelRequest(step, request);
+    traceSession?.recordModelRequest(step, request);
 
     const { stream } = await this.agent.modelClient.stream({
       ...request,
@@ -493,14 +496,14 @@ export class AgentLoop {
       modelSpan.error(new Error(msg));
       this.emit({ type: 'error', message: msg });
       const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: msg };
-      this.tracer?.recordModelResponse(step, errorResult);
+      traceSession?.recordModelResponse(step, errorResult);
       return errorResult;
     }
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
     const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
-    this.tracer?.recordModelResponse(step, result);
+    traceSession?.recordModelResponse(step, result);
     return result;
   }
 
