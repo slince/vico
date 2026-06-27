@@ -1,16 +1,13 @@
 // @vico/agent - 可观测性模块类型定义（Span 追踪）
-import { z } from 'zod';
 
-export const SpanTypeSchema = z.enum([
-  'agent_run',
-  'model_step',
-  'tool_call',
-  'memory_retrieval',
-  'rag_search',
-  'skill_activation',
-  'context_compaction',
-]);
-export type SpanType = z.infer<typeof SpanTypeSchema>;
+export type SpanType =
+  | 'agent_run'
+  | 'model_step'
+  | 'tool_call'
+  | 'memory_retrieval'
+  | 'rag_search'
+  | 'skill_activation'
+  | 'context_compaction';
 
 /** 追踪 Span — 表示一个操作的时间段 */
 export interface Span {

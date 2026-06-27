@@ -1,5 +1,6 @@
 // @vico/agent - AgentLoop module type definitions
 import type {ModelMessage} from '../model/types.js';
+import type {Thread, Turn} from '../thread/types.js';
 
 /** 模型引用 */
 export interface ModelRef {
@@ -15,6 +16,13 @@ export interface TurnResult {
   steps: number;
   usage: { input: number; output: number };
   messages: ModelMessage[];
+}
+
+/** 一次 turn 的会话标识，贯穿 model 调用和工具执行 */
+export interface TurnSession {
+  workspace: string;
+  thread: Thread;
+  turn: Turn;
 }
 
 /** runTurn 选项 */

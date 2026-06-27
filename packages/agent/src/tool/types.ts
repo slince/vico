@@ -1,15 +1,12 @@
 // @vico/agent - Tool module type definitions
-import { z } from 'zod';
 import type { AgentLoop } from '../agent-loop/agent-loop.js';
-import type { Thread, Turn } from '../thread/types.js';
+import type { TurnSession } from '../agent-loop/types.js';
 
 /** 工具审批策略 */
-export const ToolPolicySchema = z.enum(['auto', 'on-request', 'suggest', 'never']);
-export type ToolPolicy = z.infer<typeof ToolPolicySchema>;
+export type ToolPolicy = 'auto' | 'on-request' | 'suggest' | 'never';
 
 /** 工具类别 */
-export const ToolKindSchema = z.enum(['readonly', 'command', 'file_change', 'delegate', 'mutation']);
-export type ToolKind = z.infer<typeof ToolKindSchema>;
+export type ToolKind = 'readonly' | 'command' | 'file_change' | 'delegate' | 'mutation';
 
 /** 工具 — 规格定义 + 执行逻辑 */
 export interface Tool {
@@ -25,28 +22,19 @@ export interface Tool {
 }
 
 /** LLM 返回的工具调用 */
-export const ToolCallSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  args: z.record(z.string(), z.unknown()),
-});
-export type ToolCall = z.infer<typeof ToolCallSchema>;
+export interface ToolCall {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+}
 
 /** 工具执行结果 */
-export const ToolResultSchema = z.object({
-  callId: z.string(),
-  name: z.string(),
-  status: z.enum(['success', 'error']),
-  output: z.unknown(),
-  error: z.string().optional(),
-});
-export type ToolResult = z.infer<typeof ToolResultSchema>;
-
-/** 工具调用所需的会话标识 */
-export interface TurnSession {
-  workspace: string;
-  thread: Thread;
-  turn: Turn;
+export interface ToolResult {
+  callId: string;
+  name: string;
+  status: 'success' | 'error';
+  output: unknown;
+  error?: string;
 }
 
 /** 工具执行上下文 */

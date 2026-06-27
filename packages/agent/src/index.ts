@@ -2,18 +2,14 @@
 
 export { type ModelRef } from './agent-loop/types.js';
 export {
-  ToolCallSchema,
-  ToolResultSchema,
-  ToolPolicySchema,
-  ToolKindSchema,
   type Tool,
   type ToolCall,
   type ToolResult,
   type ToolPolicy,
   type ToolKind,
 } from './tool/types.js';
-export { MemoryRecordSchema, type MemoryRecord } from './memory/types.js';
-export { SpanTypeSchema, type SpanType } from './observable/types.js';
+export { type MemoryRecord } from './memory/types.js';
+export { type SpanType } from './observable/types.js';
 
 // Ports — Model
 export {
@@ -66,18 +62,19 @@ export {
 } from './memory/types.js';
 
 // Tool system
+export { createTool, type ToolOptions } from './tool/create-tool.js';
 export { ToolBroker } from './tool/tool-broker.js';
 export {
-  type TurnSession,
   type ToolExecutionContext,
   type ApprovalDecision,
   type ToolStore,
 } from './tool/types.js';
+export { type TurnSession } from './agent-loop/types.js';
 export { type ToolSource } from './tool/types.js';
 export { ChildAgentExecutor } from './tool/child-agent-executor.js';
 export { type ChildAgentRef, type DelegateStrategy } from './tool/types.js';
 export { StormBreaker } from './tool/storm-breaker.js';
-export { resolvePolicy } from './tool/tool-policy.js';
+export { resolvePolicy } from './tool/utils.js';
 export { type PolicyContext } from './tool/types.js';
 export { createBuiltInToolSource } from './tool/builtin-tools-source.js';
 
@@ -110,7 +107,6 @@ export { FSSkillLoader } from './skill/fs-skill-loader.js';
 export { SkillManager } from './skill/skill-manager.js';
 export { createSkillToolSource } from './skill/skill-tool-source.js';
 export { formatSkillCatalog } from './skill/skills-processor.js';
-export { ManagedSkillStore } from './skill/managed-skill-store.js';
 
 /** Ports — ThreadStore */
 export {
