@@ -149,10 +149,6 @@ describe('AgentLoop', () => {
     expect(result.status).toBe('completed');
     expect(result.steps).toBeGreaterThan(0);
     expect(doneEvents.length).toBe(1);
-
-    const spans = result.spans!;
-    expect(spans.some((s) => s.type === 'agent_run')).toBe(true);
-    expect(spans.some((s) => s.type === 'tool_call')).toBe(true);
   });
 
   it('interrupts mid-turn', async () => {

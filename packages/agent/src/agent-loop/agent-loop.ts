@@ -1,5 +1,6 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
+import type {RunTurnOptions, Step, TurnEvent, TurnResult} from './types.js';
+import type {TurnSession} from '../tool/types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
@@ -171,7 +172,6 @@ export class AgentLoop {
           turnSpan.end({ status: 'aborted' });
           const abortResult: TurnResult = {
             status: 'aborted', steps, usage, messages,
-            spans: traceSession.getAllSpans(),
           };
           await this.tracer.finish(traceSession, abortResult);
           return abortResult;
@@ -213,7 +213,6 @@ export class AgentLoop {
         steps,
         usage,
         messages,
-        spans: traceSession.getAllSpans(),
       };
       await this.tracer.finish(traceSession, finalResult);
       return finalResult;
@@ -222,7 +221,6 @@ export class AgentLoop {
       turnSpan.error(err as Error);
       const failResult: TurnResult = {
         status: 'failed', steps, usage, messages,
-        spans: traceSession.getAllSpans(),
       };
       await this.tracer.finish(traceSession, failResult);
       throw err;
