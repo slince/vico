@@ -54,12 +54,12 @@ export class MemoryProcessor implements ContextProcessor {
     ctx.messages.push({
       role: 'system',
       content:
-        `Store and update user facts by calling the updateWorkingMemory tool. If information might be referenced again — store it!\n\n` +
+        `Call the updateWorkingMemory tool to store user facts. If information might be referenced again — store it!\n\n` +
         `Guidelines:\n` +
         `1. Update proactively when you learn new facts about the user\n` +
         `2. Replace only the changed parts, keep the rest intact\n` +
-        `3. Use the exact Markdown format shown below\n\n` +
-        `<working_memory>\n${dataBlock}\n</working_memory>`,
+        `3. Use the exact Markdown format shown below — do NOT output the template itself as text, always use the tool\n\n` +
+        `Current working memory:\n\`\`\`markdown\n${dataBlock}\n\`\`\``,
     });
   }
 
