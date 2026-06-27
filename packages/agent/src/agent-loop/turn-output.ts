@@ -22,12 +22,18 @@ export class TurnOutput {
     this._abort = abort;
   }
 
-  /** 中断当前 turn 执行 */
+  /**
+   * 中断当前 turn 执行。
+   */
   abort(): void {
     this._abort();
   }
 
-  /** 等待 turn 完成并返回全部文本（忽略 reasoning、tool 等输出） */
+  /**
+   * 等待 turn 完成并返回全部文本（忽略 reasoning、tool 等输出）。
+   *
+   * @returns 拼接后的完整文本内容
+   */
   async collectText(): Promise<string> {
     const reader = this.stream.getReader();
     let text = '';

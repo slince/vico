@@ -38,7 +38,12 @@ export class FileWorkingMemory implements WorkingMemory {
     this.template = options.template ?? DEFAULT_TEMPLATE;
   }
 
-  /** 读取工作记忆内容，文件不存在时返回空字符串 */
+  /**
+   * 读取工作记忆内容
+   *
+   * @param scopeId - 作用域标识符
+   * @returns 工作记忆的 Markdown 内容，文件不存在时返回空字符串
+   */
   async get(scopeId: string): Promise<string> {
     try {
       return await fs.readFile(this.filePath(scopeId), 'utf-8');
@@ -47,7 +52,12 @@ export class FileWorkingMemory implements WorkingMemory {
     }
   }
 
-  /** 全量覆盖写入工作记忆 */
+  /**
+   * 全量覆盖写入工作记忆
+   *
+   * @param scopeId - 作用域标识符
+   * @param content - 要写入的 Markdown 内容
+   */
   async set(scopeId: string, content: string): Promise<void> {
     await fs.mkdir(this.dir, { recursive: true });
     await fs.writeFile(this.filePath(scopeId), content, 'utf-8');

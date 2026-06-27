@@ -21,7 +21,14 @@ const MIME_TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
 };
 
-/** 二进制检测：前 1024 字节中 null 字节占比 */
+/**
+ * 检测文件是否为二进制文件。
+ *
+ * 检查缓冲区前 1024 字节中 null 字节的数量，超过 3 个则判定为二进制。
+ *
+ * @param buffer - 文件内容的 Buffer
+ * @returns 如果判定为二进制文件则返回 true
+ */
 function isBinary(buffer: Buffer): boolean {
   const sample = buffer.subarray(0, Math.min(buffer.length, 1024));
   let nullCount = 0;
@@ -32,7 +39,16 @@ function isBinary(buffer: Buffer): boolean {
   return false;
 }
 
-/** 将工作区路径解析为绝对路径 */
+/**
+ * 将工作区路径解析为绝对路径。
+ *
+ * 支持相对路径（相对于工作区）和绝对路径，并校验路径是否在工作区范围内。
+ *
+ * @param workspace - 工作区根路径
+ * @param targetPath - 目标路径（相对或绝对）
+ * @returns 解析后的绝对路径
+ * @throws 如果路径在工作区之外则抛出错误
+ */
 function resolvePath(workspace: string, targetPath: string): string {
   const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
   if (!abs.startsWith(resolve(workspace)) && !targetPath.startsWith('/')) {
@@ -41,7 +57,16 @@ function resolvePath(workspace: string, targetPath: string): string {
   return abs;
 }
 
-/** 读取文本文件，支持行号偏移和行数限制，返回 cat -n 格式 */
+/**
+ * 读取文本文件，返回 cat -n 格式的带行号内容。
+ *
+ * 支持通过 offset 指定起始行，通过 limit 限制返回行数。
+ *
+ * @param absPath - 文件的绝对路径
+ * @param offset - 起始行号（1-based），默认为 1
+ * @param limit - 最大返回行数，不指定则返回全部
+ * @returns cat -n 格式的带行号文本内容，若截断则显示剩余行数提示
+ */
 function readTextFile(absPath: string, offset?: number, limit?: number): string {
   const content = readFileSync(absPath, 'utf-8');
   const lines = content.split('\n');
@@ -69,7 +94,16 @@ const readOutputSchema = z.object({
 
 type ReadOutput = z.infer<typeof readOutputSchema>;
 
-/** 读取图片文件，返回 base64 data URI */
+/**
+ * 读取图片文件，返回 base64 编码的 data URI。
+ *
+ * 根据文件扩展名自动匹配 MIME 类型，返回可直接用于 `<img>` 标签的 data URI。
+ *
+ * @param absPath - 图片文件的绝对路径
+ * @param ext - 文件扩展名（含点号，如 ".png"）
+ * @param workspace - 工作区根路径，用于计算相对路径
+ * @returns 包含 base64 data URI、类型和相对路径的 ReadOutput 对象
+ */
 function readImageFile(absPath: string, ext: string, workspace: string): ReadOutput {
   const buffer = readFileSync(absPath);
   const b64 = buffer.toString('base64');

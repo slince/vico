@@ -5,7 +5,11 @@ import {resolve} from 'node:path';
 import matter from 'gray-matter';
 import type {Skill, SkillLoader} from './types.js';
 
-/** 展开路径中的 ~ 前缀为家目录 */
+/**
+ * 展开路径中的 ~ 前缀为家目录。
+ * @param p - 可能包含 ~ 前缀的路径字符串
+ * @returns 展开 ~ 后的绝对路径
+ */
 function expandTilde(p: string): string {
   if (p.startsWith('~/') || p === '~') {
     return resolve(homedir(), p.slice(p.startsWith('~/') ? 2 : 1));
@@ -13,7 +17,11 @@ function expandTilde(p: string): string {
   return p;
 }
 
-/** 验证 SKILL.md 的 name 字段：1-64 字符，小写字母+连字符 */
+/**
+ * 验证 SKILL.md 的 name 字段：1-64 字符，小写字母+连字符。
+ * @param name - 待验证的 skill 名称
+ * @returns 是否为合法的 skill 名称
+ */
 function validateSkillName(name: unknown): name is string {
   if (typeof name !== 'string') return false;
   return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name) && name.length >= 1 && name.length <= 64;

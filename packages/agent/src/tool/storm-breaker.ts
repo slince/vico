@@ -18,7 +18,15 @@ export class StormBreaker {
     if (options?.killThreshold) this.killThreshold = options.killThreshold;
   }
 
-  /** 检查调用是否应被阻止。返回 true = 阻止 */
+  /**
+   * 检查工具调用是否应被阻止。
+   *
+   * 根据已记录的调用次数判断：达到 warnThreshold 触发警告，达到 killThreshold 触发阻止。
+   *
+   * @param callName - 工具名称
+   * @param callArgs - 工具调用参数
+   * @returns 包含 blocked（是否阻止）和 warning（是否警告）标志的对象
+   */
   check(callName: string, callArgs: Record<string, unknown>): { blocked: boolean; warning: boolean } {
     const key = `${callName}:${JSON.stringify(callArgs)}`;
     const record = this.records.get(key);

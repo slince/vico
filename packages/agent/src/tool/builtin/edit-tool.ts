@@ -25,7 +25,15 @@ function resolvePath(workspace: string, targetPath: string): string {
   return abs;
 }
 
-/** 统一 diff 生成 */
+/**
+ * 生成统一 diff 格式的文本差异。
+ *
+ * 逐行比较新旧内容，以 `-` 前缀标识删除行，`+` 前缀标识新增行。
+ *
+ * @param oldContent - 原始文件内容
+ * @param newContent - 修改后的文件内容
+ * @returns 统一 diff 格式的差异字符串，如无变化则返回 "No changes detected"
+ */
 function generateDiff(oldContent: string, newContent: string): string {
   const oldLines = oldContent.split('\n');
   const newLines = newContent.split('\n');

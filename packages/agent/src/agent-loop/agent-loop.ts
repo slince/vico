@@ -62,7 +62,15 @@ export class AgentLoop {
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
 
-  /** 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise）。历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止 */
+  /**
+   * 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise）。
+   * 历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止。
+   *
+   * @param threadId - 会话线程 ID
+   * @param userMessage - 用户消息
+   * @param opts - turn 运行可选参数
+   * @returns TurnOutput 实例，包含输出流和结果 Promise
+   */
   runTurn(
     threadId: string,
     userMessage: ModelMessage,
@@ -104,7 +112,18 @@ export class AgentLoop {
     return new TurnOutput(stream, resultPromise, abort);
   }
 
-  /** runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用 */
+  /**
+   * runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用。
+   *
+   * @param ctx - 运行上下文
+   * @param ctx.threadId - 会话线程 ID
+   * @param ctx.userMessage - 用户消息
+   * @param ctx.signal - 中断信号
+   * @param ctx.controller - 流控制器
+   * @param ctx.opts - turn 运行可选参数
+   * @param ctx.interrupted - 中断状态标记
+   * @returns turn 最终结果
+   */
   private async run(ctx: {
     threadId: string;
     userMessage: ModelMessage;
@@ -218,7 +237,20 @@ export class AgentLoop {
     }
   }
 
-  /** 执行一个 model step：压缩 → model 调用 → 审批 → 工具执行 → 持久化 */
+  /**
+   * 执行一个 model step：压缩 → model 调用 → 审批 → 工具执行 → 持久化。
+   *
+   * @param step - 当前 step 信息
+   * @param messages - 消息列表（会被原地修改）
+   * @param controller - 流控制器
+   * @param shared - 共享上下文
+   * @param shared.ctx - 模型请求上下文
+   * @param shared.session - turn 会话
+   * @param shared.persistence - 持久化存储
+   * @param shared.traceSession - 链路追踪会话
+   * @param shared.toolApprovalState - 工具审批状态缓存
+   * @returns 是否终止循环及 token 用量
+   */
   private async executeModelStep(
     step: Step,
     messages: ModelMessage[],
@@ -364,12 +396,21 @@ export class AgentLoop {
     return { shouldBreak: false, usage };
   }
 
-  /** emit 事件到订阅者（箭头函数绑定 this，可直接作为回调传递） */
+  /**
+   * 发射事件到订阅者（箭头函数绑定 this，可直接作为回调传递）。
+   *
+   * @param event - turn 事件
+   */
   private emit = (event: TurnEvent): void => {
     this.agent.events.emit(event);
   };
 
-  /** 压缩检查，按需原地替换 messages */
+  /**
+   * 压缩检查，按需原地替换 messages。
+   *
+   * @param messages - 消息列表（会被原地修改）
+   * @param signal - 中断信号
+   */
   private async tryCompact(
     messages: ModelMessage[],
     signal: AbortSignal,
@@ -383,7 +424,19 @@ export class AgentLoop {
     }
   }
 
-  /** 单次模型调用。systemPrompt/messages/tools 已由调用方预处理，不修改入参，结果通过 CallModelResult 返回 */
+  /**
+   * 单次模型调用。systemPrompt/messages/tools 已由调用方预处理，
+   * 不修改入参，结果通过 CallModelResult 返回。
+   *
+   * @param systemPrompt - 系统提示词
+   * @param messages - 消息列表
+   * @param tools - 可用工具列表
+   * @param thread - 当前会话线程
+   * @param step - 当前 step 信息
+   * @param controller - 流控制器
+   * @param traceSession - 链路追踪会话（可选）
+   * @returns 模型调用结果（文本、工具调用、用量）
+   */
   private async  callModel(
     systemPrompt: string,
     messages: ModelMessage[],
@@ -489,7 +542,15 @@ export class AgentLoop {
     return result;
   }
 
-  /** 执行工具调用，返回结果数组。不修改入参，事件通过 fire 触发 */
+  /**
+   * 执行工具调用，返回结果数组。不修改入参，事件通过 emit 触发。
+   *
+   * @param toolCalls - 工具调用列表
+   * @param session - turn 会话
+   * @param step - 当前 step 信息
+   * @param traceSession - 链路追踪会话（可选）
+   * @returns 工具执行结果数组
+   */
   private async executeToolCalls(
     toolCalls: ToolCall[],
     session: TurnSession,

@@ -5,6 +5,9 @@ const encoder = new TextEncoder();
 /**
  * 从 ReadableStream 创建 SSE（Server-Sent Events）响应。
  * 每个 chunk 序列化为 `data: <JSON>\n\n` 格式。
+ * @param stream - 要序列化为 SSE 的 ReadableStream
+ * @param headers - 可选的额外响应头
+ * @returns 配置好 Content-Type: text/event-stream 的 Response 对象
  */
 export function createSSEResponse(
   stream: ReadableStream<unknown>,

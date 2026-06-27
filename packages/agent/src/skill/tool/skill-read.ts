@@ -5,7 +5,11 @@ import {z} from 'zod';
 import {createTool} from '../../tool/create-tool.js';
 import type {SkillManager} from '../skill-manager.js';
 
-/** 创建 skill 文件读取工具 */
+/**
+ * 创建 skill 文件读取工具 — 读取 Skill 目录下的引用、脚本或资源文件。
+ * @param manager - SkillManager 实例
+ * @returns 配置好的 Tool 对象
+ */
 export function createSkillReadTool(manager: SkillManager) {
   return createTool({
     name: 'skill_read',

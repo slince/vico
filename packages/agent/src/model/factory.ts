@@ -6,8 +6,12 @@ import type {ModelRef} from '../agent-loop/types.js';
 
 /**
  * 从 ModelRef 创建 LanguageModel 实例。
+ *
  * openai 提供商标配 OpenAI、DeepSeek、Qwen、custom 等兼容接口；
  * anthropic 使用原生 SDK。
+ *
+ * @param ref - 模型引用，包含 provider、model、apiKey、baseUrl 等配置
+ * @returns AI SDK 的 LanguageModelV3 实例
  */
 export function createLanguageModel(ref: ModelRef): LanguageModelV3 {
   const apiKey = ref.apiKey ?? undefined;

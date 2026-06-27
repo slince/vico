@@ -83,30 +83,68 @@ export class Agent {
     this.loop = loopFactory(this)
   }
 
-  /** 订阅 turn 事件，委托给 AgentLoop */
+  /**
+   * 订阅 turn 事件，委托给 AgentLoop 的事件系统。
+   *
+   * @param event - 事件类型名称
+   * @param handler - 事件处理函数
+   */
   on<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
     this.events.on(event, handler);
   }
 
-  /** 取消订阅 turn 事件 */
+  /**
+   * 取消订阅 turn 事件。
+   *
+   * @param event - 事件类型名称
+   * @param handler - 要移除的事件处理函数
+   */
   off<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
     this.events.off(event, handler);
   }
 
   /**
-   * 一行对话：从 Runtime 中查找 Agent，发送消息并返回结果。
+   * 发起一次对话：发送消息并等待返回最终结果（非流式）。
+   *
+   * @param message - 用户消息内容
+   * @param options - 调用可选参数
+   * @param options.threadId - 指定线程 ID（不传则自动生成）
+   * @param options.userId - 用户 ID
+   * @param options.workspace - 工作空间路径
+   * @param options.scopeId - 工作记忆作用域标识
+   * @returns turn 最终结果
    */
   async invoke(message: string, options?: InvokeOptions): Promise<TurnResult> {
     const output = this.run(message, options);
     return output.result;
   }
 
-  /** 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise */
+  /**
+   * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise。
+   *
+   * @param message - 用户消息内容
+   * @param options - 调用可选参数
+   * @param options.threadId - 指定线程 ID（不传则自动生成）
+   * @param options.userId - 用户 ID
+   * @param options.workspace - 工作空间路径
+   * @param options.scopeId - 工作记忆作用域标识
+   * @returns TurnOutput 实例，包含输出流和结果 Promise
+   */
   stream(message: string, options?: InvokeOptions): TurnOutput {
     return this.run(message, options);
   }
 
-  /** 获取 Agent 并构造 runTurn 参数 */
+  /**
+   * 构造用户消息并启动 AgentLoop runTurn。
+   *
+   * @param message - 用户消息内容
+   * @param options - 调用可选参数
+   * @param options.threadId - 指定线程 ID（不传则自动生成）
+   * @param options.userId - 用户 ID
+   * @param options.workspace - 工作空间路径
+   * @param options.scopeId - 工作记忆作用域标识
+   * @returns TurnOutput 实例
+   */
   private run(message: string, options?: InvokeOptions) {
     const userMessage: ModelMessage = { role: 'user', content: message };
     const threadId = options?.threadId ?? `invoke-${this.id}-${Date.now()}`;

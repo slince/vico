@@ -7,14 +7,20 @@ import type { ModelRequest, ModelStreamResult } from './types.js';
 
 /**
  * Provider 层语言模型的薄封装。
+ *
  * 将 Vico 类型转换为 provider 类型，调用 doStream()，并处理原始流。
  */
 export class ModelClient {
   constructor(private model: LanguageModelV3) {}
 
   /**
-   * 流式调用模型。将内部类型转换为 provider 格式，调用模型，
+   * 流式调用模型。
+   *
+   * 将内部类型转换为 provider 格式，调用模型，
    * 返回类型化的异步生成器。
+   *
+   * @param request - 模型请求参数，包含消息、工具、输出配置等
+   * @returns 包含异步生成器的流式结果
    */
   async stream(request: ModelRequest): Promise<ModelStreamResult> {
     const prompt = convertToPrompt(request.messages, request.system);

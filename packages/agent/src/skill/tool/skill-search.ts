@@ -3,7 +3,11 @@ import {z} from 'zod';
 import {createTool} from '../../tool/create-tool.js';
 import type {SkillManager} from '../skill-manager.js';
 
-/** 创建 skill 搜索工具 */
+/**
+ * 创建 skill 搜索工具 — 按关键词搜索所有可用 Skill。
+ * @param manager - SkillManager 实例
+ * @returns 配置好的 Tool 对象
+ */
 export function createSkillSearchTool(manager: SkillManager) {
   return createTool({
     name: 'skill_search',

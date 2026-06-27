@@ -4,7 +4,12 @@ import {createTool} from '../../tool/create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../../tool/types.js';
 import type {WorkingMemory} from '../types.js';
 
-/** 创建 updateWorkingMemory 工具，绑定 WorkingMemory 实例 */
+/**
+ * 创建 updateWorkingMemory 工具，绑定 WorkingMemory 实例
+ *
+ * @param wm - WorkingMemory 实例，用于读写工作记忆
+ * @returns 返回一个用于更新工作记忆的工具定义
+ */
 export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
   const template = wm.getTemplate();
 

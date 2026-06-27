@@ -156,7 +156,11 @@ export class FileTraceAdapter implements TraceAdapter {
 
 // ── 工厂 ──
 
-/** 根据 TraceLevel 创建默认适配器列表 */
+/**
+ * 根据 TraceLevel 创建默认适配器列表。
+ * @param level - 追踪级别，0=关闭，1=console，2=console+文件
+ * @returns TraceAdapter 数组
+ */
 export function createAdaptersFromLevel(level: TraceLevel): TraceAdapter[] {
   const adapters: TraceAdapter[] = [];
   if (level >= 1) adapters.push(new ConsoleTraceAdapter());

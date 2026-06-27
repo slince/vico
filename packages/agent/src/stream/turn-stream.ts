@@ -8,7 +8,13 @@ import type { TurnResult } from '../agent-loop/types.js';
 import type { TurnOutput } from '../agent-loop/turn-output.js';
 import type { ModelStreamChunk } from '../model/types.js';
 
-/** TurnOutput → AI SDK UI stream Response */
+/**
+ * TurnOutput 流（ModelStreamChunk）→ AI SDK UI 流（UIStreamChunk）转换。
+ * 将 ModelStreamChunk 转换为 UIStreamChunk 格式，封装为 SSE Response 供 @assistant-ui/react 消费。
+ * @param output - TurnOutput 实例，包含模型流和结果 Promise
+ * @param options - 可选配置，包含 onFinish 回调
+ * @returns SSE 格式的 Response 对象
+ */
 export async function turnEventsToAISDK(
   output: TurnOutput,
   options?: { onFinish?: (finish: Extract<UIStreamChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },

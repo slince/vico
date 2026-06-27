@@ -20,17 +20,30 @@ export class TokenEconomy {
     this.outputTokens += output;
   }
 
-  /** 检查输入预算是否超限 */
+  /**
+   * 检查输入预算是否超限。
+   *
+   * @returns 是否已超过输入 token 预算
+   */
   isInputExhausted(): boolean {
     return this.inputTokens >= this.inputBudget;
   }
 
-  /** 检查输出预算是否超限 */
+  /**
+   * 检查输出预算是否超限。
+   *
+   * @returns 是否已超过输出 token 预算
+   */
   isOutputExhausted(): boolean {
     return this.outputTokens >= this.outputBudget;
   }
 
-  /** 截断工具输出 */
+  /**
+   * 截断工具输出，超过最大长度时追加截断标记。
+   *
+   * @param output - 工具输出的原始字符串
+   * @returns 截断后的字符串
+   */
   truncateToolOutput(output: string): string {
     if (output.length <= this.maxToolResultLength) return output;
     return output.slice(0, this.maxToolResultLength) + '... [truncated]';

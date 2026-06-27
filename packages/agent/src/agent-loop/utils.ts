@@ -10,7 +10,12 @@ import {MemoryProcessor} from "./context-processors/memory-processor.js";
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {coreBuiltinTools} from "../tool/builtin/index.js";
 
-/** 消费 TurnOutput 并返回最终结果（丢弃流数据） */
+/**
+ * 消费 TurnOutput 并返回最终结果（丢弃流数据）。
+ *
+ * @param output - TurnOutput 实例
+ * @returns turn 最终结果
+ */
 export async function collectTurnResult(
   output: TurnOutput,
 ): Promise<TurnResult> {
@@ -18,7 +23,12 @@ export async function collectTurnResult(
 }
 
 
-/** 为 Agent 构建 AgentLoop */
+/**
+ * 为 Agent 构建 AgentLoop，组装处理器管道和工具代理。
+ *
+ * @param agent - Agent 实例
+ * @returns 配置好的 AgentLoop 实例
+ */
 export function buildLoop(agent: Agent): AgentLoop {
   // prompt context processor
   const processors: ContextProcessor[] = [

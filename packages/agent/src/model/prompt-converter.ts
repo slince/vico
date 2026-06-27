@@ -10,7 +10,12 @@ import type { ModelMessage } from './types.js';
 
 /**
  * 将 Vico 的 ModelMessage[] 转换为 provider 层的 LanguageModelV3Prompt。
+ *
  * system 提示词作为第一条消息单独传入。
+ *
+ * @param messages - Vico 内部消息数组
+ * @param system - 可选的系统提示词
+ * @returns provider 层提示词格式
  */
 export function convertToPrompt(messages: ModelMessage[], system?: string): LanguageModelV3Prompt {
   const prompt: LanguageModelV3Prompt = [];
@@ -26,6 +31,15 @@ export function convertToPrompt(messages: ModelMessage[], system?: string): Lang
   return prompt;
 }
 
+/**
+ * 将单条 Vico ModelMessage 转换为 provider 层消息格式。
+ *
+ * 根据消息角色（user / assistant / tool）使用不同的内容组装策略。
+ * assistant 消息可能同时包含文本与工具调用，tool 消息转换为工具结果格式。
+ *
+ * @param msg - Vico 内部消息
+ * @returns provider 层消息格式
+ */
 function convertMessage(msg: ModelMessage): LanguageModelV3Message {
   switch (msg.role) {
     case 'user':

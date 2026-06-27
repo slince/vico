@@ -71,7 +71,12 @@ export class TurnTraceSession {
     this.unsubscribe = this.subscribe(events);
   }
 
-  /** 启动一个追踪 Span */
+  /**
+   * 启动一个追踪 Span。
+   * @param type - Span 类型
+   * @param metadata - 可选的 Span 元数据
+   * @returns 包含 id、end() 和 error() 方法的 Span 对象
+   */
   startSpan(type: SpanType, metadata?: Record<string, unknown>): Span {
     const id = randomUUID();
     const state: SpanState = { id, type, metadata: metadata ?? {}, startTime: Date.now() };
@@ -90,14 +95,22 @@ export class TurnTraceSession {
     };
   }
 
-  /** 记录 LLM 请求参数 */
+  /**
+   * 记录 LLM 请求参数。
+   * @param step - 当前 Step 对象
+   * @param request - 模型请求参数
+   */
   recordModelRequest(step: Step, request: ModelRequest): void {
     const entry: ModelCallTrace = { stepIndex: step.index, request };
     this.pendingModelCalls.set(step.index, entry);
     this.trace.modelCalls.push(entry);
   }
 
-  /** 记录 LLM 响应结果 */
+  /**
+   * 记录 LLM 响应结果。
+   * @param step - 当前 Step 对象
+   * @param response - 模型调用返回结果
+   */
   recordModelResponse(step: Step, response: CallModelResult): void {
     const entry = this.pendingModelCalls.get(step.index);
     if (entry) {
@@ -106,7 +119,11 @@ export class TurnTraceSession {
     }
   }
 
-  /** 结束会话：取消事件订阅，填充 endTime 和 result，返回最终 trace */
+  /**
+   * 结束会话：取消事件订阅，填充 endTime 和 result，返回最终 trace。
+   * @param result - Turn 最终结果
+   * @returns 完整的 TurnTrace 追踪数据
+   */
   finalize(result: TurnResult): TurnTrace {
     this.unsubscribe();
     this.trace.endTime = Date.now();
@@ -164,12 +181,21 @@ export class LoopTracer {
     private readonly adapters: ReadonlyArray<TraceAdapter>,
   ) {}
 
-  /** 为当前 turn 创建独立的追踪会话 */
+  /**
+   * 为当前 turn 创建独立的追踪会话。
+   * @param thread - 当前 Thread 对象
+   * @param userMessage - 用户消息
+   * @returns 新的 TurnTraceSession 实例
+   */
   startTurn(thread: Thread, userMessage: ModelMessage): TurnTraceSession {
     return new TurnTraceSession(thread, userMessage, this.events);
   }
 
-  /** 结束 turn：从 session 提取数据，委托所有适配器输出/导出 */
+  /**
+   * 结束 turn：从 session 提取数据，委托所有适配器输出/导出。
+   * @param traceSession - 当前 Turn 的追踪会话
+   * @param result - Turn 最终结果
+   */
   async finish(traceSession: TurnTraceSession, result: TurnResult): Promise<void> {
     const trace = traceSession.finalize(result);
 

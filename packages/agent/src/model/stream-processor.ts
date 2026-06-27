@@ -4,7 +4,11 @@ import type { ModelStreamChunk } from './types.js';
 
 /**
  * 将 provider 原始流转换为类型化的 ModelStreamChunk 异步生成器。
+ *
  * 仅 tool-call 需要转换（input 从 JSON 字符串解析），其余透传。
+ *
+ * @param stream - provider 层的原始流，包含各类流式事件分区
+ * @returns 类型化的 ModelStreamChunk 异步生成器
  */
 export async function* processStreamParts(
   stream: ReadableStream<LanguageModelV3StreamPart>,

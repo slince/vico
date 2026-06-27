@@ -63,24 +63,40 @@ export class ModelRequestContext {
     this.scopeId = init.scopeId ?? '';
   }
 
-  /** 用户消息之前的消息（history） */
+  /**
+   * 用户消息之前的消息（history）。
+   *
+   * @returns 用户消息之前的历史消息列表
+   */
   get before(): ModelMessage[] {
     const idx = this.messages.indexOf(this.userMessage);
     return idx > 0 ? this.messages.slice(0, idx) : [];
   }
 
-  /** 用户消息之后的消息（system/memory） */
+  /**
+   * 用户消息之后的消息（system/memory）。
+   *
+   * @returns 用户消息之后的系统/记忆消息列表
+   */
   get after(): ModelMessage[] {
     const idx = this.messages.indexOf(this.userMessage);
     return idx >= 0 ? this.messages.slice(idx + 1) : [];
   }
 
-  /** 便捷获取 threadId */
+  /**
+   * 便捷获取 threadId。
+   *
+   * @returns 线程 ID，无线程时返回空字符串
+   */
   get threadId(): string {
     return this.thread?.id ?? '';
   }
 
-  /** 获取最后一条用户消息内容 */
+  /**
+   * 获取最后一条用户消息内容。
+   *
+   * @returns 最后一条用户消息的文本内容，无用户消息时返回空字符串
+   */
   getLastUserMessage(): string {
     for (let i = this.messages.length - 1; i >= 0; i--) {
       if (this.messages[i].role === 'user') return this.messages[i].content;
@@ -117,7 +133,12 @@ export class ProcessorPipeline {
     this.desc = [...sorted].reverse();
   }
 
-  /** 进入阶段：按优先级升序依次执行 process()。单个处理器异常不阻塞后续处理器。 */
+  /**
+   * 进入阶段：按优先级升序依次执行 process()。
+   * 单个处理器异常不阻塞后续处理器。
+   *
+   * @param ctx - 模型请求上下文
+   */
   async enter(ctx: ModelRequestContext): Promise<void> {
     for (const processor of this.asc) {
       try {
@@ -131,7 +152,12 @@ export class ProcessorPipeline {
     }
   }
 
-  /** 离开阶段：循环结束后，按优先级降序（内层先执行）执行 resolve()。不抛异常，不阻塞后续处理器。 */
+  /**
+   * 离开阶段：循环结束后，按优先级降序（内层先执行）执行 resolve()。
+   * 不抛异常，不阻塞后续处理器。
+   *
+   * @param ctx - 模型请求上下文
+   */
   async leave(ctx: ModelRequestContext): Promise<void> {
     for (const processor of this.desc) {
       if (!processor.resolve) continue;
@@ -147,7 +173,12 @@ export class ProcessorPipeline {
   }
 }
 
-/** 从 ModelRequestContext 提取 streamText 所需参数 */
+/**
+ * 从 ModelRequestContext 提取 streamText 所需参数。
+ *
+ * @param ctx - 模型请求上下文
+ * @returns 包含 system、messages、tools、maxTokens、temperature 的请求对象
+ */
 export function buildModelRequest(ctx: ModelRequestContext) {
   return {
     system: ctx.systemPrompt || undefined,

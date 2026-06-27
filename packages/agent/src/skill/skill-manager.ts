@@ -27,7 +27,12 @@ export class SkillManager {
     return Array.from(this.skills.values());
   }
 
-  /** 简单关键词搜索 — 匹配 name 和 description */
+  /**
+   * 简单关键词搜索 — 匹配 name、description 和 instructions 字段。
+   * @param query - 搜索关键词
+   * @param limit - 最大返回结果数，默认 10
+   * @returns 按相关度评分排序的搜索结果列表
+   */
   search(query: string, limit = 10): Array<{ name: string; description: string; score: number }> {
     const q = query.toLowerCase();
     const results: Array<{ name: string; description: string; score: number }> = [];

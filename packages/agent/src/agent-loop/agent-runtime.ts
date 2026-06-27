@@ -16,7 +16,11 @@ export class AgentRuntime {
     this.maxCached = maxCached;
   }
 
-  /** 注册 Agent 并纳入缓存 */
+  /**
+   * 注册 Agent 并纳入缓存。
+   *
+   * @param agent - 要注册的 Agent 实例
+   */
   register(agent: Agent): void {
     const key = agent.id;
     const existing = this.cache.get(key);
@@ -30,7 +34,11 @@ export class AgentRuntime {
     this.evictIfNeeded();
   }
 
-  /** 销毁（移除）Agent */
+  /**
+   * 销毁（移除）Agent。
+   *
+   * @param agentId - 要移除的 Agent ID
+   */
   destroy(agentId: string): void {
     this.cache.delete(agentId);
   }
@@ -52,7 +60,9 @@ export class AgentRuntime {
     return result;
   }
 
-  /** LRU 淘汰：超过 maxCached 时移除最久未使用的条目 */
+  /**
+   * LRU 淘汰：超过 maxCached 时移除最久未使用的条目。
+   */
   private evictIfNeeded(): void {
     while (this.cache.size > this.maxCached) {
       let oldestKey = '';

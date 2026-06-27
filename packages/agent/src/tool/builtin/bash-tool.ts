@@ -25,7 +25,14 @@ interface SessionEntry {
 /** 全局 Bash 会话表 */
 const sessions = new Map<string, SessionEntry>();
 
-/** 清理超时会话 */
+/**
+ * 清理指定的 Bash 会话。
+ *
+ * 终止会话对应的子进程（如果仍在运行），并从会话表中移除记录。
+ *
+ * @param id - 会话 ID
+ * @param entry - 会话条目，包含进程引用等信息
+ */
 function cleanupSession(id: string, entry: SessionEntry): void {
   if (entry.process) {
     try { entry.process.kill(); } catch { /* ignore */ }

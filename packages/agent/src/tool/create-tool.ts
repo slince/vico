@@ -61,7 +61,12 @@ export function createTool(options: ToolOptions): Tool {
   };
 }
 
-/** 将 Tool 的 Zod inputSchema 转为 ToolDescriptor（含 JSON Schema）供模型调用 */
+/**
+ * 将 Tool 的 Zod inputSchema 转为 ToolDescriptor（含 JSON Schema）供模型调用。
+ *
+ * @param tool - 工具对象，包含 name、description 和 Zod inputSchema
+ * @returns ToolDescriptor 对象，包含 JSON Schema 格式的 inputSchema
+ */
 export function toToolDescriptor(tool: Tool): ToolDescriptor {
   return {
     name: tool.name,

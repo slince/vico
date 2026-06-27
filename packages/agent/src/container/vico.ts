@@ -139,7 +139,10 @@ export class Vico {
     this.skillManager = new SkillManager(new FSSkillLoader());
   }
 
-  /** 初始化：发现 Skill、注册 skill 工具 */
+  /**
+   * 初始化：发现 Skill、扫描 Skill 目录。
+   * @returns Promise that resolves when initialization is complete
+   */
   async init(): Promise<void> {
     if (this.options.skills && 'skillDirs' in this.options.skills) {
       const dirs = collectSkillDirs(this.options.skills);
@@ -151,7 +154,11 @@ export class Vico {
   }
 
 
-  /** 构建 Agent 并注册到 Runtime */
+  /**
+   * 构建 Agent 并注册到 Runtime。
+   * @param config - Agent 创建配置
+   * @returns 已注册的 Agent 实例
+   */
   async createAgent(config: CreateAgentConfig): Promise<Agent> {
     const model = this.languageModelFactory(config.model);
     const agent = await this.buildAgent(config, model);
@@ -194,7 +201,11 @@ export class Vico {
     });
   }
 
-  /** 为 Agent 构建 AgentLoop */
+  /**
+   * 为 Agent 构建 AgentLoop，装配 context processors、tool broker 和工作记忆。
+   * @param agent - 目标 Agent 实例
+   * @returns 配置完成的 AgentLoop 实例
+   */
   public buildLoop(agent: Agent): AgentLoop {
     const memory = agent.memory ?? this.memory;
 
@@ -237,7 +248,12 @@ export class Vico {
     return this.skillManager;
   }
 
-  /** 获取 Agent，若不存在则通过 factory 创建并注册 */
+  /**
+   * 获取 Agent，若不存在则通过 factory 创建并注册。
+   * @param agentId - Agent 唯一标识
+   * @param factory - 创建 Agent 配置的工厂函数（仅在 Agent 不存在时调用）
+   * @returns 已存在的或新创建的 Agent 实例
+   */
   async getOrCreateAgent(agentId: string, factory: () => Promise<CreateAgentConfig>): Promise<Agent> {
     const existing = this.runtime.getAgent(agentId);
     if (existing) return existing;

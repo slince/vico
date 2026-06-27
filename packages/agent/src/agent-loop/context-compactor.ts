@@ -12,7 +12,12 @@ export interface CompactResult {
   removedTokens: number;
 }
 
-/** 简单的 Token 估算（4 字符 ≈ 1 token） */
+/**
+ * 简单的 Token 估算（4 字符 ≈ 1 token）。
+ *
+ * @param messages - 消息列表
+ * @returns 估算的 token 数量
+ */
 function estimateTokens(messages: ModelMessage[]): number {
   let chars = 0;
   for (const m of messages) {

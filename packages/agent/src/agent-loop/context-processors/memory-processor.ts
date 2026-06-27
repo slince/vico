@@ -21,7 +21,11 @@ export class MemoryProcessor implements ContextProcessor {
     await this.injectSemanticRecall(ctx);
   }
 
-  /** 循环结束后提取事实存入语义记忆 */
+  /**
+   * 循环结束后提取事实存入语义记忆。
+   *
+   * @param ctx - 模型请求上下文
+   */
   async resolve(ctx: ModelRequestContext): Promise<void> {
     if (!this.memoryStore.semantic) return;
     const facts = this.extractFacts(ctx);
@@ -30,7 +34,11 @@ export class MemoryProcessor implements ContextProcessor {
     }
   }
 
-  /** 注入会话历史（FIFO 滑动窗口） */
+  /**
+   * 注入会话历史（FIFO 滑动窗口）。
+   *
+   * @param ctx - 模型请求上下文
+   */
   private async injectConversationHistory(ctx: ModelRequestContext): Promise<void> {
     if (!this.memoryStore.conversation || !ctx.threadId) return;
     const history = await this.memoryStore.conversation.get(
@@ -42,7 +50,11 @@ export class MemoryProcessor implements ContextProcessor {
     ctx.messages.unshift(...history);
   }
 
-  /** 注入工作记忆模板 + 当前数据，引导 LLM 自主更新 */
+  /**
+   * 注入工作记忆模板 + 当前数据，引导 LLM 自主更新。
+   *
+   * @param ctx - 模型请求上下文
+   */
   private async injectWorkingMemory(ctx: ModelRequestContext): Promise<void> {
     if (!ctx.scopeId) return;
     const wm = this.memoryStore.working;
@@ -63,7 +75,11 @@ export class MemoryProcessor implements ContextProcessor {
     });
   }
 
-  /** 语义召回长期记忆 */
+  /**
+   * 语义召回长期记忆。
+   *
+   * @param ctx - 模型请求上下文
+   */
   private async injectSemanticRecall(ctx: ModelRequestContext): Promise<void> {
     if (!this.memoryStore.semantic) return;
     const query = ctx.getLastUserMessage();
@@ -76,7 +92,12 @@ export class MemoryProcessor implements ContextProcessor {
     ctx.messages.push({ role: 'system', content: `Relevant memories:\n${memText}` });
   }
 
-  /** 从对话中提取事实句子，转为 MemoryRecord */
+  /**
+   * 从对话中提取事实句子，转为 MemoryRecord。
+   *
+   * @param ctx - 模型请求上下文
+   * @returns 提取到的记忆记录数组
+   */
   private extractFacts(ctx: ModelRequestContext): MemoryRecord[] {
     const now = Date.now();
     const threadId = ctx.threadId || undefined;
