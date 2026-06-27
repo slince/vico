@@ -3,11 +3,10 @@ import {homedir} from 'node:os';
 import {resolve} from 'node:path';
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import type {ModelRef, TurnEvent} from '../agent-loop/types.js';
-import type {ToolStore} from '../tool/types.js';
+import type {ToolSource, ToolStore} from '../tool/types.js';
 import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createLanguageModel} from '../model/factory.js';
-import type {ToolSource} from '../tool/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillManager} from '../skill/skill-manager.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
@@ -150,7 +149,6 @@ export class Vico {
     }
     this.initialized = true;
   }
-
 
 
   /** 构建 Agent 并注册到 Runtime */

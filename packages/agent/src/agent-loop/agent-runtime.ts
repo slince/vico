@@ -1,15 +1,15 @@
 // @vico/agent - AgentRuntime: manages Agent lifecycle with LRU cache
-import { Agent } from './agent.js';
+import {Agent} from './agent.js';
 
 /** Agent 缓存条目 */
-interface CacheEntry {
+interface AgentEntry {
   agent: Agent;
   lastUsedAt: number;
 }
 
 /** AgentRuntime — 负责 Agent 的注册、缓存和 LRU 淘汰 */
 export class AgentRuntime {
-  private cache: Map<string, CacheEntry> = new Map();
+  private cache: Map<string, AgentEntry> = new Map();
   private maxCached: number;
 
   constructor(maxCached = 50) {
