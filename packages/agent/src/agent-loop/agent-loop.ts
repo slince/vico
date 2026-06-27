@@ -1,5 +1,5 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {RunTurnOptions, Step, TurnSession, TurnEvent, TurnResult} from './types.js';
+import type {RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelStreamChunk} from '../model/types.js';
@@ -57,8 +57,6 @@ export class AgentLoop {
   private approvalGate?: ApprovalGate;
   private events: EventRecorder<TurnEvent>;
   private spanTracker: SpanTracker;
-  private steerBuffer: string[] = [];
-  private interrupted = false;
   /** 已批准的工具名缓存（同一 turn 内 on-request 工具只需批准一次） */
   private toolApprovalState = new Map<string, boolean>();
 
@@ -90,9 +88,10 @@ export class AgentLoop {
     });
 
     const internalAc = new AbortController();
+    const interrupted = { value: false };
 
     const abort = () => {
-      this.interrupt();
+      interrupted.value = true;
       internalAc.abort();
     };
 
@@ -101,7 +100,7 @@ export class AgentLoop {
         try {
           const result = await this._run({
             threadId, userMessage, signal: internalAc.signal,
-            controller, opts,
+            controller, opts, interrupted,
           });
           resolveResult(result);
         } catch (err) {
@@ -124,11 +123,10 @@ export class AgentLoop {
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
     opts?: RunTurnOptions;
+    interrupted: { value: boolean };
   }): Promise<TurnResult> {
-    const { threadId, userMessage, signal, controller, opts } = ctx;
+    const { threadId, userMessage, signal, controller, opts, interrupted } = ctx;
     const turnSpan = this.spanTracker.startSpan('agent_run');
-    this.interrupted = false;
-
     // 历史消息由 MemoryProcessor 在 pipeline 中注入，这里只放当前用户消息
     const messages: ModelMessage[] = [userMessage];
     let steps = 0;
@@ -157,8 +155,6 @@ export class AgentLoop {
     });
 
     try {
-      this.applySteerBuffer(messages);
-
       // 运行 pipeline 一次，提取不变的上下文前缀/后缀
       const ctx = new ModelRequestContext({
         agent: this.agent.config,
@@ -169,7 +165,7 @@ export class AgentLoop {
       });
       await this.pipeline.enter(ctx);
 
-      while (steps < this.agent.config.maxSteps && !this.interrupted) {
+      while (steps < this.agent.config.maxSteps && !interrupted.value) {
         if (signal.aborted) {
           await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
           turnSpan.end({ status: 'aborted' });
@@ -199,14 +195,14 @@ export class AgentLoop {
         }),
       );
 
-      const finalStatus = this.interrupted ? 'aborted' : 'completed';
+      const finalStatus = interrupted.value ? 'aborted' : 'completed';
       await threadStore.updateTurn(turn.id, { status: finalStatus, steps });
 
       turnSpan.end({ status: 'completed', steps });
       this.emit({ type: 'done', usage });
 
       return {
-        status: this.interrupted ? 'interrupted' : 'completed',
+        status: interrupted.value ? 'interrupted' : 'completed',
         steps,
         usage,
         messages,
@@ -238,12 +234,6 @@ export class AgentLoop {
     if (this.tokenEconomy?.isInputExhausted()) {
       this.emit({ type: 'error', message: 'Input token budget exhausted' });
       return { shouldBreak: true, usage };
-    }
-
-    // mid-turn steer 追加到 loop messages
-    const steerText = this.drainSteerBuffer();
-    if (steerText) {
-      messages.push({ role: 'user', content: steerText });
     }
 
     const { ctx } = shared;
@@ -383,14 +373,6 @@ export class AgentLoop {
     this.events.off(event, handler);
   }
 
-  /** 排干 steer 缓冲区并追加到消息列表 */
-  private applySteerBuffer(messages: ModelMessage[]): void {
-    const text = this.drainSteerBuffer();
-    if (text) {
-      messages.push({ role: 'user', content: text });
-    }
-  }
-
   /** 压缩检查，按需原地替换 messages */
   private async tryCompact(
     messages: ModelMessage[],
@@ -406,7 +388,7 @@ export class AgentLoop {
   }
 
   /** 单次模型调用。systemPrompt/messages/tools 已由调用方预处理，不修改入参，结果通过 CallModelResult 返回 */
-  private async callModel(
+  private async  callModel(
     systemPrompt: string,
     messages: ModelMessage[],
     tools: Tool[],
@@ -552,20 +534,6 @@ export class AgentLoop {
     return this.toolBroker.executeBatch(calls, context);
   }
 
-  /** 排干 steer 缓冲区 */
-  private drainSteerBuffer(): string {
-    const text = this.steerBuffer.join('\n');
-    this.steerBuffer = [];
-    return text;
-  }
-
-  interrupt(): void {
-    this.interrupted = true;
-  }
-
-  steer(text: string): void {
-    this.steerBuffer.push(text);
-  }
 }
 
 /** 消费 TurnOutput 并返回最终结果（丢弃流数据） */
