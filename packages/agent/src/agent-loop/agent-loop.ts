@@ -1,12 +1,11 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {RunTurnOptions, Step, TurnEvent, TurnResult} from './types.js';
-import type {TurnSession} from '../tool/types.js';
+import type {Tool, ToolCall, ToolExecutionContext, ToolResult, TurnSession} from '../tool/types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import type {Thread, ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
-import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {LoopTracer, TurnTraceSession} from '../observable/loop-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
@@ -96,7 +95,7 @@ export class AgentLoop {
     const stream = new ReadableStream<ModelStreamChunk>({
       start: async (controller) => {
         try {
-          const result = await this._run({
+          const result = await this.run({
             threadId, userMessage, signal: internalAc.signal,
             controller, opts, interrupted,
           });
@@ -115,7 +114,7 @@ export class AgentLoop {
   }
 
   /** runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用 */
-  private async _run(ctx: {
+  private async run(ctx: {
     threadId: string;
     userMessage: ModelMessage;
     signal: AbortSignal;
