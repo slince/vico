@@ -2,11 +2,11 @@ import {TurnResult} from "./types.js";
 import {TurnOutput} from "./turn-output.js";
 import {Agent} from "./agent.js";
 import {AgentLoop} from "./agent-loop.js";
-import type {ContextProcessor} from "../prompt/context-processor.js";
-import {SystemPromptProcessor} from "../prompt/system-prompt-processor.js";
-import {SkillProcessor} from "../skill/skill-processor.js";
+import type {ContextProcessor} from "./context-processors/context-processor.js";
+import {SystemPromptProcessor} from "./context-processors/system-prompt-processor.js";
+import {SkillProcessor} from "./context-processors/skill-processor.js";
 import {ToolBroker} from "../tool/tool-broker.js";
-import {MemoryProcessor} from "../memory/memory-processor.js";
+import {MemoryProcessor} from "./context-processors/memory-processor.js";
 import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
 import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
 

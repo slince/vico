@@ -43,13 +43,13 @@ export {
   ProcessorPipeline,
   buildModelRequest,
   Priority,
-} from './prompt/context-processor.js';
+} from './agent-loop/context-processors/context-processor.js';
 
-export { SystemPromptProcessor } from './prompt/system-prompt-processor.js';
-export { SkillProcessor } from './skill/skill-processor.js';
-export { MemoryProcessor } from './memory/memory-processor.js';
-export { RagProcessor } from './rag/rag-processor.js';
-export { DynamicInstructionProcessor } from './agent-loop/dynamic-instruction-processor.js';
+export { SystemPromptProcessor } from './agent-loop/context-processors/system-prompt-processor.js';
+export { SkillProcessor } from './agent-loop/context-processors/skill-processor.js';
+export { MemoryProcessor } from './agent-loop/context-processors/memory-processor.js';
+export { RagProcessor } from './agent-loop/context-processors/rag-processor.js';
+export { DynamicInstructionProcessor } from './agent-loop/context-processors/dynamic-instruction-processor.js';
 
 export {
   type RagChunk,

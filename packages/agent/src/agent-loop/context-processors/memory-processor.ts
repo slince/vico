@@ -1,9 +1,9 @@
 // @vico/agent - MemoryProcessor: injects conversation history, working memory, and semantic recall
 import { randomUUID } from 'node:crypto';
-import type { ContextProcessor, ModelRequestContext } from '../prompt/context-processor.js';
-import { Priority } from '../prompt/context-processor.js';
-import type { MemoryStore } from './memory-store.js';
-import type { MemoryRecord } from './types.js';
+import type { ContextProcessor, ModelRequestContext } from './context-processor.js';
+import { Priority } from './context-processor.js';
+import type { MemoryStore } from '../../memory/memory-store.js';
+import type { MemoryRecord } from '../../memory/types.js';
 
 /** 事实匹配模式 — 包含这些动词/模式的句子视为事实 */
 const FACT_PATTERNS = /\b(is|are|was|were|lives?|works?|located|prefers?|likes?|uses?|has|have|name|from|occupation|role|goal|deadline|project)\b/i;

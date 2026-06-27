@@ -1,6 +1,6 @@
 // @vico/agent - DynamicInstructionProcessor: appends dynamic instructions as system message
-import type { ContextProcessor, ModelRequestContext } from '../prompt/context-processor.js';
-import { Priority } from '../prompt/context-processor.js';
+import type { ContextProcessor, ModelRequestContext } from './context-processor.js';
+import { Priority } from './context-processor.js';
 
 /** 追加动态指令为 system 消息（LOW 优先级） */
 export class DynamicInstructionProcessor implements ContextProcessor {

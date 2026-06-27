@@ -10,8 +10,8 @@ import type {LoopTracer, TurnTraceSession} from '../observable/loop-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
-import type {ContextProcessor} from '../prompt/context-processor.js';
-import {ModelRequestContext, ProcessorPipeline} from '../prompt/context-processor.js';
+import type {ContextProcessor} from './context-processors/context-processor.js';
+import {ModelRequestContext, ProcessorPipeline} from './context-processors/context-processor.js';
 
 /** executeModelStep 的返回值 */
 interface ModelStepResult {

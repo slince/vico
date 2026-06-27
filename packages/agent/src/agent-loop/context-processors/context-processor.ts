@@ -1,8 +1,8 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
-import type {Step} from '../agent-loop/types.js';
-import type {ModelMessage} from '../model/types.js';
-import type {Tool} from '../tool/types.js';
-import type {Thread} from '../thread/types.js';
+import type {Step} from '../types.js';
+import type {ModelMessage} from '../../model/types.js';
+import type {Tool} from '../../tool/types.js';
+import type {Thread} from '../../thread/types.js';
 
 /** 上下文中的 Agent 引用 — 提供处理器所需的配置字段 */
 export interface AgentRef {

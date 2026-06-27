@@ -1,18 +1,18 @@
 // default-processors.test.ts — tests for context processors and onion pipeline
 import {describe, expect, it, vi} from 'vitest';
-import {SystemPromptProcessor} from '../prompt/system-prompt-processor.js';
-import {SkillProcessor} from '../skill/skill-processor.js';
-import {MemoryProcessor} from '../memory/memory-processor.js';
-import {RagProcessor} from '../rag/rag-processor.js';
-import {DynamicInstructionProcessor} from '../agent-loop/dynamic-instruction-processor.js';
+import {SystemPromptProcessor} from '../agent-loop/context-processors/system-prompt-processor.js';
+import {SkillProcessor} from '../agent-loop/context-processors/skill-processor.js';
+import {MemoryProcessor} from '../agent-loop/context-processors/memory-processor.js';
+import {RagProcessor} from '../agent-loop/context-processors/rag-processor.js';
+import {DynamicInstructionProcessor} from '../agent-loop/context-processors/dynamic-instruction-processor.js';
 import {
   buildModelRequest,
   type ContextProcessor,
   ModelRequestContext,
   Priority,
   ProcessorPipeline,
-} from '../prompt/context-processor.js';
-import type {AgentRef} from '../prompt/context-processor.js';
+} from '../agent-loop/context-processors/context-processor.js';
+import type {AgentRef} from '../agent-loop/context-processors/context-processor.js';
 
 function makeConfig(): AgentRef {
   return {
