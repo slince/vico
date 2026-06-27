@@ -1,6 +1,4 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import {homedir} from 'node:os';
-import {resolve} from 'node:path';
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import type {ModelRef, TurnEvent} from '../agent-loop/types.js';
 import type {Tool, ToolStore} from '../tool/types.js';
@@ -26,6 +24,7 @@ import {createAdaptersFromLevel, type TraceAdapter} from '../observable/trace-ad
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {coreBuiltinTools} from "../tool/builtin/index.js";
 import {createAllSkillTools} from "../skill/tool/index.js";
+import {collectSkillDirs, type SkillSettings} from './utils.js';
 
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
@@ -46,37 +45,7 @@ export interface AgentConfig {
 }
 
 
-type SkillSettings = {
-  /** Vico 原生 Skill 扫描根目录 */
-  skillDirs?: string[];
-  /** 开启后自动扫描第三方 AI Agent 产品的全局 Skills（Claude、OpenClaw、Hermes、通用 agents） */
-  compatible?: boolean;
-}
-
 type SkillOptions = SkillStore | SkillSettings
-
-/** 各产品全局 Skills 默认目录 */
-const COMPATIBLE_SKILL_ROOTS = [
-  '.claude/skills',
-  '.openclaw/skills',
-  '.hermes/skills',
-  '.agents/skills',
-];
-
-/** 汇总 SkillSettings 中所有待扫描目录 */
-function collectSkillDirs(settings: SkillSettings): string[] {
-  const dirs: string[] = [];
-  if (settings.skillDirs) {
-    dirs.push(...settings.skillDirs);
-  }
-  if (settings.compatible) {
-    const home = homedir();
-    for (const rel of COMPATIBLE_SKILL_ROOTS) {
-      dirs.push(resolve(home, rel));
-    }
-  }
-  return dirs;
-}
 
 /** Vico 配置选项 */
 export interface VicoOptions {
