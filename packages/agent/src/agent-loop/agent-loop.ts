@@ -158,7 +158,7 @@ export class AgentLoop {
       content: userMessage.content,
     });
 
-    this.tracer?.startTurn(threadId, userMessage.content);
+    this.tracer?.startTurn(thread, userMessage);
 
     try {
       // 运行 pipeline 一次，提取不变的上下文前缀/后缀
@@ -423,7 +423,7 @@ export class AgentLoop {
     const modelSpan = this.spanTracker.startSpan('model_step', { step: step.index + 1 });
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
-    this.tracer?.recordModelRequest(step.index, request);
+    this.tracer?.recordModelRequest(step, request);
 
     const { stream } = await this.agent.modelClient.stream({
       ...request,
@@ -493,14 +493,14 @@ export class AgentLoop {
       modelSpan.error(new Error(msg));
       this.emit({ type: 'error', message: msg });
       const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: msg };
-      this.tracer?.recordModelResponse(step.index, errorResult);
+      this.tracer?.recordModelResponse(step, errorResult);
       return errorResult;
     }
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
     const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
-    this.tracer?.recordModelResponse(step.index, result);
+    this.tracer?.recordModelResponse(step, result);
     return result;
   }
 

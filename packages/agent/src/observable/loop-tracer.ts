@@ -1,8 +1,9 @@
 // @vico/agent - LoopTracer: subscribes to AgentLoop events + spans, outputs structured trace on turn end
 import type {EventRecorder} from '../events/types.js';
-import type {TurnEvent, TurnResult} from '../agent-loop/types.js';
+import type {Step, TurnEvent, TurnResult} from '../agent-loop/types.js';
 import type {CallModelResult} from '../agent-loop/agent-loop.js';
-import type {ModelRequest} from '../model/types.js';
+import type {ModelRequest, ModelMessage} from '../model/types.js';
+import type {Thread} from '../thread/types.js';
 import type {SpanTracker} from './types.js';
 import {TraceExporter} from './trace-exporter.js';
 
@@ -60,14 +61,14 @@ export class LoopTracer {
 
   // ── 公开方法（AgentLoop 调用）──
 
-  /** 开始追踪一个 turn */
-  startTurn(threadId: string, userMessage: string): void {
+  /** 开始追踪一个 turn。接收原始 Thread 和 ModelMessage，提取所需字段 */
+  startTurn(thread: Thread, userMessage: ModelMessage): void {
     if (this.level === 0) return;
     this.spanTracker.clear();
     this.pendingModelCalls.clear();
     this.currentTrace = {
-      threadId,
-      userMessage,
+      threadId: thread.id,
+      userMessage: userMessage.content,
       startTime: Date.now(),
       steps: [],
       modelCalls: [],
@@ -75,20 +76,20 @@ export class LoopTracer {
     };
   }
 
-  /** 记录 LLM 请求参数。接收原始 ModelRequest，调用方直接传入即可 */
-  recordModelRequest(stepIndex: number, request: ModelRequest): void {
+  /** 记录 LLM 请求参数。接收原始 Step + ModelRequest，调用方直接传入即可 */
+  recordModelRequest(step: Step, request: ModelRequest): void {
     if (!this.currentTrace) return;
-    const entry: ModelCallTrace = { stepIndex, request };
-    this.pendingModelCalls.set(stepIndex, entry);
+    const entry: ModelCallTrace = { stepIndex: step.index, request };
+    this.pendingModelCalls.set(step.index, entry);
     this.currentTrace.modelCalls.push(entry);
   }
 
-  /** 记录 LLM 响应结果。接收原始 CallModelResult，调用方直接传入即可 */
-  recordModelResponse(stepIndex: number, response: CallModelResult): void {
-    const entry = this.pendingModelCalls.get(stepIndex);
+  /** 记录 LLM 响应结果。接收原始 Step + CallModelResult，调用方直接传入即可 */
+  recordModelResponse(step: Step, response: CallModelResult): void {
+    const entry = this.pendingModelCalls.get(step.index);
     if (entry) {
       entry.response = response;
-      this.pendingModelCalls.delete(stepIndex);
+      this.pendingModelCalls.delete(step.index);
     }
   }
 
