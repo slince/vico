@@ -6,7 +6,6 @@ import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import type {Thread, ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
-import type {EventPayload} from '../events/types.js';
 import type {LoopTracer, TurnTraceSession} from '../observable/loop-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
@@ -126,7 +125,7 @@ export class AgentLoop {
     let thread = await threadStore.getThread(threadId);
     if (!thread) {
       const title = userMessage.content.slice(0, 50);
-      thread = await threadStore.createThread(this.agent.config.id, title, threadId, { userId: userId || undefined });
+      thread = await threadStore.createThread(this.agent.id, title, threadId, { userId: userId || undefined });
     }
     const turn = await threadStore.createTurn(threadId);
 
@@ -147,7 +146,7 @@ export class AgentLoop {
     try {
       // 运行 pipeline 一次，提取不变的上下文前缀/后缀
       const ctx = new ModelRequestContext({
-        agent: this.agent.config,
+        agent: this.agent,
         userMessage,
         tools: [...this.agent.tools],
         thread,
@@ -155,7 +154,7 @@ export class AgentLoop {
       });
       await this.pipeline.enter(ctx);
 
-      while (steps < this.agent.config.maxSteps && !interrupted.value) {
+      while (steps < this.agent.maxSteps && !interrupted.value) {
         if (signal.aborted) {
           await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
           turnSpan?.end({ status: 'aborted' });
@@ -184,7 +183,7 @@ export class AgentLoop {
 
       await this.pipeline.leave(
         new ModelRequestContext({
-          agent: this.agent.config,
+          agent: this.agent,
           messages: [...messages],
           tools: [...this.agent.tools],
           thread,
@@ -368,16 +367,6 @@ export class AgentLoop {
     this.agent.events.emit(event);
   };
 
-  /** 订阅 turn 事件 */
-  on<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
-    this.agent.events.on(event, handler);
-  }
-
-  /** 取消订阅 turn 事件 */
-  off<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
-    this.agent.events.off(event, handler);
-  }
-
   /** 压缩检查，按需原地替换 messages */
   private async tryCompact(
     messages: ModelMessage[],
@@ -408,8 +397,8 @@ export class AgentLoop {
       system: systemPrompt || undefined,
       messages,
       tools,
-      maxOutputTokens: this.agent.config.maxTokens,
-      temperature: this.agent.config.temperature,
+      maxOutputTokens: this.agent.maxTokens,
+      temperature: this.agent.temperature,
     };
 
     let fullText = '';
@@ -530,7 +519,7 @@ export class AgentLoop {
   private async dispatchTools(calls: ToolCall[], session: TurnSession, step: Step): Promise<ToolResult[]> {
     const context: ToolExecutionContext = {
       session,
-      agentId: this.agent.config.id,
+      agentId: this.agent.id,
       awaitApproval: async (call: ToolCall) => {
         if (this.approvalGate) {
           const { decision } = this.approvalGate.requestApproval(call);

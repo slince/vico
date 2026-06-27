@@ -2,7 +2,8 @@
 import {homedir} from 'node:os';
 import {resolve} from 'node:path';
 import type {LanguageModelV3} from '@ai-sdk/provider';
-import type {AgentConfig, ModelRef, TurnEvent} from '../agent-loop/types.js';
+import type {ModelRef, TurnEvent} from '../agent-loop/types.js';
+import type {ToolStore} from '../tool/types.js';
 import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createLanguageModel} from '../model/factory.js';
@@ -29,6 +30,21 @@ import {createSkillToolSource} from "../skill/skill-tool-source.js";
 
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
+
+/** 创建 Agent 的输入配置 */
+export interface CreateAgentConfig {
+  id: string;
+  name: string;
+  systemPrompt: string;
+  model: ModelRef;
+  temperature?: number;
+  maxTokens?: number;
+  maxSteps?: number;
+  tools?: ToolStore;
+  skills?: SkillStore;
+  memory?: MemoryStore;
+  thread?: ThreadStore;
+}
 
 
 type SkillSettings = {
@@ -138,7 +154,7 @@ export class Vico {
 
 
   /** 构建 Agent 并注册到 Runtime */
-  async createAgent(config: AgentConfig): Promise<Agent> {
+  async createAgent(config: CreateAgentConfig): Promise<Agent> {
     const model = this.languageModelFactory(config.model);
     const agent = await this.buildAgent(config, model);
     this.runtime.register(agent);
@@ -148,7 +164,7 @@ export class Vico {
   /**
    * 创建单个 Agent（无缓存），绑定 skills / tools。
    */
-  private async buildAgent(config: AgentConfig, model: LanguageModelV3): Promise<Agent> {
+  private async buildAgent(config: CreateAgentConfig, model: LanguageModelV3): Promise<Agent> {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
@@ -162,8 +178,13 @@ export class Vico {
     const thread = config.thread ?? this.thread;
 
     return new Agent({
-      config,
+      id: config.id,
+      name: config.name,
+      systemPrompt: config.systemPrompt,
       model,
+      temperature: config.temperature ?? 0.7,
+      maxTokens: config.maxTokens ?? 4096,
+      maxSteps: config.maxSteps ?? 10,
       skills,
       tools,
       memory,
@@ -171,7 +192,7 @@ export class Vico {
       tracer: this.tracer,
       approvalGate: this.approvalGate,
       events: this.events,
-      loopFactory: this.buildLoop
+      loopFactory: this.buildLoop,
     });
   }
 
@@ -224,7 +245,7 @@ export class Vico {
   }
 
   /** 获取 Agent，若不存在则通过 factory 创建并注册 */
-  async getOrCreateAgent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
+  async getOrCreateAgent(agentId: string, factory: () => Promise<CreateAgentConfig>): Promise<Agent> {
     const existing = this.runtime.getAgent(agentId);
     if (existing) return existing;
     return this.createAgent(await factory());

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { LanguageModelV3 } from '@ai-sdk/provider';
 import { AgentRuntime } from '../agent-loop/agent-runtime.js';
 import { Agent } from '../agent-loop/agent.js';
-import type { AgentConfig, TurnEvent } from '../agent-loop/types.js';
+import type { TurnEvent } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../events/event-recorder.js';
 import { LoopTracer } from '../observable/loop-tracer.js';
 import { MemoryStore } from '../memory/memory-store.js';
@@ -11,23 +11,16 @@ import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
 
 const mockLM: LanguageModelV3 = 'mock-model' as unknown as LanguageModelV3;
 
-function makeConfig(id: string): AgentConfig {
-  return {
-    id,
-    name: `agent-${id}`,
-    systemPrompt: 'test',
-    model: { provider: 'openai', model: 'gpt-4o' },
-    temperature: 0.7,
-    maxTokens: 4096,
-    maxSteps: 10,
-  };
-}
-
 function makeAgent(id: string): Agent {
   const events = new MittEventRecorder<TurnEvent>();
   return new Agent({
-    config: makeConfig(id),
+    id,
+    name: `agent-${id}`,
+    systemPrompt: 'test',
     model: mockLM,
+    temperature: 0.7,
+    maxTokens: 4096,
+    maxSteps: 10,
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
     events,
@@ -45,16 +38,16 @@ describe('AgentRuntime', () => {
   it('registers and retrieves agent', () => {
     const agent = makeAgent('agent-1');
     runtime.register(agent);
-    expect(runtime.getAgent('agent-1')?.config.name).toBe('agent-agent-1');
+    expect(runtime.getAgent('agent-1')?.name).toBe('agent-agent-1');
   });
 
   it('re-register replaces existing agent', () => {
     const agent1 = makeAgent('agent-1');
     runtime.register(agent1);
     const agent2 = makeAgent('agent-1');
-    agent2.config.name = 'updated-name';
+    (agent2 as any).name = 'updated-name';
     runtime.register(agent2);
-    expect(runtime.getAgent('agent-1')?.config.name).toBe('updated-name');
+    expect(runtime.getAgent('agent-1')?.name).toBe('updated-name');
   });
 
   it('lists all registered agents', () => {

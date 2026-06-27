@@ -1,41 +1,13 @@
 // @vico/agent - AgentLoop module type definitions
-import {z} from 'zod';
 import type {ModelMessage} from '../model/types.js';
-import type {ToolStore} from '../tool/types.js';
-import type {SkillStore} from '../skill/types.js';
-import type {MemoryStore} from '../memory/memory-store.js';
-import type {ThreadStore} from '../thread/types.js';
 
 /** 模型引用 */
-export const ModelRefSchema = z.object({
-  provider: z.string().min(1),
-  model: z.string().min(1),
-  baseUrl: z.string().url().optional(),
-  apiKey: z.string().optional(),
-});
-
-/** Agent 配置（从 DB 加载） */
-export const AgentConfigSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().min(1).max(128),
-  systemPrompt: z.string().default(''),
-  model: ModelRefSchema,
-  temperature: z.number().min(0).max(2).default(0.7),
-  maxTokens: z.number().int().positive().default(4096),
-  maxSteps: z.number().int().min(1).max(100).default(10),
-});
-
-export type AgentConfig = z.infer<typeof AgentConfigSchema> & {
-  /** 工具存储 — 加载该 Agent 绑定的工具 */
-  tools?: ToolStore;
-  /** Skill 存储 — 加载该 Agent 绑定的 Skill */
-  skills?: SkillStore;
-  /** Agent 自身 memory（优先于容器 memoryStore） */
-  memory?: MemoryStore;
-  /** Agent 自身 thread（优先于容器 threadStore） */
-  thread?: ThreadStore;
-};
-export type ModelRef = z.infer<typeof ModelRefSchema>;
+export interface ModelRef {
+  provider: string;
+  model: string;
+  baseUrl?: string;
+  apiKey?: string;
+}
 
 /** 一次 turn 的执行结果 */
 export interface TurnResult {
@@ -51,7 +23,6 @@ export interface RunTurnOptions {
   userId?: string;
   workspace?: string;
 }
-
 
 // ── 核心领域模型：Thread > Turn > Step ──
 
@@ -69,14 +40,6 @@ export interface Step {
   /** 中断信号 */
   signal: AbortSignal;
 }
-
-/**
- * Turn — 用户发送一条消息到 agent 完成响应的完整对话轮次。
- * Thread（会话）包含多个 Turn，Turn 包含多个 Step。
- *
- * 与 thread/types.ts 中的 Turn（存储模型）对应：
- * 存储 Turn 记录运行时元数据，TurnResult 作为 runTurn 的最终返回值。
- */
 
 /** turn 执行过程中的流式事件（仅用于 agent.on() 订阅） */
 export type TurnEvent =

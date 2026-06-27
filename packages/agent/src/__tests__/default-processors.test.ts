@@ -12,14 +12,13 @@ import {
   Priority,
   ProcessorPipeline,
 } from '../prompt/context-processor.js';
-import type {AgentConfig} from '../agent-loop/types.js';
+import type {AgentRef} from '../prompt/context-processor.js';
 
-function makeConfig(): AgentConfig {
+function makeConfig(): AgentRef {
   return {
     id: '00000000-0000-4000-8000-000000000001',
     name: 'test',
     systemPrompt: 'You are a helpful assistant.',
-    model: { provider: 'openai', model: 'gpt-4o' },
     temperature: 0.7,
     maxTokens: 4096,
     maxSteps: 10,

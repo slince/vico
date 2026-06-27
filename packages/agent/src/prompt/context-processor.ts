@@ -1,8 +1,18 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
-import type {AgentConfig, Step} from '../agent-loop/types.js';
+import type {Step} from '../agent-loop/types.js';
 import type {ModelMessage} from '../model/types.js';
 import type {Tool} from '../tool/types.js';
 import type {Thread} from '../thread/types.js';
+
+/** 上下文中的 Agent 引用 — 提供处理器所需的配置字段 */
+export interface AgentRef {
+  id: string;
+  name: string;
+  systemPrompt: string;
+  temperature: number;
+  maxTokens: number;
+  maxSteps: number;
+}
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */
 export const Priority = {
@@ -17,7 +27,7 @@ export const Priority = {
 /** 穿过洋葱各层的可变上下文 */
 export class ModelRequestContext {
   /** Agent 配置（只读引用） */
-  readonly agent: AgentConfig;
+  readonly agent: AgentRef;
   /** 系统提示词 — 处理器追加内容 */
   systemPrompt: string;
   /** 当前用户消息 */
@@ -34,7 +44,7 @@ export class ModelRequestContext {
   scopeId: string;
 
   constructor(init: {
-    agent: AgentConfig;
+    agent: AgentRef;
     userMessage?: ModelMessage;
     messages?: ModelMessage[];
     systemPrompt?: string;

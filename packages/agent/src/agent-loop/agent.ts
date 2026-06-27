@@ -1,6 +1,6 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {ModelClient} from '../model/model-client.js';
-import type {AgentConfig, TurnEvent, TurnResult} from './types.js';
+import type {TurnEvent, TurnResult} from './types.js';
 import type {Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -12,6 +12,7 @@ import {TurnOutput} from "./turn-output.js";
 import {ModelMessage} from "../model/types.js";
 import type {ApprovalGate} from "./approval-gate.js";
 import {LoopTracer} from "../observable/loop-tracer.js";
+import {MittEventRecorder} from "../events/event-recorder.js";
 
 export type LoopFactory = (agent: Agent) => AgentLoop
 
@@ -23,41 +24,59 @@ export interface InvokeOptions {
   scopeId?: string;
 }
 
+/** Agent 构造参数 */
+export interface AgentOptions {
+  id: string;
+  name: string;
+  systemPrompt: string;
+  model: LanguageModelV3;
+  temperature: number;
+  maxTokens: number;
+  maxSteps: number;
+  skills?: Skill[];
+  tools?: Tool[];
+  memory?: MemoryStore;
+  thread: ThreadStore;
+  approvalGate?: ApprovalGate;
+  events?: EventRecorder<TurnEvent>;
+  tracer?: LoopTracer;
+  loopFactory?: LoopFactory;
+}
+
 /** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
 export class Agent {
-  readonly config: AgentConfig;
+  readonly id: string;
+  readonly name: string;
+  readonly systemPrompt: string;
   readonly model: LanguageModelV3;
   readonly modelClient: ModelClient;
+  readonly temperature: number;
+  readonly maxTokens: number;
+  readonly maxSteps: number;
   readonly skills: Skill[];
   readonly tools: Tool[];
   readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
   readonly approvalGate?: ApprovalGate;
   readonly events: EventRecorder<TurnEvent>;
-  readonly tracer: LoopTracer;
+  readonly tracer?: LoopTracer;
   readonly loop: AgentLoop;
 
-  constructor(params: {
-    config: AgentConfig;
-    model: LanguageModelV3;
-    skills?: Skill[];
-    tools?: Tool[];
-    memory?: MemoryStore;
-    thread: ThreadStore;
-    approvalGate?: ApprovalGate;
-    events: EventRecorder<TurnEvent>;
-    tracer: LoopTracer
-    loopFactory?: LoopFactory
-  }) {
-    this.config = params.config;
+  constructor(params: AgentOptions) {
+    this.id = params.id;
+    this.name = params.name;
+    this.systemPrompt = params.systemPrompt;
     this.model = params.model;
     this.modelClient = new ModelClient(params.model);
+    this.temperature = params.temperature;
+    this.maxTokens = params.maxTokens;
+    this.maxSteps = params.maxSteps;
     this.skills = params.skills ?? [];
     this.tools = params.tools ?? [];
     this.memory = params.memory;
     this.thread = params.thread;
     this.approvalGate = params.approvalGate;
-    this.events = params.events;
+    this.events = params.events || new MittEventRecorder<TurnEvent>();
     this.tracer = params.tracer;
 
     const loopFactory = params.loopFactory || buildLoop;

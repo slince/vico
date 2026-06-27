@@ -2,7 +2,8 @@
 import type { Tool, ToolCall, ToolResult } from './types.js';
 import type { ToolExecutionContext } from './types.js';
 import type { DelegateStrategy, ChildAgentRef } from './types.js';
-import { type AgentLoop, collectTurnResult } from '../agent-loop/agent-loop.js';
+import type { AgentLoop } from '../agent-loop/agent-loop.js';
+import { collectTurnResult } from '../agent-loop/utils.js';
 import type { ModelMessage } from '../model/types.js';
 
 

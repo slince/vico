@@ -18,7 +18,7 @@ export class AgentRuntime {
 
   /** 注册 Agent 并纳入缓存 */
   register(agent: Agent): void {
-    const key = agent.config.id;
+    const key = agent.id;
     const existing = this.cache.get(key);
     if (existing) {
       existing.agent = agent;

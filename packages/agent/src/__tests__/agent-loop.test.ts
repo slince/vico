@@ -4,7 +4,7 @@ import type { LanguageModelV3, LanguageModelV3StreamResult } from '@ai-sdk/provi
 
 import { AgentLoop } from '../agent-loop/agent-loop.js';
 import { Agent } from '../agent-loop/agent.js';
-import type { AgentConfig, TurnEvent } from '../agent-loop/types.js';
+import type { TurnEvent } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../events/event-recorder.js';
 import { LoopTracer } from '../observable/loop-tracer.js';
 import { SystemPromptProcessor } from '../prompt/system-prompt-processor.js';
@@ -33,23 +33,16 @@ function createMockModel(chunks: any[]): LanguageModelV3 {
   };
 }
 
-function makeConfig(): AgentConfig {
-  return {
-    id: '00000000-0000-4000-8000-000000000001',
-    name: 'test-agent',
-    systemPrompt: 'You are helpful.',
-    model: { provider: 'openai', model: 'gpt-4o' },
-    temperature: 0.7,
-    maxTokens: 4096,
-    maxSteps: 3,
-  };
-}
-
 function makeAgent(chunks: any[]) {
   const events = new MittEventRecorder<TurnEvent>();
   return new Agent({
-    config: makeConfig(),
+    id: '00000000-0000-4000-8000-000000000001',
+    name: 'test-agent',
+    systemPrompt: 'You are helpful.',
     model: createMockModel(chunks),
+    temperature: 0.7,
+    maxTokens: 4096,
+    maxSteps: 3,
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
     events,
@@ -127,8 +120,13 @@ describe('AgentLoop', () => {
     const doneEvents: any[] = [];
     events.on('done', (e) => doneEvents.push(e));
     const agent = new Agent({
-      config: makeConfig(),
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'test-agent',
+      systemPrompt: 'You are helpful.',
       model: mockModel,
+      temperature: 0.7,
+      maxTokens: 4096,
+      maxSteps: 3,
       memory: new MemoryStore(),
       thread: new InMemoryThreadStore(),
       events,
@@ -178,8 +176,13 @@ describe('AgentLoop', () => {
 
     const events = new MittEventRecorder<TurnEvent>();
     const agent = new Agent({
-      config: makeConfig(),
+      id: '00000000-0000-4000-8000-000000000001',
+      name: 'test-agent',
+      systemPrompt: 'You are helpful.',
       model: mockModel,
+      temperature: 0.7,
+      maxTokens: 4096,
+      maxSteps: 3,
       memory: new MemoryStore(),
       thread: new InMemoryThreadStore(),
       events,

@@ -1,6 +1,6 @@
 // src/index.ts — @vico/agent public API
 
-export { AgentConfigSchema, type AgentConfig, type ModelRef } from './agent-loop/types.js';
+export { type ModelRef } from './agent-loop/types.js';
 export {
   ToolCallSchema,
   ToolResultSchema,
@@ -39,6 +39,7 @@ export { createSSEResponse } from './stream/sse.js';
 export {
   type ContextProcessor,
   type ModelRequestContext,
+  type AgentRef,
   ProcessorPipeline,
   buildModelRequest,
   Priority,
@@ -150,7 +151,7 @@ export { type EventRecorder, type EventPayload, type TypedEvent } from './events
 export { AgentRuntime } from './agent-loop/agent-runtime.js';
 
 // Agent
-export { Agent, type InvokeOptions } from './agent-loop/agent.js';
+export { Agent, type AgentOptions, type InvokeOptions } from './agent-loop/agent.js';
 
 // AgentLoop
 export { AgentLoop } from './agent-loop/agent-loop.js';
@@ -168,4 +169,5 @@ export { turnEventsToAISDK } from './stream/turn-stream.js';
 export {
   Vico,
   type VicoOptions,
+  type CreateAgentConfig,
 } from './container/vico.js';
