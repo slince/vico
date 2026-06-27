@@ -18,7 +18,13 @@ function resolvePath(workspace: string, targetPath: string): string {
   return abs;
 }
 
-async function executeLs(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
+const lsOutputSchema = z.object({
+  entries: z.array(z.string()),
+  count: z.number().int(),
+  path: z.string(),
+});
+
+async function executeLs(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof lsOutputSchema>> {
   const args = call.args as unknown as z.infer<typeof lsParams>;
   const absPath = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
@@ -40,13 +46,7 @@ async function executeLs(call: ToolCall, ctx: ToolExecutionContext): Promise<str
   const truncated = sorted.slice(0, args.limit);
   const rel = args.path ? relative(ctx.session.workspace, absPath) : '.';
 
-  let output = truncated.join('\n');
-  if (sorted.length > args.limit) {
-    output += `\n... ${sorted.length - args.limit} more entries`;
-  }
-  output += `\n\n${sorted.length} entries in ${rel}`;
-
-  return output;
+  return { entries: truncated, count: sorted.length, path: rel };
 }
 
 export const lsTool = createTool({
@@ -54,7 +54,7 @@ export const lsTool = createTool({
   description:
     'List the contents of a directory in the workspace. Entries are sorted alphabetically with directories marked by a trailing "/". Use this to explore the file structure of the project.',
   inputSchema: lsParams,
-  outputSchema: z.string(),
+  outputSchema: lsOutputSchema,
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

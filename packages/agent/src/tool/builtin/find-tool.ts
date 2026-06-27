@@ -62,7 +62,12 @@ function collectFiles(searchDir: string, regex: RegExp, maxResults: number): Fin
   return results;
 }
 
-async function executeFind(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
+const findOutputSchema = z.object({
+  files: z.array(z.string()),
+  count: z.number().int(),
+});
+
+async function executeFind(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof findOutputSchema>> {
   const args = call.args as unknown as z.infer<typeof findParams>;
   const searchDir = args.path
     ? resolvePath(ctx.session.workspace, args.path)
@@ -76,15 +81,7 @@ async function executeFind(call: ToolCall, ctx: ToolExecutionContext): Promise<s
     .slice(0, args.limit)
     .map((r) => relative(ctx.session.workspace, r.path));
 
-  if (sorted.length === 0) {
-    return `No files found matching "${args.pattern}"`;
-  }
-
-  let output = sorted.join('\n');
-  if (results.length > args.limit) {
-    output += `\n... ${results.length - args.limit} more files`;
-  }
-  return output;
+  return { files: sorted, count: sorted.length };
 }
 
 export const findTool = createTool({
@@ -92,7 +89,7 @@ export const findTool = createTool({
   description:
     'Find files by glob pattern in the workspace. Results are sorted by modification time (newest first). Use this to locate files matching a naming pattern.',
   inputSchema: findParams,
-  outputSchema: z.string(),
+  outputSchema: findOutputSchema,
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

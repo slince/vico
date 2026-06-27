@@ -7,11 +7,14 @@ export const echoTool = createTool({
   inputSchema: z.object({
     message: z.string().describe('Message to echo'),
   }),
-  outputSchema: z.string(),
+  outputSchema: z.object({
+    message: z.string(),
+  }),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin'],
   async execute(call) {
-    return (call.args as { message: string }).message;
+    const { message } = call.args as { message: string };
+    return { message };
   },
 });

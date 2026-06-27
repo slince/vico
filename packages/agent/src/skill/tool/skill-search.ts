@@ -12,14 +12,20 @@ export function createSkillSearchTool(manager: SkillManager) {
       query: z.string().describe('Search query'),
       limit: z.number().int().default(10).describe('Max results'),
     }),
-    outputSchema: z.string(),
+    outputSchema: z.object({
+      results: z.array(z.object({
+        name: z.string(),
+        description: z.string(),
+        score: z.number(),
+      })),
+    }),
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],
     async execute(call) {
       const { query, limit } = call.args as { query: string; limit: number };
       const results = manager.search(query, limit ?? 10);
-      return JSON.stringify(results);
+      return { results };
     },
   });
 }

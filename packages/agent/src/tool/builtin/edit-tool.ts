@@ -47,7 +47,13 @@ function generateDiff(oldContent: string, newContent: string): string {
   return diff.length > 0 ? diff.join('\n') : 'No changes detected';
 }
 
-async function executeEdit(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
+const editOutputSchema = z.object({
+  path: z.string(),
+  replacements: z.number().int(),
+  diff: z.string(),
+});
+
+async function executeEdit(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof editOutputSchema>> {
   const args = call.args as unknown as z.infer<typeof editParams>;
 
   const edits = args.edits ?? (
@@ -83,7 +89,7 @@ async function executeEdit(call: ToolCall, ctx: ToolExecutionContext): Promise<s
 
   const rel = relative(ctx.session.workspace, absPath);
   const diff = generateDiff(original, modified);
-  return `Edited ${rel} (${edits.length} replacement(s)):\n\n${diff}`;
+  return { path: rel, replacements: edits.length, diff };
 }
 
 export const editTool = createTool({
@@ -91,7 +97,7 @@ export const editTool = createTool({
   description:
     'Edit a file using exact string replacement. Supports single replace (oldText → newText) or multiple replacements via the edits array. Each oldText must appear exactly once in the file. Returns a unified diff of the changes.',
   inputSchema: editParams,
-  outputSchema: z.string(),
+  outputSchema: editOutputSchema,
   policy: 'on-request',
   kind: 'file_change',
   tags: ['builtin', 'edit'],

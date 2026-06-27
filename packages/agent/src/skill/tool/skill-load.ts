@@ -12,22 +12,29 @@ export function createSkillLoadTool(manager: SkillManager) {
     inputSchema: z.object({
       name: z.string().describe('The skill name to load'),
     }),
-    outputSchema: z.string(),
+    outputSchema: z.object({
+      name: z.string(),
+      description: z.string(),
+      instructions: z.string(),
+      references: z.array(z.string()),
+      scripts: z.array(z.string()),
+      assets: z.array(z.string()),
+    }),
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],
     async execute(call) {
       const { name } = call.args as { name: string };
       const skill = manager.get(name);
-      if (!skill) return `Skill "${name}" not found. Available: ${manager.listAll().map((s) => s.name).join(', ')}`;
-      return JSON.stringify({
+      if (!skill) throw new Error(`Skill "${name}" not found. Available: ${manager.listAll().map((s) => s.name).join(', ')}`);
+      return {
         name: skill.name,
         description: skill.description,
         instructions: skill.instructions,
         references: skill.references,
         scripts: skill.scripts,
         assets: skill.assets,
-      });
+      };
     },
   });
 }

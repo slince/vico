@@ -61,22 +61,28 @@ function readTextFile(absPath: string, offset?: number, limit?: number): string 
   return numbered.join('\n');
 }
 
+const readOutputSchema = z.object({
+  content: z.string(),
+  type: z.enum(['text', 'image', 'binary']),
+  path: z.string(),
+});
+
+type ReadOutput = z.infer<typeof readOutputSchema>;
+
 /** 读取图片文件，返回 base64 data URI */
-function readImageFile(absPath: string, ext: string, workspace: string): string {
+function readImageFile(absPath: string, ext: string, workspace: string): ReadOutput {
   const buffer = readFileSync(absPath);
   const b64 = buffer.toString('base64');
   const mime = MIME_TYPES[ext] ?? 'application/octet-stream';
   const stat = statSync(absPath);
-  return JSON.stringify({
-    path: relative(workspace, absPath),
+  return {
+    content: `data:${mime};base64,${b64}`,
     type: 'image',
-    mimeType: mime,
-    size: stat.size,
-    data: `data:${mime};base64,${b64}`,
-  });
+    path: relative(workspace, absPath),
+  };
 }
 
-async function executeRead(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
+async function executeRead(call: ToolCall, ctx: ToolExecutionContext): Promise<ReadOutput> {
   const args = call.args as unknown as z.infer<typeof readParams>;
 
   const absPath = resolvePath(ctx.session.workspace, args.path);
@@ -87,6 +93,7 @@ async function executeRead(call: ToolCall, ctx: ToolExecutionContext): Promise<s
   }
 
   const ext = absPath.slice(absPath.lastIndexOf('.')).toLowerCase();
+  const rel = relative(ctx.session.workspace, absPath);
 
   if (IMAGE_EXTENSIONS.has(ext)) {
     return readImageFile(absPath, ext, ctx.session.workspace);
@@ -94,11 +101,10 @@ async function executeRead(call: ToolCall, ctx: ToolExecutionContext): Promise<s
 
   const buffer = readFileSync(absPath);
   if (isBinary(buffer)) {
-    const rel = relative(ctx.session.workspace, absPath);
-    return `[Binary file: ${rel} (${stat.size} bytes)]`;
+    return { content: `[Binary file: ${rel} (${stat.size} bytes)]`, type: 'binary', path: rel };
   }
 
-  return readTextFile(absPath, args.offset, args.limit);
+  return { content: readTextFile(absPath, args.offset, args.limit), type: 'text', path: rel };
 }
 
 export const readTool = createTool({
@@ -106,7 +112,7 @@ export const readTool = createTool({
   description:
     'Read a file from the workspace. Supports line offset and line count limits. Image files are automatically detected and returned as base64. Use this to inspect file contents in the current workspace.',
   inputSchema: readParams,
-  outputSchema: z.string(),
+  outputSchema: readOutputSchema,
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

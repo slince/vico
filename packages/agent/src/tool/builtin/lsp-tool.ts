@@ -14,11 +14,17 @@ export const lspTool = createTool({
   description:
     'Language Server Protocol support: request diagnostics, go-to-definition, and code completions. Requires a configured LSP server for the target language.',
   inputSchema: lspParams,
-  outputSchema: z.string(),
+  outputSchema: z.object({
+    supported: z.boolean(),
+    message: z.string(),
+  }),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read', 'optional'],
   async execute() {
-    return 'LSP support is not yet configured. To enable LSP, install the appropriate language server for your project and configure it in the Vico settings. Supported actions: diagnostics, go_to_definition, completions, hover.';
+    return {
+      supported: false,
+      message: 'LSP support is not yet configured. To enable LSP, install the appropriate language server for your project and configure it in the Vico settings. Supported actions: diagnostics, go_to_definition, completions, hover.',
+    };
   },
 });

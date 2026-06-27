@@ -112,14 +112,19 @@ function nodeGrep(args: z.infer<typeof grepParams>, searchDir: string): string {
   return results.length > 0 ? results.join('\n') : 'No matches found';
 }
 
-async function executeGrep(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
+const grepOutputSchema = z.object({
+  matches: z.string(),
+  count: z.number().int(),
+});
+
+async function executeGrep(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof grepOutputSchema>> {
   const args = call.args as unknown as z.infer<typeof grepParams>;
   const searchDir = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
   const rgOutput = ripgrep(args, searchDir);
-  if (rgOutput) return rgOutput;
-
-  return nodeGrep(args, searchDir);
+  const matches = rgOutput || nodeGrep(args, searchDir);
+  const count = matches === 'No matches found' || matches === '' ? 0 : matches.split('\n').length;
+  return { matches, count };
 }
 
 export const grepTool = createTool({
@@ -127,7 +132,7 @@ export const grepTool = createTool({
   description:
     'Search file contents using a regular expression pattern. Supports glob pattern filtering, case-insensitive search, and context lines. Uses system ripgrep (rg) when available, falling back to Node.js regex.',
   inputSchema: grepParams,
-  outputSchema: z.string(),
+  outputSchema: grepOutputSchema,
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

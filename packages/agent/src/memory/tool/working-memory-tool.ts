@@ -15,7 +15,9 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
     inputSchema: z.object({
       memory: z.string().describe('The complete updated working memory content in Markdown format'),
     }),
-    outputSchema: z.string(),
+    outputSchema: z.object({
+      status: z.literal('updated'),
+    }),
     policy: 'auto',
     kind: 'mutation',
     tags: ['builtin'],
@@ -27,7 +29,7 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
         throw new Error('Refusing to replace working memory with empty template');
       }
       await wm.set(scopeId, args.memory);
-      return 'Working memory updated';
+      return { status: 'updated' as const };
     },
   });
 }

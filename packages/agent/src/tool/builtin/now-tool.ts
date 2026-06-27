@@ -5,9 +5,11 @@ export const nowTool = createTool({
   name: 'now',
   description: 'Get the current date and time in ISO 8601 format.',
   inputSchema: z.object({}),
-  outputSchema: z.string(),
+  outputSchema: z.object({
+    datetime: z.string().describe('ISO 8601 formatted current date and time'),
+  }),
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin'],
-  execute: async () => new Date().toISOString(),
+  execute: async () => ({ datetime: new Date().toISOString() }),
 });

@@ -34,14 +34,15 @@ describe('ToolBroker', () => {
     const host = await makeHost();
     const result = await host.execute({ id: '1', name: 'echo', args: { message: 'hello' } }, makeCtx());
     expect(result.status).toBe('success');
-    expect(result.output).toBe('hello');
+    expect(result.output).toEqual({ message: 'hello' });
   });
 
   it('executes now tool', async () => {
     const host = await makeHost();
     const result = await host.execute({ id: '2', name: 'now', args: {} }, makeCtx());
     expect(result.status).toBe('success');
-    expect(typeof result.output).toBe('string');
+    expect(result.output).toHaveProperty('datetime');
+    expect(typeof (result.output as any).datetime).toBe('string');
   });
 
   it('returns error for unknown tool', async () => {

@@ -33,28 +33,27 @@ describe('SkillToolSource', () => {
     const source = createSkillToolSource(manager);
     const tools = await source.list(makeCtx() as any);
     const skill = tools.find((t) => t.name === 'skill')!;
-    const result = await skill.execute({ id: '1', name: 'skill', args: { name: 'code-review' } }, makeCtx() as any);
-    const parsed = JSON.parse(result as string);
-    expect(parsed.name).toBe('code-review');
-    expect(parsed.instructions).toContain('Check for bugs');
+    const result = await skill.execute({ id: '1', name: 'skill', args: { name: 'code-review' } }, makeCtx() as any) as any;
+    expect(result.name).toBe('code-review');
+    expect(result.instructions).toContain('Check for bugs');
   });
 
-  it('skill tool returns error for unknown skill', async () => {
+  it('skill tool throws error for unknown skill', async () => {
     const source = createSkillToolSource(manager);
     const tools = await source.list(makeCtx() as any);
     const skill = tools.find((t) => t.name === 'skill')!;
-    const result = await skill.execute({ id: '2', name: 'skill', args: { name: 'nonexistent' } }, makeCtx() as any);
-    expect(result).toContain('not found');
+    await expect(
+      skill.execute({ id: '2', name: 'skill', args: { name: 'nonexistent' } }, makeCtx() as any)
+    ).rejects.toThrow('not found');
   });
 
   it('skill_search finds matching skills', async () => {
     const source = createSkillToolSource(manager);
     const tools = await source.list(makeCtx() as any);
     const search = tools.find((t) => t.name === 'skill_search')!;
-    const result = await search.execute({ id: '3', name: 'skill_search', args: { query: 'review' } }, makeCtx() as any) as string;
-    const parsed = JSON.parse(result);
-    expect(parsed).toHaveLength(1);
-    expect(parsed[0].name).toBe('code-review');
+    const result = await search.execute({ id: '3', name: 'skill_search', args: { query: 'review' } }, makeCtx() as any) as any;
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].name).toBe('code-review');
   });
 
   it('skill_tools creates 3 tools', async () => {

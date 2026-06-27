@@ -18,7 +18,14 @@ function resolvePath(workspace: string, targetPath: string): string {
   return abs;
 }
 
-async function executeWrite(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
+const writeOutputSchema = z.object({
+  action: z.enum(['created', 'updated']),
+  path: z.string(),
+  lines: z.number().int(),
+  size: z.number().int(),
+});
+
+async function executeWrite(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof writeOutputSchema>> {
   const args = call.args as unknown as z.infer<typeof writeParams>;
 
   const absPath = resolvePath(ctx.session.workspace, args.path);
@@ -30,11 +37,11 @@ async function executeWrite(call: ToolCall, ctx: ToolExecutionContext): Promise<
   writeFileSync(absPath, args.content, 'utf-8');
 
   const rel = relative(ctx.session.workspace, absPath);
-  const action = existed ? 'Updated' : 'Created';
+  const action = existed ? 'updated' as const : 'created' as const;
   const lines = args.content.split('\n').length;
   const size = Buffer.byteLength(args.content, 'utf-8');
 
-  return `${action} ${rel} (${lines} lines, ${size} bytes)`;
+  return { action, path: rel, lines, size };
 }
 
 export const writeTool = createTool({
@@ -42,7 +49,7 @@ export const writeTool = createTool({
   description:
     'Create a new file or overwrite an existing file in the workspace. Parent directories are created automatically if they do not exist.',
   inputSchema: writeParams,
-  outputSchema: z.string(),
+  outputSchema: writeOutputSchema,
   policy: 'on-request',
   kind: 'file_change',
   tags: ['builtin', 'write'],

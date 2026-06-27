@@ -14,20 +14,22 @@ export function createSkillReadTool(manager: SkillManager) {
       skillName: z.string().describe('The skill name'),
       filePath: z.string().describe('Relative path within the skill directory'),
     }),
-    outputSchema: z.string(),
+    outputSchema: z.object({
+      content: z.string(),
+    }),
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],
     async execute(call) {
       const { skillName, filePath } = call.args as { skillName: string; filePath: string };
       const skill = manager.get(skillName);
-      if (!skill) return `Skill "${skillName}" not found`;
+      if (!skill) throw new Error(`Skill "${skillName}" not found`);
       const fullPath = resolve(skill.path, filePath);
-      if (!existsSync(fullPath)) return `File not found: ${filePath}`;
+      if (!existsSync(fullPath)) throw new Error(`File not found: ${filePath}`);
       try {
-        return readFileSync(fullPath, 'utf-8');
+        return { content: readFileSync(fullPath, 'utf-8') };
       } catch {
-        return `Cannot read file: ${filePath} (may be binary)`;
+        throw new Error(`Cannot read file: ${filePath} (may be binary)`);
       }
     },
   });
