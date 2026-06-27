@@ -1,7 +1,7 @@
 // src/tool/builtin/bash-tool.ts
 import {ChildProcess, exec} from 'node:child_process';
 import {resolve} from 'node:path';
-import type {Tool} from '../types.js';
+import {createTool} from '../create-tool.js';
 
 interface BashArgs {
   command: string;
@@ -31,7 +31,7 @@ function cleanupSession(id: string, entry: SessionEntry): void {
   sessions.delete(id);
 }
 
-export const bashTool: Tool = {
+export const bashTool = createTool({
   name: 'bash',
   description:
     'Execute a shell command in a persistent session. Supports long-running commands with timeout and session management (run/poll/write/stop actions). The working directory is the workspace root. Use "run" to start a command, "poll" to check status, "write" to send input, and "stop" to terminate.',
@@ -161,4 +161,4 @@ export const bashTool: Tool = {
       });
     });
   },
-};
+});

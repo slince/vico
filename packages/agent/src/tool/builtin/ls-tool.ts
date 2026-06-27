@@ -1,7 +1,7 @@
 // src/tool/builtin/ls-tool.ts
 import { readdirSync, statSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
-import type { Tool } from '../types.js';
+import {createTool} from '../create-tool.js';
 
 function resolvePath(workspace: string, targetPath: string): string {
   const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
@@ -11,7 +11,7 @@ function resolvePath(workspace: string, targetPath: string): string {
   return abs;
 }
 
-export const lsTool: Tool = {
+export const lsTool = createTool({
   name: 'ls',
   description:
     'List the contents of a directory in the workspace. Entries are sorted alphabetically with directories marked by a trailing "/". Use this to explore the file structure of the project.',
@@ -58,4 +58,4 @@ export const lsTool: Tool = {
 
     return output;
   },
-};
+});

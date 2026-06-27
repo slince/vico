@@ -1,7 +1,7 @@
 // src/tool/builtin/write-tool.ts
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, relative, dirname } from 'node:path';
-import type { Tool } from '../types.js';
+import {createTool} from '../create-tool.js';
 
 /** 解析并验证路径在工作区内 */
 function resolvePath(workspace: string, targetPath: string): string {
@@ -12,7 +12,7 @@ function resolvePath(workspace: string, targetPath: string): string {
   return abs;
 }
 
-export const writeTool: Tool = {
+export const writeTool = createTool({
   name: 'write',
   description:
     'Create a new file or overwrite an existing file in the workspace. Parent directories are created automatically if they do not exist. Use this to write new files or replace entire file contents.',
@@ -51,4 +51,4 @@ export const writeTool: Tool = {
 
     return `${action} ${rel} (${lines} lines, ${size} bytes)`;
   },
-};
+});

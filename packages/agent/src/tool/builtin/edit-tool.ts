@@ -1,7 +1,7 @@
 // src/tool/builtin/edit-tool.ts
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
-import type { Tool } from '../types.js';
+import {createTool} from '../create-tool.js';
 
 interface EditArgs {
   path: string;
@@ -43,7 +43,7 @@ function generateDiff(oldContent: string, newContent: string): string {
   return diff.length > 0 ? diff.join('\n') : 'No changes detected';
 }
 
-export const editTool: Tool = {
+export const editTool = createTool({
   name: 'edit',
   description:
     'Edit a file using exact string replacement. Supports single replace (oldText → newText) or multiple replacements via the edits array. Each oldText must appear exactly once in the file. Returns a unified diff of the changes.',
@@ -113,4 +113,4 @@ export const editTool: Tool = {
 
     return `Edited ${rel} (${edits.length} replacement(s)):\n\n${diff}`;
   },
-};
+});

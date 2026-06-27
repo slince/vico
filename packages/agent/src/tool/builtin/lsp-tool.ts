@@ -1,5 +1,5 @@
 // src/tool/builtin/lsp-tool.ts
-import type { Tool } from '../types.js';
+import {createTool} from '../create-tool.js';
 
 /**
  * LSP 工具 — 语言服务器协议支持（可选）。
@@ -11,7 +11,7 @@ import type { Tool } from '../types.js';
  *
  * 此工具在 LSP 未配置时返回提示信息。
  */
-export const lspTool: Tool = {
+export const lspTool = createTool({
   name: 'lsp',
   description:
     'Language Server Protocol support: request diagnostics, go-to-definition, and code completions. Requires a configured LSP server for the target language.',
@@ -35,4 +35,4 @@ export const lspTool: Tool = {
   async execute(_call, _ctx) {
     return 'LSP support is not yet configured. To enable LSP, install the appropriate language server for your project and configure it in the Vico settings. Supported actions: diagnostics, go_to_definition, completions, hover.';
   },
-};
+});

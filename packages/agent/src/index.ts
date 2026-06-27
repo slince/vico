@@ -88,6 +88,8 @@ export {
   findTool,
   lsTool,
   lspTool,
+  echoTool,
+  nowTool,
   coreBuiltinTools,
 } from './tool/builtin/index.js';
 
@@ -96,7 +98,7 @@ export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
 export { ConversationHistoryMemory } from './memory/conversation-history-memory.js';
 export { InMemoryWorkingMemory } from './memory/working/in-memory-working-memory.js';
 export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/working/file-working-memory.js';
-export { createUpdateWorkingMemoryTool } from './memory/working/working-memory-tool.js';
+export { createUpdateWorkingMemoryTool } from './memory/tool/working-memory-tool.js';
 export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/semantic/vector-semantic-recall.js';
 
 // Ports — SkillLoader
@@ -107,6 +109,7 @@ export { FSSkillLoader } from './skill/fs-skill-loader.js';
 export { SkillManager } from './skill/skill-manager.js';
 export { createSkillToolSource } from './skill/skill-tool-source.js';
 export { formatSkillCatalog } from './skill/skills-processor.js';
+export { createSkillLoadTool, createSkillSearchTool, createSkillReadTool } from './skill/tool/index.js';
 
 /** Ports — ThreadStore */
 export {

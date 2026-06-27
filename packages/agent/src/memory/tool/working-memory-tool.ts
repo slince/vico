@@ -1,12 +1,13 @@
-// src/memory/working-memory-tool.ts
-import type {Tool, ToolCall, ToolExecutionContext} from '../../tool/types.js';
+// src/memory/tool/working-memory-tool.ts
+import {createTool} from '../../tool/create-tool.js';
+import type {ToolCall, ToolExecutionContext} from '../../tool/types.js';
 import type {WorkingMemory} from '../types.js';
 
 /** 创建 updateWorkingMemory 工具，绑定 WorkingMemory 实例 */
-export function createUpdateWorkingMemoryTool(wm: WorkingMemory): Tool {
+export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
   const template = wm.getTemplate();
 
-  return {
+  return createTool({
     name: 'updateWorkingMemory',
     description:
       'Update the working memory with user facts and context. Call this whenever you learn new information about the user that might be useful later. Provide the complete updated Markdown content — it will replace the existing working memory.',
@@ -23,7 +24,7 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory): Tool {
     policy: 'auto',
     kind: 'mutation',
     tags: ['builtin'],
-    execute: async (call: ToolCall, ctx: ToolExecutionContext) => {
+    async execute(call: ToolCall, ctx: ToolExecutionContext) {
       const args = call.args as { memory: string };
       if (!args.memory || typeof args.memory !== 'string') {
         throw new Error('updateWorkingMemory requires a "memory" string argument');
@@ -36,6 +37,6 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory): Tool {
       }
       await wm.set(scopeId, args.memory);
       return 'Working memory updated';
-    }
-  };
+    },
+  });
 }

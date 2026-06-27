@@ -1,7 +1,7 @@
 // src/tool/builtin/find-tool.ts
 import { readdirSync, statSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
-import type { Tool } from '../types.js';
+import {createTool} from '../create-tool.js';
 
 interface FindArgs {
   pattern?: string;
@@ -25,7 +25,7 @@ function resolvePath(workspace: string, targetPath: string): string {
   return abs;
 }
 
-export const findTool: Tool = {
+export const findTool = createTool({
   name: 'find',
   description:
     'Find files by glob pattern in the workspace. Results are sorted by modification time (newest first). Use this to locate files matching a naming pattern.',
@@ -93,4 +93,4 @@ export const findTool: Tool = {
     }
     return output;
   },
-};
+});

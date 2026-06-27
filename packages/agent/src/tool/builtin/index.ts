@@ -7,6 +7,8 @@ export { grepTool } from './grep-tool.js';
 export { findTool } from './find-tool.js';
 export { lsTool } from './ls-tool.js';
 export { lspTool } from './lsp-tool.js';
+export { echoTool } from './echo-tool.js';
+export { nowTool } from './now-tool.js';
 
 import { readTool } from './read-tool.js';
 import { bashTool } from './bash-tool.js';
@@ -16,9 +18,11 @@ import { grepTool } from './grep-tool.js';
 import { findTool } from './find-tool.js';
 import { lsTool } from './ls-tool.js';
 import { lspTool } from './lsp-tool.js';
+import { echoTool } from './echo-tool.js';
+import { nowTool } from './now-tool.js';
 import type { Tool } from '../types.js';
 
-/** 7 个核心 + 1 个可选内置工具 */
+/** 内置工具全集 */
 export const coreBuiltinTools: Tool[] = [
   readTool,
   bashTool,
@@ -28,4 +32,6 @@ export const coreBuiltinTools: Tool[] = [
   findTool,
   lsTool,
   lspTool,
+  echoTool,
+  nowTool,
 ];

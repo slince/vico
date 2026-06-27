@@ -1,4 +1,4 @@
-import {createUpdateWorkingMemoryTool} from "./working-memory-tool.js";
+import {createUpdateWorkingMemoryTool} from "../tool/working-memory-tool.js";
 import {MemoryStore} from "../memory-store.js";
 import {ToolSource} from "../../tool/types.js";
 

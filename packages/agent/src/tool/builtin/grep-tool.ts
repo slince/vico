@@ -2,7 +2,7 @@
 import {execSync} from 'node:child_process';
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {relative, resolve} from 'node:path';
-import type {Tool} from '../types.js';
+import {createTool} from '../create-tool.js';
 
 interface GrepArgs {
   pattern: string;
@@ -117,7 +117,7 @@ function nodeGrep(args: GrepArgs, searchDir: string): string {
   return results.length > 0 ? results.join('\n') : 'No matches found';
 }
 
-export const grepTool: Tool = {
+export const grepTool = createTool({
   name: 'grep',
   description:
     'Search file contents using a regular expression pattern. Supports glob pattern filtering, case-insensitive search, and context lines. Uses system ripgrep (rg) when available, falling back to Node.js regex.',
@@ -151,4 +151,4 @@ export const grepTool: Tool = {
     // 回退到 Node
     return nodeGrep(args, searchDir);
   },
-};
+});

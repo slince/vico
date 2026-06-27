@@ -1,7 +1,7 @@
 // src/tool/builtin/read-tool.ts
 import { readFileSync, statSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
-import type { Tool } from '../types.js';
+import {createTool} from '../create-tool.js';
 
 /** 图片扩展名 */
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.ico']);
@@ -47,7 +47,7 @@ function readTextFile(absPath: string, offset?: number, limit?: number): string 
   return numbered.join('\n');
 }
 
-export const readTool: Tool = {
+export const readTool = createTool({
   name: 'read',
   description:
     'Read a file from the workspace. Supports line offset and line count limits. Image files are automatically detected and returned as base64. Use this to inspect file contents in the current workspace.',
@@ -105,4 +105,4 @@ export const readTool: Tool = {
 
     return readTextFile(absPath, args.offset, args.limit);
   },
-};
+});
