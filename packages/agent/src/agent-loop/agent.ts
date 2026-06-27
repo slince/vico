@@ -7,7 +7,7 @@ import type {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {AgentLoop} from './agent-loop.js';
-import {buildLoop, collectTurnResult} from "./utils.js";
+import {buildLoop} from "./utils.js";
 import {TurnOutput} from "./turn-output.js";
 import {ModelMessage} from "../model/types.js";
 import type {ApprovalGate} from "./approval-gate.js";
@@ -97,7 +97,8 @@ export class Agent {
    * 一行对话：从 Runtime 中查找 Agent，发送消息并返回结果。
    */
   async invoke(message: string, options?: InvokeOptions): Promise<TurnResult> {
-    return collectTurnResult(this.run(message, options));
+    const output = this.run(message, options);
+    return output.result;
   }
 
   /** 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise */

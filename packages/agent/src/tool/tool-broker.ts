@@ -7,23 +7,39 @@ export class ToolBroker {
   private tools: Map<string, Tool> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();
 
-  /** 批量注册工具 */
+  /**
+   * 批量注册工具
+   * @param tools - 待注册的工具列表
+   */
   registerAll(tools: Tool[]): void {
     for (const tool of tools) {
       this.tools.set(tool.name, tool);
     }
   }
 
-  /** 获取所有已注册工具 */
+  /**
+   * 获取所有已注册工具
+   * @returns 工具列表
+   */
   list(): Tool[] {
     return Array.from(this.tools.values());
   }
 
-  /** 查找工具（供 AgentLoop 检查 policy） */
+  /**
+   * 按名称查找工具（供 AgentLoop 检查 policy）
+   * @param name - 工具名称
+   * @returns 匹配的工具，未找到则返回 undefined
+   */
   findTool(name: string): Tool | undefined {
     return this.tools.get(name);
   }
 
+  /**
+   * 执行单个工具调用
+   * @param call - 工具调用请求
+   * @param ctx - 工具执行上下文
+   * @returns 工具执行结果
+   */
   async execute(call: ToolCall, ctx: ToolExecutionContext): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
@@ -52,6 +68,12 @@ export class ToolBroker {
     }
   }
 
+  /**
+   * 批量执行工具调用，按 kind 分组调度：readonly 工具并行（每批最多 3 个），其余串行
+   * @param calls - 工具调用请求列表
+   * @param ctx - 工具执行上下文
+   * @returns 所有工具的执行结果列表
+   */
   async executeBatch(calls: ToolCall[], ctx: ToolExecutionContext): Promise<ToolResult[]> {
     if (calls.length === 0) return [];
     if (calls.length === 1) return [await this.execute(calls[0], ctx)];
@@ -85,7 +107,9 @@ export class ToolBroker {
     return results;
   }
 
-  /** 暴露 storm breaker 供外部重置 */
+  /**
+   * 重置风暴检测器状态
+   */
   resetStormBreaker(): void {
     this.stormBreaker.reset();
   }
