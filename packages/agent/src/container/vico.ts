@@ -125,7 +125,7 @@ export class Vico {
   constructor(options: VicoOptions = {}) {
     this.options = options;
     const traceLevel = options.trace ?? (parseInt(process.env.VICO_TRACE ?? '0', 10) as TraceLevel);
-    this.tracer = new LoopTracer(this.events, this.spanTracker, traceLevel);
+    this.tracer = new LoopTracer(this.events, traceLevel);
     this.languageModelFactory = options.languageModelFactory ?? createLanguageModel;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;

@@ -4,7 +4,7 @@ import type {Step, TurnEvent, TurnResult} from '../agent-loop/types.js';
 import type {CallModelResult} from '../agent-loop/agent-loop.js';
 import type {ModelRequest, ModelMessage} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
-import type {SpanState, SpanTracker} from './types.js';
+import type {SpanSession, SpanState} from './types.js';
 import {TraceExporter} from './trace-exporter.js';
 
 /** 追踪级别：0=关闭，1=console，2=console+文件 */
@@ -156,24 +156,22 @@ export class TurnTraceSession {
 export class LoopTracer {
   constructor(
     private readonly events: EventRecorder<TurnEvent>,
-    private readonly spanTracker: SpanTracker,
     private readonly level: TraceLevel = 0,
   ) {}
 
   /** 为当前 turn 创建独立的追踪会话。level=0 时返回 undefined（零开销） */
   startTurn(thread: Thread, userMessage: ModelMessage): TurnTraceSession | undefined {
     if (this.level === 0) return;
-    this.spanTracker.clear();
     return new TurnTraceSession(thread, userMessage, this.events);
   }
 
   /** 结束 turn：从 session 提取 trace 数据，结合 span 信息输出/导出 */
-  finish(session: TurnTraceSession | undefined, result: TurnResult): void {
-    if (!session) return;
+  finish(traceSession: TurnTraceSession | undefined, spanSession: SpanSession, result: TurnResult): void {
+    if (!traceSession) return;
 
-    const trace = session.finalize(result);
+    const trace = traceSession.finalize(result);
     const duration = trace.endTime! - trace.startTime;
-    const spans = this.spanTracker.getAllSpans();
+    const spans = spanSession.getAllSpans();
 
     if (this.level >= 1) {
       this.printConsole(trace, duration, spans);

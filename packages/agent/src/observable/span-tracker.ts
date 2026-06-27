@@ -1,22 +1,10 @@
 // @vico/agent - SpanTracker port interface + InMemory implementation
-import type { Span, SpanTracker } from './types.js';
+import type { Span, SpanSession, SpanState, SpanTracker } from './types.js';
 import type { SpanType } from './types.js';
 import { randomUUID } from 'node:crypto';
 
-
-/** Span 内部状态 */
-interface SpanState {
-  id: string;
-  type: SpanType;
-  metadata: Record<string, unknown>;
-  startTime: number;
-  endTime?: number;
-  error?: string;
-  result?: Record<string, unknown>;
-}
-
-/** 内存 Span 追踪器实现 */
-export class InMemorySpanTracker implements SpanTracker {
+/** 单次 turn 的内存 Span 收集器 — 隔离的 span 集合，并发安全 */
+export class InMemorySpanSession implements SpanSession {
   private spans: SpanState[] = [];
 
   startSpan(type: SpanType, metadata?: Record<string, unknown>): Span {
@@ -42,13 +30,14 @@ export class InMemorySpanTracker implements SpanTracker {
     };
   }
 
-  /** 获取所有已记录的 span（用于测试/导出） */
   getAllSpans(): ReadonlyArray<SpanState> {
     return this.spans;
   }
+}
 
-  /** 清空 */
-  clear(): void {
-    this.spans = [];
+/** SpanTracker 工厂 — 每个 turn 创建独立的 InMemorySpanSession */
+export class InMemorySpanTracker implements SpanTracker {
+  startSession(): SpanSession {
+    return new InMemorySpanSession();
   }
 }

@@ -7,7 +7,7 @@ import type {Thread, ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
-import type {SpanTracker} from '../observable/types.js';
+import type {SpanSession, SpanTracker} from '../observable/types.js';
 import type {LoopTracer, TurnTraceSession} from '../observable/loop-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
@@ -81,6 +81,8 @@ export class AgentLoop {
     userMessage: ModelMessage,
     opts?: RunTurnOptions,
   ): TurnOutput {
+    const spanSession = this.spanTracker.startSession();
+
     let resolveResult!: (result: TurnResult) => void;
     let rejectResult!: (err: Error) => void;
     const resultPromise = new Promise<TurnResult>((resolve, reject) => {
@@ -101,7 +103,7 @@ export class AgentLoop {
         try {
           const result = await this._run({
             threadId, userMessage, signal: internalAc.signal,
-            controller, opts, interrupted,
+            controller, opts, interrupted, spanSession,
           });
           resolveResult(result);
         } catch (err) {
@@ -114,7 +116,7 @@ export class AgentLoop {
       },
     });
 
-    return new TurnOutput(stream, resultPromise, abort);
+    return new TurnOutput(stream, resultPromise, abort, spanSession);
   }
 
   /** runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用 */
@@ -125,9 +127,10 @@ export class AgentLoop {
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
     opts?: RunTurnOptions;
     interrupted: { value: boolean };
+    spanSession: SpanSession;
   }): Promise<TurnResult> {
-    const { threadId, userMessage, signal, controller, opts, interrupted } = ctx;
-    const turnSpan = this.spanTracker.startSpan('agent_run');
+    const { threadId, userMessage, signal, controller, opts, interrupted, spanSession } = ctx;
+    const turnSpan = spanSession.startSpan('agent_run');
     // 历史消息由 MemoryProcessor 在 pipeline 中注入，这里只放当前用户消息
     const messages: ModelMessage[] = [userMessage];
     let steps = 0;
@@ -174,7 +177,7 @@ export class AgentLoop {
           await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
           turnSpan.end({ status: 'aborted' });
           const abortResult: TurnResult = { status: 'aborted', steps, usage, messages };
-          this.tracer?.finish(traceSession, abortResult);
+          this.tracer?.finish(traceSession, spanSession, abortResult);
           return abortResult;
         }
 
@@ -185,6 +188,7 @@ export class AgentLoop {
           persistence: { store: threadStore },
           traceSession,
           toolApprovalState,
+          spanSession,
         });
         usage.input += stepUsage.input;
         usage.output += stepUsage.output;
@@ -215,13 +219,13 @@ export class AgentLoop {
         usage,
         messages,
       };
-      this.tracer?.finish(traceSession, finalResult);
+      this.tracer?.finish(traceSession, spanSession, finalResult);
       return finalResult;
     } catch (err) {
       await threadStore.updateTurn(turn.id, { status: 'failed', steps });
       turnSpan.error(err as Error);
       const failResult: TurnResult = { status: 'failed', steps, usage, messages };
-      this.tracer?.finish(traceSession, failResult);
+      this.tracer?.finish(traceSession, spanSession, failResult);
       throw err;
     }
   }
@@ -237,6 +241,7 @@ export class AgentLoop {
       persistence: { store: ThreadStore };
       traceSession?: TurnTraceSession;
       toolApprovalState: Map<string, boolean>;
+      spanSession: SpanSession;
     },
   ): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
@@ -252,7 +257,7 @@ export class AgentLoop {
 
     const { ctx } = shared;
     const fullMessages = [...ctx.before, ...messages, ...ctx.after];
-    const modelResult = await this.callModel(ctx.systemPrompt, fullMessages, ctx.tools, shared.session.thread, step, controller, shared.traceSession);
+    const modelResult = await this.callModel(ctx.systemPrompt, fullMessages, ctx.tools, shared.session.thread, step, controller, shared.traceSession, shared.spanSession);
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
@@ -344,7 +349,7 @@ export class AgentLoop {
     // 执行 + 合并结果
     const toolResults: ToolResult[] = [];
     if (approvedCalls.length > 0) {
-      toolResults.push(...await this.executeToolCalls(approvedCalls, shared.session, step));
+      toolResults.push(...await this.executeToolCalls(approvedCalls, shared.session, step, shared.spanSession));
     }
     toolResults.push(...deniedResults);
 
@@ -410,6 +415,7 @@ export class AgentLoop {
     step: Step,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     traceSession?: TurnTraceSession,
+    spanSession?: SpanSession,
   ): Promise<CallModelResult> {
     const modelUsage = { input: 0, output: 0 };
 
@@ -423,7 +429,7 @@ export class AgentLoop {
 
     let fullText = '';
     const toolCalls: ToolCall[] = [];
-    const modelSpan = this.spanTracker.startSpan('model_step', { step: step.index + 1 });
+    const modelSpan = spanSession?.startSpan('model_step', { step: step.index + 1 });
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
     traceSession?.recordModelRequest(step, request);
@@ -484,7 +490,7 @@ export class AgentLoop {
           case 'error':
             controller.enqueue(chunk);
             const errMsg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
-            modelSpan.error(new Error(errMsg));
+            modelSpan?.error(new Error(errMsg));
             this.emit({ type: 'error', message: errMsg });
             break;
 
@@ -493,14 +499,14 @@ export class AgentLoop {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      modelSpan.error(new Error(msg));
+      modelSpan?.error(new Error(msg));
       this.emit({ type: 'error', message: msg });
       const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: msg };
       traceSession?.recordModelResponse(step, errorResult);
       return errorResult;
     }
 
-    modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
+    modelSpan?.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
     const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
     traceSession?.recordModelResponse(step, result);
@@ -512,8 +518,9 @@ export class AgentLoop {
     toolCalls: ToolCall[],
     session: TurnSession,
     step: Step,
+    spanSession: SpanSession,
   ): Promise<ToolResult[]> {
-    const toolSpan = this.spanTracker.startSpan('tool_call', { count: toolCalls.length });
+    const toolSpan = spanSession.startSpan('tool_call', { count: toolCalls.length });
     let results: ToolResult[];
     try {
       results = await this.dispatchTools(toolCalls, session, step);

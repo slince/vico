@@ -127,7 +127,7 @@ export { ContextCompactor } from './agent-loop/context-compactor.js';
 
 // Observable (Span + Trace)
 export { InMemorySpanTracker } from './observable/span-tracker.js';
-export { type SpanTracker, type Span, type SpanState } from './observable/types.js';
+export { type SpanTracker, type SpanSession, type Span, type SpanState } from './observable/types.js';
 export { LoopTracer, TurnTraceSession, type TraceLevel, type TurnTrace } from './observable/loop-tracer.js';
 export { TraceExporter } from './observable/trace-exporter.js';
 

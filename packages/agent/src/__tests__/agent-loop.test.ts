@@ -142,16 +142,17 @@ describe('AgentLoop', () => {
       spanTracker: tracker,
     });
 
-    const result = await collectTurnResult(loop.runTurn(
+    const output = loop.runTurn(
       'thread-1',
       { role: 'user', content: 'search for test' },
-    ));
+    );
+    const result = await collectTurnResult(output);
 
     expect(result.status).toBe('completed');
     expect(result.steps).toBeGreaterThan(0);
     expect(doneEvents.length).toBe(1);
 
-    const spans = tracker.getAllSpans();
+    const spans = output.spanSession.getAllSpans();
     expect(spans.some((s) => s.type === 'agent_run')).toBe(true);
     expect(spans.some((s) => s.type === 'tool_call')).toBe(true);
   });

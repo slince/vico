@@ -33,12 +33,16 @@ export interface SpanState {
   result?: Record<string, unknown>;
 }
 
-/** Span 追踪器端口 — 创建和管理追踪 Span */
-export interface SpanTracker {
+/** 单次 turn 的 Span 收集器 — 持有独立的 span 集合，并发安全 */
+export interface SpanSession {
   /** 启动一个追踪 Span */
   startSpan(type: SpanType, metadata?: Record<string, unknown>): Span;
-  /** 获取所有已记录的 span（用于导出/追踪） */
+  /** 获取本次 session 内所有已记录的 span（用于导出/追踪） */
   getAllSpans(): ReadonlyArray<SpanState>;
-  /** 清空已记录的 span */
-  clear(): void;
+}
+
+/** Span 追踪器工厂 — 每个 turn 通过 startSession() 创建隔离的 SpanSession */
+export interface SpanTracker {
+  /** 创建独立的 Span 收集会话 */
+  startSession(): SpanSession;
 }
