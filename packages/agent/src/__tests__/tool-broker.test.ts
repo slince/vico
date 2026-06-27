@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {z} from 'zod';
 import { ToolBroker } from '../tool/tool-broker.js';
 import {createTool} from '../tool/create-tool.js';
-import {createBuiltInToolSource} from '../tool/builtin-tools-source.js';
+import {coreBuiltinTools} from '../tool/builtin/index.js';
 
 function makeCtx(overrides?: Record<string, unknown>): any {
   return {
@@ -15,30 +15,29 @@ function makeCtx(overrides?: Record<string, unknown>): any {
   };
 }
 
-async function makeHost(): Promise<ToolBroker> {
+function makeHost(): ToolBroker {
   const host = new ToolBroker();
-  host.addSource(createBuiltInToolSource());
-  await host.listTools(makeCtx());
+  host.registerAll(coreBuiltinTools);
   return host;
 }
 
 describe('ToolBroker', () => {
-  it('lists builtin tools', async () => {
-    const host = await makeHost();
-    const tools = await host.listTools(makeCtx());
+  it('lists builtin tools', () => {
+    const host = makeHost();
+    const tools = host.list();
     expect(tools.some((t) => t.name === 'echo')).toBe(true);
     expect(tools.some((t) => t.name === 'now')).toBe(true);
   });
 
   it('executes echo tool', async () => {
-    const host = await makeHost();
+    const host = makeHost();
     const result = await host.execute({ id: '1', name: 'echo', args: { message: 'hello' } }, makeCtx());
     expect(result.status).toBe('success');
     expect(result.output).toEqual({ message: 'hello' });
   });
 
   it('executes now tool', async () => {
-    const host = await makeHost();
+    const host = makeHost();
     const result = await host.execute({ id: '2', name: 'now', args: {} }, makeCtx());
     expect(result.status).toBe('success');
     expect(result.output).toHaveProperty('datetime');
@@ -46,13 +45,13 @@ describe('ToolBroker', () => {
   });
 
   it('returns error for unknown tool', async () => {
-    const host = await makeHost();
+    const host = makeHost();
     const result = await host.execute({ id: '3', name: 'nonexistent', args: {} }, makeCtx());
     expect(result.status).toBe('error');
   });
 
   it('executes batch with readonly parallel', async () => {
-    const host = await makeHost();
+    const host = makeHost();
     const results = await host.executeBatch([
       { id: '1', name: 'echo', args: { message: 'a' } },
       { id: '2', name: 'echo', args: { message: 'b' } },
@@ -63,15 +62,11 @@ describe('ToolBroker', () => {
 
   it('blocks never-policy tool', async () => {
     const host = new ToolBroker();
-    host.addSource({
-      name: 'test',
-      list: async () => [createTool({
-        name: 'dangerous', description: '', inputSchema: z.object({}),
-        policy: 'never', kind: 'command', tags: ['test'],
-        execute: async () => 'should not run',
-      })],
-    });
-    await host.listTools(makeCtx());
+    host.registerAll([createTool({
+      name: 'dangerous', description: '', inputSchema: z.object({}),
+      policy: 'never', kind: 'command', tags: ['test'],
+      execute: async () => 'should not run',
+    })]);
     const result = await host.execute({ id: 'x', name: 'dangerous', args: {} }, makeCtx());
     expect(result.status).toBe('error');
     expect(result.error).toContain('blocked by policy');

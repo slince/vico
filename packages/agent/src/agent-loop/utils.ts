@@ -7,8 +7,8 @@ import {SystemPromptProcessor} from "./context-processors/system-prompt-processo
 import {SkillProcessor} from "./context-processors/skill-processor.js";
 import {ToolBroker} from "../tool/tool-broker.js";
 import {MemoryProcessor} from "./context-processors/memory-processor.js";
-import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
-import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
+import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
+import {coreBuiltinTools} from "../tool/builtin/index.js";
 
 /** 消费 TurnOutput 并返回最终结果（丢弃流数据） */
 export async function collectTurnResult(
@@ -30,18 +30,15 @@ export function buildLoop(agent: Agent): AgentLoop {
 
   if (agent.memory) {
     processors.push(new MemoryProcessor(agent.memory));
-    toolBroker.addSource(createMemoryToolSource(agent.memory))
+    toolBroker.registerAll([createUpdateWorkingMemoryTool(agent.memory.working)]);
   }
 
   // 注册自定义的tool
-  if (agent.tools) {
-    toolBroker.addSource({
-      name: "primary",
-      list: async () => agent.tools
-    })
+  if (agent.tools.length > 0) {
+    toolBroker.registerAll(agent.tools);
   }
 
-  toolBroker.addSource(createBuiltInToolSource())
+  toolBroker.registerAll(coreBuiltinTools);
 
   return new AgentLoop({
     agent,

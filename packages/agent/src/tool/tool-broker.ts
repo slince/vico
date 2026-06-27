@@ -1,28 +1,22 @@
 // src/tool/tool-broker.ts
-import type {Tool, ToolCall, ToolExecutionContext, ToolResult, ToolSource} from './types.js';
+import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from './types.js';
 import {StormBreaker} from './storm-breaker.js';
 
-/** ToolBroker — 聚合多工具来源，实现审批策略和并行执行 */
+/** ToolBroker — 聚合工具注册、审批策略和并行执行 */
 export class ToolBroker {
   private tools: Map<string, Tool> = new Map();
-  private sources: ToolSource[] = [];
   private stormBreaker: StormBreaker = new StormBreaker();
 
-  /** 注册工具来源 */
-  addSource(source: ToolSource): void {
-    this.sources.push(source);
+  /** 批量注册工具 */
+  registerAll(tools: Tool[]): void {
+    for (const tool of tools) {
+      this.tools.set(tool.name, tool);
+    }
   }
 
-  async listTools(ctx: ToolExecutionContext): Promise<Tool[]> {
-    const all: Tool[] = [];
-    for (const source of this.sources) {
-      const tools = await source.list(ctx);
-      for (const tool of tools) {
-        this.tools.set(tool.name, tool);
-      }
-      all.push(...tools);
-    }
-    return all;
+  /** 获取所有已注册工具 */
+  list(): Tool[] {
+    return Array.from(this.tools.values());
   }
 
   /** 查找工具（供 AgentLoop 检查 policy） */

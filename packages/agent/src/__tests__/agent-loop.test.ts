@@ -52,8 +52,9 @@ function makeAgent(chunks: any[]) {
 
 /** mock ToolBroker — 总是返回 success */
 const mockToolBroker = {
+  registerAll: (_tools: any[]) => {},
+  list: () => [],
   findTool: (_name: string) => ({ policy: 'auto' }),
-  listTools: async () => [],
   execute: async (call: any) => ({ callId: call.id, name: call.name, status: 'success' as const, output: 'ok' }),
   executeBatch: async (calls: any[]) =>
     calls.map((c) => ({ callId: c.id, name: c.name, status: 'success' as const, output: 'ok' })),

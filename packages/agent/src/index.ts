@@ -70,14 +70,9 @@ export {
   type ToolStore,
 } from './tool/types.js';
 export { type TurnSession } from './agent-loop/types.js';
-export { type ToolSource } from './tool/types.js';
-export { ChildAgentExecutor } from './tool/child-agent-executor.js';
-export { type ChildAgentRef, type DelegateStrategy } from './tool/types.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/utils.js';
 export { type PolicyContext } from './tool/types.js';
-export { createBuiltInToolSource } from './tool/builtin-tools-source.js';
-
 // Builtin tools (individual exports)
 export {
   readTool,
@@ -107,7 +102,6 @@ export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js'
 // Skill system
 export { FSSkillLoader } from './skill/fs-skill-loader.js';
 export { SkillManager } from './skill/skill-manager.js';
-export { createSkillToolSource } from './skill/skill-tool-source.js';
 export { formatSkillCatalog } from './skill/skills-processor.js';
 export { createSkillLoadTool, createSkillSearchTool, createSkillReadTool } from './skill/tool/index.js';
 

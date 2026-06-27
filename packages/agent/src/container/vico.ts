@@ -3,7 +3,7 @@ import {homedir} from 'node:os';
 import {resolve} from 'node:path';
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import type {ModelRef, TurnEvent} from '../agent-loop/types.js';
-import type {ToolSource, ToolStore} from '../tool/types.js';
+import type {Tool, ToolStore} from '../tool/types.js';
 import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createLanguageModel} from '../model/factory.js';
@@ -23,9 +23,9 @@ import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {LoopTracer, type TraceLevel} from '../observable/loop-tracer.js';
 import {createAdaptersFromLevel, type TraceAdapter} from '../observable/trace-adapters.js';
-import {createMemoryToolSource} from "../memory/working/memory-tool-source.js";
-import {createBuiltInToolSource} from "../tool/builtin-tools-source.js";
-import {createSkillToolSource} from "../skill/skill-tool-source.js";
+import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
+import {coreBuiltinTools} from "../tool/builtin/index.js";
+import {createAllSkillTools} from "../skill/tool/index.js";
 
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
@@ -82,8 +82,8 @@ function collectSkillDirs(settings: SkillSettings): string[] {
 export interface VicoOptions {
   /** Skill 配置 */
   skills?: SkillOptions;
-  /** 额外的工具来源 */
-  toolSources?: ToolSource[];
+  /** 额外的工具 */
+  toolSources?: Tool[];
   /** LanguageModel 工厂（不传则使用内置 createLanguageModel） */
   languageModelFactory?: LanguageModelFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
@@ -207,29 +207,24 @@ export class Vico {
     const toolBroker = new ToolBroker();
 
     // 如果没有预定义就用 vico的
-    if (!agent.tools ) {
+    if (agent.tools.length === 0) {
       if (this.options.toolSources) {
-        for (const source of this.options.toolSources) {
-          toolBroker.addSource(source);
-        }
+        toolBroker.registerAll(this.options.toolSources);
       }
-      toolBroker.addSource(createSkillToolSource(this.skillManager));
+      toolBroker.registerAll(createAllSkillTools(this.skillManager));
     }
 
     if (memory) {
       processors.push(new MemoryProcessor(memory));
-      toolBroker.addSource(createMemoryToolSource(memory))
+      toolBroker.registerAll([createUpdateWorkingMemoryTool(memory.working)]);
     }
 
     // 注册自定义的tool
-    if (agent.tools) {
-      toolBroker.addSource({
-        name: "primary",
-        list: async () => agent.tools
-      })
+    if (agent.tools.length > 0) {
+      toolBroker.registerAll(agent.tools);
     }
 
-    toolBroker.addSource(createBuiltInToolSource())
+    toolBroker.registerAll(coreBuiltinTools);
 
     return new AgentLoop({
       agent,
