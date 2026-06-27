@@ -46,7 +46,7 @@ export interface TurnTrace {
 
 /** Trace 持久化适配器 — 负责将 trace + spans 输出到目标 */
 export interface TraceAdapter {
-  write(trace: TurnTrace, spans: ReadonlyArray<SpanState>): void | Promise<void>;
+  write(trace: TurnTrace): void | Promise<void>;
 }
 
 /** 默认 trace 文件导出目录 */
@@ -54,12 +54,12 @@ export const DEFAULT_TRACE_DIR = path.join(homedir(), '.vico', 'traces');
 
 /** Console 输出适配器 — 格式化 trace 并打印到 stdout */
 export class ConsoleTraceAdapter implements TraceAdapter {
-  write(trace: TurnTrace, spans: ReadonlyArray<SpanState>): void {
+  write(trace: TurnTrace): void {
     const duration = (trace.endTime ?? Date.now()) - trace.startTime;
 
     // 按类型汇总 span 耗时
     const spanMs = new Map<string, number>();
-    for (const s of spans) {
+    for (const s of trace.spans) {
       if (s.endTime) {
         spanMs.set(s.type, (spanMs.get(s.type) ?? 0) + s.endTime - s.startTime);
       }
@@ -136,7 +136,7 @@ export class FileTraceAdapter implements TraceAdapter {
     this.baseDir = options.baseDir ?? DEFAULT_TRACE_DIR;
   }
 
-  async write(trace: TurnTrace, spans: ReadonlyArray<SpanState>): Promise<void> {
+  async write(trace: TurnTrace): Promise<void> {
     try {
       const dateDir = new Date().toISOString().slice(0, 10);
       const dir = path.join(this.baseDir, dateDir);
@@ -163,7 +163,7 @@ export class FileTraceAdapter implements TraceAdapter {
           request: mc.request,
           response: mc.response ?? undefined,
         })),
-        spans: spans.map((s) => ({
+        spans: trace.spans.map((s) => ({
           id: s.id,
           type: s.type,
           metadata: s.metadata,
@@ -325,11 +325,10 @@ export class LoopTracer {
   /** 结束 turn：从 session 提取数据，委托所有适配器输出/导出 */
   async finish(traceSession: TurnTraceSession, result: TurnResult): Promise<void> {
     const trace = traceSession.finalize(result);
-    const spans = traceSession.getAllSpans();
 
     for (const adapter of this.adapters) {
       try {
-        await adapter.write(trace, spans);
+        await adapter.write(trace);
       } catch {
         // 适配器失败不影响主流程
       }
