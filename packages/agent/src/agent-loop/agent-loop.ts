@@ -1,6 +1,7 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {RunTurnOptions, Step, TurnEvent, TurnResult} from './types.js';
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
+import {toToolDescriptor} from '../tool/create-tool.js';
 import type {TurnSession} from './types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
@@ -397,7 +398,7 @@ export class AgentLoop {
     const request: ModelRequest = {
       system: systemPrompt || undefined,
       messages,
-      tools,
+      tools: tools.map(toToolDescriptor),
       maxOutputTokens: this.agent.maxTokens,
       temperature: this.agent.temperature,
     };

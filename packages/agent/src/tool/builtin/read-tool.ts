@@ -1,8 +1,15 @@
 // src/tool/builtin/read-tool.ts
-import { readFileSync, statSync } from 'node:fs';
-import { resolve, relative } from 'node:path';
+import {readFileSync, statSync} from 'node:fs';
+import {relative, resolve} from 'node:path';
+import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
+
+const readParams = z.object({
+  path: z.string().describe('The file path to read (relative to workspace or absolute)'),
+  offset: z.number().int().min(1).optional().describe('Line number to start reading from (1-based)'),
+  limit: z.number().int().min(1).optional().describe('Maximum number of lines to read'),
+});
 
 /** 图片扩展名 */
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.ico']);
@@ -13,12 +20,6 @@ const MIME_TYPES: Record<string, string> = {
   '.gif': 'image/gif', '.bmp': 'image/bmp', '.webp': 'image/webp',
   '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
 };
-
-interface ReadArgs {
-  path: string;
-  offset?: number;
-  limit?: number;
-}
 
 /** 二进制检测：前 1024 字节中 null 字节占比 */
 function isBinary(buffer: Buffer): boolean {
@@ -76,10 +77,7 @@ function readImageFile(absPath: string, ext: string, workspace: string): string 
 }
 
 async function executeRead(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
-  const args = call.args as ReadArgs;
-  if (!args.path || typeof args.path !== 'string') {
-    throw new Error('"path" is required and must be a string');
-  }
+  const args = call.args as unknown as z.infer<typeof readParams>;
 
   const absPath = resolvePath(ctx.session.workspace, args.path);
   const stat = statSync(absPath);
@@ -107,15 +105,7 @@ export const readTool = createTool({
   name: 'read',
   description:
     'Read a file from the workspace. Supports line offset and line count limits. Image files are automatically detected and returned as base64. Use this to inspect file contents in the current workspace.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      path: { type: 'string', description: 'The file path to read (relative to workspace or absolute)' },
-      offset: { type: 'number', description: 'Line number to start reading from (1-based, default 1)' },
-      limit: { type: 'number', description: 'Maximum number of lines to read' },
-    },
-    required: ['path'],
-  },
+  inputSchema: readParams,
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

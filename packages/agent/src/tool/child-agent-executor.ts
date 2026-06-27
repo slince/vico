@@ -1,10 +1,12 @@
 // src/tool/child-agent-executor.ts
+import {z} from 'zod';
 import type { Tool, ToolCall, ToolResult } from './types.js';
 import type { ToolExecutionContext } from './types.js';
 import type { DelegateStrategy, ChildAgentRef } from './types.js';
 import type { AgentLoop } from '../agent-loop/agent-loop.js';
 import { collectTurnResult } from '../agent-loop/utils.js';
 import type { ModelMessage } from '../model/types.js';
+import {createTool} from './create-tool.js';
 
 
 /** 子 Agent 委托执行器 */
@@ -21,17 +23,13 @@ export class ChildAgentExecutor {
 
   /** 创建委托工具 */
   createDelegateTool(agentId: string, agentName: string): Tool {
-    return {
+    return createTool({
       name: `delegate_${agentId}`,
       description: `Delegate a task to the "${agentName}" agent. Use this when the user needs ${agentName}-related capabilities.`,
-      inputSchema: {
-        type: 'object',
-        properties: {
-          task: { type: 'string', description: 'The task to delegate' },
-          context: { type: 'string', description: 'Additional context' },
-        },
-        required: ['task'],
-      },
+      inputSchema: z.object({
+        task: z.string().describe('The task to delegate'),
+        context: z.string().optional().describe('Additional context'),
+      }),
       policy: 'auto',
       kind: 'delegate',
       tags: ['delegate', `agent:${agentId}`],
@@ -40,7 +38,7 @@ export class ChildAgentExecutor {
         if (result.status === 'error') throw new Error(result.error);
         return result.output;
       },
-    };
+    });
   }
 
   /** 执行委托 */

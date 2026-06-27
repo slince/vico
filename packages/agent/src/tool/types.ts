@@ -1,4 +1,5 @@
 // @vico/agent - Tool module type definitions
+import type { z } from 'zod';
 import type { AgentLoop } from '../agent-loop/agent-loop.js';
 import type { TurnSession } from '../agent-loop/types.js';
 
@@ -12,7 +13,10 @@ export type ToolKind = 'readonly' | 'command' | 'file_change' | 'delegate' | 'mu
 export interface Tool {
   name: string;
   description: string;
-  inputSchema: Record<string, unknown>;
+  /** Zod 参数 schema，用于校验和生成 JSON Schema */
+  inputSchema: z.ZodType<any, any>;
+  /** Zod 输出 schema（可选），用于输出校验 */
+  outputSchema?: z.ZodType<any, any>;
   policy: ToolPolicy;
   kind: ToolKind;
   /** 来源标签（如 "builtin", "skill", "agent:xxx"） */

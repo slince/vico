@@ -1,14 +1,15 @@
 // src/tool/builtin/find-tool.ts
 import { readdirSync, statSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
+import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
-interface FindArgs {
-  pattern?: string;
-  path?: string;
-  limit?: number;
-}
+const findParams = z.object({
+  pattern: z.string().default('*').describe('Glob pattern to match file names'),
+  path: z.string().optional().describe('Directory to search in (default: workspace root)'),
+  limit: z.number().int().default(200).describe('Maximum number of files to return'),
+});
 
 interface FindResult {
   path: string;
@@ -62,28 +63,26 @@ function collectFiles(searchDir: string, regex: RegExp, maxResults: number): Fin
 }
 
 async function executeFind(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
-  const args = call.args as FindArgs;
-  const pattern = args.pattern ?? '*';
-  const limit = args.limit ?? 200;
+  const args = call.args as unknown as z.infer<typeof findParams>;
   const searchDir = args.path
     ? resolvePath(ctx.session.workspace, args.path)
     : resolve(ctx.session.workspace, '.');
 
-  const regex = globToRegex(pattern);
-  const results = collectFiles(searchDir, regex, limit * 2);
+  const regex = globToRegex(args.pattern);
+  const results = collectFiles(searchDir, regex, args.limit * 2);
 
   const sorted = results
     .sort((a, b) => b.mtime - a.mtime)
-    .slice(0, limit)
+    .slice(0, args.limit)
     .map((r) => relative(ctx.session.workspace, r.path));
 
   if (sorted.length === 0) {
-    return `No files found matching "${pattern}"`;
+    return `No files found matching "${args.pattern}"`;
   }
 
   let output = sorted.join('\n');
-  if (results.length > limit) {
-    output += `\n... ${results.length - limit} more files`;
+  if (results.length > args.limit) {
+    output += `\n... ${results.length - args.limit} more files`;
   }
   return output;
 }
@@ -92,15 +91,7 @@ export const findTool = createTool({
   name: 'find',
   description:
     'Find files by glob pattern in the workspace. Results are sorted by modification time (newest first). Use this to locate files matching a naming pattern.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      pattern: { type: 'string', description: 'Glob pattern to match file names (e.g. "*.ts", "**/*.test.ts"). Default: "*"' },
-      path: { type: 'string', description: 'Directory to search in (default: workspace root)' },
-      limit: { type: 'number', description: 'Maximum number of files to return (default: 200)' },
-    },
-    required: [],
-  },
+  inputSchema: findParams,
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin', 'read'],

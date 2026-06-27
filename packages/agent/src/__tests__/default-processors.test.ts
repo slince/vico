@@ -1,5 +1,6 @@
 // default-processors.test.ts — tests for context processors and onion pipeline
 import {describe, expect, it, vi} from 'vitest';
+import {z} from 'zod';
 import {SystemPromptProcessor} from '../agent-loop/context-processors/system-prompt-processor.js';
 import {SkillProcessor} from '../agent-loop/context-processors/skill-processor.js';
 import {MemoryProcessor} from '../agent-loop/context-processors/memory-processor.js';
@@ -162,7 +163,7 @@ describe('MemoryProcessor', () => {
     const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     await p.process(ctx);
-    const wmMsg = ctx.messages.find((m) => m.role === 'system' && m.content.includes('working_memory'));
+    const wmMsg = ctx.messages.find((m) => m.role === 'system' && m.content.includes('updateWorkingMemory'));
     expect(wmMsg).toBeDefined();
     expect(wmMsg!.content).toContain('updateWorkingMemory');
     expect(wmMsg!.content).toContain('# User Facts');
@@ -180,7 +181,7 @@ describe('MemoryProcessor', () => {
     const p = new MemoryProcessor(memoryStore);
     const ctx = makeCtx();
     await p.process(ctx);
-    const wmMsg = ctx.messages.find((m) => m.role === 'system' && m.content.includes('working_memory'));
+    const wmMsg = ctx.messages.find((m) => m.role === 'system' && m.content.includes('updateWorkingMemory'));
     expect(wmMsg!.content).toContain('Alice');
     expect(memoryStore.working.get).toHaveBeenCalledWith('u1');
   });
@@ -191,7 +192,7 @@ describe('MemoryProcessor', () => {
     const ctx = makeCtx({ scopeId: '' });
     ctx.messages = [{ role: 'user', content: 'hello' }];
     await p.process(ctx);
-    const wmMsg = ctx.messages.find((m) => m.content.includes('working_memory'));
+    const wmMsg = ctx.messages.find((m) => m.content.includes('updateWorkingMemory'));
     expect(wmMsg).toBeUndefined();
   });
 
@@ -338,7 +339,7 @@ describe('buildModelRequest', () => {
       agent: config,
       systemPrompt: 'You are helpful.',
       messages: [{ role: 'user', content: 'hello' }],
-      tools: [{ name: 'echo', description: '', inputSchema: {}, policy: 'auto', kind: 'command' }],
+      tools: [{ name: 'echo', description: '', inputSchema: z.object({}), policy: 'auto' as const, kind: 'command' as const, tags: [], execute: async () => {} }],
     });
     const req = buildModelRequest(ctx);
     expect(req.system).toBe('You are helpful.');

@@ -1,6 +1,7 @@
 // src/skill/tool/skill-read.ts
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {z} from 'zod';
 import {createTool} from '../../tool/create-tool.js';
 import type {SkillManager} from '../skill-manager.js';
 
@@ -9,14 +10,10 @@ export function createSkillReadTool(manager: SkillManager) {
   return createTool({
     name: 'skill_read',
     description: "Read a file from a skill's references, scripts, or assets directory.",
-    inputSchema: {
-      type: 'object',
-      properties: {
-        skillName: { type: 'string', description: 'The skill name' },
-        filePath: { type: 'string', description: 'Relative path within the skill directory' },
-      },
-      required: ['skillName', 'filePath'],
-    },
+    inputSchema: z.object({
+      skillName: z.string().describe('The skill name'),
+      filePath: z.string().describe('Relative path within the skill directory'),
+    }),
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],

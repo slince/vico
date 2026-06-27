@@ -1,15 +1,21 @@
 // src/tool/builtin/edit-tool.ts
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
+import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
-interface EditArgs {
-  path: string;
-  oldText?: string;
-  newText?: string;
-  edits?: Array<{ oldText: string; newText: string }>;
-}
+const editEntry = z.object({
+  oldText: z.string().describe('The exact text to find'),
+  newText: z.string().describe('The replacement text'),
+});
+
+const editParams = z.object({
+  path: z.string().describe('The file path to edit (relative to workspace or absolute)'),
+  oldText: z.string().optional().describe('The exact text to replace (single edit mode)'),
+  newText: z.string().optional().describe('The replacement text (single edit mode)'),
+  edits: z.array(editEntry).optional().describe('Multiple edits to apply'),
+});
 
 function resolvePath(workspace: string, targetPath: string): string {
   const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
@@ -42,10 +48,7 @@ function generateDiff(oldContent: string, newContent: string): string {
 }
 
 async function executeEdit(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
-  const args = call.args as EditArgs;
-  if (!args.path || typeof args.path !== 'string') {
-    throw new Error('"path" is required and must be a string');
-  }
+  const args = call.args as unknown as z.infer<typeof editParams>;
 
   const edits = args.edits ?? (
     args.oldText !== undefined
@@ -87,27 +90,7 @@ export const editTool = createTool({
   name: 'edit',
   description:
     'Edit a file using exact string replacement. Supports single replace (oldText → newText) or multiple replacements via the edits array. Each oldText must appear exactly once in the file. Returns a unified diff of the changes.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      path: { type: 'string', description: 'The file path to edit (relative to workspace or absolute)' },
-      oldText: { type: 'string', description: 'The exact text to replace (single edit mode)' },
-      newText: { type: 'string', description: 'The replacement text (single edit mode)' },
-      edits: {
-        type: 'array',
-        description: 'Multiple edits to apply',
-        items: {
-          type: 'object',
-          properties: {
-            oldText: { type: 'string', description: 'The exact text to find' },
-            newText: { type: 'string', description: 'The replacement text' },
-          },
-          required: ['oldText', 'newText'],
-        },
-      },
-    },
-    required: ['path'],
-  },
+  inputSchema: editParams,
   policy: 'on-request',
   kind: 'file_change',
   tags: ['builtin', 'edit'],

@@ -1,16 +1,17 @@
 // src/tool/builtin/bash-tool.ts
 import {ChildProcess, exec} from 'node:child_process';
 import {resolve} from 'node:path';
+import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
-interface BashArgs {
-  command: string;
-  timeout?: number;
-  action?: 'run' | 'poll' | 'write' | 'stop';
-  session_id?: string;
-  input?: string;
-}
+const bashParams = z.object({
+  command: z.string().describe('The shell command to execute'),
+  timeout: z.number().min(1).max(600000).default(120000).describe('Timeout in milliseconds'),
+  action: z.enum(['run', 'poll', 'write', 'stop']).default('run').describe('Session action'),
+  session_id: z.string().default('default').describe('Session ID for poll/write/stop actions'),
+  input: z.string().optional().describe('Input to send to the session stdin'),
+});
 
 interface SessionEntry {
   process: ChildProcess | null;
@@ -33,32 +34,29 @@ function cleanupSession(id: string, entry: SessionEntry): void {
 }
 
 async function executeBash(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
-  const args = call.args as unknown as BashArgs;
-  const action = args.action ?? 'run';
+  const args = call.args as unknown as z.infer<typeof bashParams>;
   const cwd = resolve(ctx.session.workspace, '.');
 
-  switch (action) {
+  switch (args.action) {
     case 'stop':
-      return handleStop(args);
+      return handleStop(args.session_id);
     case 'poll':
-      return handlePoll(args);
+      return handlePoll(args.session_id);
     case 'write':
-      return handleWrite(args);
+      return handleWrite(args.session_id, args.input);
     default:
-      return handleRun(args, cwd);
+      return handleRun(args.command, args.session_id, args.timeout, cwd);
   }
 }
 
-function handleStop(args: BashArgs): string {
-  const sid = args.session_id ?? 'default';
+function handleStop(sid: string): string {
   const entry = sessions.get(sid);
   if (!entry) return `Session "${sid}" not found`;
   cleanupSession(sid, entry);
   return `Session "${sid}" stopped`;
 }
 
-function handlePoll(args: BashArgs): string {
-  const sid = args.session_id ?? 'default';
+function handlePoll(sid: string): string {
   const entry = sessions.get(sid);
   if (!entry) return `Session "${sid}" not found`;
   if (entry.running) {
@@ -71,30 +69,22 @@ function handlePoll(args: BashArgs): string {
   ].join('\n');
 }
 
-function handleWrite(args: BashArgs): string {
-  const sid = args.session_id ?? 'default';
+function handleWrite(sid: string, input?: string): string {
   const entry = sessions.get(sid);
   if (!entry) return `Session "${sid}" not found`;
   if (!entry.process) return `Session "${sid}" has no running process`;
-  if (!args.input) return 'No input provided';
+  if (!input) return 'No input provided';
   try {
-    entry.process.stdin?.write(args.input);
+    entry.process.stdin?.write(input);
     return `Input sent to session "${sid}"`;
   } catch (err: any) {
     return `Failed to send input: ${err.message}`;
   }
 }
 
-function handleRun(args: BashArgs, cwd: string): Promise<string> {
-  if (!args.command || typeof args.command !== 'string') {
-    throw new Error('"command" is required and must be a string');
-  }
-
-  const sid = args.session_id ?? 'default';
-  const timeout = Math.min(args.timeout ?? 120000, 600000);
-
+function handleRun(command: string, sid: string, timeout: number, cwd: string): Promise<string> {
   return new Promise<string>((resolveResult) => {
-    const child = exec(args.command, {
+    const child = exec(command, {
       cwd,
       timeout,
       maxBuffer: 10 * 1024 * 1024,
@@ -159,17 +149,7 @@ export const bashTool = createTool({
   name: 'bash',
   description:
     'Execute a shell command in a persistent session. Supports long-running commands with timeout and session management (run/poll/write/stop actions). The working directory is the workspace root. Use "run" to start a command, "poll" to check status, "write" to send input, and "stop" to terminate.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      command: { type: 'string', description: 'The shell command to execute' },
-      timeout: { type: 'number', description: 'Timeout in milliseconds (default: 120000, max: 600000)' },
-      action: { type: 'string', enum: ['run', 'poll', 'write', 'stop'], description: 'Session action (default: run)' },
-      session_id: { type: 'string', description: 'Session ID for poll/write/stop actions' },
-      input: { type: 'string', description: 'Input to send to the session stdin (for write action)' },
-    },
-    required: ['command'],
-  },
+  inputSchema: bashParams,
   policy: 'on-request',
   kind: 'command',
   tags: ['builtin', 'command'],

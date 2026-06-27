@@ -1,4 +1,5 @@
 // src/skill/tool/skill-load.ts
+import {z} from 'zod';
 import {createTool} from '../../tool/create-tool.js';
 import type {SkillManager} from '../skill-manager.js';
 
@@ -8,13 +9,9 @@ export function createSkillLoadTool(manager: SkillManager) {
     name: 'skill',
     description:
       'Load the full instructions for a skill by name. Use this when you need detailed guidance from a specific skill.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'The skill name to load' },
-      },
-      required: ['name'],
-    },
+    inputSchema: z.object({
+      name: z.string().describe('The skill name to load'),
+    }),
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],

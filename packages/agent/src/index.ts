@@ -62,7 +62,7 @@ export {
 } from './memory/types.js';
 
 // Tool system
-export { createTool, type ToolOptions } from './tool/create-tool.js';
+export { createTool, toToolDescriptor, type ToolOptions } from './tool/create-tool.js';
 export { ToolBroker } from './tool/tool-broker.js';
 export {
   type ToolExecutionContext,
