@@ -2,6 +2,7 @@
 import {ChildProcess, exec} from 'node:child_process';
 import {resolve} from 'node:path';
 import {createTool} from '../create-tool.js';
+import type {ToolCall, ToolExecutionContext} from '../types.js';
 
 interface BashArgs {
   command: string;
@@ -31,6 +32,129 @@ function cleanupSession(id: string, entry: SessionEntry): void {
   sessions.delete(id);
 }
 
+async function executeBash(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
+  const args = call.args as unknown as BashArgs;
+  const action = args.action ?? 'run';
+  const cwd = resolve(ctx.session.workspace, '.');
+
+  switch (action) {
+    case 'stop':
+      return handleStop(args);
+    case 'poll':
+      return handlePoll(args);
+    case 'write':
+      return handleWrite(args);
+    default:
+      return handleRun(args, cwd);
+  }
+}
+
+function handleStop(args: BashArgs): string {
+  const sid = args.session_id ?? 'default';
+  const entry = sessions.get(sid);
+  if (!entry) return `Session "${sid}" not found`;
+  cleanupSession(sid, entry);
+  return `Session "${sid}" stopped`;
+}
+
+function handlePoll(args: BashArgs): string {
+  const sid = args.session_id ?? 'default';
+  const entry = sessions.get(sid);
+  if (!entry) return `Session "${sid}" not found`;
+  if (entry.running) {
+    return `Session "${sid}" still running...\n\nSTDOUT:\n${entry.stdout.slice(-2000)}\n\nSTDERR:\n${entry.stderr.slice(-2000) || '(none)'}`;
+  }
+  return [
+    `Session "${sid}" completed with exit code ${entry.exitCode}`,
+    entry.stdout ? `\nSTDOUT:\n${entry.stdout.slice(-4000)}` : '',
+    entry.stderr ? `\nSTDERR:\n${entry.stderr.slice(-2000)}` : '',
+  ].join('\n');
+}
+
+function handleWrite(args: BashArgs): string {
+  const sid = args.session_id ?? 'default';
+  const entry = sessions.get(sid);
+  if (!entry) return `Session "${sid}" not found`;
+  if (!entry.process) return `Session "${sid}" has no running process`;
+  if (!args.input) return 'No input provided';
+  try {
+    entry.process.stdin?.write(args.input);
+    return `Input sent to session "${sid}"`;
+  } catch (err: any) {
+    return `Failed to send input: ${err.message}`;
+  }
+}
+
+function handleRun(args: BashArgs, cwd: string): Promise<string> {
+  if (!args.command || typeof args.command !== 'string') {
+    throw new Error('"command" is required and must be a string');
+  }
+
+  const sid = args.session_id ?? 'default';
+  const timeout = Math.min(args.timeout ?? 120000, 600000);
+
+  return new Promise<string>((resolveResult) => {
+    const child = exec(args.command, {
+      cwd,
+      timeout,
+      maxBuffer: 10 * 1024 * 1024,
+      shell: '/bin/bash',
+      env: { ...process.env, HOME: process.env.HOME ?? '/root' },
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    const entry: SessionEntry = {
+      process: child,
+      stdout: '',
+      stderr: '',
+      exitCode: null,
+      running: true,
+      createdAt: Date.now(),
+    };
+    sessions.set(sid, entry);
+
+    child.stdout?.on('data', (chunk: string) => {
+      stdout += chunk;
+      entry.stdout = stdout;
+    });
+
+    child.stderr?.on('data', (chunk: string) => {
+      stderr += chunk;
+      entry.stderr = stderr;
+    });
+
+    child.on('close', (code) => {
+      entry.running = false;
+      entry.exitCode = code;
+      entry.process = null;
+
+      if (!settled) {
+        settled = true;
+        const output = [
+          `Command completed with exit code ${code}`,
+          stdout ? `\nSTDOUT:\n${stdout.slice(-4000)}` : '',
+          stderr ? `\nSTDERR:\n${stderr.slice(-2000)}` : '',
+        ].join('\n');
+        resolveResult(output);
+      }
+    });
+
+    child.on('error', (err) => {
+      entry.running = false;
+      entry.process = null;
+      entry.exitCode = 1;
+
+      if (!settled) {
+        settled = true;
+        resolveResult(`Command failed: ${err.message}\n\nSTDOUT:\n${stdout.slice(-2000)}\n\nSTDERR:\n${stderr.slice(-2000)}`);
+      }
+    });
+  });
+}
+
 export const bashTool = createTool({
   name: 'bash',
   description:
@@ -49,116 +173,5 @@ export const bashTool = createTool({
   policy: 'on-request',
   kind: 'command',
   tags: ['builtin', 'command'],
-  async execute(call, ctx) {
-    const args = call.args as unknown as BashArgs;
-    const action = args.action ?? 'run';
-    const timeout = Math.min(args.timeout ?? 120000, 600000);
-    const cwd = resolve(ctx.session.workspace, '.');
-
-    // ---- stop ----
-    if (action === 'stop') {
-      const sid = args.session_id ?? 'default';
-      const entry = sessions.get(sid);
-      if (!entry) return `Session "${sid}" not found`;
-      cleanupSession(sid, entry);
-      return `Session "${sid}" stopped`;
-    }
-
-    // ---- poll ----
-    if (action === 'poll') {
-      const sid = args.session_id ?? 'default';
-      const entry = sessions.get(sid);
-      if (!entry) return `Session "${sid}" not found`;
-      if (entry.running) return `Session "${sid}" still running...\n\nSTDOUT:\n${entry.stdout.slice(-2000)}\n\nSTDERR:\n${entry.stderr.slice(-2000) || '(none)'}`;
-
-      return [
-        `Session "${sid}" completed with exit code ${entry.exitCode}`,
-        entry.stdout ? `\nSTDOUT:\n${entry.stdout.slice(-4000)}` : '',
-        entry.stderr ? `\nSTDERR:\n${entry.stderr.slice(-2000)}` : '',
-      ].join('\n');
-    }
-
-    // ---- write ----
-    if (action === 'write') {
-      const sid = args.session_id ?? 'default';
-      const entry = sessions.get(sid);
-      if (!entry) return `Session "${sid}" not found`;
-      if (!entry.process) return `Session "${sid}" has no running process`;
-      if (!args.input) return 'No input provided';
-      try {
-        entry.process.stdin?.write(args.input);
-        return `Input sent to session "${sid}"`;
-      } catch (err: any) {
-        return `Failed to send input: ${err.message}`;
-      }
-    }
-
-    // ---- run (default) ----
-    if (!args.command || typeof args.command !== 'string') {
-      throw new Error('"command" is required and must be a string');
-    }
-
-    const sid = args.session_id ?? 'default';
-
-    return new Promise<string>((resolveResult) => {
-      const child = exec(args.command, {
-        cwd,
-        timeout,
-        maxBuffer: 10 * 1024 * 1024,
-        shell: '/bin/bash',
-        env: { ...process.env, HOME: process.env.HOME ?? '/root' },
-      });
-
-      let stdout = '';
-      let stderr = '';
-      let settled = false;
-
-      const entry: SessionEntry = {
-        process: child,
-        stdout: '',
-        stderr: '',
-        exitCode: null,
-        running: true,
-        createdAt: Date.now(),
-      };
-      sessions.set(sid, entry);
-
-      child.stdout?.on('data', (chunk: string) => {
-        stdout += chunk;
-        entry.stdout = stdout;
-      });
-
-      child.stderr?.on('data', (chunk: string) => {
-        stderr += chunk;
-        entry.stderr = stderr;
-      });
-
-      child.on('close', (code) => {
-        entry.running = false;
-        entry.exitCode = code;
-        entry.process = null;
-
-        if (!settled) {
-          settled = true;
-          const output = [
-            `Command completed with exit code ${code}`,
-            stdout ? `\nSTDOUT:\n${stdout.slice(-4000)}` : '',
-            stderr ? `\nSTDERR:\n${stderr.slice(-2000)}` : '',
-          ].join('\n');
-          resolveResult(output);
-        }
-      });
-
-      child.on('error', (err) => {
-        entry.running = false;
-        entry.process = null;
-        entry.exitCode = 1;
-
-        if (!settled) {
-          settled = true;
-          resolveResult(`Command failed: ${err.message}\n\nSTDOUT:\n${stdout.slice(-2000)}\n\nSTDERR:\n${stderr.slice(-2000)}`);
-        }
-      });
-    });
-  },
+  execute: executeBash,
 });

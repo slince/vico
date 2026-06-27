@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 import {createTool} from '../create-tool.js';
+import type {ToolCall, ToolExecutionContext} from '../types.js';
 
 interface EditArgs {
   path: string;
@@ -23,8 +24,6 @@ function generateDiff(oldContent: string, newContent: string): string {
   const oldLines = oldContent.split('\n');
   const newLines = newContent.split('\n');
   const diff: string[] = [];
-
-  // 简易逐行 diff
   let i = 0;
   while (i < oldLines.length && i < newLines.length) {
     if (oldLines[i] !== newLines[i]) {
@@ -39,8 +38,49 @@ function generateDiff(oldContent: string, newContent: string): string {
   while (i < newLines.length) {
     diff.push(`+${newLines[i++]}`);
   }
-
   return diff.length > 0 ? diff.join('\n') : 'No changes detected';
+}
+
+async function executeEdit(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
+  const args = call.args as EditArgs;
+  if (!args.path || typeof args.path !== 'string') {
+    throw new Error('"path" is required and must be a string');
+  }
+
+  const edits = args.edits ?? (
+    args.oldText !== undefined
+      ? [{ oldText: args.oldText, newText: args.newText ?? '' }]
+      : []
+  );
+
+  if (edits.length === 0) {
+    throw new Error('Either "oldText"+"newText" or "edits" array must be provided');
+  }
+
+  const absPath = resolvePath(ctx.session.workspace, args.path);
+  const original = readFileSync(absPath, 'utf-8');
+
+  let modified = original;
+  for (const edit of edits) {
+    const escaped = edit.oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const count = (modified.match(new RegExp(escaped, 'g')) || []).length;
+    if (count === 0) {
+      throw new Error(`oldText not found in file:\n\`\`\`\n${edit.oldText.slice(0, 200)}${edit.oldText.length > 200 ? '...' : ''}\n\`\`\``);
+    }
+    if (count > 1) {
+      throw new Error(`oldText appears ${count} times in the file. Please use a larger string with more surrounding context to make it unique.`);
+    }
+  }
+
+  for (const edit of edits) {
+    modified = modified.replace(edit.oldText, edit.newText);
+  }
+
+  writeFileSync(absPath, modified, 'utf-8');
+
+  const rel = relative(ctx.session.workspace, absPath);
+  const diff = generateDiff(original, modified);
+  return `Edited ${rel} (${edits.length} replacement(s)):\n\n${diff}`;
 }
 
 export const editTool = createTool({
@@ -71,46 +111,5 @@ export const editTool = createTool({
   policy: 'on-request',
   kind: 'file_change',
   tags: ['builtin', 'edit'],
-  async execute(call, ctx) {
-    const args = call.args as EditArgs;
-    if (!args.path || typeof args.path !== 'string') {
-      throw new Error('"path" is required and must be a string');
-    }
-
-    // 支持两种调用模式：单次替换（oldText/newText）或批量（edits 数组）
-    const edits = args.edits ?? (
-      args.oldText !== undefined
-        ? [{ oldText: args.oldText, newText: args.newText ?? '' }]
-        : []
-    );
-
-    if (edits.length === 0) {
-      throw new Error('Either "oldText"+"newText" or "edits" array must be provided');
-    }
-
-    const absPath = resolvePath(ctx.session.workspace, args.path);
-    const original = readFileSync(absPath, 'utf-8');
-
-    let modified = original;
-    for (const edit of edits) {
-      const count = (modified.match(new RegExp(edit.oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
-      if (count === 0) {
-        throw new Error(`oldText not found in file:\n\`\`\`\n${edit.oldText.slice(0, 200)}${edit.oldText.length > 200 ? '...' : ''}\n\`\`\``);
-      }
-      if (count > 1) {
-        throw new Error(`oldText appears ${count} times in the file. Please use a larger string with more surrounding context to make it unique.`);
-      }
-    }
-
-    for (const edit of edits) {
-      modified = modified.replace(edit.oldText, edit.newText);
-    }
-
-    writeFileSync(absPath, modified, 'utf-8');
-
-    const rel = relative(ctx.session.workspace, absPath);
-    const diff = generateDiff(original, modified);
-
-    return `Edited ${rel} (${edits.length} replacement(s)):\n\n${diff}`;
-  },
+  execute: executeEdit,
 });
