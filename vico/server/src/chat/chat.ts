@@ -1,10 +1,9 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，vico.stream 执行。
  */
-import type {Agent, TurnOutput} from '@vico/agent';
+import type {AgentConfig, TurnOutput} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
 import {vico} from '../vico.js';
-import type {AgentRuntimeConfig} from "../services/agent/types";
 
 export interface ExecuteChatParams {
   agentId: string;
@@ -26,41 +25,32 @@ export async function executeAgentChat(
 
   if (!message?.trim()) throw new Error('Message is required');
 
-  // 确保 Agent 已在 Vico Runtime 注册
-  if (!vico.runtime.getAgent(agentId)) {
-    const agentConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
-    if (!agentConfig) throw new Error('Agent not found');
-    await createAgent(agentConfig);
-  }
+  // 确保 Agent 已在 Vico Runtime 注册（不存在则创建）
+  const agent = await vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
+    const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
+    if (!runtimeConfig) throw new Error('Agent not found');
+    const { agent: a, model } = runtimeConfig;
+    return {
+      id: a.id,
+      name: a.name,
+      systemPrompt: a.system_prompt || '',
+      model: {
+        provider: model.provider,
+        model: model.model_name,
+        baseUrl: model.base_url,
+        apiKey: model.api_key,
+      },
+      temperature: a.temperature ?? 0.7,
+      maxTokens: a.max_tokens ?? 4096,
+      maxSteps: a.max_steps ?? 10,
+    };
+  });
 
-  const agent = vico.getOrCreateAgent()
-
-
-  const stream = vico.stream(agentId, message, {
+  const stream = agent.stream(message, {
     threadId,
     userId,
     scopeId: tenantId,
   });
 
   return { stream };
-}
-
-async function createAgent(runtimeConfig: AgentRuntimeConfig): Promise<Agent> {
-  const { agent, model } = runtimeConfig;
-
-  return vico.createAgent({
-    id: agent.id,
-    name: agent.name,
-    systemPrompt: agent.system_prompt || '',
-    model: {
-      provider: model.provider,
-      model: model.model_name,
-      baseUrl: model.base_url || undefined,
-      apiKey: model.api_key || undefined,
-    },
-    temperature: agent.temperature ?? 0.7,
-    maxTokens: agent.max_tokens ?? 4096,
-    maxSteps: agent.max_steps ?? 10,
-    skills: { load: async () => [] },
-  });
 }

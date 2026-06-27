@@ -31,7 +31,7 @@ import {createAllSkillTools} from "../skill/tool/index.js";
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
 
 /** 创建 Agent 的输入配置 */
-export interface CreateAgentConfig {
+export interface AgentConfig {
   id: string;
   name: string;
   systemPrompt: string;
@@ -159,7 +159,7 @@ export class Vico {
    * @param config - Agent 创建配置
    * @returns 已注册的 Agent 实例
    */
-  async createAgent(config: CreateAgentConfig): Promise<Agent> {
+  async createAgent(config: AgentConfig): Promise<Agent> {
     const model = this.languageModelFactory(config.model);
     const agent = await this.buildAgent(config, model);
     this.runtime.register(agent);
@@ -169,7 +169,7 @@ export class Vico {
   /**
    * 创建单个 Agent（无缓存），绑定 skills / tools。
    */
-  private async buildAgent(config: CreateAgentConfig, model: LanguageModelV3): Promise<Agent> {
+  private async buildAgent(config: AgentConfig, model: LanguageModelV3): Promise<Agent> {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
@@ -254,7 +254,7 @@ export class Vico {
    * @param factory - 创建 Agent 配置的工厂函数（仅在 Agent 不存在时调用）
    * @returns 已存在的或新创建的 Agent 实例
    */
-  async getOrCreateAgent(agentId: string, factory: () => Promise<CreateAgentConfig>): Promise<Agent> {
+  async createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
     const existing = this.runtime.getAgent(agentId);
     if (existing) return existing;
     return this.createAgent(await factory());

@@ -161,5 +161,5 @@ export { turnEventsToAISDK } from './stream/turn-stream.js';
 export {
   Vico,
   type VicoOptions,
-  type CreateAgentConfig,
+  type AgentConfig,
 } from './container/vico.js';

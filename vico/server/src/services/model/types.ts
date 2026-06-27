@@ -5,7 +5,7 @@ export interface ModelConfigRow {
   provider: string;
   model_name: string;
   api_key: string;
-  base_url: string | null;
+  base_url?: string;
   is_default: number;
   created_at: number;
 }
