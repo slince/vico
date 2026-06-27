@@ -47,8 +47,8 @@ export class ToolBroker {
 
       return { callId: call.id, name: call.name, status: 'success', output };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return { callId: call.id, name: call.name, status: 'error', output: null, error: message };
+      const error = err instanceof Error ? err : new Error(String(err));
+      return { callId: call.id, name: call.name, status: 'error', output: null, error };
     }
   }
 

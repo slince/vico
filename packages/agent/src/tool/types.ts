@@ -38,7 +38,7 @@ export interface ToolResult {
   name: string;
   status: 'success' | 'error';
   output: unknown;
-  error?: string;
+  error?: string | Error;
 }
 
 /** 工具执行上下文 */

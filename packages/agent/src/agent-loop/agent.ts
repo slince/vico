@@ -96,19 +96,19 @@ export class Agent {
   /**
    * 一行对话：从 Runtime 中查找 Agent，发送消息并返回结果。
    */
-  async invoke(agentId: string, message: string, options?: InvokeOptions): Promise<TurnResult> {
-    return collectTurnResult(this.run(agentId, message, options));
+  async invoke(message: string, options?: InvokeOptions): Promise<TurnResult> {
+    return collectTurnResult(this.run(message, options));
   }
 
   /** 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise */
-  stream(agentId: string, message: string, options?: InvokeOptions): TurnOutput {
-    return this.run(agentId, message, options);
+  stream(message: string, options?: InvokeOptions): TurnOutput {
+    return this.run(message, options);
   }
 
   /** 获取 Agent 并构造 runTurn 参数 */
-  private run(agentId: string, message: string, options?: InvokeOptions) {
+  private run(message: string, options?: InvokeOptions) {
     const userMessage: ModelMessage = { role: 'user', content: message };
-    const threadId = options?.threadId ?? `invoke-${agentId}-${Date.now()}`;
+    const threadId = options?.threadId ?? `invoke-${this.id}-${Date.now()}`;
     return this.loop.runTurn(threadId, userMessage, {
       userId: options?.userId,
       workspace: options?.workspace,
