@@ -3,14 +3,14 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../../tool/create-tool.js';
-import type {SkillManager} from '../skill-manager.js';
+import type {SkillRegistry} from '../skill-registry.js';
 
 /**
  * 创建 skill 文件读取工具 — 读取 Skill 目录下的引用、脚本或资源文件。
- * @param manager - SkillManager 实例
+ * @param manager - SkillRegistry 实例
  * @returns 配置好的 Tool 对象
  */
-export function createSkillReadTool(manager: SkillManager) {
+export function createSkillReadTool(manager: SkillRegistry) {
   return createTool({
     name: 'skill_read',
     description: "Read a file from a skill's references, scripts, or assets directory.",

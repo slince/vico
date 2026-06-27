@@ -101,8 +101,7 @@ export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js'
 
 // Skill system
 export { FSSkillLoader } from './skill/fs-skill-loader.js';
-export { SkillManager } from './skill/skill-manager.js';
-export { formatSkillCatalog } from './skill/skills-processor.js';
+export { SkillRegistry } from './skill/skill-registry.js';
 export { createSkillLoadTool, createSkillSearchTool, createSkillReadTool } from './skill/tool/index.js';
 
 /** Ports — ThreadStore */

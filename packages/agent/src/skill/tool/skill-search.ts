@@ -1,14 +1,14 @@
 // src/skill/tool/skill-search.ts
 import {z} from 'zod';
 import {createTool} from '../../tool/create-tool.js';
-import type {SkillManager} from '../skill-manager.js';
+import type {SkillRegistry} from '../skill-registry.js';
 
 /**
  * 创建 skill 搜索工具 — 按关键词搜索所有可用 Skill。
- * @param manager - SkillManager 实例
+ * @param manager - SkillRegistry 实例
  * @returns 配置好的 Tool 对象
  */
-export function createSkillSearchTool(manager: SkillManager) {
+export function createSkillSearchTool(manager: SkillRegistry) {
   return createTool({
     name: 'skill_search',
     description: 'Search across all available skills by keyword. Returns matching skills with relevance scores.',

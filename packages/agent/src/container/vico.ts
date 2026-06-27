@@ -6,7 +6,7 @@ import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createLanguageModel} from '../model/factory.js';
 import {ToolBroker} from '../tool/tool-broker.js';
-import {SkillManager} from '../skill/skill-manager.js';
+import {SkillRegistry} from '../skill/skill-registry.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import {AgentLoop} from '../agent-loop/agent-loop.js';
 import type {ApprovalGate} from '../agent-loop/approval-gate.js';
@@ -86,7 +86,7 @@ export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
   readonly tracer: LoopTracer;
 
-  private readonly skillManager: SkillManager;
+  private readonly skillManager: SkillRegistry;
   private initialized = false;
   private options: VicoOptions;
   private readonly languageModelFactory: LanguageModelFactory;
@@ -105,7 +105,7 @@ export class Vico {
     this.memory = options.memory;
     this.approvalGate = options.approvalGate;
     this.thread = options.thread ?? new InMemoryThreadStore();
-    this.skillManager = new SkillManager(new FSSkillLoader());
+    this.skillManager = new SkillRegistry([new FSSkillLoader()]);
   }
 
   /**
@@ -213,7 +213,7 @@ export class Vico {
     });
   }
 
-  getSkillManager(): SkillManager {
+  getSkillRegistry(): SkillRegistry {
     return this.skillManager;
   }
 

@@ -1,14 +1,14 @@
 // src/skill/tool/skill-load.ts
 import {z} from 'zod';
 import {createTool} from '../../tool/create-tool.js';
-import type {SkillManager} from '../skill-manager.js';
+import type {SkillRegistry} from '../skill-registry.js';
 
 /**
  * 创建 skill 加载工具 — 按名称加载 Skill 的完整指令集。
- * @param manager - SkillManager 实例
+ * @param manager - SkillRegistry 实例
  * @returns 配置好的 Tool 对象
  */
-export function createSkillLoadTool(manager: SkillManager) {
+export function createSkillLoadTool(manager: SkillRegistry) {
   return createTool({
     name: 'skill',
     description:

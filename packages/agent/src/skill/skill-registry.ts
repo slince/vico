@@ -1,28 +1,49 @@
-// src/skill/skill-manager.ts
-import type {Skill} from './types.js';
-import type {FSSkillLoader} from './fs-skill-loader.js';
+// src/skill/skill-registry.ts
+import type {Skill, SkillLoader} from './types.js';
 
-export class SkillManager {
+export class SkillRegistry {
   private skills: Map<string, Skill> = new Map();
-  private loader: FSSkillLoader;
+  private loaders: SkillLoader[];
   private roots: string[] = [];
 
-  constructor(loader: FSSkillLoader) {
-    this.loader = loader;
+  /**
+   * @param loaders - Skill 加载器列表，discover 时依次调用
+   */
+  constructor(loaders: SkillLoader[]) {
+    this.loaders = loaders;
   }
 
-  async discover(roots: string[]): Promise<void> {
+  /**
+   * 从指定目录发现并注册 Skill，依次调用所有 loader。
+   * @param roots - 待扫描的根目录列表
+   * @returns 所有发现的 Skill 列表
+   */
+  async discover(roots: string[]): Promise<Skill[]> {
     this.roots = roots;
-    const discovered = await this.loader.discover(roots);
-    for (const skill of discovered) {
+    const allSkills: Skill[] = [];
+    for (const loader of this.loaders) {
+      const discovered = await loader.discover(roots);
+      allSkills.push(...discovered);
+    }
+    for (const skill of allSkills) {
       this.skills.set(skill.name, skill);
     }
+    return allSkills;
   }
 
+  /**
+   * 按名称查找 Skill。
+   * @param name - Skill 名称
+   * @returns 匹配的 Skill，未找到则返回 undefined
+   */
   get(name: string): Skill | undefined {
     return this.skills.get(name);
   }
 
+  /**
+   * 列出所有已注册的 Skill。
+   * @returns Skill 列表
+   */
   listAll(): Skill[] {
     return Array.from(this.skills.values());
   }
@@ -49,6 +70,9 @@ export class SkillManager {
     return results.slice(0, limit);
   }
 
+  /**
+   * 清除缓存并重新扫描所有 Skill。
+   */
   async refresh(): Promise<void> {
     this.skills.clear();
     await this.discover(this.roots);
