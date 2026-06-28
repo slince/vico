@@ -448,7 +448,7 @@ export class AgentLoop {
    * 不修改入参，结果通过 CallModelResult 返回。
    */
   private async callModel(
-    messages: ModelMessage[],
+    messages: ReadonlyArray<ModelMessage>,
     step: Step,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     shared: StepSharedContext,
@@ -457,7 +457,7 @@ export class AgentLoop {
     const modelUsage = { input: 0, output: 0 };
 
     const request: ModelRequest = {
-      system: ctx.systemPrompt || undefined,
+      system: ctx.systemPrompt,
       messages,
       tools: ctx.tools.map(toToolDescriptor),
       maxOutputTokens: this.agent.maxTokens,

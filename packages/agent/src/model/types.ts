@@ -1,5 +1,5 @@
 // @vico/agent - 模型模块类型定义
-import type { LanguageModelV3FinishReason, LanguageModelV3Usage } from '@ai-sdk/provider';
+import type {LanguageModelV3FinishReason, LanguageModelV3Usage} from '@ai-sdk/provider';
 
 /** 消息角色 */
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
@@ -33,9 +33,9 @@ export interface ToolDescriptor {
 
 /** ModelClient.stream() 调用参数 */
 export interface ModelRequest {
-  system?: string;
-  messages: ModelMessage[];
-  tools?: ToolDescriptor[];
+  system: string;
+  messages: ReadonlyArray<ModelMessage>;
+  tools: ReadonlyArray<ToolDescriptor>;
   maxOutputTokens?: number;
   temperature?: number;
   abortSignal?: AbortSignal;
