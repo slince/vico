@@ -99,7 +99,7 @@ export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory
 export { type SkillLoader, type Skill } from './skill/types.js';
 
 // Skill system
-export { FSSkillLoader } from './skill/fs-skill-loader.js';
+export { createFSSkillLoader } from './skill/fs-skill-loader.js';
 export { SkillRegistry } from './skill/skill-registry.js';
 export { createSkillLoadTool, createSkillSearchTool, createSkillReadTool } from './skill/tool/index.js';
 

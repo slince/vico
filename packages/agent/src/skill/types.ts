@@ -28,8 +28,5 @@ export interface Skill {
   metadata?: Record<string, string>;
 }
 
-/** Skill 加载器端口 — 批量加载 Skill 插件 */
-export interface SkillLoader {
-  /** 加载所有 Skill */
-  load(): Promise<Skill[]>;
-}
+/** Skill 加载器 — 返回 Skill 数组的函数 */
+export type SkillLoader = () => Promise<Skill[]>;

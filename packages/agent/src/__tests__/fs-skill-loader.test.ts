@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { FSSkillLoader } from '../skill/fs-skill-loader.js';
+import { createFSSkillLoader } from '../skill/fs-skill-loader.js';
 
 const TMP = resolve('/tmp/vico-skill-test-' + Date.now());
 
@@ -14,14 +14,14 @@ function createSkill(dir: string, name: string, description: string): void {
   );
 }
 
-describe('FSSkillLoader', () => {
+describe('createFSSkillLoader', () => {
   beforeEach(() => mkdirSync(TMP, { recursive: true }));
   afterEach(() => rmSync(TMP, { recursive: true, force: true }));
 
   it('loads skill from root directory', async () => {
     createSkill(TMP, 'test-skill', 'A test skill');
-    const loader = new FSSkillLoader([TMP]);
-    const skills = await loader.load();
+    const loader = createFSSkillLoader([TMP]);
+    const skills = await loader();
     expect(skills).toHaveLength(1);
     expect(skills[0].name).toBe('test-skill');
   });
@@ -29,8 +29,8 @@ describe('FSSkillLoader', () => {
   it('loads skills from subdirectories', async () => {
     createSkill(resolve(TMP, 'skill-a'), 'skill-a', 'First');
     createSkill(resolve(TMP, 'skill-b'), 'skill-b', 'Second');
-    const loader = new FSSkillLoader([TMP]);
-    const skills = await loader.load();
+    const loader = createFSSkillLoader([TMP]);
+    const skills = await loader();
     expect(skills).toHaveLength(2);
   });
 
@@ -40,8 +40,8 @@ describe('FSSkillLoader', () => {
     mkdirSync(TMP2, { recursive: true });
     createSkill(resolve(TMP2, 'skill-b'), 'skill-b', 'Second');
     try {
-      const loader = new FSSkillLoader([TMP, TMP2]);
-      const skills = await loader.load();
+      const loader = createFSSkillLoader([TMP, TMP2]);
+      const skills = await loader();
       expect(skills).toHaveLength(2);
     } finally {
       rmSync(TMP2, { recursive: true, force: true });
@@ -51,16 +51,16 @@ describe('FSSkillLoader', () => {
   it('deduplicates skills with same name', async () => {
     createSkill(resolve(TMP, 'skill-a'), 'my-skill', 'First');
     createSkill(resolve(TMP, 'skill-b'), 'my-skill', 'Duplicate');
-    const loader = new FSSkillLoader([TMP]);
-    const skills = await loader.load();
+    const loader = createFSSkillLoader([TMP]);
+    const skills = await loader();
     expect(skills).toHaveLength(1);
   });
 
   it('rejects skill with invalid name', async () => {
     mkdirSync(resolve(TMP, 'bad-skill'), { recursive: true });
     writeFileSync(resolve(TMP, 'bad-skill', 'SKILL.md'), '---\nname: INVALID NAME\n---\n\nbad');
-    const loader = new FSSkillLoader([TMP]);
-    const skills = await loader.load();
+    const loader = createFSSkillLoader([TMP]);
+    const skills = await loader();
     expect(skills).toHaveLength(0); // silently skipped
   });
 });

@@ -1,20 +1,12 @@
-import {Skill, SkillLoader} from "./types.js";
+import type {Skill, SkillLoader} from "./types.js";
 
-/** Skill 加载器链 — 聚合多个 loader，按顺序调用并合并结果 */
-export class SkillLoaderChain implements SkillLoader {
-  private loaders: SkillLoader[];
-
-  /** @param loaders - SkillLoader 列表 */
-  constructor(loaders: SkillLoader[]) {
-    this.loaders = loaders;
-  }
-
-  async load(): Promise<Skill[]> {
+/** 串联多个加载器，按顺序调用并合并结果 */
+export function createSkillLoaderChain(loaders: SkillLoader[]): SkillLoader {
+  return async () => {
     const allSkills: Skill[] = [];
-    for (const loader of this.loaders) {
-      const skills = await loader.load();
-      allSkills.push(...skills);
+    for (const loader of loaders) {
+      allSkills.push(...await loader());
     }
     return allSkills;
-  }
+  };
 }

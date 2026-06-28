@@ -1,8 +1,7 @@
 // src/__tests__/skill-tool-source.test.ts
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import {SkillRegistry} from '../skill/skill-registry.js';
-import {SkillLoaderChain} from '../skill/skill-loader-chain.js';
-import {FSSkillLoader} from '../skill/fs-skill-loader.js';
+import {createFSSkillLoader} from '../skill/fs-skill-loader.js';
 import {createSkillTools} from '../skill/tool/index.js';
 import {mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
@@ -21,9 +20,8 @@ describe('SkillToolSource', () => {
     mkdirSync(TMP, { recursive: true });
     createSkill(resolve(TMP, 'code-review'), 'code-review', 'Review code changes', 'Check for bugs and style issues.');
     createSkill(resolve(TMP, 'deploy'), 'deploy', 'Deployment guide', 'Steps to deploy the application.');
-    const loader = new FSSkillLoader([TMP]);
-    manager = new SkillRegistry(new SkillLoaderChain([loader]));
-    await manager.load();
+    const loader = createFSSkillLoader([TMP]);
+    manager = new SkillRegistry(await loader());
   });
 
   afterEach(() => rmSync(TMP, { recursive: true, force: true }));

@@ -13,7 +13,7 @@ export type SkillSettings = {
   /** 开启后自动扫描第三方 AI Agent 产品的全局 Skills（Claude、OpenClaw、Hermes、通用 agents） */
   compatible?: boolean;
 
-  /** 自定义 SkillLoader 数组，不传则使用默认 FSSkillLoader */
+  /** 自定义 SkillLoader 数组，不传则使用默认 createFSSkillLoader */
   loaders?: SkillLoader[];
 };
 

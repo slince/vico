@@ -120,16 +120,7 @@ export async function loadSkillsFromDirs(dirs: string[]): Promise<Skill[]> {
   return skills;
 }
 
-/** 文件系统 Skill 加载器 — 从指定目录扫描并加载 SKILL.md */
-export class FSSkillLoader implements SkillLoader {
-  private dirs: string[];
-
-  /** @param dirs - 待扫描的 Skill 目录列表 */
-  constructor(dirs: string[]) {
-    this.dirs = dirs;
-  }
-
-  async load(): Promise<Skill[]> {
-    return loadSkillsFromDirs(this.dirs);
-  }
+/** 从文件系统创建 Skill 加载器 — 扫描指定目录并加载 SKILL.md */
+export function createFSSkillLoader(dirs: string[]): SkillLoader {
+  return async () => loadSkillsFromDirs(dirs);
 }

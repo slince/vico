@@ -5,8 +5,8 @@ import {createAgent} from '../agent-loop/create-agent.js';
 import type {Tool} from '../tool/types.js';
 import type {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import {SkillLoaderChain} from '../skill/skill-loader-chain.js';
-import {FSSkillLoader} from '../skill/fs-skill-loader.js';
+import {createSkillLoaderChain} from '../skill/skill-loader-chain.js';
+import {createFSSkillLoader} from '../skill/fs-skill-loader.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
@@ -15,7 +15,7 @@ import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
 import type {SkillOptions, TraceOptions} from "./options.js";
 import {SkillLoader} from "../skill/types.js";
-import {ArraySkillLoader} from "../skill/array-skill-loader.js";
+import {createArraySkillLoader} from "../skill/array-skill-loader.js";
 
 /** Vico 配置选项 */
 export interface VicoOptions {
@@ -78,13 +78,13 @@ export class Vico {
     return new TurnTracer(this.events, adapters);
   }
 
-  /** 根据配置构建 SkillRegistry，有 skillDirs 时默认追加 FSSkillLoader，支持内联 Skill 数组 */
+  /** 根据配置构建 SkillLoader，有 skillDirs 时默认追加 FS 扫描，支持内联 Skill 数组 */
   private createSkillLoader(): SkillLoader{
     const skills = this.options.skills;
 
     // Skill[] 数组形式
     if (Array.isArray(skills)) {
-      return new ArraySkillLoader(skills);
+      return createArraySkillLoader(skills);
     }
 
     // SkillSettings 对象形式
@@ -93,17 +93,17 @@ export class Vico {
       const loaders = skills.loaders ? [...skills.loaders] : [];
 
       if (skillDirs.length > 0) {
-        loaders.push(new FSSkillLoader(skillDirs));
+        loaders.push(createFSSkillLoader(skillDirs));
       }
 
       if (skills.skills) {
-        loaders.push(new ArraySkillLoader(skills.skills));
+        loaders.push(createArraySkillLoader(skills.skills));
       }
-      return new SkillLoaderChain(loaders)
+      return createSkillLoaderChain(loaders)
     }
 
     // 无任何 skills 配置
-    return new ArraySkillLoader([]);
+    return createArraySkillLoader([]);
   }
 
   /**
