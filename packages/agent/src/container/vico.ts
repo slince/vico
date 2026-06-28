@@ -53,7 +53,6 @@ export class Vico {
   readonly tracer: TurnTracer;
 
   private readonly skillLoader: SkillLoader;
-  private initialized = false;
   private options: VicoOptions;
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
@@ -106,17 +105,6 @@ export class Vico {
   }
 
   /**
-   * 初始化：发现 Skill、扫描 Skill 目录。
-   * @returns Promise that resolves when initialization is complete
-   */
-  async init(): Promise<void> {
-    if (this.options.skills) {
-      await this.skillLoader.load();
-    }
-    this.initialized = true;
-  }
-
-  /**
    * 获取 Agent，若不存在则通过 factory 创建并注册。
    * @param agentId - Agent 唯一标识
    * @param factory - 创建 Agent 配置的工厂函数（仅在 Agent 不存在时调用）
@@ -143,14 +131,10 @@ export class Vico {
    * 创建单个 Agent（无缓存），委托到独立 buildAgent。
    */
   private async buildAgent(config: AgentConfig): Promise<Agent> {
-    if (!this.initialized) {
-      throw new Error('Vico not initialized. Call await vico.init() first.');
-    }
-
     return createAgent({
       ...config,
       tools: config.tools ?? this.options.tools,
-      skills: config.skills ?? await this.skillLoader.load(),
+      skills: config.skills ?? await (this.skillLoader)(),
       memory: config.memory ?? this.memory,
       thread: config.thread ?? this.thread,
       tracer: config.tracer ?? this.tracer,
