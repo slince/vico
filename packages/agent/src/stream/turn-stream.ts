@@ -91,11 +91,12 @@ export async function turnEventsToAISDK(
                 break;
 
               case 'tool-approval-request':
-                enqueue({ type: 'tool-approval-request', approvalId: c.approvalId, toolCallId: c.toolCallId, toolName: c.toolName, input: c.input });
+                // AI SDK strictObject schema 只接受 approvalId + toolCallId + signature，不允许 toolName/input
+                enqueue({ type: 'tool-approval-request', approvalId: c.approvalId, toolCallId: c.toolCallId });
                 break;
 
               case 'tool-output-denied':
-                enqueue({ type: 'tool-output-denied', toolCallId: c.toolCallId, toolName: c.toolName, reason: c.reason });
+                enqueue({ type: 'tool-output-denied', toolCallId: c.toolCallId });
                 break;
 
               case 'source':
@@ -118,7 +119,7 @@ export async function turnEventsToAISDK(
                 break;
 
               case 'turn-paused':
-                enqueue({ type: 'turn-paused', reason: c.reason, turnId: c.turnId });
+                enqueue({ type: 'data-turn-paused', data: { reason: c.reason, turnId: c.turnId } });
                 break;
 
               case 'error':
@@ -140,7 +141,7 @@ export async function turnEventsToAISDK(
           enqueue({ type: 'abort' });
         }
         if (result.status === 'paused') {
-          enqueue({ type: 'turn-paused', reason: 'tool-approval', turnId: result.turnId ?? '' });
+          enqueue({ type: 'data-turn-paused', data: { reason: 'tool-approval', turnId: result.turnId ?? '' } });
         }
         if (inStep) {
           enqueue({ type: 'finish-step' });

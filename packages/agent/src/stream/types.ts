@@ -33,8 +33,8 @@ export type UIStreamChunk =
   // 工具输出生命周期
   | { type: 'tool-output-available'; toolCallId: string; output: unknown; providerExecuted?: boolean; dynamic?: boolean; preliminary?: boolean; providerMetadata?: ProviderMetadata; toolMetadata?: Record<string, unknown> }
   | { type: 'tool-output-error'; toolCallId: string; errorText: string; providerExecuted?: boolean; dynamic?: boolean; providerMetadata?: ProviderMetadata; toolMetadata?: Record<string, unknown> }
-  | { type: 'tool-output-denied'; toolCallId: string; toolName?: string; reason?: string }
-  | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName?: string; input?: unknown; signature?: string }
+  | { type: 'tool-output-denied'; toolCallId: string }
+  | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; signature?: string }
   // 来源
   | { type: 'source-url'; sourceId: string; url: string; title?: string; providerMetadata?: ProviderMetadata }
   | { type: 'source-document'; sourceId: string; mediaType: string; title: string; filename?: string; providerMetadata?: ProviderMetadata }
@@ -42,7 +42,5 @@ export type UIStreamChunk =
   | { type: 'file'; url: string; mediaType: string; providerMetadata?: ProviderMetadata }
   // 错误
   | { type: 'error'; errorText: string }
-  // turn 暂停
-  | { type: 'turn-paused'; reason: string; turnId: string }
-  // 数据（动态扩展）
+  // 数据（动态扩展，含 data-turn-paused 等自定义类型）
   | { type: `data-${string}`; id?: string; data: unknown; transient?: boolean };
