@@ -52,18 +52,26 @@ export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
   readonly tracer: TurnTracer;
 
-  private readonly skillLoader: SkillLoader;
+  private initialized = false;
+  private skills: Skill[];
   private options: VicoOptions;
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
+  
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.tracer = this.createTracer(options.trace);
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
     this.thread = options.thread ?? new InMemoryThreadStore();
-    this.skillLoader = this.createSkillLoader();
+    this.skills = [];
+  }
+
+  /** 初始化：加载 Skill 等异步资源 */
+  async init(): Promise<void> {
+    this.skills = await this.createSkillLoader()();
+    this.initialized = true;
   }
 
   /** 根据 TraceOptions 构建 TurnTracer */
@@ -131,10 +139,13 @@ export class Vico {
    * 创建单个 Agent（无缓存），委托到独立 buildAgent。
    */
   private async buildAgent(config: AgentConfig): Promise<Agent> {
+    if (!this.initialized) {
+      throw new Error('Vico not initialized — call await vico.init() first');
+    }
     return createAgent({
       ...config,
       tools: config.tools ?? this.options.tools,
-      skills: config.skills ?? await (this.skillLoader)(),
+      skills: config.skills ?? this.skills,
       memory: config.memory ?? this.memory,
       thread: config.thread ?? this.thread,
       tracer: config.tracer ?? this.tracer,
