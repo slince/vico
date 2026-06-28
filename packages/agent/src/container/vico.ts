@@ -103,7 +103,41 @@ export class Vico {
     this.memory = options.memory;
     this.approvalGate = options.approvalGate;
     this.thread = options.thread ?? new InMemoryThreadStore();
-    this.skillRegistry = new SkillRegistry([new FSSkillLoader()]);
+    this.skillRegistry = this.createSkillRegistry();
+  }
+
+  /** 根据配置构建 SkillRegistry，有 skillDirs 时默认追加 FSSkillLoader，支持内联 Skill 数组 */
+  private createSkillRegistry(): SkillRegistry {
+    const skills = this.options.skills;
+
+    // Skill[] 数组形式
+    if (Array.isArray(skills)) {
+      const registry = new SkillRegistry([new FSSkillLoader()]);
+      registry.registerAll(skills);
+      return registry;
+    }
+
+    // SkillSettings 对象形式
+    if (skills) {
+      const hasSkillDirs = skills.skillDirs && skills.skillDirs.length > 0;
+      const loaders = skills.loaders ? [...skills.loaders] : [];
+
+      if (hasSkillDirs) {
+        loaders.push(new FSSkillLoader());
+      }
+      if (loaders.length === 0) {
+        loaders.push(new FSSkillLoader());
+      }
+
+      const registry = new SkillRegistry(loaders);
+      if (skills.skills) {
+        registry.registerAll(skills.skills);
+      }
+      return registry;
+    }
+
+    // 无任何 skills 配置
+    return new SkillRegistry([new FSSkillLoader()]);
   }
 
   /**

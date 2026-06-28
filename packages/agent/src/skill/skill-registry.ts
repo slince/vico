@@ -71,6 +71,16 @@ export class SkillRegistry {
   }
 
   /**
+   * 直接注册 Skill 实例（数组/内联 Skill）。
+   * @param skills - 待注册的 Skill 列表
+   */
+  registerAll(skills: Skill[]): void {
+    for (const skill of skills) {
+      this.skills.set(skill.name, skill);
+    }
+  }
+
+  /**
    * 清除缓存并重新扫描所有 Skill。
    */
   async refresh(): Promise<void> {
