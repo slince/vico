@@ -32,8 +32,7 @@ export class ConsoleTraceAdapter implements TraceAdapter {
 
         // system prompt
         if (req.system) {
-          const sysPreview = req.system.length > 120 ? req.system.slice(0, 120) + '…' : req.system;
-          console.log(`  │ system: ${sysPreview}`);
+          console.log(`  │ system: ${req.system}`);
         }
 
         // messages

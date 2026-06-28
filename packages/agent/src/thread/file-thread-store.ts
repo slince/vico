@@ -121,6 +121,15 @@ export class FileThreadStore implements ThreadStore {
     return this.readJSON<Turn>(join(this.turnsDir, `${turnId}.json`));
   }
 
+  async getLatestTurn(threadId: string): Promise<Turn | undefined> {
+    const all = await this.listJSON<Turn>(
+      this.turnsDir,
+      (t) => t.threadId === threadId,
+    );
+    all.sort((a, b) => b.createdAt - a.createdAt);
+    return all[0];
+  }
+
   // Message 操作
 
   async appendEntry(entry: Omit<Message, 'id' | 'createdAt'>): Promise<Message> {

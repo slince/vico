@@ -60,6 +60,16 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
     transport,
     id: remoteId,
     adapters: { history },
+    // 当所有审批决议就绪时自动发送（无需用户手动输入消息）
+    sendAutomaticallyWhen: ({ messages }) => {
+      const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+      if (!lastAssistant) return false;
+      const approvalRequests = lastAssistant.parts?.filter(p => p.type === 'tool-approval-request') ?? [];
+      if (approvalRequests.length === 0) return false;
+      const lastUser = [...messages].reverse().find(m => m.role === 'user');
+      const approvalResponses = lastUser?.parts?.filter(p => p.type === 'tool-approval-response') ?? [];
+      return approvalRequests.every(req => approvalResponses.some(res => res.approvalId === req.approvalId));
+    },
     onFinish: ({ message }) => {
       const meta = (message as any)?.metadata;
       // 新线程首次发送后，后端返回真实 threadId

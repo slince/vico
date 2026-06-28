@@ -6,7 +6,8 @@
  * isError 时显示错误态。
  */
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
-import { Cloud, Droplets, Thermometer, Wind, MapPin } from 'lucide-react';
+import { Cloud, Droplets, Thermometer, Wind, MapPin, ShieldAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface WeatherResult {
   temperature: number;
@@ -21,7 +22,50 @@ interface WeatherResult {
 export const WeatherToolRenderer: ToolCallMessagePartComponent<
   Record<string, unknown>,
   WeatherResult
-> = ({ status, args, result, isError }) => {
+> = ({ status, args, result, isError, approval, respondToApproval, addResult }) => {
+  // 需要审批
+  if (status.type === 'requires-action') {
+    return (
+      <div className="border rounded-lg p-4 my-2 bg-muted/30 space-y-2">
+        <div className="flex items-center gap-2">
+          <ShieldAlert size={14} className="text-muted-foreground" />
+          <span className="text-sm font-medium">天气查询需要确认</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          查询地点：{String(args?.location ?? '未知')}
+        </p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => {
+              if (respondToApproval) {
+                respondToApproval({ approved: true });
+              } else {
+                addResult?.('approved' as any);
+              }
+            }}
+          >
+            允许
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (respondToApproval) {
+                respondToApproval({ approved: false });
+              } else {
+                addResult?.('rejected' as any);
+              }
+            }}
+          >
+            拒绝
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (status.type === 'running') {
     return (
       <div className="border rounded-lg p-4 my-2 bg-muted/30 animate-pulse">

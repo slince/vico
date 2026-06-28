@@ -566,17 +566,17 @@ export class AgentLoop {
 
       // on-request 工具首次使用 → 暂停等待外部审批，不直接拒绝
       if (policy === 'on-request' && isFirstUse && !wasApproved) {
-        const approvalId = crypto.randomUUID();
+        // use toolCallId as approvalId so the client’s tool-approval-response maps directly
         controller.enqueue({
           type: 'tool-approval-request',
-          approvalId,
+          approvalId: call.id,
           toolCallId: call.id,
           toolName: call.name,
           input: call.args,
         });
         this.emit({
           type: 'tool-approval-request',
-          approvalId,
+          approvalId: call.id,
           toolCallId: call.id,
           toolName: call.name,
           input: call.args,
