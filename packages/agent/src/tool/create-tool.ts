@@ -39,7 +39,7 @@ export interface ToolOptions<TInput = any, TOutput = any> {
  * });
  * ```
  */
-export function createTool<TInput = any, TOutput = any>(options: ToolOptions<TInput, TOutput>): Tool {
+export function createTool<TInput = any, TOutput = any>(options: ToolOptions<TInput, TOutput>): Tool<TInput, TOutput> {
   const rawExecute = options.execute;
 
   return {

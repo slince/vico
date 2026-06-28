@@ -27,7 +27,7 @@ export class StormBreaker {
    * @param callArgs - 工具调用参数
    * @returns 包含 blocked（是否阻止）和 warning（是否警告）标志的对象
    */
-  check(callName: string, callArgs: Record<string, unknown>): { blocked: boolean; warning: boolean } {
+  check(callName: string, callArgs: unknown): { blocked: boolean; warning: boolean } {
     const key = `${callName}:${JSON.stringify(callArgs)}`;
     const record = this.records.get(key);
     if (!record) return { blocked: false, warning: false };
@@ -37,7 +37,7 @@ export class StormBreaker {
     };
   }
 
-  record(callName: string, callArgs: Record<string, unknown>): void {
+  record(callName: string, callArgs: unknown): void {
     const key = `${callName}:${JSON.stringify(callArgs)}`;
     const existing = this.records.get(key);
     if (existing) {

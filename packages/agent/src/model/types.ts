@@ -9,7 +9,7 @@ export interface ModelMessage {
   role: MessageRole;
   content: string;
   toolCallId?: string;
-  toolCalls?: { id: string; name: string; args: Record<string, unknown> }[];
+  toolCalls?: { id: string; name: string; args: unknown }[];
 }
 
 // ── ModelClient 类型 ──

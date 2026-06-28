@@ -14,6 +14,7 @@ import {DrizzleThreadStore, ensureTables} from '@vico/libsql-adapter';
 import {getDb} from './db/db.js';
 import {createApp} from './app.js';
 import logger from './lib/logger.js';
+import {weatherTool} from "./agent/tools/weather-tool";
 
 const db = getDb();
 
@@ -21,6 +22,7 @@ const db = getDb();
 export const vico = new Vico({
   maxCached: 100,
   skills: { skillDirs: ['~/.vico/skills'], compatible: true },
+  tools: [weatherTool],
   memory: new MemoryStore(),
   thread: new DrizzleThreadStore({ db: db as any }),
   trace: 2
