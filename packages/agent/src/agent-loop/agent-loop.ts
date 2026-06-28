@@ -47,7 +47,7 @@ export interface AgentLoopOptions {
 interface StepSharedContext {
   ctx: ModelRequestContext;
   session: TurnSession;
-  traceSession?: TurnTraceSession;
+  traceSession: TurnTraceSession;
   toolApprovalState: Map<string, boolean>;
 }
 
@@ -58,7 +58,7 @@ export class AgentLoop {
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalGate?: ApprovalGate;
-  private tracer?: TurnTracer;
+  private tracer: TurnTracer;
   private pipeline: ProcessorPipeline;
 
   constructor(options: AgentLoopOptions) {
@@ -169,8 +169,8 @@ export class AgentLoop {
       content: userMessage.content,
     });
 
-    const traceSession = this.tracer?.startTurn(thread, userMessage);
-    const turnSpan = traceSession?.startSpan('agent_run');
+    const traceSession = this.tracer.startTurn(thread, userMessage);
+    const turnSpan = traceSession.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
     try {
@@ -187,12 +187,12 @@ export class AgentLoop {
       while (steps < this.agent.maxSteps && !interrupted.value) {
         if (signal.aborted) {
           await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
-          turnSpan?.end({ status: 'aborted' });
+          turnSpan.end({ status: 'aborted' });
           const abortResult: TurnResult = {
             status: 'aborted', steps, usage, messages,
           };
 
-          traceSession && await this.tracer?.finish(traceSession, abortResult);
+          await this.tracer.finish(traceSession, abortResult);
           return abortResult;
         }
 
@@ -223,7 +223,7 @@ export class AgentLoop {
       const finalStatus = interrupted.value ? 'aborted' : 'completed';
       await threadStore.updateTurn(turn.id, { status: finalStatus, steps });
 
-      turnSpan?.end({ status: 'completed', steps });
+      turnSpan.end({ status: 'completed', steps });
       this.emit({ type: 'done', usage });
 
       const finalResult: TurnResult = {
@@ -232,15 +232,15 @@ export class AgentLoop {
         usage,
         messages,
       };
-      traceSession && await this.tracer?.finish(traceSession, finalResult);
+      await this.tracer.finish(traceSession, finalResult);
       return finalResult;
     } catch (err) {
       await threadStore.updateTurn(turn.id, { status: 'failed', steps });
-      turnSpan?.error(err as Error);
+      turnSpan.error(err as Error);
       const failResult: TurnResult = {
         status: 'failed', steps, usage, messages,
       };
-      traceSession && await this.tracer?.finish(traceSession, failResult);
+      await this.tracer.finish(traceSession, failResult);
       throw err;
     }
   }
@@ -448,10 +448,10 @@ export class AgentLoop {
 
     let fullText = '';
     const toolCalls: ToolCall[] = [];
-    const modelSpan = traceSession?.startSpan('model_step', { step: step.index + 1 });
+    const modelSpan = traceSession.startSpan('model_step', { step: step.index + 1 });
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
-    traceSession?.recordModelRequest(step, request);
+    traceSession.recordModelRequest(step, request);
 
     console.log("model request", request);
 
@@ -523,14 +523,14 @@ export class AgentLoop {
       modelSpan?.error(new Error(msg));
       this.emit({ type: 'error', message: msg });
       const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: msg };
-      traceSession?.recordModelResponse(step, errorResult);
+      traceSession.recordModelResponse(step, errorResult);
       return errorResult;
     }
 
     modelSpan?.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
     const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
-    traceSession?.recordModelResponse(step, result);
+    traceSession.recordModelResponse(step, result);
     return result;
   }
 
@@ -540,16 +540,16 @@ export class AgentLoop {
    * @param toolCalls - 工具调用列表
    * @param session - turn 会话
    * @param step - 当前 step 信息
-   * @param traceSession - 链路追踪会话（可选）
+   * @param traceSession - 链路追踪会话
    * @returns 工具执行结果数组
    */
   private async executeToolCalls(
     toolCalls: ToolCall[],
     session: TurnSession,
     step: Step,
-    traceSession?: TurnTraceSession,
+    traceSession: TurnTraceSession,
   ): Promise<ToolResult[]> {
-    const toolSpan = traceSession?.startSpan('tool_call', { count: toolCalls.length });
+    const toolSpan = traceSession.startSpan('tool_call', { count: toolCalls.length });
     let results: ToolResult[];
     try {
       results = await this.dispatchTools(toolCalls, session, step);

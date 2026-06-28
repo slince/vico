@@ -22,7 +22,7 @@ export class MemoryStore {
   readonly conversationWindow: number;
 
   constructor(options: MemoryStoreOptions = {}) {
-    this.conversationWindow = options.conversationWindow ?? 20;
+    this.conversationWindow = options.conversationWindow ?? 15;
     this.conversation = options.conversation;
 
     this.semantic = options.semantic;
