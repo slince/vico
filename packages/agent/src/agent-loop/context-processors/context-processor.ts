@@ -145,7 +145,7 @@ export class ProcessorPipeline {
         await processor.process(ctx);
       } catch (err) {
         console.warn(
-          `[OnionPipeline] Processor "${processor.name}" (priority ${processor.priority}) threw:`,
+          `[ProcessorPipeline] Processor "${processor.name}" (priority ${processor.priority}) threw:`,
           err instanceof Error ? err.message : err,
         );
       }
@@ -165,7 +165,7 @@ export class ProcessorPipeline {
         await processor.resolve(ctx);
       } catch (err) {
         console.warn(
-          `[OnionPipeline] Processor "${processor.name}" resolve threw:`,
+          `[ProcessorPipeline] Processor "${processor.name}" resolve threw:`,
           err instanceof Error ? err.message : err,
         );
       }
