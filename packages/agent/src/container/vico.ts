@@ -5,25 +5,16 @@ import type {Tool} from '../tool/types.js';
 import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createLanguageModel} from '../model/factory.js';
-import {ToolBroker} from '../tool/tool-broker.js';
 import {SkillRegistry} from '../skill/skill-registry.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
-import {AgentLoop} from '../agent-loop/agent-loop.js';
 import type {ApprovalGate} from '../agent-loop/approval-gate.js';
-import type {ContextProcessor} from '../agent-loop/context-processors/context-processor.js';
-import {SystemPromptProcessor} from '../agent-loop/context-processors/system-prompt-processor.js';
-import {SkillProcessor} from '../agent-loop/context-processors/skill-processor.js';
 import type {Skill} from '../skill/types.js';
-import {MemoryProcessor} from '../agent-loop/context-processors/memory-processor.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {LoopTracer, type TraceLevel} from '../observable/loop-tracer.js';
 import {createAdaptersFromLevel, type TraceAdapter} from '../observable/trace-adapters.js';
-import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
-import {coreBuiltinTools} from "../tool/builtin/index.js";
-import {createAllSkillTools} from "../skill/tool/index.js";
 import {collectSkillDirs} from './utils.js';
 import {SkillOptions} from "./options.js";
 
@@ -178,7 +169,7 @@ export class Vico {
     // 加载 agent 绑定的 tools 和 skills
     const tools = config.tools ? config.tools : this.options.tools
 
-    const skills = config.skills ? await config.skills : this.skillRegistry.listAll()
+    const skills = config.skills ? config.skills : this.skillRegistry.listAll()
 
     const memory = config.memory ?? this.memory;
     const thread = config.thread ?? this.thread;
@@ -198,55 +189,7 @@ export class Vico {
       tracer: this.tracer,
       approvalGate: this.approvalGate,
       events: this.events,
-      loopFactory: this.buildLoop,
     });
-  }
-
-  /**
-   * 为 Agent 构建 AgentLoop，装配 context processors、tool broker 和工作记忆。
-   * @param agent - 目标 Agent 实例
-   * @returns 配置完成的 AgentLoop 实例
-   */
-  public buildLoop(agent: Agent): AgentLoop {
-    const memory = agent.memory ?? this.memory;
-
-    // prompt context processor
-    const processors: ContextProcessor[] = [
-      new SystemPromptProcessor(),
-      new SkillProcessor(agent.skills),
-    ];
-
-    const toolBroker = new ToolBroker();
-
-    // 如果没有预定义就用 vico的
-    if (agent.tools.length === 0) {
-      if (this.options.tools) {
-        toolBroker.registerAll(this.options.tools);
-      }
-      toolBroker.registerAll(createAllSkillTools(this.skillRegistry));
-    }
-
-    if (memory) {
-      processors.push(new MemoryProcessor(memory));
-      toolBroker.registerAll([createUpdateWorkingMemoryTool(memory.working)]);
-    }
-
-    // 注册自定义的tool
-    if (agent.tools.length > 0) {
-      toolBroker.registerAll(agent.tools);
-    }
-
-    toolBroker.registerAll(coreBuiltinTools);
-
-    return new AgentLoop({
-      agent,
-      toolBroker,
-      processors,
-    });
-  }
-
-  getSkillRegistry(): SkillRegistry {
-    return this.skillRegistry;
   }
 
   /**
