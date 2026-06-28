@@ -11,7 +11,7 @@ import {buildLoop} from "./utils.js";
 import {TurnOutput} from "./turn-output.js";
 import {ModelMessage} from "../model/types.js";
 import type {ApprovalGate} from "./approval-gate.js";
-import {LoopTracer} from "../observable/loop-tracer.js";
+import {TurnTracer} from "../observable/turn-tracer.js";
 import {MittEventRecorder} from "../events/event-recorder.js";
 
 export type LoopFactory = (agent: Agent) => AgentLoop
@@ -39,7 +39,7 @@ export interface AgentOptions {
   thread: ThreadStore;
   approvalGate?: ApprovalGate;
   events?: EventRecorder<TurnEvent>;
-  tracer?: LoopTracer;
+  tracer?: TurnTracer;
   loopFactory?: LoopFactory;
 }
 
@@ -59,7 +59,7 @@ export class Agent {
   readonly thread: ThreadStore;
   readonly approvalGate?: ApprovalGate;
   readonly events: EventRecorder<TurnEvent>;
-  readonly tracer?: LoopTracer;
+  readonly tracer: TurnTracer;
   readonly loop: AgentLoop;
 
   constructor(params: AgentOptions) {
@@ -77,7 +77,7 @@ export class Agent {
     this.thread = params.thread;
     this.approvalGate = params.approvalGate;
     this.events = params.events || new MittEventRecorder<TurnEvent>();
-    this.tracer = params.tracer;
+    this.tracer = params.tracer || new TurnTracer(this.events, []);
 
     const loopFactory = params.loopFactory || buildLoop;
     this.loop = loopFactory(this)

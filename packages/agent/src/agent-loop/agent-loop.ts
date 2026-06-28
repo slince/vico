@@ -7,7 +7,7 @@ import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import type {ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
-import type {LoopTracer, TurnTraceSession} from '../observable/loop-tracer.js';
+import type {TurnTracer, TurnTraceSession} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ApprovalGate} from './approval-gate.js';
@@ -58,7 +58,7 @@ export class AgentLoop {
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalGate?: ApprovalGate;
-  private tracer?: LoopTracer;
+  private tracer?: TurnTracer;
   private pipeline: ProcessorPipeline;
 
   constructor(options: AgentLoopOptions) {

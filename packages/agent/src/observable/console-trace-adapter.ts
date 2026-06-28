@@ -1,5 +1,5 @@
 // @vico/agent - ConsoleTraceAdapter: formats and prints TurnTrace to stdout
-import type {TurnTrace} from './loop-tracer.js';
+import type {TurnTrace} from './turn-tracer.js';
 import type {TraceAdapter} from './trace-adapter.js';
 
 /** Console 输出适配器 — 格式化 trace 并打印到 stdout */

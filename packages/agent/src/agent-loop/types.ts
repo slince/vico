@@ -5,7 +5,7 @@ import type {Thread, ThreadStore, Turn} from '../thread/types.js';
 import type {Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
-import type {LoopTracer} from "../observable/loop-tracer.js";
+import type {TurnTracer} from "../observable/turn-tracer.js";
 import type {EventRecorder} from "../events/types.js";
 import type {ApprovalGate} from "./approval-gate.js";
 
@@ -84,7 +84,7 @@ export interface AgentConfig {
   skills?: Skill[];
   memory?: MemoryStore;
   thread?: ThreadStore;
-  tracer?: LoopTracer;
+  tracer?: TurnTracer;
   events?: EventRecorder<TurnEvent>;
   approvalGate?: ApprovalGate;
 }

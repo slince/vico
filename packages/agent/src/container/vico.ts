@@ -12,7 +12,7 @@ import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
-import {LoopTracer} from '../observable/loop-tracer.js';
+import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
 import {collectSkillDirs} from './utils.js';
 import {SkillOptions, TraceOptions} from "./options.js";
@@ -54,7 +54,7 @@ export interface VicoOptions {
  */
 export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
-  readonly tracer: LoopTracer;
+  readonly tracer: TurnTracer;
 
   private readonly skillRegistry: SkillRegistry;
   private initialized = false;
@@ -76,13 +76,13 @@ export class Vico {
     this.skillRegistry = this.createSkillRegistry();
   }
 
-  /** 根据 TraceOptions 构建 LoopTracer */
-  private createTracer(trace?: TraceOptions): LoopTracer {
+  /** 根据 TraceOptions 构建 TurnTracer */
+  private createTracer(trace?: TraceOptions): TurnTracer {
     const resolved = trace ?? 0;
     const adapters = typeof resolved === 'object'
       ? [...createAdaptersFromLevel(resolved.level ?? 0), ...(resolved.adapters ?? [])]
       : createAdaptersFromLevel(resolved);
-    return new LoopTracer(this.events, adapters);
+    return new TurnTracer(this.events, adapters);
   }
 
   /** 根据配置构建 SkillRegistry，有 skillDirs 时默认追加 FSSkillLoader，支持内联 Skill 数组 */

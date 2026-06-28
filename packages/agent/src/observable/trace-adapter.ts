@@ -1,5 +1,5 @@
 // @vico/agent - TraceAdapter interface + factory
-import type { TurnTrace, TraceLevel } from './loop-tracer.js';
+import type { TurnTrace, TraceLevel } from './turn-tracer.js';
 import { ConsoleTraceAdapter } from './console-trace-adapter.js';
 import { FileTraceAdapter } from './file-trace-adapter.js';
 

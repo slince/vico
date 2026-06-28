@@ -1,4 +1,4 @@
-// @vico/agent - LoopTracer: subscribes to AgentLoop events, collects spans, outputs structured trace on turn end
+// @vico/agent - TurnTracer: subscribes to AgentLoop events, collects spans, outputs structured trace on turn end
 import {randomUUID} from 'node:crypto';
 import type {EventRecorder} from '../events/types.js';
 import type {Step, TurnEvent, TurnResult} from '../agent-loop/types.js';
@@ -164,14 +164,14 @@ export class TurnTraceSession {
   }
 }
 
-// ── LoopTracer — 协调器 ──
+// ── TurnTracer — 协调器 ──
 
 /**
- * LoopTracer — 追踪协调器。
+ * TurnTracer — 追踪协调器。
  * 负责 turn 级生命周期管理（创建 session → 委托适配器输出/导出）。
  * 每个 turn 通过 startTurn() 创建独立的 TurnTraceSession，并发安全。
  */
-export class LoopTracer {
+export class TurnTracer {
   constructor(
     private readonly events: EventRecorder<TurnEvent>,
     private readonly adapters: ReadonlyArray<TraceAdapter>,

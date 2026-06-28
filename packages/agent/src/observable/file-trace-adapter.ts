@@ -2,7 +2,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {homedir} from 'node:os';
-import type {TurnTrace} from './loop-tracer.js';
+import type {TurnTrace} from './turn-tracer.js';
 import type {TraceAdapter} from './trace-adapter.js';
 
 /** 默认 trace 文件导出目录 */
@@ -61,10 +61,10 @@ export class FileTraceAdapter implements TraceAdapter {
       };
 
       await fs.writeFile(filepath, JSON.stringify(payload, null, 2), 'utf-8');
-      console.log(`[LoopTracer] Trace dumped → ${filepath}`);
+      console.log(`[TurnTracer] Trace dumped → ${filepath}`);
     } catch (err) {
       console.warn(
-        '[LoopTracer] Failed to dump trace:',
+        '[TurnTracer] Failed to dump trace:',
         err instanceof Error ? err.message : String(err),
       );
     }

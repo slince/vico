@@ -120,11 +120,11 @@ export { ContextCompactor } from './agent-loop/context-compactor.js';
 // Observable (Span + Trace)
 export { type Span, type SpanState } from './observable/types.js';
 export {
-  LoopTracer,
+  TurnTracer,
   TurnTraceSession,
   type TraceLevel,
   type TurnTrace,
-} from './observable/loop-tracer.js';
+} from './observable/turn-tracer.js';
 export {
   createAdaptersFromLevel,
   type TraceAdapter,

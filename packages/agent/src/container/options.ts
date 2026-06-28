@@ -1,6 +1,6 @@
 import {Skill, SkillLoader} from "../skill/types.js";
 import {TraceAdapter} from "../observable/trace-adapter.js";
-import {TraceLevel} from "../observable/loop-tracer.js";
+import {TraceLevel} from "../observable/turn-tracer.js";
 
 
 /** Skill 扫描配置 */

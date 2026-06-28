@@ -5,7 +5,7 @@ import { AgentRuntime } from '../agent-loop/agent-runtime.js';
 import { Agent } from '../agent-loop/agent.js';
 import type { TurnEvent } from '../agent-loop/types.js';
 import { MittEventRecorder } from '../events/event-recorder.js';
-import { LoopTracer } from '../observable/loop-tracer.js';
+import { TurnTracer } from '../observable/turn-tracer.js';
 import { MemoryStore } from '../memory/memory-store.js';
 import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
 
@@ -24,7 +24,7 @@ function makeAgent(id: string): Agent {
     memory: new MemoryStore(),
     thread: new InMemoryThreadStore(),
     events,
-    tracer: new LoopTracer(events, []),
+    tracer: new TurnTracer(events, []),
   });
 }
 
