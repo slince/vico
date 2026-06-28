@@ -88,10 +88,6 @@ export async function executeAgentChat(
   // 确保 Agent 已在 Vico Runtime 注册（不存在则创建）
   const agent = await vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
     const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
-
-    console.log(tenantId, agentId, runtimeConfig);
-
-
     if (!runtimeConfig) throw new Error('Agent not found');
     return buildAgentConfig(runtimeConfig);
   });
@@ -112,7 +108,6 @@ export async function executeAgentResume(
   // 确保 Agent 已在 Vico Runtime 注册（不存在则创建）
   const agent = await vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
     const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
-    if (!runtimeConfig) throw new Error('Agent not found');
     return buildAgentConfig(runtimeConfig);
   });
 

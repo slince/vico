@@ -55,7 +55,7 @@ class AgentManager {
 
   async getAgentRuntimeConfig(tenantId: string, agentId: string): Promise<AgentRuntimeConfig | null> {
     const agent = await this.getById(tenantId, agentId);
-    if (!agent) return null;
+    if (!agent) throw new Error('Agent not found');
 
     let model: AgentRuntimeConfig['model'] | null = null;
     if (agent.model_id) {
@@ -64,7 +64,7 @@ class AgentManager {
     if (!model) {
       model = await modelManager.getDefault(tenantId);
     }
-    if (!model) return null;
+    if (!model) throw new Error('未配置模型，请先在模型管理中至少添加一个模型');
 
     const instructions = agent.system_prompt || 'You are a helpful assistant.';
 
