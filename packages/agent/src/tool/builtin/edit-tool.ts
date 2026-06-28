@@ -52,7 +52,7 @@ function generateDiff(oldContent: string, newContent: string): string {
   while (i < newLines.length) {
     diff.push(`+${newLines[i++]}`);
   }
-  return diff.length > 0 ? diff.join('\n') : 'No changes detected';
+  return diff.length > 0 ? diff.join('\n') : '未检测到变更';
 }
 
 const editOutputSchema = z.object({
@@ -82,10 +82,10 @@ async function executeEdit(call: ToolCall, ctx: ToolExecutionContext): Promise<z
     const escaped = edit.oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const count = (modified.match(new RegExp(escaped, 'g')) || []).length;
     if (count === 0) {
-      throw new Error(`oldText not found in file:\n\`\`\`\n${edit.oldText.slice(0, 200)}${edit.oldText.length > 200 ? '...' : ''}\n\`\`\``);
+      throw new Error(`文件中未找到 oldText:\n\`\`\`\n${edit.oldText.slice(0, 200)}${edit.oldText.length > 200 ? '...' : ''}\n\`\`\``);
     }
     if (count > 1) {
-      throw new Error(`oldText appears ${count} times in the file. Please use a larger string with more surrounding context to make it unique.`);
+      throw new Error(`oldText 在文件中出现了 ${count} 次，请使用更完整的上下文使其唯一。`);
     }
   }
 

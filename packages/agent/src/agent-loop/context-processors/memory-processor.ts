@@ -66,12 +66,12 @@ export class MemoryProcessor implements ContextProcessor {
     ctx.messages.push({
       role: 'system',
       content:
-        `Call the updateWorkingMemory tool to store user facts. If information might be referenced again — store it!\n\n` +
-        `Guidelines:\n` +
-        `1. Update proactively when you learn new facts about the user\n` +
-        `2. Replace only the changed parts, keep the rest intact\n` +
-        `3. Use the exact Markdown format shown below — do NOT output the template itself as text, always use the tool\n\n` +
-        `Current working memory:\n\`\`\`markdown\n${dataBlock}\n\`\`\``,
+        `调用 updateWorkingMemory 工具存储用户信息。如果信息可能被再次引用——存储它！\n\n` +
+        `使用指南：\n` +
+        `1. 了解到用户新信息时主动更新\n` +
+        `2. 仅替换变更部分，保持其他部分不变\n` +
+        `3. 使用下方 Markdown 格式——不要直接输出模板文本，始终通过工具更新\n\n` +
+        `当前工作记忆：\n\`\`\`markdown\n${dataBlock}\n\`\`\``,
     });
   }
 
@@ -89,7 +89,7 @@ export class MemoryProcessor implements ContextProcessor {
     if (items.length === 0) return;
 
     const memText = items.map((m) => `- ${m.content}`).join('\n');
-    ctx.messages.push({ role: 'system', content: `Relevant memories:\n${memText}` });
+    ctx.messages.push({ role: 'system', content: `相关记忆：\n${memText}` });
   }
 
   /**

@@ -37,7 +37,7 @@ export class ApprovalGate {
     const decision = new Promise<ApprovalDecision>((resolve) => {
       const timeoutId = setTimeout(() => {
         this.pending.delete(id);
-        resolve({ approved: false, reason: 'Approval timeout' });
+        resolve({ approved: false, reason: '审批超时' });
       }, timeout);
 
       this.pending.set(id, { call, resolve, timeoutId });
@@ -75,7 +75,7 @@ export class ApprovalGate {
    *
    * @param reason - 取消原因，默认为 'Cancelled'
    */
-  cancelAll(reason = 'Cancelled'): void {
+  cancelAll(reason = '已取消'): void {
     for (const [id, entry] of this.pending) {
       clearTimeout(entry.timeoutId);
       entry.resolve({ approved: false, reason });

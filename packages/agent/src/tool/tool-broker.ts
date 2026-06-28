@@ -43,18 +43,18 @@ export class ToolBroker {
   async execute(call: ToolCall, ctx: ToolExecutionContext): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
-      return { callId: call.id, name: call.name, status: 'error', output: null, error: `Tool ${call.name} not found` };
+      return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
     }
 
     // 审批策略：_run 已处理 on-request 审批，此处只处理 never 阻断
     if (tool.policy === 'never') {
-      return { callId: call.id, name: call.name, status: 'error', output: null, error: `Tool ${call.name} is blocked by policy` };
+      return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被策略阻止` };
     }
 
     // 风暴检测
     const storm = this.stormBreaker.check(call.name, call.args);
     if (storm.blocked) {
-      return { callId: call.id, name: call.name, status: 'error', output: null, error: `Tool ${call.name} blocked by storm breaker: too many repeated calls` };
+      return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被风暴检测阻止：重复调用次数过多` };
     }
 
     try {

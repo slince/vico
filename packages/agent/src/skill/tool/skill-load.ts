@@ -12,9 +12,9 @@ export function createSkillLoadTool(manager: SkillRegistry) {
   return createTool({
     name: 'skill',
     description:
-      'Load the full instructions for a skill by name. Use this when you need detailed guidance from a specific skill.',
+      '按名称加载 Skill 的完整指令集。当需要某个 Skill 的详细指导时使用。',
     inputSchema: z.object({
-      name: z.string().describe('The skill name to load'),
+      name: z.string().describe('要加载的 Skill 名称'),
     }),
     outputSchema: z.object({
       name: z.string(),

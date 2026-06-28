@@ -58,7 +58,7 @@ export class ContextCompactor {
     let summaryContent: string;
     try {
       const { stream } = await modelClient.stream({
-        system: 'Summarize the following conversation concisely. Keep key decisions, facts, and action items.',
+        system: '简洁地总结以下对话。保留关键决策、事实和待办事项。',
         messages: head,
         abortSignal: signal,
       });
@@ -72,7 +72,7 @@ export class ContextCompactor {
       summaryContent = head.map((m) => `${m.role}: ${m.content.slice(0, 200)}`).join('\n');
     }
 
-    const summaryMessage: ModelMessage = { role: 'system', content: `[Conversation summary]\n${summaryContent}` };
+    const summaryMessage: ModelMessage = { role: 'system', content: `[对话摘要]\n${summaryContent}` };
     return {
       compacted: [summaryMessage, ...tail],
       wasCompacted: true,

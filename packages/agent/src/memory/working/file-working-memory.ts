@@ -3,17 +3,17 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { WorkingMemory } from '../types.js';
 
-const DEFAULT_TEMPLATE = `# User Facts
-- **Name**:
-- **Location**:
-- **Time Zone**:
-- **Language**:
+const DEFAULT_TEMPLATE = `# 用户信息
+- **姓名**：
+- **位置**：
+- **时区**：
+- **语言**：
 
-## Preferences
-- **Communication Style**:
+## 偏好设置
+- **沟通风格**：
 
-## Session Context
-- **Current Task**:
+## 会话上下文
+- **当前任务**：
 `;
 
 /** 构造选项 */

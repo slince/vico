@@ -13,10 +13,10 @@ import type {SkillRegistry} from '../skill-registry.js';
 export function createSkillReadTool(manager: SkillRegistry) {
   return createTool({
     name: 'skill_read',
-    description: "Read a file from a skill's references, scripts, or assets directory.",
+    description: "读取 Skill 的 references、scripts 或 assets 目录中的文件。",
     inputSchema: z.object({
-      skillName: z.string().describe('The skill name'),
-      filePath: z.string().describe('Relative path within the skill directory'),
+      skillName: z.string().describe('Skill 名称'),
+      filePath: z.string().describe('Skill 目录内的相对路径'),
     }),
     outputSchema: z.object({
       content: z.string(),

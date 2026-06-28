@@ -11,10 +11,10 @@ import type {SkillRegistry} from '../skill-registry.js';
 export function createSkillSearchTool(manager: SkillRegistry) {
   return createTool({
     name: 'skill_search',
-    description: 'Search across all available skills by keyword. Returns matching skills with relevance scores.',
+    description: '按关键词搜索所有可用 Skill，返回匹配的 Skill 及相关度评分。',
     inputSchema: z.object({
-      query: z.string().describe('Search query'),
-      limit: z.number().int().default(10).describe('Max results'),
+      query: z.string().describe('搜索关键词'),
+      limit: z.number().int().default(10).describe('最大结果数'),
     }),
     outputSchema: z.object({
       results: z.array(z.object({

@@ -16,9 +16,9 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
   return createTool({
     name: 'updateWorkingMemory',
     description:
-      'Update the working memory with user facts and context. Call this whenever you learn new information about the user that might be useful later. Provide the complete updated Markdown content — it will replace the existing working memory.',
+      '用用户事实和上下文更新工作记忆。每当了解到可能日后有用的用户信息时调用此工具。提供完整的 Markdown 内容——它将替换现有工作记忆。',
     inputSchema: z.object({
-      memory: z.string().describe('The complete updated working memory content in Markdown format'),
+      memory: z.string().describe('完整的更新后工作记忆内容（Markdown 格式）'),
     }),
     outputSchema: z.object({
       status: z.literal('updated'),
@@ -31,7 +31,7 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
       const scopeId = wm.scope === 'user' ? ctx.session.thread.userId ?? '' : ctx.session.workspace;
       const current = await wm.get(scopeId);
       if (current && args.memory.trim() === template.trim()) {
-        throw new Error('Refusing to replace working memory with empty template');
+        throw new Error('拒绝用空模板替换工作记忆');
       }
       await wm.set(scopeId, args.memory);
       return { status: 'updated' as const };

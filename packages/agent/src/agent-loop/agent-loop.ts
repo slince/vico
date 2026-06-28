@@ -270,7 +270,7 @@ export class AgentLoop {
     await this.tryCompact(messages, step.signal);
 
     if (this.tokenEconomy?.isInputExhausted()) {
-      this.emit({ type: 'error', message: 'Input token budget exhausted' });
+      this.emit({ type: 'error', message: '输入 token 预算已耗尽' });
       return { shouldBreak: true, usage };
     }
 
@@ -312,7 +312,7 @@ export class AgentLoop {
       const policy = tool?.policy ?? 'auto';
 
       if (policy === 'never') {
-        deniedResults.push({ callId: call.id, name: call.name, status: 'error', output: null, error: 'Blocked by policy' });
+        deniedResults.push({ callId: call.id, name: call.name, status: 'error', output: null, error: '被策略阻止' });
         continue;
       }
 
@@ -360,7 +360,7 @@ export class AgentLoop {
         deniedResults.push({
           callId: call.id, name: call.name,
           status: 'error', output: null,
-          error: result.reason ?? 'User denied',
+          error: result.reason ?? '用户拒绝',
         });
       }
     }

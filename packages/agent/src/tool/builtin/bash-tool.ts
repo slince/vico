@@ -6,11 +6,11 @@ import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
 const bashParams = z.object({
-  command: z.string().describe('The shell command to execute'),
-  timeout: z.number().min(1).max(600000).default(120000).describe('Timeout in milliseconds'),
-  action: z.enum(['run', 'poll', 'write', 'stop']).default('run').describe('Session action'),
-  session_id: z.string().default('default').describe('Session ID for poll/write/stop actions'),
-  input: z.string().optional().describe('Input to send to the session stdin'),
+  command: z.string().describe('要执行的 shell 命令'),
+  timeout: z.number().min(1).max(600000).default(120000).describe('超时时间（毫秒）'),
+  action: z.enum(['run', 'poll', 'write', 'stop']).default('run').describe('会话操作'),
+  session_id: z.string().default('default').describe('用于 poll/write/stop 操作的会话 ID'),
+  input: z.string().optional().describe('发送到会话 stdin 的输入'),
 });
 
 interface SessionEntry {
@@ -58,19 +58,19 @@ async function executeBash(call: ToolCall, ctx: ToolExecutionContext): Promise<s
 
 function handleStop(sid: string): string {
   const entry = sessions.get(sid);
-  if (!entry) return `Session "${sid}" not found`;
+  if (!entry) return `会话 "${sid}" 未找到`;
   cleanupSession(sid, entry);
-  return `Session "${sid}" stopped`;
+  return `会话 "${sid}" 已停止`;
 }
 
 function handlePoll(sid: string): string {
   const entry = sessions.get(sid);
-  if (!entry) return `Session "${sid}" not found`;
+  if (!entry) return `会话 "${sid}" 未找到`;
   if (entry.running) {
-    return `Session "${sid}" still running...\n\nSTDOUT:\n${entry.stdout.slice(-2000)}\n\nSTDERR:\n${entry.stderr.slice(-2000) || '(none)'}`;
+    return `会话 "${sid}" 仍在运行...\n\nSTDOUT:\n${entry.stdout.slice(-2000)}\n\nSTDERR:\n${entry.stderr.slice(-2000) || '(无)'}`;
   }
   return [
-    `Session "${sid}" completed with exit code ${entry.exitCode}`,
+    `会话 "${sid}" 已完成，退出码 ${entry.exitCode}`,
     entry.stdout ? `\nSTDOUT:\n${entry.stdout.slice(-4000)}` : '',
     entry.stderr ? `\nSTDERR:\n${entry.stderr.slice(-2000)}` : '',
   ].join('\n');
@@ -78,14 +78,14 @@ function handlePoll(sid: string): string {
 
 function handleWrite(sid: string, input?: string): string {
   const entry = sessions.get(sid);
-  if (!entry) return `Session "${sid}" not found`;
-  if (!entry.process) return `Session "${sid}" has no running process`;
-  if (!input) return 'No input provided';
+  if (!entry) return `会话 "${sid}" 未找到`;
+  if (!entry.process) return `会话 "${sid}" 没有运行中的进程`;
+  if (!input) return '未提供输入';
   try {
     entry.process.stdin?.write(input);
-    return `Input sent to session "${sid}"`;
+    return `输入已发送到会话 "${sid}"`;
   } catch (err: any) {
-    return `Failed to send input: ${err.message}`;
+    return `发送输入失败: ${err.message}`;
   }
 }
 
@@ -131,7 +131,7 @@ function handleRun(command: string, sid: string, timeout: number, cwd: string): 
       if (!settled) {
         settled = true;
         const output = [
-          `Command completed with exit code ${code}`,
+          `命令已完成，退出码 ${code}`,
           stdout ? `\nSTDOUT:\n${stdout.slice(-4000)}` : '',
           stderr ? `\nSTDERR:\n${stderr.slice(-2000)}` : '',
         ].join('\n');
@@ -146,7 +146,7 @@ function handleRun(command: string, sid: string, timeout: number, cwd: string): 
 
       if (!settled) {
         settled = true;
-        resolveResult(`Command failed: ${err.message}\n\nSTDOUT:\n${stdout.slice(-2000)}\n\nSTDERR:\n${stderr.slice(-2000)}`);
+        resolveResult(`命令失败: ${err.message}\n\nSTDOUT:\n${stdout.slice(-2000)}\n\nSTDERR:\n${stderr.slice(-2000)}`);
       }
     });
   });
@@ -155,7 +155,7 @@ function handleRun(command: string, sid: string, timeout: number, cwd: string): 
 export const bashTool = createTool({
   name: 'bash',
   description:
-    'Execute a shell command in a persistent session. Supports long-running commands with timeout and session management (run/poll/write/stop actions). The working directory is the workspace root. Use "run" to start a command, "poll" to check status, "write" to send input, and "stop" to terminate.',
+    '在持久会话中执行 shell 命令。支持长运行命令的超时和会话管理（run/poll/write/stop 操作）。工作目录为工作区根目录。使用 "run" 启动命令，"poll" 检查状态，"write" 发送输入，"stop" 终止。',
   inputSchema: bashParams,
   outputSchema: z.string(),
   policy: 'on-request',

@@ -18,6 +18,6 @@ export class RagProcessor implements ContextProcessor {
     if (results.length === 0) return;
 
     const ragText = results.map((r) => `[${r.source}] ${r.content}`).join('\n');
-    ctx.messages.push({ role: 'system', content: `Relevant knowledge:\n${ragText}` });
+    ctx.messages.push({ role: 'system', content: `相关知识：\n${ragText}` });
   }
 }

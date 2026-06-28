@@ -6,9 +6,9 @@ import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
 const findParams = z.object({
-  pattern: z.string().default('*').describe('Glob pattern to match file names'),
-  path: z.string().optional().describe('Directory to search in (default: workspace root)'),
-  limit: z.number().int().default(200).describe('Maximum number of files to return'),
+  pattern: z.string().default('*').describe('匹配文件名的 glob 模式'),
+  path: z.string().optional().describe('搜索目录（默认：工作区根目录）'),
+  limit: z.number().int().default(200).describe('返回文件的最大数量'),
 });
 
 interface FindResult {
@@ -87,7 +87,7 @@ async function executeFind(call: ToolCall, ctx: ToolExecutionContext): Promise<z
 export const findTool = createTool({
   name: 'find',
   description:
-    'Find files by glob pattern in the workspace. Results are sorted by modification time (newest first). Use this to locate files matching a naming pattern.',
+    '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。用于按命名模式定位文件。',
   inputSchema: findParams,
   outputSchema: findOutputSchema,
   policy: 'auto',

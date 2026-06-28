@@ -1,17 +1,17 @@
 // src/memory/in-memory-working-memory.ts
 import type { WorkingMemory } from '../types.js';
 
-const DEFAULT_TEMPLATE = `# User Facts
-- **Name**:
-- **Location**:
-- **Time Zone**:
-- **Language**:
+const DEFAULT_TEMPLATE = `# 用户信息
+- **姓名**：
+- **位置**：
+- **时区**：
+- **语言**：
 
-## Preferences
-- **Communication Style**:
+## 偏好设置
+- **沟通风格**：
 
-## Session Context
-- **Current Task**:
+## 会话上下文
+- **当前任务**：
 `;
 
 /** 基于 Map 的内存版工作记忆 */

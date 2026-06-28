@@ -46,7 +46,7 @@ export class TokenEconomy {
    */
   truncateToolOutput(output: string): string {
     if (output.length <= this.maxToolResultLength) return output;
-    return output.slice(0, this.maxToolResultLength) + '... [truncated]';
+    return output.slice(0, this.maxToolResultLength) + '... [已截断]';
   }
 
   getUsage(): { input: number; output: number } {
