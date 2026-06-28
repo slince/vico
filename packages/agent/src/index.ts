@@ -68,7 +68,6 @@ export { ToolBroker } from './tool/tool-broker.js';
 export {
   type ToolExecutionContext,
   type ApprovalDecision,
-  type ToolStore,
 } from './tool/types.js';
 export { type TurnSession } from './agent-loop/types.js';
 export { StormBreaker } from './tool/storm-breaker.js';
@@ -98,7 +97,7 @@ export { createUpdateWorkingMemoryTool } from './memory/tool/working-memory-tool
 export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/semantic/vector-semantic-recall.js';
 
 // Ports — SkillLoader
-export { type SkillLoader, type Skill, type SkillStore } from './skill/types.js';
+export { type SkillLoader, type Skill } from './skill/types.js';
 
 // Skill system
 export { FSSkillLoader } from './skill/fs-skill-loader.js';
@@ -143,7 +142,7 @@ export { AgentRuntime } from './agent-loop/agent-runtime.js';
 
 // Agent
 export { Agent, type AgentOptions, type InvokeOptions } from './agent-loop/agent.js';
-export { createAgent, type BuildAgentOptions } from './agent-loop/create-agent.js';
+export { createAgent } from './agent-loop/create-agent.js';
 
 // AgentLoop
 export { AgentLoop } from './agent-loop/agent-loop.js';
