@@ -1,13 +1,6 @@
 // @vico/agent - AgentLoop module type definitions
-import type {LanguageModelV3} from '@ai-sdk/provider';
 import type {ModelMessage} from '../model/types.js';
-import type {Thread, ThreadStore, Turn} from '../thread/types.js';
-import type {Tool} from '../tool/types.js';
-import type {Skill} from '../skill/types.js';
-import type {MemoryStore} from '../memory/memory-store.js';
-import type {TurnTracer} from "../observable/turn-tracer.js";
-import type {EventRecorder} from "../events/types.js";
-import type {ApprovalGate} from "./approval-gate.js";
+import type {Thread, Turn} from '../thread/types.js';
 
 /** 模型引用 */
 export interface ModelRef {
@@ -67,24 +60,3 @@ export type TurnEvent =
   | { type: 'compacted'; removedTokens: number }
   | { type: 'error'; message: string }
   | { type: 'done'; usage: { input: number; output: number } };
-
-/** LanguageModel 工厂类型 */
-export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
-
-/** 创建 Agent 的输入配置 */
-export interface AgentConfig {
-  id: string;
-  name: string;
-  systemPrompt: string;
-  model: ModelRef | LanguageModelV3;
-  temperature?: number;
-  maxTokens?: number;
-  maxSteps?: number;
-  tools?: Tool[];
-  skills?: Skill[];
-  memory?: MemoryStore;
-  thread?: ThreadStore;
-  tracer?: TurnTracer;
-  events?: EventRecorder<TurnEvent>;
-  approvalGate?: ApprovalGate;
-}

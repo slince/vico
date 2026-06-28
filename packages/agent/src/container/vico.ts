@@ -1,10 +1,10 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import type {AgentConfig, LanguageModelFactory, TurnEvent} from '../agent-loop/types.js';
+import type {TurnEvent} from '../agent-loop/types.js';
+import type {AgentConfig, LanguageModelFactory} from '../agent-loop/create-agent.js';
 import type {Tool} from '../tool/types.js';
 import type {Agent} from '../agent-loop/agent.js';
 import {createAgent} from '../agent-loop/create-agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import {createLanguageModel} from '../model/factory.js';
 import {SkillRegistry} from '../skill/skill-registry.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import type {ApprovalGate} from '../agent-loop/approval-gate.js';
@@ -59,7 +59,6 @@ export class Vico {
   private readonly skillRegistry: SkillRegistry;
   private initialized = false;
   private options: VicoOptions;
-  private readonly languageModelFactory: LanguageModelFactory;
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
@@ -68,7 +67,6 @@ export class Vico {
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.tracer = this.createTracer(options.trace);
-    this.languageModelFactory = options.languageModelFactory ?? createLanguageModel;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
     this.approvalGate = options.approvalGate;
