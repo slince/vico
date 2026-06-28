@@ -1,12 +1,12 @@
 // @vico/agent - RagProcessor: retrieves RAG knowledge and appends as system message
-import type { ContextProcessor, ModelRequestContext } from './context-processor.js';
-import { Priority } from './context-processor.js';
-import type { RagProvider } from '../../rag/types.js';
+import type {ContextProcessor, ModelRequestContext} from './context-processor.js';
+import {Priority} from './context-processor.js';
+import type {RagProvider} from '../../rag/types.js';
 
 /** 检索 RAG 知识库并追加为 system 消息（NORMAL 优先级） */
 export class RagProcessor implements ContextProcessor {
   readonly name = 'rag';
-  readonly priority = Priority.NORMAL;
+  readonly priority = Priority.HIGH + 50;
 
   constructor(private readonly ragProvider: RagProvider) {}
 

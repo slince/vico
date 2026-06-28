@@ -1,11 +1,11 @@
 // @vico/agent - DynamicInstructionProcessor: appends dynamic instructions as system message
-import type { ContextProcessor, ModelRequestContext } from './context-processor.js';
-import { Priority } from './context-processor.js';
+import type {ContextProcessor, ModelRequestContext} from './context-processor.js';
+import {Priority} from './context-processor.js';
 
 /** 追加动态指令为 system 消息（LOW 优先级） */
 export class DynamicInstructionProcessor implements ContextProcessor {
   readonly name = 'dynamic-instructions';
-  readonly priority = Priority.LOW;
+  readonly priority = Priority.NORMAL - 50;
 
   constructor(private readonly getInstructions: () => string[]) {}
 

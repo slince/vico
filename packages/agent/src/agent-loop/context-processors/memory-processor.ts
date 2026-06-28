@@ -11,7 +11,7 @@ const FACT_PATTERNS = /\b(is|are|was|were|lives?|works?|located|prefers?|likes?|
 /** 注入会话历史、工作记忆和语义召回结果（NORMAL 优先级） */
 export class MemoryProcessor implements ContextProcessor {
   readonly name = 'memory';
-  readonly priority = Priority.NORMAL;
+  readonly priority = Priority.HIGH;
 
   constructor(private readonly memoryStore: MemoryStore) {}
 
