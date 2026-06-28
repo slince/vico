@@ -13,7 +13,7 @@ export interface ModelRef {
 /** 一次 turn 的执行结果 */
 export interface TurnResult {
   status: 'completed' | 'failed' | 'aborted' | 'interrupted';
-  steps: number;
+  steps: number; 
   usage: { input: number; output: number };
   messages: ModelMessage[];
 }
