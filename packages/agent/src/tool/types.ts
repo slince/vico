@@ -45,7 +45,6 @@ export interface ToolResult<TOutput = unknown> {
 export interface ToolExecutionContext {
   session: TurnSession;
   agentId: string;
-  awaitApproval: (call: ToolCall) => Promise<ApprovalDecision>;
   signal: AbortSignal;
 }
 

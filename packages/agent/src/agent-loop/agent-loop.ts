@@ -586,13 +586,6 @@ export class AgentLoop {
     const context: ToolExecutionContext = {
       session,
       agentId: this.agent.id,
-      awaitApproval: async (call: ToolCall) => {
-        if (this.approvalGate) {
-          const { decision } = this.approvalGate.requestApproval(call);
-          return decision;
-        }
-        return { approved: true };
-      },
       signal: step.signal,
     };
 
