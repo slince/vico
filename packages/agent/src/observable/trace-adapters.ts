@@ -40,14 +40,41 @@ export class ConsoleTraceAdapter implements TraceAdapter {
 
     for (const step of trace.steps) {
       if (step.request) {
-        const toolNames = step.request.tools?.map((tool) => tool.name) ?? [];
-        const tools = toolNames.length > 0 ? ` | tools: [${toolNames.join(', ')}]` : '';
-        const sysLen = step.request.system?.length ?? 0;
-        console.log(
-          `  [Step ${step.index}] temp=${step.request.temperature ?? '?'} | maxTk=${step.request.maxOutputTokens ?? '?'} | ${step.request.messages.length} msgs | system=${sysLen}ch${tools}`,
-        );
+        const req = step.request;
+        console.log(`  ┌─[Step ${step.index}]──────────────────────────────────────────────`);
+        console.log(`  │ temp: ${req.temperature ?? '?'}  maxTk: ${req.maxOutputTokens ?? '?'}  messages: ${req.messages.length}  tools: ${req.tools?.length ?? 0}`);
+
+        // system prompt
+        if (req.system) {
+          const sysPreview = req.system.length > 120 ? req.system.slice(0, 120) + '…' : req.system;
+          console.log(`  │ system: ${sysPreview}`);
+        }
+
+        // messages
+        for (const msg of req.messages) {
+          const role = (msg.role ?? '?').padEnd(10);
+          const content = typeof msg.content === 'string'
+            ? msg.content
+            : JSON.stringify(msg.content);
+          const preview = content.length > 100 ? content.slice(0, 100) + '…' : content;
+          const extras: string[] = [];
+          if ('toolCallId' in msg && msg.toolCallId) extras.push(`toolCallId=${msg.toolCallId}`);
+          if ('toolCalls' in msg && (msg as any).toolCalls?.length) {
+            extras.push(`toolCalls=${(msg as any).toolCalls.map((t: any) => t.name ?? t.toolName).join(',')}`);
+          }
+          const extra = extras.length > 0 ? `  (${extras.join(', ')})` : '';
+          console.log(`  │   ${role}: ${preview}${extra}`);
+        }
+
+        // tools
+        if (req.tools?.length) {
+          for (const t of req.tools) {
+            console.log(`  │   tool: ${t.name} — ${t.description?.slice(0, 60) ?? '-'}`);
+          }
+        }
+        console.log(`  └──────────────────────────────────────────────────────────────`);
       } else {
-        console.log(`  [Step ${step.index}]`);
+        console.log(`  [Step ${step.index}] (no request data)`);
       }
 
       if (step.text) {
