@@ -152,8 +152,7 @@ export class Vico {
    * @returns 已注册的 Agent 实例
    */
   async createAgent(config: AgentConfig): Promise<Agent> {
-    const model = this.languageModelFactory(config.model);
-    const agent = await this.buildAgent(config, model);
+    const agent = await this.buildAgent(config);
     this.runtime.register(agent);
     return agent;
   }
@@ -161,7 +160,7 @@ export class Vico {
   /**
    * 创建单个 Agent（无缓存），绑定 skills / tools。
    */
-  private async buildAgent(config: AgentConfig, model: LanguageModelV3): Promise<Agent> {
+  private async buildAgent(config: AgentConfig): Promise<Agent> {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
@@ -173,6 +172,8 @@ export class Vico {
 
     const memory = config.memory ?? this.memory;
     const thread = config.thread ?? this.thread;
+
+    const model = this.languageModelFactory(config.model);
 
     return new Agent({
       id: config.id,
