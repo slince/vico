@@ -575,14 +575,9 @@ export class AgentLoop {
     traceSession: TurnTraceSession,
   ): Promise<ToolResult[]> {
     const toolSpan = traceSession.startSpan('tool_call', { count: toolCalls.length });
-    let results: ToolResult[];
-    try {
-      results = await this.dispatchTools(toolCalls, session, step);
-      toolSpan?.end({ results: results.length });
-    } catch (err) {
-      toolSpan?.error(err as Error);
-      throw err;
-    }
+    const results = await this.dispatchTools(toolCalls, session, step);
+    toolSpan.end({ results: results.length });
+
 
     for (const r of results) {
       this.emit({
