@@ -1,7 +1,7 @@
 // src/tool/builtin/todo-tool.ts
 import { z } from 'zod';
-import { createTool } from '../create-tool.js';
-import type { ToolExecutionContext } from '../types.js';
+import { createTool } from '../../create-tool.js';
+import type { ToolExecutionContext } from '../../types.js';
 
 const todoEntry = z.object({
   id: z.string().describe('任务唯一标识'),

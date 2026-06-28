@@ -3,8 +3,8 @@
 // 基于 Playwright 的浏览器工具。Playwright 为可选 peer dependency，
 // 未安装时工具返回明确的安装提示。
 import { z } from 'zod';
-import { createTool } from '../create-tool.js';
-import type { ToolExecutionContext } from '../types.js';
+import { createTool } from '../../create-tool.js';
+import type { ToolExecutionContext } from '../../types.js';
 
 /** 懒加载 Playwright（避免编译时模块解析错误） */
 async function loadPlaywright(): Promise<any> {

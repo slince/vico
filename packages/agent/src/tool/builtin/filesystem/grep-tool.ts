@@ -3,9 +3,9 @@ import {execSync} from 'node:child_process';
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {relative, resolve} from 'node:path';
 import {z} from 'zod';
-import {createTool} from '../create-tool.js';
-import type {ToolExecutionContext} from '../types.js';
-import {resolveWorkspacePath} from './workspace.js';
+import {createTool} from '../../create-tool.js';
+import type {ToolExecutionContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 const grepParams = z.object({
   pattern: z.string().describe('要搜索的正则表达式'),

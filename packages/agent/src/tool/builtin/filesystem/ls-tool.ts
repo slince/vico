@@ -2,9 +2,9 @@
 import { readdirSync, statSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 import {z} from 'zod';
-import {createTool} from '../create-tool.js';
-import type {ToolExecutionContext} from '../types.js';
-import {resolveWorkspacePath} from './workspace.js';
+import {createTool} from '../../create-tool.js';
+import type {ToolExecutionContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 const lsParams = z.object({
   path: z.string().optional().describe('要列出内容的目录路径'),

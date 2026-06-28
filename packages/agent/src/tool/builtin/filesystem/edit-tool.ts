@@ -2,9 +2,9 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import { z } from 'zod';
-import { createTool } from '../create-tool.js';
-import type { ToolExecutionContext } from '../types.js';
-import { resolveWorkspacePath } from './workspace.js';
+import { createTool } from '../../create-tool.js';
+import type { ToolExecutionContext } from '../../types.js';
+import { resolveWorkspacePath } from '../workspace.js';
 
 const editEntry = z.object({
   oldText: z.string().describe('要查找的精确文本'),

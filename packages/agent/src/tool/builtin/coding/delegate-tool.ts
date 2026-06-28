@@ -1,8 +1,8 @@
 // src/tool/builtin/delegate-tool.ts
 import { z } from 'zod';
-import { createTool } from '../create-tool.js';
-import { createAgent, type AgentConfig } from '../../agent-loop/create-agent.js';
-import type { ToolExecutionContext } from '../types.js';
+import { createTool } from '../../create-tool.js';
+import { createAgent, type AgentConfig } from '../../../agent-loop/create-agent.js';
+import type { ToolExecutionContext } from '../../types.js';
 
 const delegateParams = z.object({
   task: z.string().describe('要委托给子 agent 完成的任务描述'),

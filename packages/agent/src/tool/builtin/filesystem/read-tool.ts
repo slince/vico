@@ -2,9 +2,9 @@
 import {readFileSync, statSync} from 'node:fs';
 import {relative} from 'node:path';
 import {z} from 'zod';
-import {createTool} from '../create-tool.js';
-import type {ToolExecutionContext} from '../types.js';
-import {resolveWorkspacePath} from './workspace.js';
+import {createTool} from '../../create-tool.js';
+import type {ToolExecutionContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 const readParams = z.object({
   path: z.string().describe('要读取的文件路径（相对于工作区或绝对路径）'),

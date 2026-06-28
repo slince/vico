@@ -1,9 +1,9 @@
 // src/tool/builtin/git-tools.ts
 import { execSync } from 'node:child_process';
 import { z } from 'zod';
-import { createTool } from '../create-tool.js';
-import type { ToolExecutionContext } from '../types.js';
-import { resolveWorkspacePath } from './workspace.js';
+import { createTool } from '../../create-tool.js';
+import type { ToolExecutionContext } from '../../types.js';
+import { resolveWorkspacePath } from '../workspace.js';
 
 /** 在 workspace 目录执行 git 命令并返回输出 */
 function git(cwd: string, args: string[]): string {

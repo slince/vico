@@ -2,9 +2,9 @@
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
-import { createTool } from '../create-tool.js';
-import type { ToolExecutionContext } from '../types.js';
-import { resolveWorkspacePath } from './workspace.js';
+import { createTool } from '../../create-tool.js';
+import type { ToolExecutionContext } from '../../types.js';
+import { resolveWorkspacePath } from '../workspace.js';
 
 /** 检测项目使用的包管理器 */
 function detectPackageManager(cwd: string): string {

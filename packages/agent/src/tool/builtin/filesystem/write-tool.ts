@@ -2,9 +2,9 @@
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { relative, dirname } from 'node:path';
 import {z} from 'zod';
-import {createTool} from '../create-tool.js';
-import type {ToolExecutionContext} from '../types.js';
-import {resolveWorkspacePath} from './workspace.js';
+import {createTool} from '../../create-tool.js';
+import type {ToolExecutionContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 const writeParams = z.object({
   path: z.string().describe('要写入的文件路径（相对于工作区或绝对路径）'),

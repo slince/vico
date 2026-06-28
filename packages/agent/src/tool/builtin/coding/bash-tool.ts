@@ -1,9 +1,9 @@
 // src/tool/builtin/bash-tool.ts
 import {ChildProcess, exec, spawn} from 'node:child_process';
 import {z} from 'zod';
-import {createTool} from '../create-tool.js';
-import type {ToolExecutionContext} from '../types.js';
-import {resolveWorkspacePath} from './workspace.js';
+import {createTool} from '../../create-tool.js';
+import type {ToolExecutionContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 const bashParams = z.object({
   command: z.string().describe('要执行的 shell 命令'),

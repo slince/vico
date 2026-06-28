@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {createTool} from '../create-tool.js';
+import {createTool} from '../../create-tool.js';
 
 export const nowTool = createTool({
   name: 'now',

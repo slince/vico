@@ -2,10 +2,13 @@
  * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，vico.stream 执行。
  */
 import type {AgentConfig, TurnOutput, Tool} from '@vico/agent';
-import {fileBuiltinTools} from '@vico/agent';
+import {filesystemTools, codingTools} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
 import type {BuiltinToolsConfig} from '../services/agent/types.js';
 import {vico} from '../vico.js';
+
+/** workspace 工具全集（文件系统 + coding），用于 builtin_tools 过滤 */
+const workspaceTools: Tool[] = [...filesystemTools, ...codingTools];
 
 export interface ExecuteChatParams {
   agentId: string;
@@ -35,9 +38,9 @@ export interface ExecuteResumeParams {
 function resolveFileTools(
   builtinToolsConfig: BuiltinToolsConfig | undefined,
 ): Tool[] {
-  if (!builtinToolsConfig) return fileBuiltinTools;
+  if (!builtinToolsConfig) return workspaceTools;
 
-  return fileBuiltinTools
+  return workspaceTools
     .filter((tool) => {
       const entry = builtinToolsConfig[tool.name];
       if (entry === undefined) return true; // 未配置，默认启用
