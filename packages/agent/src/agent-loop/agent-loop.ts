@@ -59,6 +59,8 @@ export class AgentLoop {
     this.toolBroker = options.toolBroker;
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
+    this.tracer = options.agent.tracer;
+    this.approvalGate = options.agent.approvalGate;
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
 
