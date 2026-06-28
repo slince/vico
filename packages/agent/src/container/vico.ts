@@ -1,11 +1,11 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
 import type {TurnEvent} from '../agent-loop/types.js';
 import type {AgentConfig, LanguageModelFactory} from '../agent-loop/create-agent.js';
+import {createAgent} from '../agent-loop/create-agent.js';
 import type {Tool} from '../tool/types.js';
 import type {Agent} from '../agent-loop/agent.js';
-import {createAgent} from '../agent-loop/create-agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import {SkillRegistry} from '../skill/skill-registry.js';
+import {SkillLoaderChain} from '../skill/skill-loader-chain.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import type {ApprovalGate} from '../agent-loop/approval-gate.js';
 import {MemoryStore} from '../memory/memory-store.js';
@@ -15,6 +15,8 @@ import {MittEventRecorder} from '../events/event-recorder.js';
 import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
 import type {SkillOptions, TraceOptions} from "./options.js";
+import {SkillLoader} from "../skill/types.js";
+import {ArraySkillLoader} from "../skill/array-skill-loader.js";
 
 /** Vico 配置选项 */
 export interface VicoOptions {
@@ -55,7 +57,7 @@ export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
   readonly tracer: TurnTracer;
 
-  private readonly skillRegistry: SkillRegistry;
+  private readonly skillLoader: SkillLoader;
   private initialized = false;
   private options: VicoOptions;
   readonly runtime: AgentRuntime;
@@ -70,7 +72,7 @@ export class Vico {
     this.memory = options.memory;
     this.approvalGate = options.approvalGate;
     this.thread = options.thread ?? new InMemoryThreadStore();
-    this.skillRegistry = this.createSkillRegistry();
+    this.skillLoader = this.createSkillLoader();
   }
 
   /** 根据 TraceOptions 构建 TurnTracer */
@@ -83,14 +85,12 @@ export class Vico {
   }
 
   /** 根据配置构建 SkillRegistry，有 skillDirs 时默认追加 FSSkillLoader，支持内联 Skill 数组 */
-  private createSkillRegistry(): SkillRegistry {
+  private createSkillLoader(): SkillLoader{
     const skills = this.options.skills;
 
     // Skill[] 数组形式
     if (Array.isArray(skills)) {
-      const registry = new SkillRegistry([new FSSkillLoader([])]);
-      registry.registerAll(skills);
-      return registry;
+      return new ArraySkillLoader(skills);
     }
 
     // SkillSettings 对象形式
@@ -101,19 +101,15 @@ export class Vico {
       if (skillDirs.length > 0) {
         loaders.push(new FSSkillLoader(skillDirs));
       }
-      if (loaders.length === 0) {
-        loaders.push(new FSSkillLoader([]));
-      }
 
-      const registry = new SkillRegistry(loaders);
       if (skills.skills) {
-        registry.registerAll(skills.skills);
+        loaders.push(new ArraySkillLoader(skills.skills));
       }
-      return registry;
+      return new SkillLoaderChain(loaders)
     }
 
     // 无任何 skills 配置
-    return new SkillRegistry([new FSSkillLoader([])]);
+    return new ArraySkillLoader([]);
   }
 
   /**
@@ -122,7 +118,7 @@ export class Vico {
    */
   async init(): Promise<void> {
     if (this.options.skills) {
-      await this.skillRegistry.load();
+      await this.skillLoader.load();
     }
     this.initialized = true;
   }
@@ -161,8 +157,7 @@ export class Vico {
     return createAgent({
       ...config,
       tools: config.tools ?? this.options.tools,
-      skills: config.skills ?? this.skillRegistry.listAll(),
-      skillRegistry: config.skillRegistry ?? this.skillRegistry,
+      skills: config.skills ?? await this.skillLoader.load(),
       memory: config.memory ?? this.memory,
       thread: config.thread ?? this.thread,
       tracer: config.tracer ?? this.tracer,

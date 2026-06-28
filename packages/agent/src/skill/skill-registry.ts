@@ -1,33 +1,26 @@
 // src/skill/skill-registry.ts
-import type {Skill, SkillLoader} from './types.js';
+import type {Skill} from './types.js';
 
 export class SkillRegistry {
   private skills: Map<string, Skill> = new Map();
-  private loaders: SkillLoader[];
 
   /**
-   * @param loaders - Skill 加载器列表，load 时依次调用
+   * @param skills
    */
-  constructor(loaders: SkillLoader[]) {
-    this.loaders = loaders;
+  constructor(skills: Skill[]) {
+    this.registerAll(skills);
   }
 
   /**
-   * 通过所有 loader 加载并注册 Skill。
-   * @returns 所有发现的 Skill 列表
+   * 直接注册 Skill 实例（数组/内联 Skill）。
+   * @param skills - 待注册的 Skill 列表
    */
-  async load(): Promise<Skill[]> {
-    const allSkills: Skill[] = [];
-    for (const loader of this.loaders) {
-      const discovered = await loader.load();
-      allSkills.push(...discovered);
-    }
-    for (const skill of allSkills) {
+  registerAll(skills: Skill[]): void {
+    for (const skill of skills) {
       this.skills.set(skill.name, skill);
     }
-    return allSkills;
   }
-
+  
   /**
    * 按名称查找 Skill。
    * @param name - Skill 名称
@@ -65,23 +58,5 @@ export class SkillRegistry {
     }
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, limit);
-  }
-
-  /**
-   * 直接注册 Skill 实例（数组/内联 Skill）。
-   * @param skills - 待注册的 Skill 列表
-   */
-  registerAll(skills: Skill[]): void {
-    for (const skill of skills) {
-      this.skills.set(skill.name, skill);
-    }
-  }
-
-  /**
-   * 清除缓存并重新加载所有 Skill。
-   */
-  async refresh(): Promise<void> {
-    this.skills.clear();
-    await this.load();
   }
 }

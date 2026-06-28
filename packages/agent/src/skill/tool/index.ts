@@ -1,23 +1,27 @@
 // src/skill/tool/index.ts
+import {Skill} from "../types.js";
+import {createSkillLoadTool} from './skill-load.js';
+import {createSkillSearchTool} from './skill-search.js';
+import {createSkillReadTool} from './skill-read.js';
+import type {Tool} from '../../tool/types.js';
+import {SkillRegistry} from "../skill-registry.js";
+
 export { createSkillLoadTool } from './skill-load.js';
 export { createSkillSearchTool } from './skill-search.js';
 export { createSkillReadTool } from './skill-read.js';
 
-import { createSkillLoadTool } from './skill-load.js';
-import { createSkillSearchTool } from './skill-search.js';
-import { createSkillReadTool } from './skill-read.js';
-import type { SkillRegistry } from '../skill-registry.js';
-import type { Tool } from '../../tool/types.js';
-
 /**
  * 创建 Skill 模块的全部工具（load / search / read）。
- * @param manager - SkillRegistry 实例
+ * @param skills - skills 实例
  * @returns 包含三个 Skill 工具的数组
  */
-export function createAllSkillTools(manager: SkillRegistry): Tool[] {
+export function createAllSkillTools(skills: Skill[]): Tool[] {
+
+  const registry = new SkillRegistry(skills);
+
   return [
-    createSkillLoadTool(manager),
-    createSkillSearchTool(manager),
-    createSkillReadTool(manager),
+    createSkillLoadTool(registry),
+    createSkillSearchTool(registry),
+    createSkillReadTool(registry),
   ];
 }

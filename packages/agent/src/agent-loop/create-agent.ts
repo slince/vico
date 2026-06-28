@@ -4,7 +4,6 @@ import {Agent} from './agent.js';
 import type {ModelRef, TurnEvent} from './types.js';
 import type {Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
-import type {SkillRegistry} from '../skill/skill-registry.js';
 import {createAllSkillTools} from "../skill/tool/index.js";
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
@@ -32,8 +31,6 @@ export interface AgentConfig {
   maxSteps?: number;
   tools?: Tool[];
   skills?: Skill[];
-  /** SkillRegistry 实例，提供后自动注册 Skill 工具（skill/search/read） */
-  skillRegistry?: SkillRegistry;
   memory?: MemoryStore;
   thread?: ThreadStore;
   /** 工作空间路径，作为工具执行的默认工作目录 */
@@ -56,8 +53,8 @@ export function createAgent(config: AgentConfig): Agent {
 
   // 默认工具：基础工具始终包含；启用 skill 时追加 Skill 工具；启用 working memory 时追加更新工具；文件工具仅在配置 workspace 时启用
   const tools: Tool[] = [...baseBuiltinTools, ...(config.tools || [])];
-  if (config.skillRegistry) {
-    tools.push(...createAllSkillTools(config.skillRegistry));
+  if (config.skills) {
+    tools.push(...createAllSkillTools(config.skills));
   }
   if (memory.working) {
     tools.push(createUpdateWorkingMemoryTool(memory.working));

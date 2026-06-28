@@ -1,6 +1,7 @@
 // src/__tests__/skill-tool-source.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SkillRegistry } from '../skill/skill-registry.js';
+import { SkillLoaderChain } from '../skill/skill-loader-chain.js';
 import { FSSkillLoader } from '../skill/fs-skill-loader.js';
 import { createAllSkillTools } from '../skill/tool/index.js';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
@@ -21,7 +22,7 @@ describe('SkillToolSource', () => {
     createSkill(resolve(TMP, 'code-review'), 'code-review', 'Review code changes', 'Check for bugs and style issues.');
     createSkill(resolve(TMP, 'deploy'), 'deploy', 'Deployment guide', 'Steps to deploy the application.');
     const loader = new FSSkillLoader([TMP]);
-    manager = new SkillRegistry([loader]);
+    manager = new SkillRegistry(new SkillLoaderChain([loader]));
     await manager.load();
   });
 
