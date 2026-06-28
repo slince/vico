@@ -64,11 +64,13 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
     sendAutomaticallyWhen: ({ messages }) => {
       const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
       if (!lastAssistant) return false;
-      const approvalRequests = lastAssistant.parts?.filter(p => p.type === 'tool-approval-request') ?? [];
-      if (approvalRequests.length === 0) return false;
-      const lastUser = [...messages].reverse().find(m => m.role === 'user');
-      const approvalResponses = lastUser?.parts?.filter(p => p.type === 'tool-approval-response') ?? [];
-      return approvalRequests.every(req => approvalResponses.some(res => res.approvalId === req.approvalId));
+      // 工具部件在消息中的 state 为 'approval-requested'，而非 type === 'tool-approval-request'
+      const approvalParts = lastAssistant.parts?.filter(
+        p => 'state' in p && (p as any).state === 'approval-requested',
+      ) ?? [];
+      if (approvalParts.length === 0) return false;
+      // addToolApprovalResponse 将部件的 state 改为 'approval-responded'，而非创建 tool-approval-response 部件
+      return approvalParts.every(p => (p as any).state === 'approval-responded');
     },
     onFinish: ({ message }) => {
       const meta = (message as any)?.metadata;
