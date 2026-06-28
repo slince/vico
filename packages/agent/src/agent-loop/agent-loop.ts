@@ -5,7 +5,7 @@ import {toToolDescriptor} from '../tool/create-tool.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
-import type {ToolBroker} from '../tool/tool-broker.js';
+import {ToolBroker} from '../tool/tool-broker.js';
 import type {TurnTracer, TurnTraceSession} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
@@ -36,7 +36,6 @@ export interface CallModelResult {
 /** AgentLoop 构造选项 */
 export interface AgentLoopOptions {
   agent: Agent;
-  toolBroker: ToolBroker;
   processors?: ContextProcessor[];
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
@@ -62,7 +61,7 @@ export class AgentLoop {
 
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
-    this.toolBroker = options.toolBroker;
+    this.toolBroker = new ToolBroker(options.agent.tools);
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
     this.tracer = options.agent.tracer;

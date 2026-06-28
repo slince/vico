@@ -16,9 +16,7 @@ function makeCtx(overrides?: Record<string, unknown>): any {
 }
 
 function makeHost(): ToolBroker {
-  const host = new ToolBroker();
-  host.registerAll(coreBuiltinTools);
-  return host;
+  return new ToolBroker(coreBuiltinTools);
 }
 
 describe('ToolBroker', () => {
@@ -61,8 +59,7 @@ describe('ToolBroker', () => {
   });
 
   it('blocks never-policy tool', async () => {
-    const host = new ToolBroker();
-    host.registerAll([createTool({
+    const host = new ToolBroker([createTool({
       name: 'dangerous', description: '', inputSchema: z.object({}),
       policy: 'never', kind: 'command', tags: ['test'],
       execute: async () => 'should not run',

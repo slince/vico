@@ -46,7 +46,6 @@ export { SystemPromptProcessor } from './agent-loop/context-processors/system-pr
 export { SkillProcessor } from './agent-loop/context-processors/skill-processor.js';
 export { MemoryProcessor } from './agent-loop/context-processors/memory-processor.js';
 export { RagProcessor } from './agent-loop/context-processors/rag-processor.js';
-export { DynamicInstructionProcessor } from './agent-loop/context-processors/dynamic-instruction-processor.js';
 
 export {
   type RagChunk,

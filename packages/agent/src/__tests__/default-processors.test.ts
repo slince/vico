@@ -5,7 +5,6 @@ import {SystemPromptProcessor} from '../agent-loop/context-processors/system-pro
 import {SkillProcessor} from '../agent-loop/context-processors/skill-processor.js';
 import {MemoryProcessor} from '../agent-loop/context-processors/memory-processor.js';
 import {RagProcessor} from '../agent-loop/context-processors/rag-processor.js';
-import {DynamicInstructionProcessor} from '../agent-loop/context-processors/dynamic-instruction-processor.js';
 import {
   buildModelRequest,
   type ContextProcessor,
@@ -256,26 +255,6 @@ describe('RagProcessor', () => {
   it('no-op when empty results', async () => {
     const ragProvider = { search: vi.fn(async () => []) };
     const p = new RagProcessor(ragProvider);
-    const ctx = makeCtx();
-    await p.process(ctx);
-    expect(ctx.messages).toHaveLength(1);
-  });
-});
-
-// --- DynamicInstructionProcessor ---
-
-describe('DynamicInstructionProcessor', () => {
-  it('appends instructions as system message', async () => {
-    const getInstructions = () => ['hint1', 'hint2'];
-    const p = new DynamicInstructionProcessor(getInstructions);
-    const ctx = makeCtx();
-    await p.process(ctx);
-    expect(ctx.messages.some((m) => m.role === 'system' && m.content.includes('hint1\nhint2'))).toBe(true);
-  });
-
-  it('no-op when instructions empty', async () => {
-    const getInstructions = () => [];
-    const p = new DynamicInstructionProcessor(getInstructions);
     const ctx = makeCtx();
     await p.process(ctx);
     expect(ctx.messages).toHaveLength(1);

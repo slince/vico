@@ -7,11 +7,7 @@ export class ToolBroker {
   private tools: Map<string, Tool> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();
 
-  /**
-   * 批量注册工具
-   * @param tools - 待注册的工具列表
-   */
-  registerAll(tools: Tool[]): void {
+  constructor(tools: Tool[] = []) {
     for (const tool of tools) {
       this.tools.set(tool.name, tool);
     }

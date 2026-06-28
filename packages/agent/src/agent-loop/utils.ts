@@ -5,10 +5,7 @@ import {AgentLoop} from "./agent-loop.js";
 import type {ContextProcessor} from "./context-processors/context-processor.js";
 import {SystemPromptProcessor} from "./context-processors/system-prompt-processor.js";
 import {SkillProcessor} from "./context-processors/skill-processor.js";
-import {ToolBroker} from "../tool/tool-broker.js";
 import {MemoryProcessor} from "./context-processors/memory-processor.js";
-import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
-import {baseBuiltinTools} from "../tool/builtin/index.js";
 
 /**
  * 消费 TurnOutput 并返回最终结果（丢弃流数据）。
@@ -36,25 +33,9 @@ export function buildLoop(agent: Agent): AgentLoop {
     new SkillProcessor(agent.skills),
   ];
 
-  const toolBroker = new ToolBroker();
-
   if (agent.memory) {
     processors.push(new MemoryProcessor(agent.memory));
-    if (agent.memory.working) {
-      toolBroker.registerAll([createUpdateWorkingMemoryTool(agent.memory.working)]);
-    }
   }
 
-  // 注册自定义的tool
-  if (agent.tools.length > 0) {
-    toolBroker.registerAll(agent.tools);
-  }
-
-  toolBroker.registerAll(baseBuiltinTools);
-
-  return new AgentLoop({
-    agent,
-    toolBroker,
-    processors,
-  });
+  return new AgentLoop({agent, processors});
 }
