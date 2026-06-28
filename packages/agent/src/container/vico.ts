@@ -166,6 +166,7 @@ export class Vico {
       ...config,
       tools: config.tools ?? this.options.tools,
       skills: config.skills ?? this.skillRegistry.listAll(),
+      skillRegistry: config.skillRegistry ?? this.skillRegistry,
       memory: config.memory ?? this.memory,
       thread: config.thread ?? this.thread,
       tracer: config.tracer ?? this.tracer,
