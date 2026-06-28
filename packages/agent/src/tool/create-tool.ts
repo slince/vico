@@ -1,7 +1,7 @@
 // @vico/agent - createTool: factory for building Tool objects with Zod validation
-import { z } from 'zod';
-import type { Tool, ToolExecutionContext, ToolKind, ToolPolicy } from './types.js';
-import type { ToolDescriptor } from '../model/types.js';
+import {z} from 'zod';
+import type {Tool, ToolExecutionContext, ToolKind, ToolPolicy} from './types.js';
+import type {ToolDescriptor} from '../model/types.js';
 
 /** createTool 的配置选项 */
 export interface ToolOptions<TInput = any, TOutput = any> {
@@ -51,7 +51,7 @@ export function createTool<TInput = any, TOutput = any>(options: ToolOptions<TIn
     kind: options.kind ?? 'command',
     tags: options.tags ?? [],
     async execute(call, ctx) {
-      const args = options.inputSchema.parse(call.args) as TInput;
+      const args = options.inputSchema.parse(call.args);
       const result = await rawExecute(args, ctx);
       if (options.outputSchema) {
         options.outputSchema.parse(result);
