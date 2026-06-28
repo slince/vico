@@ -4,19 +4,12 @@ import { resolve, relative } from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolExecutionContext} from '../types.js';
+import {resolveWorkspacePath} from './workspace.js';
 
 const lsParams = z.object({
   path: z.string().optional().describe('要列出内容的目录路径'),
   limit: z.number().int().default(200).describe('返回条目的最大数量'),
 });
-
-function resolvePath(workspace: string, targetPath: string): string {
-  const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
-  if (!abs.startsWith(resolve(workspace)) && !targetPath.startsWith('/')) {
-    throw new Error(`Path "${targetPath}" is outside the workspace`);
-  }
-  return abs;
-}
 
 const lsOutputSchema = z.object({
   entries: z.array(z.string()),
@@ -25,7 +18,7 @@ const lsOutputSchema = z.object({
 });
 
 async function executeLs(args: z.infer<typeof lsParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof lsOutputSchema>> {
-  const absPath = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
+  const absPath = args.path ? resolveWorkspacePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
   const stat = statSync(absPath);
   if (!stat.isDirectory()) {

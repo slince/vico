@@ -1,9 +1,9 @@
 // src/tool/builtin/bash-tool.ts
-import {ChildProcess, exec} from 'node:child_process';
-import {resolve} from 'node:path';
+import {ChildProcess, exec, spawn} from 'node:child_process';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolExecutionContext} from '../types.js';
+import {resolveWorkspacePath} from './workspace.js';
 
 const bashParams = z.object({
   command: z.string().describe('要执行的 shell 命令'),
@@ -11,6 +11,7 @@ const bashParams = z.object({
   action: z.enum(['run', 'poll', 'write', 'stop']).default('run').describe('会话操作'),
   session_id: z.string().default('default').describe('用于 poll/write/stop 操作的会话 ID'),
   input: z.string().optional().describe('发送到会话 stdin 的输入'),
+  dryRun: z.boolean().optional().describe('仅预览命令而不实际执行'),
 });
 
 interface SessionEntry {
@@ -20,28 +21,47 @@ interface SessionEntry {
   exitCode: number | null;
   running: boolean;
   createdAt: number;
+  /** 防止重复终止 */
+  stopped: boolean;
 }
 
 /** 全局 Bash 会话表 */
 const sessions = new Map<string, SessionEntry>();
 
+/** 会话超时（10 分钟），超时自动清理 */
+const SESSION_TTL = 10 * 60 * 1000;
+
+/** 定期清理过期会话 */
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function ensureCleanupTimer() {
+  if (cleanupTimer) return;
+  cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [id, entry] of sessions) {
+      if (now - entry.createdAt > SESSION_TTL) {
+        if (entry.process && entry.running) {
+          try { entry.process.kill(); } catch { /* ignore */ }
+        }
+        sessions.delete(id);
+      }
+    }
+  }, 60000);
+}
+
 /**
  * 清理指定的 Bash 会话。
- *
- * 终止会话对应的子进程（如果仍在运行），并从会话表中移除记录。
- *
- * @param id - 会话 ID
- * @param entry - 会话条目，包含进程引用等信息
  */
 function cleanupSession(id: string, entry: SessionEntry): void {
-  if (entry.process) {
+  if (entry.process && entry.running && !entry.stopped) {
+    entry.stopped = true;
     try { entry.process.kill(); } catch { /* ignore */ }
   }
   sessions.delete(id);
 }
 
 async function executeBash(args: z.infer<typeof bashParams>, ctx: ToolExecutionContext): Promise<string> {
-  const cwd = resolve(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
 
   switch (args.action) {
     case 'stop':
@@ -51,6 +71,9 @@ async function executeBash(args: z.infer<typeof bashParams>, ctx: ToolExecutionC
     case 'write':
       return handleWrite(args.session_id, args.input);
     default:
+      if (args.dryRun) {
+        return `[DRY RUN] 将在 ${cwd} 执行:\n  ${args.command}`;
+      }
       return handleRun(args.command, args.session_id, args.timeout, cwd);
   }
 }
@@ -66,12 +89,16 @@ function handlePoll(sid: string): string {
   const entry = sessions.get(sid);
   if (!entry) return `会话 "${sid}" 未找到`;
   if (entry.running) {
-    return `会话 "${sid}" 仍在运行...\n\nSTDOUT:\n${entry.stdout.slice(-2000)}\n\nSTDERR:\n${entry.stderr.slice(-2000) || '(无)'}`;
+    return [
+      `会话 "${sid}" 仍在运行中...`,
+      entry.stdout ? `\nSTDOUT (最近 2000 字符):\n${entry.stdout.slice(-2000)}` : '',
+      entry.stderr ? `\nSTDERR (最近 2000 字符):\n${entry.stderr.slice(-2000)}` : '',
+    ].join('\n');
   }
   return [
-    `会话 "${sid}" 已完成，退出码 ${entry.exitCode}`,
-    entry.stdout ? `\nSTDOUT:\n${entry.stdout.slice(-4000)}` : '',
-    entry.stderr ? `\nSTDERR:\n${entry.stderr.slice(-2000)}` : '',
+    `会话 "${sid}" 已完成，退出码: ${entry.exitCode}`,
+    entry.stdout ? `\nSTDOUT (最近 4000 字符):\n${entry.stdout.slice(-4000)}` : '',
+    entry.stderr ? `\nSTDERR (最近 2000 字符):\n${entry.stderr.slice(-2000)}` : '',
   ].join('\n');
 }
 
@@ -89,13 +116,20 @@ function handleWrite(sid: string, input?: string): string {
 }
 
 function handleRun(command: string, sid: string, timeout: number, cwd: string): Promise<string> {
+  ensureCleanupTimer();
+
   return new Promise<string>((resolveResult) => {
-    const child = exec(command, {
+    // 如果同 session_id 已有运行中的会话，先清理旧进程
+    const existing = sessions.get(sid);
+    if (existing && existing.running && existing.process) {
+      try { existing.process.kill(); } catch { /* ignore */ }
+    }
+
+    const child = spawn('/bin/bash', ['-c', command], {
       cwd,
       timeout,
-      maxBuffer: 10 * 1024 * 1024,
-      shell: '/bin/bash',
       env: { ...process.env, HOME: process.env.HOME ?? '/root' },
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let stdout = '';
@@ -109,16 +143,19 @@ function handleRun(command: string, sid: string, timeout: number, cwd: string): 
       exitCode: null,
       running: true,
       createdAt: Date.now(),
+      stopped: false,
     };
     sessions.set(sid, entry);
 
-    child.stdout?.on('data', (chunk: string) => {
-      stdout += chunk;
+    child.stdout?.on('data', (chunk: Buffer) => {
+      const text = chunk.toString();
+      stdout += text;
       entry.stdout = stdout;
     });
 
-    child.stderr?.on('data', (chunk: string) => {
-      stderr += chunk;
+    child.stderr?.on('data', (chunk: Buffer) => {
+      const text = chunk.toString();
+      stderr += text;
       entry.stderr = stderr;
     });
 
@@ -129,12 +166,10 @@ function handleRun(command: string, sid: string, timeout: number, cwd: string): 
 
       if (!settled) {
         settled = true;
-        const output = [
-          `命令已完成，退出码 ${code}`,
-          stdout ? `\nSTDOUT:\n${stdout.slice(-4000)}` : '',
-          stderr ? `\nSTDERR:\n${stderr.slice(-2000)}` : '',
-        ].join('\n');
-        resolveResult(output);
+        const parts = [`退出码: ${code}`];
+        if (stdout) parts.push(`\nSTDOUT:\n${stdout.slice(-4000)}`);
+        if (stderr) parts.push(`\nSTDERR:\n${stderr.slice(-2000)}`);
+        resolveResult(parts.join(''));
       }
     });
 
@@ -145,7 +180,10 @@ function handleRun(command: string, sid: string, timeout: number, cwd: string): 
 
       if (!settled) {
         settled = true;
-        resolveResult(`命令失败: ${err.message}\n\nSTDOUT:\n${stdout.slice(-2000)}\n\nSTDERR:\n${stderr.slice(-2000)}`);
+        const parts = [`退出码: 1`, `错误: ${err.message}`];
+        if (stdout) parts.push(`\nSTDOUT:\n${stdout.slice(-2000)}`);
+        if (stderr) parts.push(`\nSTDERR:\n${stderr.slice(-2000)}`);
+        resolveResult(parts.join('\n'));
       }
     });
   });
@@ -154,7 +192,7 @@ function handleRun(command: string, sid: string, timeout: number, cwd: string): 
 export const bashTool = createTool({
   name: 'bash',
   description:
-    '在持久会话中执行 shell 命令。支持长运行命令的超时和会话管理（run/poll/write/stop 操作）。工作目录为工作区根目录。使用 "run" 启动命令，"poll" 检查状态，"write" 发送输入，"stop" 终止。',
+    '在持久会话中执行 shell 命令。支持长运行命令的超时和会话管理（run/poll/write/stop 操作）。工作目录为工作区根目录。使用 "run" 启动命令，"poll" 检查状态（增量输出），"write" 发送 stdin 输入，"stop" 终止会话。dryRun=true 可预览命令而不执行。会话超时 10 分钟自动清理。',
   inputSchema: bashParams,
   outputSchema: z.string(),
   policy: 'on-request',

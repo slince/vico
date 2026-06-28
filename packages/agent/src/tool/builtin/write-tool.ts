@@ -1,22 +1,15 @@
 // src/tool/builtin/write-tool.ts
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { resolve, relative, dirname } from 'node:path';
+import { relative, dirname } from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolExecutionContext} from '../types.js';
+import {resolveWorkspacePath} from './workspace.js';
 
 const writeParams = z.object({
   path: z.string().describe('要写入的文件路径（相对于工作区或绝对路径）'),
   content: z.string().describe('要写入文件的完整内容'),
 });
-
-function resolvePath(workspace: string, targetPath: string): string {
-  const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
-  if (!abs.startsWith(resolve(workspace)) && !targetPath.startsWith('/')) {
-    throw new Error(`Path "${targetPath}" is outside the workspace`);
-  }
-  return abs;
-}
 
 const writeOutputSchema = z.object({
   action: z.enum(['created', 'updated']),
@@ -26,7 +19,7 @@ const writeOutputSchema = z.object({
 });
 
 async function executeWrite(args: z.infer<typeof writeParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof writeOutputSchema>> {
-  const absPath = resolvePath(ctx.session.workspace, args.path);
+  const absPath = resolveWorkspacePath(ctx.session.workspace, args.path);
   const dir = dirname(absPath);
 
   mkdirSync(dir, { recursive: true });

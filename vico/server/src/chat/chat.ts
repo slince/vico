@@ -1,8 +1,10 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，vico.stream 执行。
  */
-import type {AgentConfig, TurnOutput} from '@vico/agent';
+import type {AgentConfig, TurnOutput, Tool} from '@vico/agent';
+import {fileBuiltinTools} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
+import type {BuiltinToolsConfig} from '../services/agent/types.js';
 import {vico} from '../vico.js';
 
 export interface ExecuteChatParams {
@@ -22,6 +24,56 @@ export interface ExecuteResumeParams {
   userId: string;
 }
 
+/**
+ * 根据 builtin_tools 配置过滤并调整文件工具。
+ *
+ * - 未在配置中出现的工具默认启用
+ * - `true` / `{ enabled: true }` → 启用
+ * - `false` / `{ enabled: false }` → 禁用
+ * - `{ need_approval: true }` → 覆盖策略为 on-request
+ */
+function resolveFileTools(
+  builtinToolsConfig: BuiltinToolsConfig | undefined,
+): Tool[] {
+  if (!builtinToolsConfig) return fileBuiltinTools;
+
+  return fileBuiltinTools
+    .filter((tool) => {
+      const entry = builtinToolsConfig[tool.name];
+      if (entry === undefined) return true; // 未配置，默认启用
+      if (typeof entry === 'boolean') return entry;
+      return entry.enabled !== false;
+    })
+    .map((tool) => {
+      const entry = builtinToolsConfig[tool.name];
+      if (typeof entry === 'object' && entry.need_approval) {
+        return { ...tool, policy: 'on-request' as const };
+      }
+      return tool;
+    });
+}
+
+/** 构建 AgentConfig 的公共工厂 */
+function buildAgentConfig(runtimeConfig: NonNullable<Awaited<ReturnType<typeof agentManager.getAgentRuntimeConfig>>>): AgentConfig {
+  const { agent: a, model, workspace, builtin_tools } = runtimeConfig;
+  return {
+    id: a.id,
+    name: a.name,
+    systemPrompt: a.system_prompt,
+    model: {
+      provider: model.provider,
+      model: model.model_name,
+      baseUrl: model.base_url,
+      apiKey: model.api_key,
+    },
+    temperature: a.temperature ?? 0.7,
+    maxTokens: a.max_tokens ?? 4096,
+    maxSteps: a.max_steps ?? 10,
+    workspace,
+    fileTools: resolveFileTools(builtin_tools),
+  };
+}
+
 /** 执行 Agent 对话 — 通过 vico.stream */
 export async function executeAgentChat(
   params: ExecuteChatParams,
@@ -34,21 +86,7 @@ export async function executeAgentChat(
   const agent = await vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
     const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
     if (!runtimeConfig) throw new Error('Agent not found');
-    const { agent: a, model } = runtimeConfig;
-    return {
-      id: a.id,
-      name: a.name,
-      systemPrompt: a.system_prompt,
-      model: {
-        provider: model.provider,
-        model: model.model_name,
-        baseUrl: model.base_url,
-        apiKey: model.api_key,
-      },
-      temperature: a.temperature ?? 0.7,
-      maxTokens: a.max_tokens ?? 4096,
-      maxSteps: a.max_steps ?? 10,
-    };
+    return buildAgentConfig(runtimeConfig);
   });
 
   return agent.stream(message, {
@@ -68,21 +106,7 @@ export async function executeAgentResume(
   const agent = await vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
     const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
     if (!runtimeConfig) throw new Error('Agent not found');
-    const { agent: a, model } = runtimeConfig;
-    return {
-      id: a.id,
-      name: a.name,
-      systemPrompt: a.system_prompt,
-      model: {
-        provider: model.provider,
-        model: model.model_name,
-        baseUrl: model.base_url,
-        apiKey: model.api_key,
-      },
-      temperature: a.temperature ?? 0.7,
-      maxTokens: a.max_tokens ?? 4096,
-      maxSteps: a.max_steps ?? 10,
-    };
+    return buildAgentConfig(runtimeConfig);
   });
 
   return agent.resumeTurn({

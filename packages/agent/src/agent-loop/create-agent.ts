@@ -36,6 +36,8 @@ export interface AgentConfig {
   thread?: ThreadStore;
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
+  /** 覆盖默认的文件工具列表（用于按 agent 配置过滤启用的工具） */
+  fileTools?: Tool[];
   tracer?: TurnTracer;
   events?: EventRecorder<TurnEvent>;
   /** 审批决策器，未提供则按 ToolPolicy 默认决策 */
@@ -65,7 +67,7 @@ export function createAgent(config: AgentConfig): Agent {
     tools.push(createUpdateWorkingMemoryTool(memory.working));
   }
   if (config.workspace) {
-    tools.push(...fileBuiltinTools);
+    tools.push(...(config.fileTools ?? fileBuiltinTools));
   }
 
   return new Agent({

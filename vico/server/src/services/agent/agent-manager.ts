@@ -2,6 +2,7 @@ import { eq, and, desc, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { getDb, schema } from '../../db/db.js';
 import { modelManager } from '../model/model-manager.js';
+import { config } from '../../config.js';
 import {
   createAgentSchema,
   updateAgentSchema,
@@ -10,6 +11,7 @@ import {
   type UpdateAgentInput,
   type AgentDetail,
   type AgentRuntimeConfig,
+  type BuiltinToolsConfig,
 } from './types.js';
 
 const { agents } = schema;
@@ -65,7 +67,19 @@ class AgentManager {
     if (!model) return null;
 
     const instructions = agent.system_prompt || 'You are a helpful assistant.';
-    return { model, instructions, agent };
+
+    let builtin_tools: BuiltinToolsConfig = {};
+    try {
+      builtin_tools = JSON.parse(agent.builtin_tools || '{}');
+    } catch { /* use empty default */ }
+
+    return {
+      model,
+      instructions,
+      agent,
+      workspace: config.workspace.base_path,
+      builtin_tools,
+    };
   }
 
   async create(tenantId: string, input: unknown): Promise<AgentDetail> {

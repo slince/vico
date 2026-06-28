@@ -47,6 +47,10 @@ export interface AgentRuntimeConfig {
   model: ModelConfigRow;
   /** 编译后的基础系统指令（system_prompt + Skill 提示词），不含任务级动态内容 */
   instructions: string;
+  /** 工作空间路径（来自全局配置） */
+  workspace?: string;
+  /** 解析后的内置工具配置（来自 DB builtin_tools 字段） */
+  builtin_tools?: BuiltinToolsConfig;
 }
 
 // ── Zod 输入校验 schema ──

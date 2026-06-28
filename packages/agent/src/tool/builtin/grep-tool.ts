@@ -5,6 +5,7 @@ import {relative, resolve} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolExecutionContext} from '../types.js';
+import {resolveWorkspacePath} from './workspace.js';
 
 const grepParams = z.object({
   pattern: z.string().describe('要搜索的正则表达式'),
@@ -14,14 +15,6 @@ const grepParams = z.object({
   '-i': z.boolean().optional().describe('忽略大小写'),
   context: z.number().int().optional().describe('每个匹配周围的上下文行数'),
 });
-
-function resolvePath(workspace: string, targetPath: string): string {
-  const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
-  if (!abs.startsWith(resolve(workspace)) && !targetPath.startsWith('/')) {
-    throw new Error(`Path "${targetPath}" is outside the workspace`);
-  }
-  return abs;
-}
 
 function ripgrep(args: z.infer<typeof grepParams>, searchDir: string): string {
   const flags: string[] = ['--color=never', '--no-heading', '-n', '--no-ignore'];
@@ -78,7 +71,7 @@ function nodeGrep(args: z.infer<typeof grepParams>, searchDir: string): string {
             for (let i = 0; i < lines.length; i++) {
               if (results.length >= maxResults) break;
               if (regex.test(lines[i])) {
-                const rel = relative(args.path ? resolvePath('.', args.path) : '.', fullPath);
+                const rel = relative(args.path ? resolve('.', args.path) : '.', fullPath);
                 results.push(`${rel}:${i + 1}:${lines[i].trim()}`);
               }
             }
@@ -118,7 +111,7 @@ const grepOutputSchema = z.object({
 });
 
 async function executeGrep(args: z.infer<typeof grepParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof grepOutputSchema>> {
-  const searchDir = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
+  const searchDir = args.path ? resolveWorkspacePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
   const rgOutput = ripgrep(args, searchDir);
   const matches = rgOutput || nodeGrep(args, searchDir);

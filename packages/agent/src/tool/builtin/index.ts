@@ -1,4 +1,5 @@
 // src/tool/builtin/index.ts
+export { resolveWorkspacePath } from './workspace.js';
 export { readTool } from './read-tool.js';
 export { bashTool } from './bash-tool.js';
 export { editTool } from './edit-tool.js';
@@ -9,6 +10,19 @@ export { lsTool } from './ls-tool.js';
 export { lspTool } from './lsp-tool.js';
 export { echoTool } from './echo-tool.js';
 export { nowTool } from './now-tool.js';
+export { webFetchTool } from './web-fetch-tool.js';
+export {
+  gitStatusTool,
+  gitDiffTool,
+  gitLogTool,
+  gitCommitTool,
+  gitBranchTool,
+  gitCheckoutTool,
+} from './git-tools.js';
+export { packageInstallTool, packageRunTool } from './package-tools.js';
+export { todoTool } from './todo-tool.js';
+export { createDelegateTool } from './delegate-tool.js';
+export { browserNavigateTool, browserSnapshotTool, browserClickTool } from './browser-tool.js';
 
 import { readTool } from './read-tool.js';
 import { bashTool } from './bash-tool.js';
@@ -20,12 +34,33 @@ import { lsTool } from './ls-tool.js';
 import { lspTool } from './lsp-tool.js';
 import { echoTool } from './echo-tool.js';
 import { nowTool } from './now-tool.js';
+import { webFetchTool } from './web-fetch-tool.js';
+import {
+  gitStatusTool,
+  gitDiffTool,
+  gitLogTool,
+  gitCommitTool,
+  gitBranchTool,
+  gitCheckoutTool,
+} from './git-tools.js';
+import { packageInstallTool, packageRunTool } from './package-tools.js';
+import { todoTool } from './todo-tool.js';
+import {
+  browserNavigateTool,
+  browserSnapshotTool,
+  browserClickTool,
+} from './browser-tool.js';
 import type { Tool } from '../types.js';
 
 /** 基础内置工具（无需 workspace） */
 export const baseBuiltinTools: Tool[] = [
   echoTool,
   nowTool,
+  webFetchTool,
+  todoTool,
+  browserNavigateTool,
+  browserSnapshotTool,
+  browserClickTool,
 ];
 
 /** 文件操作用具（需要 workspace） */
@@ -38,6 +73,14 @@ export const fileBuiltinTools: Tool[] = [
   findTool,
   lsTool,
   lspTool,
+  gitStatusTool,
+  gitDiffTool,
+  gitLogTool,
+  gitCommitTool,
+  gitBranchTool,
+  gitCheckoutTool,
+  packageInstallTool,
+  packageRunTool,
 ];
 
 /** 内置工具全集 */

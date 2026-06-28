@@ -4,6 +4,7 @@ import { resolve, relative } from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolExecutionContext} from '../types.js';
+import {resolveWorkspacePath} from './workspace.js';
 
 const findParams = z.object({
   pattern: z.string().default('*').describe('匹配文件名的 glob 模式'),
@@ -22,14 +23,6 @@ function globToRegex(pattern: string): RegExp {
     .replace(/\*/g, '.*')
     .replace(/\?/g, '.');
   return new RegExp(`^${escaped}$`);
-}
-
-function resolvePath(workspace: string, targetPath: string): string {
-  const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
-  if (!abs.startsWith(resolve(workspace)) && !targetPath.startsWith('/')) {
-    throw new Error(`Path "${targetPath}" is outside the workspace`);
-  }
-  return abs;
 }
 
 function collectFiles(searchDir: string, regex: RegExp, maxResults: number): FindResult[] {
@@ -69,7 +62,7 @@ const findOutputSchema = z.object({
 
 async function executeFind(args: z.infer<typeof findParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof findOutputSchema>> {
   const searchDir = args.path
-    ? resolvePath(ctx.session.workspace, args.path)
+    ? resolveWorkspacePath(ctx.session.workspace, args.path)
     : resolve(ctx.session.workspace, '.');
 
   const regex = globToRegex(args.pattern);
