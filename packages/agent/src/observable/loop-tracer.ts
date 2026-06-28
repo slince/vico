@@ -88,21 +88,25 @@ export class TurnTraceSession {
   }
 
   /**
-   * 记录 LLM 请求参数。
-   * @param step - 当前 Step 对象
+   * 记录 LLM 请求参数。不依赖事件驱动的 currentStep，直接查找或创建 step。
+   * @param step - 当前 Step 对象（0-based index）
    * @param request - 模型请求参数
    */
   recordModelRequest(step: Step, request: ModelRequest): void {
-    if (this.currentStep) this.currentStep.request = request;
+    const idx = step.index + 1; // 转为 1-based，与 step-start 事件一致
+    const stepTrace = this.getOrCreateStep(idx);
+    stepTrace.request = request;
   }
 
   /**
    * 记录 LLM 响应结果。
-   * @param step - 当前 Step 对象
+   * @param step - 当前 Step 对象（0-based index）
    * @param response - 模型调用返回结果
    */
   recordModelResponse(step: Step, response: CallModelResult): void {
-    if (this.currentStep) this.currentStep.response = response;
+    const idx = step.index + 1;
+    const stepTrace = this.getOrCreateStep(idx);
+    stepTrace.response = response;
   }
 
   /**
@@ -119,13 +123,22 @@ export class TurnTraceSession {
 
   // ── 内部方法 ──
 
+  /** 按 index 查找已有 step，不存在则创建并推入 trace.steps */
+  private getOrCreateStep(index: number): StepTrace {
+    const existing = this.trace.steps.find((s) => s.index === index);
+    if (existing) return existing;
+    const step: StepTrace = { index, text: '', toolCalls: [], toolResults: [] };
+    this.trace.steps.push(step);
+    return step;
+  }
+
   private subscribe(events: EventRecorder<TurnEvent>): () => void {
     const handler = (event: TurnEvent) => {
       this.trace.events.push(event);
 
       switch (event.type) {
         case 'step-start':
-          this.currentStep = { index: event.step, text: '', toolCalls: [], toolResults: [] };
+          this.currentStep = this.getOrCreateStep(event.step);
           break;
         case 'text-delta':
           if (this.currentStep) this.currentStep.text += event.content;
@@ -141,10 +154,7 @@ export class TurnTraceSession {
           }
           break;
         case 'step-end':
-          if (this.currentStep) {
-            this.trace.steps.push(this.currentStep);
-            this.currentStep = undefined;
-          }
+          this.currentStep = undefined;
           break;
       }
     };
