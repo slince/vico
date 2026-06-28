@@ -1,4 +1,6 @@
 import {Skill, SkillLoader} from "../skill/types.js";
+import {TraceAdapter} from "../observable/trace-adapters.js";
+import {TraceLevel} from "../observable/loop-tracer.js";
 
 
 /** Skill 扫描配置 */
@@ -16,3 +18,12 @@ export type SkillSettings = {
 };
 
 export type SkillOptions = Skill[] | SkillSettings
+
+
+
+/** 自定义 Trace 适配器配置 */
+export interface TraceSettings {
+  adapters: TraceAdapter[];
+}
+
+export type TraceOptions = TraceLevel | TraceSettings;;

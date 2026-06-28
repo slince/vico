@@ -132,6 +132,7 @@ export {
   DEFAULT_TRACE_DIR,
   type TraceAdapter,
   type FileTraceAdapterOptions,
+  type TraceOptions,
 } from './observable/trace-adapters.js';
 
 // Events

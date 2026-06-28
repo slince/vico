@@ -14,9 +14,9 @@ import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {LoopTracer, type TraceLevel} from '../observable/loop-tracer.js';
-import {createAdaptersFromLevel, type TraceAdapter} from '../observable/trace-adapters.js';
+import {createAdaptersFromLevel} from '../observable/trace-adapters.js';
 import {collectSkillDirs} from './utils.js';
-import {SkillOptions} from "./options.js";
+import {SkillOptions, TraceOptions} from "./options.js";
 
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
@@ -53,7 +53,7 @@ export interface VicoOptions {
   /** 工具审批门控（不传则不启用审批） */
   approvalGate?: ApprovalGate;
   /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（默认读取 VICO_TRACE 环境变量，不传等同 0） */
-  trace?: TraceLevel | { adapters: TraceAdapter[] };
+  trace?: TraceOptions
 }
 
 /**
