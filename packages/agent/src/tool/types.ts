@@ -22,14 +22,14 @@ export interface Tool<TInput = any, TOutput = any> {
   /** 来源标签（如 "builtin", "skill", "agent:xxx"） */
   tags: string[];
   /** 执行工具调用 */
-  execute(call: ToolCall, ctx: ToolExecutionContext): Promise<TOutput>;
+  execute(call: ToolCall<TInput>, ctx: ToolExecutionContext): Promise<TOutput>;
 }
 
 /** LLM 返回的工具调用 */
-export interface ToolCall<TArgs = any> {
+export interface ToolCall<TInput = any> {
   id: string;
   name: string;
-  args: TArgs;
+  args: TInput;
 }
 
 /** 工具执行结果 */
