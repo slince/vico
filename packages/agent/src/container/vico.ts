@@ -133,6 +133,17 @@ export class Vico {
     this.initialized = true;
   }
 
+  /**
+   * 获取 Agent，若不存在则通过 factory 创建并注册。
+   * @param agentId - Agent 唯一标识
+   * @param factory - 创建 Agent 配置的工厂函数（仅在 Agent 不存在时调用）
+   * @returns 已存在的或新创建的 Agent 实例
+   */
+  async createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
+    const existing = this.runtime.getAgent(agentId);
+    if (existing) return existing;
+    return this.createAgent(await factory());
+  }
 
   /**
    * 构建 Agent 并注册到 Runtime。
@@ -152,7 +163,7 @@ export class Vico {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
-    
+
     return createAgent({
       ...config,
       tools: config.tools ?? this.options.tools,
@@ -163,17 +174,5 @@ export class Vico {
       events: config.events ?? this.events,
       approvalGate: config.approvalGate ?? this.approvalGate,
     });
-  }
-
-  /**
-   * 获取 Agent，若不存在则通过 factory 创建并注册。
-   * @param agentId - Agent 唯一标识
-   * @param factory - 创建 Agent 配置的工厂函数（仅在 Agent 不存在时调用）
-   * @returns 已存在的或新创建的 Agent 实例
-   */
-  async createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
-    const existing = this.runtime.getAgent(agentId);
-    if (existing) return existing;
-    return this.createAgent(await factory());
   }
 }

@@ -13,8 +13,6 @@ export interface ExecuteChatParams {
   userId: string;
 }
 
-
-
 /** 执行 Agent 对话 — 通过 vico.stream */
 export async function executeAgentChat(
   params: ExecuteChatParams,
@@ -44,11 +42,9 @@ export async function executeAgentChat(
     };
   });
 
-  const stream = agent.stream(message, {
+  return agent.stream(message, {
     threadId,
     userId,
     scopeId: tenantId,
   });
-
-  return stream;
 }
