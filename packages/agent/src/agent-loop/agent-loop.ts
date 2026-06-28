@@ -274,19 +274,17 @@ export class AgentLoop {
     usage.output += modelResult.usage.output;
     this.tokenEconomy?.track(modelResult.usage.input, modelResult.usage.output);
 
+    // 模型输出后的消息处理
     if (modelResult.text || modelResult.toolCalls.length > 0) {
-      messages.push({ role: 'assistant', content: modelResult.text, ...(modelResult.toolCalls.length > 0 && { toolCalls: modelResult.toolCalls }) });
-    }
+      const assistantMsg = { role: 'assistant' as const, content: modelResult.text, ...(modelResult.toolCalls.length > 0 && { toolCalls: modelResult.toolCalls }) };
+      messages.push(assistantMsg);
 
-    // 持久化 assistant 消息
-    const last = messages.at(-1);
-    if (last?.role === 'assistant') {
       await this.agent.thread.appendEntry({
         threadId: shared.session.thread.id,
         turnId: shared.session.turn.id,
-        role: last.role,
-        content: last.content,
-        toolCalls: last.toolCalls,
+        role: assistantMsg.role,
+        content: assistantMsg.content,
+        toolCalls: assistantMsg.toolCalls,
       });
     }
 
