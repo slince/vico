@@ -181,7 +181,7 @@ export class AgentLoop {
     });
 
     // 首轮消息包含（历史消息+当前消息）
-    const messages: ModelMessage[] = [...modelRequestContext.messages, userMessage];
+    const messages: ModelMessage[] = [...modelRequestContext.messages];
 
     try {
       while (steps < this.agent.maxSteps && !interrupted.value) {
