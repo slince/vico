@@ -14,8 +14,7 @@ import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
-import {collectSkillDirs} from './utils.js';
-import {SkillOptions, TraceOptions} from "./options.js";
+import type {SkillOptions, TraceOptions} from "./options.js";
 
 /** Vico 配置选项 */
 export interface VicoOptions {
@@ -89,21 +88,21 @@ export class Vico {
 
     // Skill[] 数组形式
     if (Array.isArray(skills)) {
-      const registry = new SkillRegistry([new FSSkillLoader()]);
+      const registry = new SkillRegistry([new FSSkillLoader([])]);
       registry.registerAll(skills);
       return registry;
     }
 
     // SkillSettings 对象形式
     if (skills) {
-      const hasSkillDirs = skills.skillDirs && skills.skillDirs.length > 0;
+      const skillDirs = skills.skillDirs ?? [];
       const loaders = skills.loaders ? [...skills.loaders] : [];
 
-      if (hasSkillDirs) {
-        loaders.push(new FSSkillLoader());
+      if (skillDirs.length > 0) {
+        loaders.push(new FSSkillLoader(skillDirs));
       }
       if (loaders.length === 0) {
-        loaders.push(new FSSkillLoader());
+        loaders.push(new FSSkillLoader([]));
       }
 
       const registry = new SkillRegistry(loaders);
@@ -114,7 +113,7 @@ export class Vico {
     }
 
     // 无任何 skills 配置
-    return new SkillRegistry([new FSSkillLoader()]);
+    return new SkillRegistry([new FSSkillLoader([])]);
   }
 
   /**
@@ -122,11 +121,8 @@ export class Vico {
    * @returns Promise that resolves when initialization is complete
    */
   async init(): Promise<void> {
-    if (this.options.skills && 'skillDirs' in this.options.skills) {
-      const dirs = collectSkillDirs(this.options.skills);
-      if (dirs.length > 0) {
-        await this.skillRegistry.discover(dirs);
-      }
+    if (this.options.skills) {
+      await this.skillRegistry.load();
     }
     this.initialized = true;
   }

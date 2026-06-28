@@ -4,25 +4,22 @@ import type {Skill, SkillLoader} from './types.js';
 export class SkillRegistry {
   private skills: Map<string, Skill> = new Map();
   private loaders: SkillLoader[];
-  private roots: string[] = [];
 
   /**
-   * @param loaders - Skill 加载器列表，discover 时依次调用
+   * @param loaders - Skill 加载器列表，load 时依次调用
    */
   constructor(loaders: SkillLoader[]) {
     this.loaders = loaders;
   }
 
   /**
-   * 从指定目录发现并注册 Skill，依次调用所有 loader。
-   * @param roots - 待扫描的根目录列表
+   * 通过所有 loader 加载并注册 Skill。
    * @returns 所有发现的 Skill 列表
    */
-  async discover(roots: string[]): Promise<Skill[]> {
-    this.roots = roots;
+  async load(): Promise<Skill[]> {
     const allSkills: Skill[] = [];
     for (const loader of this.loaders) {
-      const discovered = await loader.discover(roots);
+      const discovered = await loader.load();
       allSkills.push(...discovered);
     }
     for (const skill of allSkills) {
@@ -81,10 +78,10 @@ export class SkillRegistry {
   }
 
   /**
-   * 清除缓存并重新扫描所有 Skill。
+   * 清除缓存并重新加载所有 Skill。
    */
   async refresh(): Promise<void> {
     this.skills.clear();
-    await this.discover(this.roots);
+    await this.load();
   }
 }

@@ -28,12 +28,8 @@ export interface Skill {
   metadata?: Record<string, string>;
 }
 
-/** Skill 加载器端口 — 发现、加载、刷新 Skill 插件 */
+/** Skill 加载器端口 — 批量加载 Skill 插件 */
 export interface SkillLoader {
-  /** 从指定根目录发现所有 Skill */
-  discover(roots: string[]): Promise<Skill[]>;
-  /** 加载指定路径的 Skill */
-  load(skillPath: string): Promise<Skill>;
-  /** 重新扫描并刷新 Skill 缓存 */
-  refresh(roots: string[]): Promise<void>;
+  /** 加载所有 Skill */
+  load(): Promise<Skill[]>;
 }

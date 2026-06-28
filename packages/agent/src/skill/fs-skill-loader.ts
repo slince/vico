@@ -36,91 +36,100 @@ function listDir(dir: string): string[] {
   }
 }
 
-/** 文件系统 Skill 加载器 — 扫描目录中的 SKILL.md 文件 */
-export class FSSkillLoader implements SkillLoader {
-  private loadedSkills: Map<string, Skill> = new Map();
+/**
+ * 从指定目录加载单个 Skill（读取 SKILL.md 并解析）。
+ * @param dir - 包含 SKILL.md 的目录路径
+ * @returns 解析后的 Skill 对象
+ */
+export async function loadSkillFromDir(dir: string): Promise<Skill> {
+  const mdPath = resolve(dir, 'SKILL.md');
+  const content = readFileSync(mdPath, 'utf-8');
+  const { data, content: body } = matter(content);
 
-  async discover(roots: string[]): Promise<Skill[]> {
-    const candidates: string[] = [];
+  const name = data.name as string;
+  if (!validateSkillName(name)) {
+    throw new Error(`Invalid skill name in ${dir}: "${name}". Must be 1-64 lowercase alphanumeric with hyphens.`);
+  }
 
-    for (const root of roots) {
-      const fullPath = resolve(expandTilde(root));
+  const referenceDir = resolve(dir, 'references');
+  const scriptsDir = resolve(dir, 'scripts');
+  const assetsDir = resolve(dir, 'assets');
 
-      // root 本身是否包含 SKILL.md？
-      const directMd = resolve(fullPath, 'SKILL.md');
-      if (existsSync(directMd)) {
-        candidates.push(fullPath);
-      }
+  return {
+    name,
+    description: (data.description as string) || '',
+    instructions: body.trim(),
+    path: dir,
+    source: 'local',
+    license: data.license as string | undefined,
+    compatibility: data.compatibility as string | undefined,
+    userInvocable: data['user-invocable'] !== false,
+    references: existsSync(referenceDir) ? readdirSync(referenceDir) : [],
+    scripts: existsSync(scriptsDir) ? readdirSync(scriptsDir) : [],
+    assets: existsSync(assetsDir) ? readdirSync(assetsDir) : [],
+    metadata: data.metadata as Record<string, string> | undefined,
+  };
+}
 
-      // 扫描一级子目录
-      for (const entry of listDir(fullPath)) {
-        try {
-          if (statSync(entry).isDirectory()) {
-            const subMd = resolve(entry, 'SKILL.md');
-            if (existsSync(subMd)) {
-              candidates.push(entry);
-            }
-          }
-        } catch { /* skip */ }
-      }
+/**
+ * 从指定目录列表扫描并加载所有 Skill（按 name 去重）。
+ * @param dirs - 待扫描的目录列表
+ * @returns 加载成功的 Skill 列表
+ */
+export async function loadSkillsFromDirs(dirs: string[]): Promise<Skill[]> {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+
+  for (const root of dirs) {
+    const fullPath = resolve(expandTilde(root));
+
+    // root 本身是否包含 SKILL.md？
+    const directMd = resolve(fullPath, 'SKILL.md');
+    if (existsSync(directMd) && !seen.has(fullPath)) {
+      seen.add(fullPath);
+      candidates.push(fullPath);
     }
 
-    // 加载每个候选项
-    const skills: Skill[] = [];
-    for (const candidate of candidates) {
+    // 扫描一级子目录
+    for (const entry of listDir(fullPath)) {
       try {
-        const skill = await this.loadSkillFromDir(candidate);
-        const existing = this.loadedSkills.get(skill.name);
-        if (!existing) {
-          this.loadedSkills.set(skill.name, skill);
-          skills.push(skill);
+        if (statSync(entry).isDirectory()) {
+          const subMd = resolve(entry, 'SKILL.md');
+          if (existsSync(subMd) && !seen.has(entry)) {
+            seen.add(entry);
+            candidates.push(entry);
+          }
         }
-      } catch { /* skip invalid skill */ }
+      } catch { /* skip */ }
     }
-
-    return skills;
   }
 
-  async load(skillPath: string): Promise<Skill> {
-    const fullPath = resolve(expandTilde(skillPath));
-    if (!existsSync(resolve(fullPath, 'SKILL.md'))) {
-      throw new Error(`SKILL.md not found in ${fullPath}`);
-    }
-    return this.loadSkillFromDir(fullPath);
+  const skills: Skill[] = [];
+  const nameCache = new Map<string, Skill>();
+
+  for (const candidate of candidates) {
+    try {
+      const skill = await loadSkillFromDir(candidate);
+      if (!nameCache.has(skill.name)) {
+        nameCache.set(skill.name, skill);
+        skills.push(skill);
+      }
+    } catch { /* skip invalid skill */ }
   }
 
-  async refresh(roots: string[]): Promise<void> {
-    this.loadedSkills.clear();
-    await this.discover(roots);
+  return skills;
+}
+
+/** 文件系统 Skill 加载器 — 从指定目录扫描并加载 SKILL.md */
+export class FSSkillLoader implements SkillLoader {
+  private dirs: string[];
+
+  /** @param dirs - 待扫描的 Skill 目录列表 */
+  constructor(dirs: string[]) {
+    this.dirs = dirs;
   }
 
-  private async loadSkillFromDir(dir: string): Promise<Skill> {
-    const mdPath = resolve(dir, 'SKILL.md');
-    const content = readFileSync(mdPath, 'utf-8');
-    const { data, content: body } = matter(content);
-
-    const name = data.name as string;
-    if (!validateSkillName(name)) {
-      throw new Error(`Invalid skill name in ${dir}: "${name}". Must be 1-64 lowercase alphanumeric with hyphens.`);
-    }
-
-    const referenceDir = resolve(dir, 'references');
-    const scriptsDir = resolve(dir, 'scripts');
-    const assetsDir = resolve(dir, 'assets');
-
-    return {
-      name,
-      description: (data.description as string) || '',
-      instructions: body.trim(),
-      path: dir,
-      source: 'local',
-      license: data.license as string | undefined,
-      compatibility: data.compatibility as string | undefined,
-      userInvocable: data['user-invocable'] !== false,
-      references: existsSync(referenceDir) ? readdirSync(referenceDir) : [],
-      scripts: existsSync(scriptsDir) ? readdirSync(scriptsDir) : [],
-      assets: existsSync(assetsDir) ? readdirSync(assetsDir) : [],
-      metadata: data.metadata as Record<string, string> | undefined,
-    };
+  async load(): Promise<Skill[]> {
+    return loadSkillsFromDirs(this.dirs);
   }
 }

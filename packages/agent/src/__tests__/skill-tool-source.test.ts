@@ -20,9 +20,9 @@ describe('SkillToolSource', () => {
     mkdirSync(TMP, { recursive: true });
     createSkill(resolve(TMP, 'code-review'), 'code-review', 'Review code changes', 'Check for bugs and style issues.');
     createSkill(resolve(TMP, 'deploy'), 'deploy', 'Deployment guide', 'Steps to deploy the application.');
-    const loader = new FSSkillLoader();
+    const loader = new FSSkillLoader([TMP]);
     manager = new SkillRegistry([loader]);
-    await manager.discover([TMP]);
+    await manager.load();
   });
 
   afterEach(() => rmSync(TMP, { recursive: true, force: true }));
