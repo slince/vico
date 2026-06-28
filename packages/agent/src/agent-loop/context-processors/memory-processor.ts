@@ -41,10 +41,7 @@ export class MemoryProcessor implements ContextProcessor {
    */
   private async injectConversationHistory(ctx: ModelRequestContext): Promise<void> {
     if (!this.memoryStore.conversation || !ctx.threadId) return;
-    const history = await this.memoryStore.conversation.get(
-      ctx.threadId,
-      this.memoryStore.conversationWindow,
-    );
+    const history = await this.memoryStore.conversation.get(ctx.threadId);
     if (history.length === 0) return;
 
     ctx.messages.unshift(...history);

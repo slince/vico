@@ -43,7 +43,7 @@ export interface AgentLoopOptions {
 
 /** executeModelStep / callModel 共享上下文 */
 interface StepSharedContext {
-  ctx: ModelRequestContext;
+  ctx: ModelRequestContext
   session: TurnSession;
   traceSession: TurnTraceSession;
   toolApprovalState: Map<string, boolean>;
@@ -141,7 +141,6 @@ export class AgentLoop {
   }): Promise<TurnResult> {
     const { threadId, userMessage, signal, controller, opts, interrupted } = ctx;
     // 历史消息由 MemoryProcessor 在 pipeline 中注入，这里只放当前用户消息
-    const messages: ModelMessage[] = [userMessage];
     let steps = 0;
     const usage = { input: 0, output: 0 };
     const scopeId = opts?.scopeId ?? '';
@@ -163,25 +162,28 @@ export class AgentLoop {
     const turnSpan = traceSession.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
+    // 运行 pipeline 一次，提取不变的上下文前缀/后缀
+    const modelRequestContext = new ModelRequestContext({
+      agent: this.agent,
+      userMessage,
+      tools: [...this.agent.tools],
+      thread,
+      scopeId,
+    });
+    await this.pipeline.enter(modelRequestContext);
+
+    // 记录用户消息
+    await threadStore.appendEntry({
+      threadId,
+      turnId: turn.id,
+      role: userMessage.role,
+      content: userMessage.content,
+    });
+
+    // 首轮消息包含（历史消息+当前消息）
+    const messages: ModelMessage[] = [...modelRequestContext.messages, userMessage];
+
     try {
-      // 运行 pipeline 一次，提取不变的上下文前缀/后缀
-      const ctx = new ModelRequestContext({
-        agent: this.agent,
-        userMessage,
-        tools: [...this.agent.tools],
-        thread,
-        scopeId,
-      });
-      await this.pipeline.enter(ctx);
-
-      // 记录用户消息
-      await threadStore.appendEntry({
-        threadId,
-        turnId: turn.id,
-        role: userMessage.role,
-        content: userMessage.content,
-      });
-
       while (steps < this.agent.maxSteps && !interrupted.value) {
         if (signal.aborted) {
           await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
@@ -196,7 +198,7 @@ export class AgentLoop {
 
         const step: Step = { index: steps, threadId, scopeId, signal };
         const { shouldBreak, usage: stepUsage } = await this.executeModelStep(step, messages, controller, {
-          ctx,
+          ctx: modelRequestContext,
           session,
           traceSession,
           toolApprovalState,
@@ -273,9 +275,7 @@ export class AgentLoop {
       return { shouldBreak: true, usage };
     }
 
-    const { ctx } = shared;
-    const fullMessages = [...ctx.before, ...messages, ...ctx.after];
-    const modelResult = await this.callModel(fullMessages, step, controller, shared);
+    const modelResult = await this.callModel(messages, step, controller, shared);
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;

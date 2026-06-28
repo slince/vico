@@ -62,27 +62,7 @@ export class ModelRequestContext {
     this.step = init.step;
     this.scopeId = init.scopeId ?? '';
   }
-
-  /**
-   * 用户消息之前的消息（history）。
-   *
-   * @returns 用户消息之前的历史消息列表
-   */
-  get before(): ModelMessage[] {
-    const idx = this.messages.indexOf(this.userMessage);
-    return idx > 0 ? this.messages.slice(0, idx) : [];
-  }
-
-  /**
-   * 用户消息之后的消息（system/memory）。
-   *
-   * @returns 用户消息之后的系统/记忆消息列表
-   */
-  get after(): ModelMessage[] {
-    const idx = this.messages.indexOf(this.userMessage);
-    return idx >= 0 ? this.messages.slice(idx + 1) : [];
-  }
-
+  
   /**
    * 便捷获取 threadId。
    *
