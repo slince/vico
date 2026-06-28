@@ -6,15 +6,15 @@ import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
 const editEntry = z.object({
-  oldText: z.string().describe('The exact text to find'),
-  newText: z.string().describe('The replacement text'),
+  oldText: z.string().describe('要查找的精确文本'),
+  newText: z.string().describe('替换后的文本'),
 });
 
 const editParams = z.object({
-  path: z.string().describe('The file path to edit (relative to workspace or absolute)'),
-  oldText: z.string().optional().describe('The exact text to replace (single edit mode)'),
-  newText: z.string().optional().describe('The replacement text (single edit mode)'),
-  edits: z.array(editEntry).optional().describe('Multiple edits to apply'),
+  path: z.string().describe('要编辑的文件路径（相对于工作区或绝对路径）'),
+  oldText: z.string().optional().describe('要替换的精确文本（单次编辑模式）'),
+  newText: z.string().optional().describe('替换后的文本（单次编辑模式）'),
+  edits: z.array(editEntry).optional().describe('批量编辑项'),
 });
 
 function resolvePath(workspace: string, targetPath: string): string {
@@ -103,7 +103,7 @@ async function executeEdit(call: ToolCall, ctx: ToolExecutionContext): Promise<z
 export const editTool = createTool({
   name: 'edit',
   description:
-    'Edit a file using exact string replacement. Supports single replace (oldText → newText) or multiple replacements via the edits array. Each oldText must appear exactly once in the file. Returns a unified diff of the changes.',
+    '通过精确字符串替换编辑文件，支持单次替换（oldText → newText）或通过 edits 数组批量替换。每个 oldText 在文件中必须恰好出现一次，返回 unified diff 格式的变更。',
   inputSchema: editParams,
   outputSchema: editOutputSchema,
   policy: 'on-request',

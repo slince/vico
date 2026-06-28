@@ -6,8 +6,8 @@ import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
 const lsParams = z.object({
-  path: z.string().optional().describe('The directory path to list'),
-  limit: z.number().int().default(200).describe('Maximum number of entries to return'),
+  path: z.string().optional().describe('要列出内容的目录路径'),
+  limit: z.number().int().default(200).describe('返回条目的最大数量'),
 });
 
 function resolvePath(workspace: string, targetPath: string): string {
@@ -52,7 +52,7 @@ async function executeLs(call: ToolCall, ctx: ToolExecutionContext): Promise<z.i
 export const lsTool = createTool({
   name: 'ls',
   description:
-    'List the contents of a directory in the workspace. Entries are sorted alphabetically with directories marked by a trailing "/". Use this to explore the file structure of the project.',
+    '列出工作区目录内容，按字母排序，目录以 "/" 结尾标记。用于探索项目文件结构。',
   inputSchema: lsParams,
   outputSchema: lsOutputSchema,
   policy: 'auto',

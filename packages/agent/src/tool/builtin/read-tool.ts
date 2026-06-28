@@ -6,9 +6,9 @@ import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
 const readParams = z.object({
-  path: z.string().describe('The file path to read (relative to workspace or absolute)'),
-  offset: z.number().int().min(1).optional().describe('Line number to start reading from (1-based)'),
-  limit: z.number().int().min(1).optional().describe('Maximum number of lines to read'),
+  path: z.string().describe('要读取的文件路径（相对于工作区或绝对路径）'),
+  offset: z.number().int().min(1).optional().describe('起始行号（从 1 开始）'),
+  limit: z.number().int().min(1).optional().describe('最大读取行数'),
 });
 
 /** 图片扩展名 */
@@ -144,7 +144,7 @@ async function executeRead(call: ToolCall, ctx: ToolExecutionContext): Promise<R
 export const readTool = createTool({
   name: 'read',
   description:
-    'Read a file from the workspace. Supports line offset and line count limits. Image files are automatically detected and returned as base64. Use this to inspect file contents in the current workspace.',
+    '读取工作区文件，支持行偏移和行数限制。图片文件自动检测并以 base64 返回。用于查看当前工作区文件内容。',
   inputSchema: readParams,
   outputSchema: readOutputSchema,
   policy: 'auto',

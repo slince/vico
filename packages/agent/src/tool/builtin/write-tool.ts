@@ -6,8 +6,8 @@ import {createTool} from '../create-tool.js';
 import type {ToolCall, ToolExecutionContext} from '../types.js';
 
 const writeParams = z.object({
-  path: z.string().describe('The file path to write (relative to workspace or absolute)'),
-  content: z.string().describe('The full content to write to the file'),
+  path: z.string().describe('要写入的文件路径（相对于工作区或绝对路径）'),
+  content: z.string().describe('要写入文件的完整内容'),
 });
 
 function resolvePath(workspace: string, targetPath: string): string {
@@ -47,7 +47,7 @@ async function executeWrite(call: ToolCall, ctx: ToolExecutionContext): Promise<
 export const writeTool = createTool({
   name: 'write',
   description:
-    'Create a new file or overwrite an existing file in the workspace. Parent directories are created automatically if they do not exist.',
+    '在工作区创建新文件或覆盖已有文件，父目录不存在时自动创建。',
   inputSchema: writeParams,
   outputSchema: writeOutputSchema,
   policy: 'on-request',

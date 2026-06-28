@@ -3,10 +3,10 @@ import {createTool} from '../create-tool.js';
 
 export const nowTool = createTool({
   name: 'now',
-  description: 'Get the current date and time in ISO 8601 format.',
+  description: '获取当前日期和时间（ISO 8601 格式）。',
   inputSchema: z.object({}),
   outputSchema: z.object({
-    datetime: z.string().describe('ISO 8601 formatted current date and time'),
+    datetime: z.string().describe('ISO 8601 格式的当前日期和时间'),
   }),
   policy: 'auto',
   kind: 'readonly',

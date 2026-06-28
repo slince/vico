@@ -3,9 +3,9 @@ import {createTool} from '../create-tool.js';
 
 export const echoTool = createTool({
   name: 'echo',
-  description: 'Echo back the input. Useful for testing the tool execution pipeline.',
+  description: '回显输入内容，用于测试工具执行管道。',
   inputSchema: z.object({
-    message: z.string().describe('Message to echo'),
+    message: z.string().describe('要回显的消息'),
   }),
   outputSchema: z.object({
     message: z.string(),
