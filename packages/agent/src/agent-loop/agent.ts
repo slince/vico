@@ -1,7 +1,7 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {ModelClient} from '../model/model-client.js';
 import type {TurnEvent, TurnResult} from './types.js';
-import type {Tool} from '../tool/types.js';
+import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
@@ -39,6 +39,8 @@ export interface AgentOptions {
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
   approvalGate?: ApprovalGate;
+  /** 审批决策器，未提供则使用默认策略决策 */
+  approvalResolver?: ApprovalResolver;
   events: EventRecorder<TurnEvent>;
   tracer: TurnTracer;
   loopFactory?: LoopFactory;
@@ -56,9 +58,10 @@ export class Agent {
   readonly maxSteps: number;
   readonly skills: Skill[];
   readonly tools: Tool[];
-  readonly memory?: MemoryStore;
+  readonly memory: MemoryStore;
   readonly thread: ThreadStore;
   readonly approvalGate?: ApprovalGate;
+  readonly approvalResolver?: ApprovalResolver;
   readonly events: EventRecorder<TurnEvent>;
   readonly tracer: TurnTracer;
   readonly loop: AgentLoop;
@@ -78,8 +81,9 @@ export class Agent {
     this.memory = params.memory;
     this.thread = params.thread;
     this.approvalGate = params.approvalGate;
+    this.approvalResolver = params.approvalResolver;
     this.events = params.events;
-    this.tracer = params.tracer || new TurnTracer(this.events, []);
+    this.tracer = params.tracer;
     this.workspace = params.workspace;
 
     const loopFactory = params.loopFactory || buildLoop;

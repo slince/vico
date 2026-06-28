@@ -59,3 +59,15 @@ export interface PolicyContext {
   previousApproved: boolean;
 }
 
+/**
+ * 审批决策器 — 根据工具策略和上下文决定是否批准工具调用。
+ *
+ * 默认实现为 {@link resolvePolicy}，创建 Agent 时可注入自定义实现。
+ */
+export type ApprovalResolver = (
+  call: ToolCall,
+  tool: Tool,
+  policy: ToolPolicy,
+  context: PolicyContext,
+) => ApprovalDecision | Promise<ApprovalDecision>;
+

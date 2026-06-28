@@ -2,7 +2,7 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {Agent} from './agent.js';
 import type {ModelRef, TurnEvent} from './types.js';
-import type {Tool} from '../tool/types.js';
+import type {Tool, ApprovalResolver} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import {createSkillTools} from "../skill/tool/index.js";
 import {MemoryStore} from '../memory/memory-store.js';
@@ -39,6 +39,8 @@ export interface AgentConfig {
   tracer?: TurnTracer;
   events?: EventRecorder<TurnEvent>;
   approvalGate?: ApprovalGate;
+  /** 审批决策器，未提供则按 ToolPolicy 默认决策 */
+  approvalResolver?: ApprovalResolver;
 }
 
 /**
@@ -83,5 +85,6 @@ export function createAgent(config: AgentConfig): Agent {
     tracer: config.tracer || new TurnTracer(events, []),
     events: events,
     approvalGate: config.approvalGate,
+    approvalResolver: config.approvalResolver,
   });
 }

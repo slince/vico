@@ -1,7 +1,8 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
-import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
+import type {ToolCall, ToolExecutionContext, ToolResult, ApprovalResolver} from '../tool/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
+import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
@@ -56,6 +57,7 @@ export class AgentLoop {
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalGate?: ApprovalGate;
+  private approvalResolver: ApprovalResolver;
   private tracer: TurnTracer;
   private pipeline: ProcessorPipeline;
 
@@ -66,6 +68,7 @@ export class AgentLoop {
     this.tokenEconomy = options.tokenEconomy;
     this.tracer = options.agent.tracer;
     this.approvalGate = options.agent.approvalGate;
+    this.approvalResolver = options.agent.approvalResolver ?? resolvePolicy;
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
 
@@ -330,58 +333,58 @@ export class AgentLoop {
       const tool = this.toolBroker.findTool(call.name);
       const policy = tool?.policy ?? 'auto';
 
-      if (policy === 'never') {
-        deniedResults.push({ callId: call.id, name: call.name, status: 'error', output: null, error: '被策略阻止' });
-        continue;
-      }
-
-      if (policy === 'auto' || policy === 'suggest') {
-        approvedCalls.push(call);
-        continue;
-      }
-
-      // on-request: 首次使用需审批
       const isFirstUse = !shared.toolApprovalState.has(call.name);
       const wasApproved = shared.toolApprovalState.get(call.name) ?? false;
-      if (!isFirstUse && wasApproved) {
-        approvedCalls.push(call);
-        continue;
-      }
 
-      if (!this.approvalGate) {
-        shared.toolApprovalState.set(call.name, true);
-        approvedCalls.push(call);
-        continue;
-      }
-
-      const approvalId = crypto.randomUUID();
-      controller.enqueue({
-        type: 'tool-approval-request',
-        approvalId,
-        toolCallId: call.id,
-        toolName: call.name,
-        input: call.args,
+      const decision = await this.approvalResolver(call, tool, policy, {
+        firstUse: isFirstUse,
+        previousApproved: wasApproved,
       });
 
-      const { decision } = this.approvalGate.requestApproval(call, undefined, approvalId);
-      const result = await decision;
-
-      if (result.approved) {
+      if (decision.approved) {
         shared.toolApprovalState.set(call.name, true);
         approvedCalls.push(call);
-      } else {
+        continue;
+      }
+
+      // on-request 策略下，通过 approvalGate 发起外部审批
+      if (policy === 'on-request' && this.approvalGate) {
+        const approvalId = crypto.randomUUID();
         controller.enqueue({
-          type: 'tool-output-denied',
+          type: 'tool-approval-request',
+          approvalId,
           toolCallId: call.id,
           toolName: call.name,
-          reason: result.reason,
+          input: call.args,
         });
-        deniedResults.push({
-          callId: call.id, name: call.name,
-          status: 'error', output: null,
-          error: result.reason ?? '用户拒绝',
-        });
+
+        const { decision: gateDecision } = this.approvalGate.requestApproval(call, undefined, approvalId);
+        const gateResult = await gateDecision;
+
+        if (gateResult.approved) {
+          shared.toolApprovalState.set(call.name, true);
+          approvedCalls.push(call);
+        } else {
+          controller.enqueue({
+            type: 'tool-output-denied',
+            toolCallId: call.id,
+            toolName: call.name,
+            reason: gateResult.reason,
+          });
+          deniedResults.push({
+            callId: call.id, name: call.name,
+            status: 'error', output: null,
+            error: gateResult.reason ?? '用户拒绝',
+          });
+        }
+        continue;
       }
+
+      deniedResults.push({
+        callId: call.id, name: call.name,
+        status: 'error', output: null,
+        error: decision.reason ?? '被策略阻止',
+      });
     }
 
     return { approvedCalls, deniedResults };

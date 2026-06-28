@@ -71,7 +71,7 @@ export {
 export { type TurnSession } from './agent-loop/types.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/utils.js';
-export { type PolicyContext } from './tool/types.js';
+export { type PolicyContext, type ApprovalResolver } from './tool/types.js';
 // Builtin tools (individual exports)
 export {
   readTool,
