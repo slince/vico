@@ -8,7 +8,7 @@ import {SkillProcessor} from "./context-processors/skill-processor.js";
 import {ToolBroker} from "../tool/tool-broker.js";
 import {MemoryProcessor} from "./context-processors/memory-processor.js";
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
-import {coreBuiltinTools} from "../tool/builtin/index.js";
+import {baseBuiltinTools} from "../tool/builtin/index.js";
 
 /**
  * 消费 TurnOutput 并返回最终结果（丢弃流数据）。
@@ -48,7 +48,7 @@ export function buildLoop(agent: Agent): AgentLoop {
     toolBroker.registerAll(agent.tools);
   }
 
-  toolBroker.registerAll(coreBuiltinTools);
+  toolBroker.registerAll(baseBuiltinTools);
 
   return new AgentLoop({
     agent,

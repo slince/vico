@@ -36,6 +36,8 @@ export interface AgentOptions {
   tools: Tool[];
   memory: MemoryStore;
   thread: ThreadStore;
+  /** 工作空间路径，作为工具执行的默认工作目录 */
+  workspace?: string;
   approvalGate?: ApprovalGate;
   events: EventRecorder<TurnEvent>;
   tracer: TurnTracer;
@@ -60,6 +62,7 @@ export class Agent {
   readonly events: EventRecorder<TurnEvent>;
   readonly tracer: TurnTracer;
   readonly loop: AgentLoop;
+  readonly workspace?: string;
 
   constructor(params: AgentOptions) {
     this.id = params.id;
@@ -77,6 +80,7 @@ export class Agent {
     this.approvalGate = params.approvalGate;
     this.events = params.events;
     this.tracer = params.tracer || new TurnTracer(this.events, []);
+    this.workspace = params.workspace;
 
     const loopFactory = params.loopFactory || buildLoop;
     this.loop = loopFactory(this)
@@ -149,7 +153,7 @@ export class Agent {
     const threadId = options?.threadId ?? `invoke-${this.id}-${Date.now()}`;
     return this.loop.runTurn(threadId, userMessage, {
       userId: options?.userId,
-      workspace: options?.workspace,
+      workspace: options?.workspace ?? this.workspace,
       scopeId: options?.scopeId,
     });
   }

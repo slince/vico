@@ -22,8 +22,14 @@ import { echoTool } from './echo-tool.js';
 import { nowTool } from './now-tool.js';
 import type { Tool } from '../types.js';
 
-/** 内置工具全集 */
-export const coreBuiltinTools: Tool[] = [
+/** 基础内置工具（无需 workspace） */
+export const baseBuiltinTools: Tool[] = [
+  echoTool,
+  nowTool,
+];
+
+/** 文件操作用具（需要 workspace） */
+export const fileBuiltinTools: Tool[] = [
   readTool,
   bashTool,
   editTool,
@@ -32,6 +38,10 @@ export const coreBuiltinTools: Tool[] = [
   findTool,
   lsTool,
   lspTool,
-  echoTool,
-  nowTool,
+];
+
+/** 内置工具全集 */
+export const coreBuiltinTools: Tool[] = [
+  ...baseBuiltinTools,
+  ...fileBuiltinTools,
 ];
