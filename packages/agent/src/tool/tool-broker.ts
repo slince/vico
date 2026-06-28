@@ -65,15 +65,14 @@ export class ToolBroker {
   }
 
   /**
-   * 批量执行工具调用，按 kind 分组调度：readonly 工具并行（每批最多 3 个），其余串行
+   * 批量执行工具调用，按 kind 分组调度：readonly 工具全部并行执行，其余串行
    * @param calls - 工具调用请求列表
    * @param ctx - 工具执行上下文
    * @returns 所有工具的执行结果列表
    */
   async executeBatch(calls: ToolCall[], ctx: ToolExecutionContext): Promise<ToolResult[]> {
     if (calls.length === 0) return [];
-    if (calls.length === 1) return [await this.execute(calls[0], ctx)];
-
+    
     // 按 kind 分组：readonly（可并行3个）+ 其他（串行）
     const readonly: ToolCall[] = [];
     const sequential: ToolCall[] = [];
@@ -87,13 +86,8 @@ export class ToolBroker {
       }
     }
 
-    // 只读工具并行（最多 3 个一组）
-    const results: ToolResult[] = [];
-    for (let i = 0; i < readonly.length; i += 3) {
-      const batch = readonly.slice(i, i + 3);
-      const batchResults = await Promise.all(batch.map((c) => this.execute(c, ctx)));
-      results.push(...batchResults);
-    }
+    // 只读工具全部并行执行
+    const results: ToolResult[] = await Promise.all(readonly.map((c) => this.execute(c, ctx)));
 
     // 变更工具串行
     for (const call of sequential) {
