@@ -40,8 +40,6 @@ export class FileTraceAdapter implements TraceAdapter {
         endTime: trace.endTime ? new Date(trace.endTime).toISOString() : undefined,
         steps: trace.steps.map((s) => ({
           index: s.index,
-          text: s.text,
-          toolCalls: s.toolCalls,
           toolResults: s.toolResults,
           request: s.request,
           response: s.response,

@@ -63,29 +63,35 @@ export class ConsoleTraceAdapter implements TraceAdapter {
         console.log(`  [Step ${step.index}] (no request data)`);
       }
 
-      if (step.text) {
-        const preview = step.text.length > 100 ? step.text.slice(0, 100) + '…' : step.text;
-        console.log(`    ↳ text : ${preview}`);
-      }
+      if (step.response) {
+        const res = step.response;
+        if (res.text) {
+          const preview = res.text.length > 100 ? res.text.slice(0, 100) + '…' : res.text;
+          console.log(`    ↳ text : ${preview}`);
+        }
 
-      for (const tc of step.toolCalls) {
-        const argsStr = JSON.stringify(tc.args);
-        const argsPreview = argsStr.length > 120 ? argsStr.slice(0, 120) + '…' : argsStr;
-        console.log(`    ↳ call : ${tc.name}  id=${tc.id}  args=${argsPreview}`);
-      }
+        for (const tc of res.toolCalls) {
+          const argsStr = JSON.stringify(tc.args);
+          const argsPreview = argsStr.length > 120 ? argsStr.slice(0, 120) + '…' : argsStr;
+          console.log(`    ↳ call : ${tc.name}  id=${tc.id}  args=${argsPreview}`);
+        }
 
-      for (const tr of step.toolResults) {
-        const icon = tr.status === 'success' ? '✓' : '✗';
-        const outputStr = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
-        const outputPreview = outputStr.length > 80 ? outputStr.slice(0, 80) + '…' : outputStr;
-        const errSuffix = tr.error
-          ? `  error=${typeof tr.error === 'string' ? tr.error : tr.error.message}`
-          : '';
-        console.log(`    ↳ ${icon}    : ${tr.name}  callId=${tr.callId} → ${outputPreview}${errSuffix}`);
-      }
+        for (const tr of step.toolResults) {
+          const icon = tr.status === 'success' ? '✓' : '✗';
+          const outputStr = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
+          const outputPreview = outputStr.length > 80 ? outputStr.slice(0, 80) + '…' : outputStr;
+          const errSuffix = tr.error
+            ? `  error=${typeof tr.error === 'string' ? tr.error : tr.error.message}`
+            : '';
+          console.log(`    ↳ ${icon}    : ${tr.name}  callId=${tr.callId} → ${outputPreview}${errSuffix}`);
+        }
 
-      if (step.response?.usage) {
-        console.log(`    ↳ usage: ${step.response.usage.input}→${step.response.usage.output} tokens`);
+        if (res.usage) {
+          console.log(`    ↳ usage: ${res.usage.input}→${res.usage.output} tokens`);
+        }
+        if (res.error) {
+          console.log(`    ↳ error: ${res.error}`);
+        }
       }
     }
 

@@ -5,7 +5,7 @@ import type {Step, TurnEvent, TurnResult} from '../agent-loop/types.js';
 import type {CallModelResult} from '../agent-loop/agent-loop.js';
 import type {ModelMessage, ModelRequest} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
-import type {ToolCall, ToolResult} from '../tool/types.js';
+import type {ToolResult} from '../tool/types.js';
 import type {Span, SpanState, SpanType} from './types.js';
 import type {TraceAdapter} from './trace-adapter.js';
 
@@ -15,8 +15,6 @@ export type TraceLevel = 0 | 1 | 2;
 /** 单步追踪数据（含 model call 信息，两者 1:1） */
 interface StepTrace {
   index: number;
-  text: string;
-  toolCalls: ToolCall[];
   toolResults: ToolResult[];
   request?: ModelRequest;
   response?: CallModelResult;
@@ -128,7 +126,7 @@ export class TurnTraceSession {
   private getOrCreateStep(index: number): StepTrace {
     const existing = this.trace.steps.find((s) => s.index === index);
     if (existing) return existing;
-    const step: StepTrace = { index, text: '', toolCalls: [], toolResults: [] };
+    const step: StepTrace = { index, toolResults: [] };
     this.trace.steps.push(step);
     return step;
   }
@@ -140,14 +138,6 @@ export class TurnTraceSession {
       switch (event.type) {
         case 'step-start':
           this.currentStep = this.getOrCreateStep(event.step);
-          break;
-        case 'text-delta':
-          if (this.currentStep) this.currentStep.text += event.content;
-          break;
-        case 'tool-call-start':
-          if (this.currentStep) {
-            this.currentStep.toolCalls.push({ id: event.id, name: event.name, args: event.args });
-          }
           break;
         case 'tool-result':
           if (this.currentStep) {
