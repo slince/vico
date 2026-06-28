@@ -24,7 +24,8 @@ import {createAdaptersFromLevel, type TraceAdapter} from '../observable/trace-ad
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {coreBuiltinTools} from "../tool/builtin/index.js";
 import {createAllSkillTools} from "../skill/tool/index.js";
-import {collectSkillDirs, type SkillSettings} from './utils.js';
+import {collectSkillDirs} from './utils.js';
+import {SkillOptions} from "./options.js";
 
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
@@ -44,15 +45,12 @@ export interface AgentConfig {
   thread?: ThreadStore;
 }
 
-
-type SkillOptions = SkillStore | SkillSettings
-
 /** Vico 配置选项 */
 export interface VicoOptions {
   /** Skill 配置 */
   skills?: SkillOptions;
   /** 额外的工具 */
-  toolSources?: Tool[];
+  tools?: Tool[];
   /** LanguageModel 工厂（不传则使用内置 createLanguageModel） */
   languageModelFactory?: LanguageModelFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
@@ -86,7 +84,7 @@ export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
   readonly tracer: LoopTracer;
 
-  private readonly skillManager: SkillRegistry;
+  private readonly skillRegistry: SkillRegistry;
   private initialized = false;
   private options: VicoOptions;
   private readonly languageModelFactory: LanguageModelFactory;
@@ -105,7 +103,7 @@ export class Vico {
     this.memory = options.memory;
     this.approvalGate = options.approvalGate;
     this.thread = options.thread ?? new InMemoryThreadStore();
-    this.skillManager = new SkillRegistry([new FSSkillLoader()]);
+    this.skillRegistry = new SkillRegistry([new FSSkillLoader()]);
   }
 
   /**
@@ -116,7 +114,7 @@ export class Vico {
     if (this.options.skills && 'skillDirs' in this.options.skills) {
       const dirs = collectSkillDirs(this.options.skills);
       if (dirs.length > 0) {
-        await this.skillManager.discover(dirs);
+        await this.skillRegistry.discover(dirs);
       }
     }
     this.initialized = true;
@@ -188,10 +186,10 @@ export class Vico {
 
     // 如果没有预定义就用 vico的
     if (agent.tools.length === 0) {
-      if (this.options.toolSources) {
-        toolBroker.registerAll(this.options.toolSources);
+      if (this.options.tools) {
+        toolBroker.registerAll(this.options.tools);
       }
-      toolBroker.registerAll(createAllSkillTools(this.skillManager));
+      toolBroker.registerAll(createAllSkillTools(this.skillRegistry));
     }
 
     if (memory) {
@@ -214,7 +212,7 @@ export class Vico {
   }
 
   getSkillRegistry(): SkillRegistry {
-    return this.skillManager;
+    return this.skillRegistry;
   }
 
   /**
