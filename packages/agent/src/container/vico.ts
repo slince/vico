@@ -8,7 +8,6 @@ import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createFSSkillLoader} from '../skill/fs-skill-loader.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
-import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
@@ -57,14 +56,14 @@ export class Vico {
   private options: VicoOptions;
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
-  readonly thread: ThreadStore;
-  
+  readonly thread?: ThreadStore;
+
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.tracer = this.createTracer(options.trace);
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
-    this.thread = options.thread ?? new InMemoryThreadStore();
+    this.thread = options.thread;
     this.skills = [];
   }
 
