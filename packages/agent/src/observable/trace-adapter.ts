@@ -3,20 +3,10 @@ import type { TurnTrace, TraceLevel } from './loop-tracer.js';
 import { ConsoleTraceAdapter } from './console-trace-adapter.js';
 import { FileTraceAdapter } from './file-trace-adapter.js';
 
-// ── 适配器接口 ──
-
 /** Trace 持久化适配器 — 负责将 trace 输出到目标 */
 export interface TraceAdapter {
   write(trace: TurnTrace): void | Promise<void>;
 }
-
-// ── 重导出 ──
-
-export { ConsoleTraceAdapter } from './console-trace-adapter.js';
-export { FileTraceAdapter, DEFAULT_TRACE_DIR, type FileTraceAdapterOptions } from './file-trace-adapter.js';
-export type { TraceOptions } from '../container/options.js';
-
-// ── 工厂 ──
 
 /**
  * 根据 TraceLevel 创建默认适配器列表。

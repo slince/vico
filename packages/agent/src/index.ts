@@ -126,14 +126,12 @@ export {
   type TurnTrace,
 } from './observable/loop-tracer.js';
 export {
-  ConsoleTraceAdapter,
-  FileTraceAdapter,
   createAdaptersFromLevel,
-  DEFAULT_TRACE_DIR,
   type TraceAdapter,
-  type FileTraceAdapterOptions,
-  type TraceOptions,
-} from './observable/trace-adapters.js';
+} from './observable/trace-adapter';
+export { ConsoleTraceAdapter } from './observable/console-trace-adapter.js';
+export { FileTraceAdapter, DEFAULT_TRACE_DIR, type FileTraceAdapterOptions } from './observable/file-trace-adapter.js';
+export type { TraceOptions } from './container/options.js';
 
 // Events
 export { MittEventRecorder } from './events/event-recorder.js';

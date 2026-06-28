@@ -1,9 +1,9 @@
 // @vico/agent - FileTraceAdapter: serializes TurnTrace to JSON file
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { homedir } from 'node:os';
-import type { TurnTrace } from './loop-tracer.js';
-import type { TraceAdapter } from './trace-adapters.js';
+import {homedir} from 'node:os';
+import type {TurnTrace} from './loop-tracer.js';
+import type {TraceAdapter} from './trace-adapter';
 
 /** 默认 trace 文件导出目录 */
 export const DEFAULT_TRACE_DIR = path.join(homedir(), '.vico', 'traces');

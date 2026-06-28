@@ -1,5 +1,5 @@
 import {Skill, SkillLoader} from "../skill/types.js";
-import {TraceAdapter} from "../observable/trace-adapters.js";
+import {TraceAdapter} from "../observable/trace-adapter";
 import {TraceLevel} from "../observable/loop-tracer.js";
 
 
