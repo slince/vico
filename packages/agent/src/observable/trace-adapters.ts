@@ -39,14 +39,12 @@ export class ConsoleTraceAdapter implements TraceAdapter {
     console.log(`${sep}`);
 
     for (const step of trace.steps) {
-      const mc = trace.modelCalls.find((m) => m.stepIndex === step.index);
-
-      if (mc) {
-        const toolNames = mc.request.tools?.map((tool) => tool.name) ?? [];
+      if (step.request) {
+        const toolNames = step.request.tools?.map((tool) => tool.name) ?? [];
         const tools = toolNames.length > 0 ? ` | tools: [${toolNames.join(', ')}]` : '';
-        const sysLen = mc.request.system?.length ?? 0;
+        const sysLen = step.request.system?.length ?? 0;
         console.log(
-          `  [Step ${step.index}] temp=${mc.request.temperature ?? '?'} | maxTk=${mc.request.maxOutputTokens ?? '?'} | ${mc.request.messages.length} msgs | system=${sysLen}ch${tools}`,
+          `  [Step ${step.index}] temp=${step.request.temperature ?? '?'} | maxTk=${step.request.maxOutputTokens ?? '?'} | ${step.request.messages.length} msgs | system=${sysLen}ch${tools}`,
         );
       } else {
         console.log(`  [Step ${step.index}]`);
@@ -70,8 +68,8 @@ export class ConsoleTraceAdapter implements TraceAdapter {
         console.log(`    ↳ ${icon}    : ${tr.name} → ${outputPreview}`);
       }
 
-      if (mc?.response?.usage) {
-        console.log(`    ↳ usage: ${mc.response.usage.input}→${mc.response.usage.output} tokens`);
+      if (step.response?.usage) {
+        console.log(`    ↳ usage: ${step.response.usage.input}→${step.response.usage.output} tokens`);
       }
     }
 
@@ -123,11 +121,8 @@ export class FileTraceAdapter implements TraceAdapter {
           text: s.text,
           toolCalls: s.toolCalls,
           toolResults: s.toolResults,
-        })),
-        modelCalls: trace.modelCalls.map((mc) => ({
-          stepIndex: mc.stepIndex,
-          request: mc.request,
-          response: mc.response ?? undefined,
+          request: s.request,
+          response: s.response,
         })),
         spans: trace.spans.map((s) => ({
           id: s.id,

@@ -11,19 +11,14 @@ import type { TraceAdapter } from './trace-adapters.js';
 /** 追踪级别：0=关闭，1=console，2=console+文件 */
 export type TraceLevel = 0 | 1 | 2;
 
-/** 单次 LLM 调用追踪数据 */
-export interface ModelCallTrace {
-  stepIndex: number;
-  request: ModelRequest;
-  response?: CallModelResult;
-}
-
-/** 单步追踪数据 */
+/** 单步追踪数据（含 model call 信息，两者 1:1） */
 interface StepTrace {
   index: number;
   text: string;
   toolCalls: Array<{ id: string; name: string; args: Record<string, unknown> }>;
   toolResults: Array<{ id: string; name: string; status: string; output: unknown }>;
+  request?: ModelRequest;
+  response?: CallModelResult;
 }
 
 /** 单轮完整追踪数据 */
@@ -33,7 +28,6 @@ export interface TurnTrace {
   startTime: number;
   endTime?: number;
   steps: StepTrace[];
-  modelCalls: ModelCallTrace[];
   events: TurnEvent[];
   /** 本 turn 内所有 span（跟随 trace 持久化） */
   spans: SpanState[];
@@ -50,7 +44,6 @@ export interface TurnTrace {
 export class TurnTraceSession {
   private trace: TurnTrace;
   private currentStep?: StepTrace;
-  private pendingModelCalls = new Map<number, ModelCallTrace>();
   private unsubscribe: () => void;
   private spans: SpanState[] = [];
 
@@ -64,7 +57,6 @@ export class TurnTraceSession {
       userMessage: userMessage.content,
       startTime: Date.now(),
       steps: [],
-      modelCalls: [],
       events: [],
       spans: this.spans,
     };
@@ -101,9 +93,7 @@ export class TurnTraceSession {
    * @param request - 模型请求参数
    */
   recordModelRequest(step: Step, request: ModelRequest): void {
-    const entry: ModelCallTrace = { stepIndex: step.index, request };
-    this.pendingModelCalls.set(step.index, entry);
-    this.trace.modelCalls.push(entry);
+    if (this.currentStep) this.currentStep.request = request;
   }
 
   /**
@@ -112,11 +102,7 @@ export class TurnTraceSession {
    * @param response - 模型调用返回结果
    */
   recordModelResponse(step: Step, response: CallModelResult): void {
-    const entry = this.pendingModelCalls.get(step.index);
-    if (entry) {
-      entry.response = response;
-      this.pendingModelCalls.delete(step.index);
-    }
+    if (this.currentStep) this.currentStep.response = response;
   }
 
   /**
