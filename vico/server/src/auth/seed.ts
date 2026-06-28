@@ -1,9 +1,9 @@
-import { randomBytes, scrypt } from 'node:crypto';
-import { v4 as uuid } from 'uuid';
-import { eq } from 'drizzle-orm';
-import { getDb } from '../db/db.js';
-import { user, account, organization, member } from '../db/auth-schema.js';
-import { agents } from '../db/schema.js';
+import {randomBytes, scrypt} from 'node:crypto';
+import {v4 as uuid} from 'uuid';
+import {eq} from 'drizzle-orm';
+import {getDb} from '../db/db.js';
+import {account, member, organization, user} from '../db/auth-schema.js';
+import {agents} from '../db/schema.js';
 import logger from '../lib/logger.js';
 
 const scryptConfig = { N: 16384, r: 16, p: 1, dkLen: 64 } as const;
@@ -101,7 +101,7 @@ export async function seedMainAgent() {
   const db = getDb();
 
   const existing = await db.select({ id: agents.id }).from(agents)
-    .where(eq(agents.id, 'main')).get();
+    .where(eq(agents.id, 'vico')).get();
   if (existing) return;
 
   // 获取已有组织
@@ -111,7 +111,7 @@ export async function seedMainAgent() {
   const nowMs = Date.now();
 
   await db.insert(agents).values({
-    id: 'main',
+    id: 'vico',
     tenant_id: org.id,
     name: 'Vico',
     system_prompt: `你是一个通用 AI Agent 调度器（Vico）。你的职责是：

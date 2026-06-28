@@ -16,7 +16,7 @@ export type Variables = {
 };
 
 async function main() {
-  runMigrations();
+  await runMigrations();
   await seedDefaultOrgAndAdmin();
   await seedMainAgent();
   await initVico();

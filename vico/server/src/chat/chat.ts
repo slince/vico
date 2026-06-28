@@ -1,8 +1,8 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，vico.stream 执行。
  */
-import type {AgentConfig, TurnOutput, Tool} from '@vico/agent';
-import {filesystemTools, codingTools} from '@vico/agent';
+import type {AgentConfig, Tool, TurnOutput} from '@vico/agent';
+import {codingTools, filesystemTools} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
 import type {BuiltinToolsConfig} from '../services/agent/types.js';
 import {vico} from '../vico.js';
@@ -88,6 +88,10 @@ export async function executeAgentChat(
   // 确保 Agent 已在 Vico Runtime 注册（不存在则创建）
   const agent = await vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
     const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
+
+    console.log(tenantId, agentId, runtimeConfig);
+
+
     if (!runtimeConfig) throw new Error('Agent not found');
     return buildAgentConfig(runtimeConfig);
   });
