@@ -159,14 +159,6 @@ export class AgentLoop {
 
     const session: TurnSession = { workspace, thread, turn };
 
-    // 记录用户消息
-    await threadStore.appendEntry({
-      threadId,
-      turnId: turn.id,
-      role: userMessage.role,
-      content: userMessage.content,
-    });
-
     const traceSession = this.tracer.startTurn(thread, userMessage);
     const turnSpan = traceSession.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
@@ -181,6 +173,14 @@ export class AgentLoop {
         scopeId,
       });
       await this.pipeline.enter(ctx);
+
+      // 记录用户消息
+      await threadStore.appendEntry({
+        threadId,
+        turnId: turn.id,
+        role: userMessage.role,
+        content: userMessage.content,
+      });
 
       while (steps < this.agent.maxSteps && !interrupted.value) {
         if (signal.aborted) {
