@@ -1,40 +1,21 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
-import type {LanguageModelV3} from '@ai-sdk/provider';
-import type {ModelRef, TurnEvent} from '../agent-loop/types.js';
+import type {AgentConfig, LanguageModelFactory, TurnEvent} from '../agent-loop/types.js';
 import type {Tool} from '../tool/types.js';
-import {Agent} from '../agent-loop/agent.js';
+import type {Agent} from '../agent-loop/agent.js';
+import {createAgent} from '../agent-loop/create-agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createLanguageModel} from '../model/factory.js';
 import {SkillRegistry} from '../skill/skill-registry.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
 import type {ApprovalGate} from '../agent-loop/approval-gate.js';
-import type {Skill} from '../skill/types.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
-import {LoopTracer, type TraceLevel} from '../observable/loop-tracer.js';
+import {LoopTracer} from '../observable/loop-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapters.js';
 import {collectSkillDirs} from './utils.js';
 import {SkillOptions, TraceOptions} from "./options.js";
-
-/** LanguageModel 工厂类型 */
-export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
-
-/** 创建 Agent 的输入配置 */
-export interface AgentConfig {
-  id: string;
-  name: string;
-  systemPrompt: string;
-  model: ModelRef;
-  temperature?: number;
-  maxTokens?: number;
-  maxSteps?: number;
-  tools?: Tool[];
-  skills?: Skill[];
-  memory?: MemoryStore;
-  thread?: ThreadStore;
-}
 
 /** Vico 配置选项 */
 export interface VicoOptions {
@@ -165,38 +146,22 @@ export class Vico {
   }
 
   /**
-   * 创建单个 Agent（无缓存），绑定 skills / tools。
+   * 创建单个 Agent（无缓存），委托到独立 buildAgent。
    */
   private async buildAgent(config: AgentConfig): Promise<Agent> {
     if (!this.initialized) {
       throw new Error('Vico not initialized. Call await vico.init() first.');
     }
-
-    // 加载 agent 绑定的 tools 和 skills
-    const tools = config.tools ? config.tools : this.options.tools
-
-    const skills = config.skills ? config.skills : this.skillRegistry.listAll()
-
-    const memory = config.memory ?? this.memory;
-    const thread = config.thread ?? this.thread;
-
-    const model = this.languageModelFactory(config.model);
-
-    return new Agent({
-      id: config.id,
-      name: config.name,
-      systemPrompt: config.systemPrompt,
-      model,
-      temperature: config.temperature ?? 0.7,
-      maxTokens: config.maxTokens ?? 4096,
-      maxSteps: config.maxSteps ?? 10,
-      skills,
-      tools,
-      memory,
-      thread,
-      tracer: this.tracer,
-      approvalGate: this.approvalGate,
-      events: this.events,
+    
+    return createAgent({
+      ...config,
+      tools: config.tools ?? this.options.tools,
+      skills: config.skills ?? this.skillRegistry.listAll(),
+      memory: config.memory ?? this.memory,
+      thread: config.thread ?? this.thread,
+      tracer: config.tracer ?? this.tracer,
+      events: config.events ?? this.events,
+      approvalGate: config.approvalGate ?? this.approvalGate,
     });
   }
 

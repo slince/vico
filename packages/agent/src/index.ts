@@ -1,6 +1,6 @@
 // src/index.ts — @vico/agent public API
 
-export { type ModelRef } from './agent-loop/types.js';
+export { type ModelRef, type LanguageModelFactory, type AgentConfig } from './agent-loop/types.js';
 export {
   type Tool,
   type ToolCall,
@@ -144,6 +144,7 @@ export { AgentRuntime } from './agent-loop/agent-runtime.js';
 
 // Agent
 export { Agent, type AgentOptions, type InvokeOptions } from './agent-loop/agent.js';
+export { createAgent, type BuildAgentOptions } from './agent-loop/create-agent.js';
 
 // AgentLoop
 export { AgentLoop } from './agent-loop/agent-loop.js';
@@ -161,5 +162,4 @@ export { turnEventsToAISDK } from './stream/turn-stream.js';
 export {
   Vico,
   type VicoOptions,
-  type AgentConfig,
 } from './container/vico.js';
