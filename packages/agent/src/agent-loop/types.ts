@@ -12,10 +12,37 @@ export interface ModelRef {
 
 /** 一次 turn 的执行结果 */
 export interface TurnResult {
-  status: 'completed' | 'failed' | 'aborted' | 'interrupted';
-  steps: number; 
+  status: 'completed' | 'failed' | 'aborted' | 'interrupted' | 'paused';
+  steps: number;
   usage: { input: number; output: number };
   messages: ModelMessage[];
+  /** 所属 turn ID */
+  turnId?: string;
+  /** 所属 thread ID */
+  threadId?: string;
+}
+
+/** turn 暂停原因及恢复所需信息 */
+export interface PauseInfo {
+  /** 暂停原因 */
+  reason: 'tool-approval' | 'error';
+  /** 等待审批的工具调用 */
+  pendingToolCalls: Array<{ id: string; name: string; args: unknown }>;
+  /** 暂停时的 step 索引 */
+  pausedAtStep: number;
+  /** 暂停时 messages 数组长度（完整性校验） */
+  messageCount: number;
+}
+
+/** resumeTurn 选项 */
+export interface ResumeTurnOptions {
+  threadId: string;
+  turnId: string;
+  /** 审批决策（reason='tool-approval' 时需要） */
+  approvalDecisions?: Array<{ toolCallId: string; approved: boolean }>;
+  scopeId?: string;
+  userId?: string;
+  workspace?: string;
 }
 
 /** 一次 turn 的会话标识，贯穿 model 调用和工具执行 */
@@ -59,4 +86,5 @@ export type TurnEvent =
   | { type: 'step-end'; step: number }
   | { type: 'compacted'; removedTokens: number }
   | { type: 'error'; message: string }
+  | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName: string; input: unknown }
   | { type: 'done'; usage: { input: number; output: number } };

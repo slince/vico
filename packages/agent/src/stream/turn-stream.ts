@@ -117,6 +117,10 @@ export async function turnEventsToAISDK(
               case 'finish':
                 break;
 
+              case 'turn-paused':
+                enqueue({ type: 'turn-paused', reason: c.reason, turnId: c.turnId });
+                break;
+
               case 'error':
                 const errMsg = c.error instanceof Error ? c.error.message : String(c.error);
                 enqueue({ type: 'error', errorText: errMsg });
@@ -135,12 +139,15 @@ export async function turnEventsToAISDK(
         if (result.status === 'aborted') {
           enqueue({ type: 'abort' });
         }
+        if (result.status === 'paused') {
+          enqueue({ type: 'turn-paused', reason: 'tool-approval', turnId: result.turnId ?? '' });
+        }
         if (inStep) {
           enqueue({ type: 'finish-step' });
         }
         const finish: UIStreamChunk = {
           type: 'finish',
-          finishReason: result.status === 'completed' ? 'stop' : 'error',
+          finishReason: result.status === 'completed' ? 'stop' : result.status === 'paused' ? 'stop' : 'error',
         };
         await options?.onFinish?.(finish, fullText);
         enqueue(finish);

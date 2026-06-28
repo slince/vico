@@ -1,6 +1,6 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {ModelClient} from '../model/model-client.js';
-import type {TurnEvent, TurnResult} from './types.js';
+import type {TurnEvent, TurnResult, ResumeTurnOptions} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -148,6 +148,16 @@ export class Agent {
    * @param options.scopeId - 工作记忆作用域标识
    * @returns TurnOutput 实例
    */
+  /**
+   * 恢复一个已暂停的 turn。
+   *
+   * @param opts - 恢复选项
+   * @returns TurnOutput 实例
+   */
+  resumeTurn(opts: ResumeTurnOptions): TurnOutput {
+    return this.loop.resumeTurn(opts);
+  }
+
   private run(message: string, options?: InvokeOptions) {
     const userMessage: ModelMessage = { role: 'user', content: message };
     const threadId = options?.threadId ?? `invoke-${this.id}-${Date.now()}`;

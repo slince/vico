@@ -20,6 +20,7 @@ export const turns = sqliteTable('vico_turns', {
   thread_id: text('thread_id').notNull(),
   status: text('status').notNull().default('running'),
   steps: integer('steps').notNull().default(0),
+  metadata: text('metadata'),
   created_at: integer('created_at').notNull(),
 });
 

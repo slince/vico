@@ -39,6 +39,7 @@ export async function ensureTables(
       thread_id TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'running',
       steps INTEGER NOT NULL DEFAULT 0,
+      metadata TEXT,
       created_at INTEGER NOT NULL
     )
   `);

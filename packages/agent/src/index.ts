@@ -148,7 +148,7 @@ export { AgentLoop } from './agent-loop/agent-loop.js';
 export { type AgentLoopOptions, type CallModelResult } from './agent-loop/agent-loop.js';
 export { collectTurnResult } from './agent-loop/utils.js';
 export { TurnOutput } from './agent-loop/turn-output.js';
-export { type TurnResult, type TurnEvent, type RunTurnOptions } from './agent-loop/types.js';
+export { type TurnResult, type TurnEvent, type RunTurnOptions, type ResumeTurnOptions, type PauseInfo } from './agent-loop/types.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
 
 // Stream

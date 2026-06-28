@@ -42,5 +42,7 @@ export type UIStreamChunk =
   | { type: 'file'; url: string; mediaType: string; providerMetadata?: ProviderMetadata }
   // 错误
   | { type: 'error'; errorText: string }
+  // turn 暂停
+  | { type: 'turn-paused'; reason: string; turnId: string }
   // 数据（动态扩展）
   | { type: `data-${string}`; id?: string; data: unknown; transient?: boolean };

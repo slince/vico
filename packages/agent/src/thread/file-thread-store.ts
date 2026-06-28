@@ -154,4 +154,15 @@ export class FileThreadStore implements ThreadStore {
     all.sort((a, b) => a.createdAt - b.createdAt);
     return all.length > limit ? all.slice(all.length - limit) : all;
   }
+
+  async getEntriesByTurn(turnId: string, options?: { limit?: number; start?: number }): Promise<Message[]> {
+    const all = await this.listJSON<Message>(
+      this.messagesDir,
+      (m) => m.turnId === turnId,
+    );
+    all.sort((a, b) => a.createdAt - b.createdAt);
+    const start = options?.start ?? 0;
+    const end = options?.limit ? start + options.limit : undefined;
+    return all.slice(start, end);
+  }
 }

@@ -13,6 +13,15 @@ export interface ExecuteChatParams {
   userId: string;
 }
 
+export interface ExecuteResumeParams {
+  agentId: string;
+  threadId: string;
+  turnId: string;
+  approvalDecisions: Array<{ toolCallId: string; approved: boolean }>;
+  tenantId: string;
+  userId: string;
+}
+
 /** 执行 Agent 对话 — 通过 vico.stream */
 export async function executeAgentChat(
   params: ExecuteChatParams,
@@ -44,6 +53,42 @@ export async function executeAgentChat(
 
   return agent.stream(message, {
     threadId,
+    userId,
+    scopeId: tenantId,
+  });
+}
+
+/** 恢复已暂停的 turn */
+export async function executeAgentResume(
+  params: ExecuteResumeParams,
+): Promise<TurnOutput> {
+  const { agentId, threadId, turnId, approvalDecisions, tenantId, userId } = params;
+
+  // 确保 Agent 已在 Vico Runtime 注册（不存在则创建）
+  const agent = await vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
+    const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
+    if (!runtimeConfig) throw new Error('Agent not found');
+    const { agent: a, model } = runtimeConfig;
+    return {
+      id: a.id,
+      name: a.name,
+      systemPrompt: a.system_prompt,
+      model: {
+        provider: model.provider,
+        model: model.model_name,
+        baseUrl: model.base_url,
+        apiKey: model.api_key,
+      },
+      temperature: a.temperature ?? 0.7,
+      maxTokens: a.max_tokens ?? 4096,
+      maxSteps: a.max_steps ?? 10,
+    };
+  });
+
+  return agent.resumeTurn({
+    threadId,
+    turnId,
+    approvalDecisions,
     userId,
     scopeId: tenantId,
   });

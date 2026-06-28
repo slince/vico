@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { executeAgentChat } from '../chat/chat.js';
+import { executeAgentChat, executeAgentResume } from '../chat/chat.js';
 import { turnEventsToAISDK } from '@vico/agent';
 import logger from '../lib/logger.js';
 
@@ -63,6 +63,43 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'An internal error occurred';
       logger.error({ err: error, agentId, tenantId: auth.tenantId }, 'Chat stream error');
+      return c.json({ error: msg }, 500);
+    }
+  });
+
+  /** 恢复已暂停的 turn */
+  app.post('/api/v1/chat/resume', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+
+    const body = await c.req.json();
+    const agentId: string | undefined = body.agentId;
+    const threadId: string | undefined = body.threadId;
+    const turnId: string | undefined = body.turnId;
+    const approvalDecisions: Array<{ toolCallId: string; approved: boolean }> = body.approvalDecisions ?? [];
+
+    if (!agentId || !threadId || !turnId) {
+      return c.json({ error: 'agentId, threadId and turnId are required' }, 400);
+    }
+
+    try {
+      const stream = await executeAgentResume({
+        agentId,
+        threadId,
+        turnId,
+        approvalDecisions,
+        tenantId: auth.tenantId,
+        userId: auth.userId,
+      });
+
+      return turnEventsToAISDK(stream, {
+        onFinish: (finish) => {
+          finish.messageMetadata = { threadId };
+        },
+      });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'An internal error occurred';
+      logger.error({ err: error, agentId, tenantId: auth.tenantId }, 'Chat resume stream error');
       return c.json({ error: msg }, 500);
     }
   });

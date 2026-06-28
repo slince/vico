@@ -86,6 +86,7 @@ export class DrizzleThreadStore implements ThreadStore {
     const values: Record<string, unknown> = {};
     if (patch.status !== undefined) values.status = patch.status;
     if (patch.steps !== undefined) values.steps = patch.steps;
+    if (patch.metadata !== undefined) values.metadata = JSON.stringify(patch.metadata);
     if (Object.keys(values).length === 0) return;
     await this.db
       .update(turns)
@@ -155,6 +156,21 @@ export class DrizzleThreadStore implements ThreadStore {
     return rows.reverse().map((r) => this._toMessage(r));
   }
 
+  async getEntriesByTurn(
+    turnId: string,
+    options?: { limit?: number; start?: number },
+  ): Promise<Message[]> {
+    const start = options?.start ?? 0;
+    const base = this.db
+      .select()
+      .from(messages)
+      .where(eq(messages.turn_id, turnId))
+      .orderBy(messages.created_at)
+      .offset(start);
+    const rows = await (options?.limit ? base.limit(options.limit) : base);
+    return rows.map((r) => this._toMessage(r));
+  }
+
   // --- Private mappers ---
 
   private _toThread(r: typeof threads.$inferSelect): Thread {
@@ -175,6 +191,7 @@ export class DrizzleThreadStore implements ThreadStore {
       threadId: r.thread_id,
       status: r.status as Turn['status'],
       steps: r.steps,
+      metadata: r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : undefined,
       createdAt: r.created_at,
     };
   }

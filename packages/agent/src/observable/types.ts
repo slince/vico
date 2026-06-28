@@ -2,6 +2,7 @@
 
 export type SpanType =
   | 'agent_run'
+  | 'agent_resume'
   | 'model_step'
   | 'tool_call'
   | 'memory_retrieval'

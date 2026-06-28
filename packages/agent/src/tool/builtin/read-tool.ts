@@ -1,9 +1,10 @@
 // src/tool/builtin/read-tool.ts
 import {readFileSync, statSync} from 'node:fs';
-import {relative, resolve} from 'node:path';
+import {relative} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolExecutionContext} from '../types.js';
+import {resolveWorkspacePath} from './workspace.js';
 
 const readParams = z.object({
   path: z.string().describe('要读取的文件路径（相对于工作区或绝对路径）'),
@@ -37,24 +38,6 @@ function isBinary(buffer: Buffer): boolean {
     if (nullCount > 3) return true;
   }
   return false;
-}
-
-/**
- * 将工作区路径解析为绝对路径。
- *
- * 支持相对路径（相对于工作区）和绝对路径，并校验路径是否在工作区范围内。
- *
- * @param workspace - 工作区根路径
- * @param targetPath - 目标路径（相对或绝对）
- * @returns 解析后的绝对路径
- * @throws 如果路径在工作区之外则抛出错误
- */
-function resolvePath(workspace: string, targetPath: string): string {
-  const abs = targetPath.startsWith('/') ? targetPath : resolve(workspace, targetPath);
-  if (!abs.startsWith(resolve(workspace)) && !targetPath.startsWith('/')) {
-    throw new Error(`Path "${targetPath}" is outside the workspace`);
-  }
-  return abs;
 }
 
 /**
@@ -117,7 +100,7 @@ function readImageFile(absPath: string, ext: string, workspace: string): ReadOut
 }
 
 async function executeRead(args: z.infer<typeof readParams>, ctx: ToolExecutionContext): Promise<ReadOutput> {
-  const absPath = resolvePath(ctx.session.workspace, args.path);
+  const absPath = resolveWorkspacePath(ctx.session.workspace, args.path);
   const stat = statSync(absPath);
 
   if (!stat.isFile()) {

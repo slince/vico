@@ -81,4 +81,6 @@ export type ModelStreamChunk =
   | { type: 'response-metadata'; id?: string; timestamp?: Date; modelId?: string }
   | { type: 'finish'; finishReason: LanguageModelV3FinishReason; usage: LanguageModelV3Usage; providerMetadata?: ProviderMetadata }
   | { type: 'raw'; rawValue: unknown }
-  | { type: 'error'; error: unknown };
+  | { type: 'error'; error: unknown }
+  // turn 暂停（agent-loop 触发）
+  | { type: 'turn-paused'; reason: string; turnId: string };

@@ -17,8 +17,10 @@ export interface Thread {
 export interface Turn {
   id: string;
   threadId: string;
-  status: 'running' | 'completed' | 'failed' | 'aborted';
+  status: 'running' | 'completed' | 'failed' | 'aborted' | 'paused';
   steps: number;
+  /** 自定义元数据（JSON 可序列化），如 PauseInfo */
+  metadata?: Record<string, unknown>;
   createdAt: number;
 }
 
@@ -65,4 +67,6 @@ export interface ThreadStore {
   getEntries(threadId: string, options?: { limit?: number; start?: number }): Promise<Message[]>;
   /** 获取线程最近 limit 条对话记录 */
   getRecentEntries(threadId: string, limit: number): Promise<Message[]>;
+  /** 获取指定 turn 的对话记录 */
+  getEntriesByTurn?(turnId: string, options?: { limit?: number; start?: number }): Promise<Message[]>;
 }

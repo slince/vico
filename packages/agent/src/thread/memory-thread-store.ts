@@ -84,4 +84,17 @@ export class InMemoryThreadStore implements ThreadStore {
     const list = this.messages.get(threadId) ?? [];
     return list.length > limit ? [...list].slice(list.length - limit) : [...list];
   }
+
+  async getEntriesByTurn(turnId: string, options?: { limit?: number; start?: number }): Promise<Message[]> {
+    const all: Message[] = [];
+    for (const list of this.messages.values()) {
+      for (const m of list) {
+        if (m.turnId === turnId) all.push(m);
+      }
+    }
+    all.sort((a, b) => a.createdAt - b.createdAt);
+    const start = options?.start ?? 0;
+    const end = options?.limit ? start + options.limit : undefined;
+    return all.slice(start, end);
+  }
 }
