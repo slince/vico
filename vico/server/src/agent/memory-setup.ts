@@ -18,7 +18,7 @@ let _vectorStore: LibSQLVectorStore;
 export function getMemory(): MemoryStore {
   if (!_memoryStore) {
     _memoryStore = new MemoryStore({
-      conversation: new ConversationHistoryMemory(getThreadStore(), 15)
+      conversation: new ConversationHistoryMemory(getThreadStore(), 1)
     });
   }
   return _memoryStore;
