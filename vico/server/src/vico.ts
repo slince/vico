@@ -9,9 +9,10 @@
  * - AgentRuntime（LRU 缓存）
  * - defaultModelFactory（自动匹配 OpenAI/Anthropic/DeepSeek 等 provider）
  */
-import {MemoryStore, Vico} from '@vico/agent';
-import {DrizzleThreadStore, ensureTables} from '@vico/libsql-adapter';
+import {Vico} from '@vico/agent';
+import {ensureTables} from '@vico/libsql-adapter';
 import {getDb} from './db/db.js';
+import {getMemory, getThreadStore} from './agent/memory-setup.js';
 import {createApp} from './app.js';
 import logger from './lib/logger.js';
 import {weatherTool} from "./agent/tools/weather-tool";
@@ -23,8 +24,8 @@ export const vico = new Vico({
   maxCached: 100,
   skills: { skillDirs: ['~/.vico/skills'], compatible: true },
   tools: [weatherTool],
-  memory: new MemoryStore(),
-  thread: new DrizzleThreadStore({ db: db as any }),
+  memory: getMemory(),
+  thread: getThreadStore(),
   trace: 2
 });
 

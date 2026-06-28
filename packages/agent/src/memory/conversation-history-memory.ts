@@ -1,13 +1,14 @@
 // src/memory/conversation-history-memory.ts
-import type { ThreadStore } from '../thread/types.js';
-import type { ModelMessage, MessageRole } from '../model/types.js';
+import type {ThreadStore} from '../thread/types.js';
+import type {MessageRole, ModelMessage} from '../model/types.js';
 
 /** 包装 ThreadStore，以 FIFO 滑动窗口读取会话历史并转为模型格式 */
 export class ConversationHistoryMemory {
-  constructor(readonly threadStore: ThreadStore) {}
 
-  async get(threadId: string, window: number): Promise<ModelMessage[]> {
-    const entries = await this.threadStore.getRecentEntries(threadId, window);
+  constructor(readonly threadStore: ThreadStore, readonly conversationWindow: number) {}
+
+  async get(threadId: string): Promise<ModelMessage[]> {
+    const entries = await this.threadStore.getRecentEntries(threadId, this.conversationWindow);
 
     return entries.map((entry) => {
       const msg: ModelMessage = {

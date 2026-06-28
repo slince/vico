@@ -7,8 +7,6 @@ export interface MemoryStoreOptions {
   conversation?: ConversationHistoryMemory;
   semantic?: SemanticRecallMemory;
   working?: WorkingMemory;
-  /** 会话历史窗口大小，默认 20 */
-  conversationWindow?: number;
 }
 
 /** 三层记忆处理类 — 包装 conversation/semantic/working/rag 并提供统一访问入口 */
@@ -17,11 +15,7 @@ export class MemoryStore {
   readonly semantic?: SemanticRecallMemory;
   readonly working?: WorkingMemory;
 
-  /** 会话历史窗口大小 */
-  readonly conversationWindow: number;
-
   constructor(options: MemoryStoreOptions = {}) {
-    this.conversationWindow = options.conversationWindow ?? 15;
     this.conversation = options.conversation;
 
     this.semantic = options.semantic;

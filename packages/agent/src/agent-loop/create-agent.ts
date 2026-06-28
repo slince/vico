@@ -15,6 +15,7 @@ import {InMemoryThreadStore} from "../thread/memory-thread-store.js";
 import {MittEventRecorder} from "../events/event-recorder.js";
 import {baseBuiltinTools, fileBuiltinTools} from "../tool/builtin/index.js";
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
+import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
 
 
 /** LanguageModel 工厂类型 */
@@ -49,7 +50,10 @@ export function createAgent(config: AgentConfig): Agent {
     : config.model
 
   const events = config.events || new MittEventRecorder<TurnEvent>()
-  const memory = config.memory || new MemoryStore();
+  const thread = config.thread || new InMemoryThreadStore()
+  const memory = config.memory || new MemoryStore({
+    conversation: new ConversationHistoryMemory(thread, 15)
+  });
 
   // 默认工具：基础工具始终包含；启用 skill 时追加 Skill 工具；启用 working memory 时追加更新工具；文件工具仅在配置 workspace 时启用
   const tools: Tool[] = [...baseBuiltinTools, ...(config.tools || [])];
