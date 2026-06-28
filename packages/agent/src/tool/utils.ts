@@ -1,6 +1,5 @@
 // @vico/agent - Tool utility functions
-import type { Tool, ToolPolicy, ToolCall } from './types.js';
-import type { ApprovalDecision, PolicyContext } from './types.js';
+import type {ApprovalDecision, PolicyContext, Tool, ToolCall, ToolPolicy} from './types.js';
 
 /**
  * 根据审批策略判断工具调用是否批准。
@@ -15,7 +14,7 @@ import type { ApprovalDecision, PolicyContext } from './types.js';
  */
 export function resolvePolicy(
   call: ToolCall,
-  _tool: Tool | undefined,
+  tool: Tool,
   policy: ToolPolicy,
   ctx: PolicyContext,
 ): ApprovalDecision {

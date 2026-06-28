@@ -10,7 +10,6 @@ import {ToolBroker} from '../tool/tool-broker.js';
 import type {TurnTracer, TurnTraceSession} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
-import type {ApprovalGate} from './approval-gate.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ModelRequestContext, ProcessorPipeline} from './context-processors/context-processor.js';
 
@@ -56,7 +55,6 @@ export class AgentLoop {
   private toolBroker: ToolBroker;
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
-  private approvalGate?: ApprovalGate;
   private approvalResolver: ApprovalResolver;
   private tracer: TurnTracer;
   private pipeline: ProcessorPipeline;
@@ -67,7 +65,6 @@ export class AgentLoop {
     this.compactor = options.compactor;
     this.tokenEconomy = options.tokenEconomy;
     this.tracer = options.agent.tracer;
-    this.approvalGate = options.agent.approvalGate;
     this.approvalResolver = options.agent.approvalResolver ?? resolvePolicy;
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
@@ -344,39 +341,6 @@ export class AgentLoop {
       if (decision.approved) {
         shared.toolApprovalState.set(call.name, true);
         approvedCalls.push(call);
-        continue;
-      }
-
-      // on-request 策略下，通过 approvalGate 发起外部审批
-      if (policy === 'on-request' && this.approvalGate) {
-        const approvalId = crypto.randomUUID();
-        controller.enqueue({
-          type: 'tool-approval-request',
-          approvalId,
-          toolCallId: call.id,
-          toolName: call.name,
-          input: call.args,
-        });
-
-        const { decision: gateDecision } = this.approvalGate.requestApproval(call, undefined, approvalId);
-        const gateResult = await gateDecision;
-
-        if (gateResult.approved) {
-          shared.toolApprovalState.set(call.name, true);
-          approvedCalls.push(call);
-        } else {
-          controller.enqueue({
-            type: 'tool-output-denied',
-            toolCallId: call.id,
-            toolName: call.name,
-            reason: gateResult.reason,
-          });
-          deniedResults.push({
-            callId: call.id, name: call.name,
-            status: 'error', output: null,
-            error: gateResult.reason ?? '用户拒绝',
-          });
-        }
         continue;
       }
 

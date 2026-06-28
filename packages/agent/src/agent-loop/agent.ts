@@ -10,7 +10,6 @@ import type {AgentLoop} from './agent-loop.js';
 import {buildLoop} from "./utils.js";
 import {TurnOutput} from "./turn-output.js";
 import {ModelMessage} from "../model/types.js";
-import type {ApprovalGate} from "./approval-gate.js";
 import {TurnTracer} from "../observable/turn-tracer.js";
 
 export type LoopFactory = (agent: Agent) => AgentLoop
@@ -38,9 +37,8 @@ export interface AgentOptions {
   thread: ThreadStore;
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
-  approvalGate?: ApprovalGate;
   /** 审批决策器，未提供则使用默认策略决策 */
-  approvalResolver?: ApprovalResolver;
+  approvalResolver: ApprovalResolver;
   events: EventRecorder<TurnEvent>;
   tracer: TurnTracer;
   loopFactory?: LoopFactory;
@@ -60,8 +58,7 @@ export class Agent {
   readonly tools: Tool[];
   readonly memory: MemoryStore;
   readonly thread: ThreadStore;
-  readonly approvalGate?: ApprovalGate;
-  readonly approvalResolver?: ApprovalResolver;
+  readonly approvalResolver: ApprovalResolver;
   readonly events: EventRecorder<TurnEvent>;
   readonly tracer: TurnTracer;
   readonly loop: AgentLoop;
@@ -76,11 +73,10 @@ export class Agent {
     this.temperature = params.temperature;
     this.maxTokens = params.maxTokens;
     this.maxSteps = params.maxSteps;
-    this.skills = params.skills ?? [];
-    this.tools = params.tools ?? [];
+    this.skills = params.skills;
+    this.tools = params.tools;
     this.memory = params.memory;
     this.thread = params.thread;
-    this.approvalGate = params.approvalGate;
     this.approvalResolver = params.approvalResolver;
     this.events = params.events;
     this.tracer = params.tracer;

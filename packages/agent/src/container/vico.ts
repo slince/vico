@@ -7,7 +7,6 @@ import type {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {SkillLoaderChain} from '../skill/skill-loader-chain.js';
 import {FSSkillLoader} from '../skill/fs-skill-loader.js';
-import type {ApprovalGate} from '../agent-loop/approval-gate.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
@@ -32,8 +31,6 @@ export interface VicoOptions {
   memory?: MemoryStore;
   /** 全局 ThreadStore（agent 自身未配置时使用） */
   thread?: ThreadStore;
-  /** 工具审批门控（不传则不启用审批） */
-  approvalGate?: ApprovalGate;
   /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（不传等同 0） */
   trace?: TraceOptions
 }
@@ -63,14 +60,11 @@ export class Vico {
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
   readonly thread: ThreadStore;
-  private readonly approvalGate?: ApprovalGate;
-
   constructor(options: VicoOptions = {}) {
     this.options = options;
     this.tracer = this.createTracer(options.trace);
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
-    this.approvalGate = options.approvalGate;
     this.thread = options.thread ?? new InMemoryThreadStore();
     this.skillLoader = this.createSkillLoader();
   }
@@ -162,7 +156,6 @@ export class Vico {
       thread: config.thread ?? this.thread,
       tracer: config.tracer ?? this.tracer,
       events: config.events ?? this.events,
-      approvalGate: config.approvalGate ?? this.approvalGate,
     });
   }
 }

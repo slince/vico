@@ -150,7 +150,6 @@ export { collectTurnResult } from './agent-loop/utils.js';
 export { TurnOutput } from './agent-loop/turn-output.js';
 export { type TurnResult, type TurnEvent, type RunTurnOptions } from './agent-loop/types.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
-export { ApprovalGate, type ApprovalHandler } from './agent-loop/approval-gate.js';
 
 // Stream
 export { turnEventsToAISDK } from './stream/turn-stream.js';

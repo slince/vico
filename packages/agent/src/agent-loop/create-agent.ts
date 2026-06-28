@@ -2,20 +2,20 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {Agent} from './agent.js';
 import type {ModelRef, TurnEvent} from './types.js';
-import type {Tool, ApprovalResolver} from '../tool/types.js';
+import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import {createSkillTools} from "../skill/tool/index.js";
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {TurnTracer} from "../observable/turn-tracer.js";
 import type {EventRecorder} from "../events/types.js";
-import type {ApprovalGate} from "./approval-gate.js";
 import {createLanguageModel} from "../model/factory.js";
 import {InMemoryThreadStore} from "../thread/memory-thread-store.js";
 import {MittEventRecorder} from "../events/event-recorder.js";
 import {baseBuiltinTools, fileBuiltinTools} from "../tool/builtin/index.js";
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
+import {resolvePolicy} from "../tool/utils.js";
 
 
 /** LanguageModel 工厂类型 */
@@ -38,7 +38,6 @@ export interface AgentConfig {
   workspace?: string;
   tracer?: TurnTracer;
   events?: EventRecorder<TurnEvent>;
-  approvalGate?: ApprovalGate;
   /** 审批决策器，未提供则按 ToolPolicy 默认决策 */
   approvalResolver?: ApprovalResolver;
 }
@@ -84,7 +83,6 @@ export function createAgent(config: AgentConfig): Agent {
     workspace: config.workspace,
     tracer: config.tracer || new TurnTracer(events, []),
     events: events,
-    approvalGate: config.approvalGate,
-    approvalResolver: config.approvalResolver,
+    approvalResolver: config.approvalResolver || resolvePolicy,
   });
 }
