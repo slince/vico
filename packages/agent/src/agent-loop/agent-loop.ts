@@ -210,6 +210,7 @@ export class AgentLoop {
         steps++;
       }
 
+      // 轮次结束后触发 processor 流水线
       await this.pipeline.leave(requestContext);
 
       const finalStatus = interrupted.value ? 'aborted' : 'completed';
