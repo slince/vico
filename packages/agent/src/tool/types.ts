@@ -1,7 +1,7 @@
 // @vico/agent - Tool module type definitions
-import type { z } from 'zod';
+import type {z} from 'zod';
 
-import type { TurnSession } from '../agent-loop/types.js';
+import type {TurnSession} from '../agent-loop/types.js';
 
 /** 工具审批策略 */
 export type ToolPolicy = 'auto' | 'on-request' | 'suggest' | 'never';
@@ -52,11 +52,6 @@ export interface ToolExecutionContext {
 export interface ApprovalDecision {
   approved: boolean;
   reason?: string;
-}
-
-/** 工具存储端口 — 加载工具列表 */
-export interface ToolStore {
-  load(): Promise<Tool[]>;
 }
 
 /** 审批策略上下文 */

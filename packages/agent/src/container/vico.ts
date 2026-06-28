@@ -1,7 +1,7 @@
 // @vico/agent - Vico: one-shot wiring for all Agent services
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import type {ModelRef, TurnEvent} from '../agent-loop/types.js';
-import type {Tool, ToolStore} from '../tool/types.js';
+import type {Tool} from '../tool/types.js';
 import {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createLanguageModel} from '../model/factory.js';
@@ -13,7 +13,7 @@ import type {ApprovalGate} from '../agent-loop/approval-gate.js';
 import type {ContextProcessor} from '../agent-loop/context-processors/context-processor.js';
 import {SystemPromptProcessor} from '../agent-loop/context-processors/system-prompt-processor.js';
 import {SkillProcessor} from '../agent-loop/context-processors/skill-processor.js';
-import type {SkillStore} from '../skill/types.js';
+import type {Skill} from '../skill/types.js';
 import {MemoryProcessor} from '../agent-loop/context-processors/memory-processor.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
@@ -39,8 +39,8 @@ export interface AgentConfig {
   temperature?: number;
   maxTokens?: number;
   maxSteps?: number;
-  tools?: ToolStore;
-  skills?: SkillStore;
+  tools?: Tool[];
+  skills?: Skill[];
   memory?: MemoryStore;
   thread?: ThreadStore;
 }
@@ -176,9 +176,9 @@ export class Vico {
     }
 
     // 加载 agent 绑定的 tools 和 skills
-    const tools = config.tools ? await config.tools.load() : []
+    const tools = config.tools ? config.tools : this.options.tools
 
-    const skills = config.skills ? await config.skills.load() : []
+    const skills = config.skills ? await config.skills : this.skillRegistry.listAll()
 
     const memory = config.memory ?? this.memory;
     const thread = config.thread ?? this.thread;
