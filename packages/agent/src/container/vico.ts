@@ -5,7 +5,6 @@ import {createAgent} from '../agent-loop/create-agent.js';
 import type {Tool} from '../tool/types.js';
 import type {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import {createSkillLoaderChain} from '../skill/skill-loader-chain.js';
 import {createFSSkillLoader} from '../skill/fs-skill-loader.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
@@ -14,8 +13,7 @@ import {MittEventRecorder} from '../events/event-recorder.js';
 import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
 import type {SkillOptions, TraceOptions} from "./options.js";
-import {SkillLoader} from "../skill/types.js";
-import {createArraySkillLoader} from "../skill/array-skill-loader.js";
+import {Skill, SkillLoader} from "../skill/types.js";
 
 /** Vico 配置选项 */
 export interface VicoOptions {
@@ -84,26 +82,27 @@ export class Vico {
 
     // Skill[] 数组形式
     if (Array.isArray(skills)) {
-      return createArraySkillLoader(skills);
+      return async () => skills;
     }
 
     // SkillSettings 对象形式
     if (skills) {
-      const skillDirs = skills.skillDirs ?? [];
-      const loaders = skills.loaders ? [...skills.loaders] : [];
-
-      if (skillDirs.length > 0) {
-        loaders.push(createFSSkillLoader(skillDirs));
-      }
-
-      if (skills.skills) {
-        loaders.push(createArraySkillLoader(skills.skills));
-      }
-      return createSkillLoaderChain(loaders)
+      const { skillDirs, skills: inlineSkills } = skills;
+      return async () => {
+        const all: Skill[] = [];
+        if (skillDirs?.length) {
+          const fsLoader = createFSSkillLoader(skillDirs);
+          all.push(...await fsLoader());
+        }
+        if (inlineSkills) {
+          all.push(...inlineSkills);
+        }
+        return all;
+      };
     }
 
     // 无任何 skills 配置
-    return createArraySkillLoader([]);
+    return async () => [];
   }
 
   /**

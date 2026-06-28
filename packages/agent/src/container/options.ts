@@ -1,4 +1,4 @@
-import {Skill, SkillLoader} from "../skill/types.js";
+import {Skill} from "../skill/types.js";
 import {TraceAdapter} from "../observable/trace-adapter.js";
 import {TraceLevel} from "../observable/turn-tracer.js";
 
@@ -13,8 +13,6 @@ export type SkillSettings = {
   /** 开启后自动扫描第三方 AI Agent 产品的全局 Skills（Claude、OpenClaw、Hermes、通用 agents） */
   compatible?: boolean;
 
-  /** 自定义 SkillLoader 数组，不传则使用默认 createFSSkillLoader */
-  loaders?: SkillLoader[];
 };
 
 export type SkillOptions = Skill[] | SkillSettings
