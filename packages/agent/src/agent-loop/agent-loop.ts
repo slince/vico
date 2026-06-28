@@ -1,11 +1,10 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
-import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
+import type {ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
-import type {ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {TurnTracer, TurnTraceSession} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
@@ -31,7 +30,7 @@ export interface CallModelResult {
   /** 本次调用的 token 用量 */
   usage: { input: number; output: number };
   /** 错误信息（如有） */
-  error?: string;
+  error?: string | Error;
 }
 
 /** AgentLoop 构造选项 */

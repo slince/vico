@@ -5,6 +5,7 @@ import type {Step, TurnEvent, TurnResult} from '../agent-loop/types.js';
 import type {CallModelResult} from '../agent-loop/agent-loop.js';
 import type {ModelMessage, ModelRequest} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
+import type {ToolCall, ToolResult} from '../tool/types.js';
 import type {Span, SpanState, SpanType} from './types.js';
 import type {TraceAdapter} from './trace-adapter.js';
 
@@ -15,8 +16,8 @@ export type TraceLevel = 0 | 1 | 2;
 interface StepTrace {
   index: number;
   text: string;
-  toolCalls: Array<{ id: string; name: string; args: Record<string, unknown> }>;
-  toolResults: Array<{ id: string; name: string; status: string; output: unknown }>;
+  toolCalls: ToolCall[];
+  toolResults: ToolResult[];
   request?: ModelRequest;
   response?: CallModelResult;
 }
@@ -150,7 +151,7 @@ export class TurnTraceSession {
           break;
         case 'tool-result':
           if (this.currentStep) {
-            this.currentStep.toolResults.push({ id: event.id, name: event.name, status: event.status, output: event.output });
+            this.currentStep.toolResults.push({ callId: event.id, name: event.name, status: event.status, output: event.output });
           }
           break;
         case 'step-end':

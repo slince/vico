@@ -70,15 +70,18 @@ export class ConsoleTraceAdapter implements TraceAdapter {
 
       for (const tc of step.toolCalls) {
         const argsStr = JSON.stringify(tc.args);
-        const argsPreview = argsStr.length > 80 ? argsStr.slice(0, 80) + '…' : argsStr;
-        console.log(`    ↳ call : ${tc.name}(${argsPreview})`);
+        const argsPreview = argsStr.length > 120 ? argsStr.slice(0, 120) + '…' : argsStr;
+        console.log(`    ↳ call : ${tc.name}  id=${tc.id}  args=${argsPreview}`);
       }
 
       for (const tr of step.toolResults) {
         const icon = tr.status === 'success' ? '✓' : '✗';
         const outputStr = typeof tr.output === 'string' ? tr.output : JSON.stringify(tr.output);
         const outputPreview = outputStr.length > 80 ? outputStr.slice(0, 80) + '…' : outputStr;
-        console.log(`    ↳ ${icon}    : ${tr.name} → ${outputPreview}`);
+        const errSuffix = tr.error
+          ? `  error=${typeof tr.error === 'string' ? tr.error : tr.error.message}`
+          : '';
+        console.log(`    ↳ ${icon}    : ${tr.name}  callId=${tr.callId} → ${outputPreview}${errSuffix}`);
       }
 
       if (step.response?.usage) {
