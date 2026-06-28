@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {homedir} from 'node:os';
 import type {TurnTrace} from './loop-tracer.js';
-import type {TraceAdapter} from './trace-adapter';
+import type {TraceAdapter} from './trace-adapter.js';
 
 /** 默认 trace 文件导出目录 */
 export const DEFAULT_TRACE_DIR = path.join(homedir(), '.vico', 'traces');

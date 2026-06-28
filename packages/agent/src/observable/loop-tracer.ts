@@ -6,7 +6,7 @@ import type {CallModelResult} from '../agent-loop/agent-loop.js';
 import type {ModelMessage, ModelRequest} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
 import type {Span, SpanState, SpanType} from './types.js';
-import type {TraceAdapter} from './trace-adapter';
+import type {TraceAdapter} from './trace-adapter.js';
 
 /** 追踪级别：0=关闭，1=console，2=console+文件 */
 export type TraceLevel = 0 | 1 | 2;

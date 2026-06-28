@@ -13,7 +13,7 @@ import type {ThreadStore} from '../thread/types.js';
 import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {LoopTracer} from '../observable/loop-tracer.js';
-import {createAdaptersFromLevel} from '../observable/trace-adapter';
+import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
 import {collectSkillDirs} from './utils.js';
 import {SkillOptions, TraceOptions} from "./options.js";
 
