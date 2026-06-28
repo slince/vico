@@ -163,14 +163,14 @@ export class AgentLoop {
     const toolApprovalState = new Map<string, boolean>();
 
     // 运行 pipeline 一次，提取不变的上下文前缀/后缀
-    const modelRequestContext = new ModelRequestContext({
+    const requestContext = new ModelRequestContext({
       agent: this.agent,
       userMessage,
       tools: [...this.agent.tools],
       thread,
       scopeId,
     });
-    await this.pipeline.enter(modelRequestContext);
+    await this.pipeline.enter(requestContext);
 
     // 记录用户消息
     await threadStore.appendEntry({
@@ -181,7 +181,7 @@ export class AgentLoop {
     });
 
     // 首轮消息包含（历史消息+当前消息）
-    const messages: ModelMessage[] = [...modelRequestContext.messages];
+    const messages: ModelMessage[] = [...requestContext.messages];
 
     try {
       while (steps < this.agent.maxSteps && !interrupted.value) {
@@ -198,7 +198,7 @@ export class AgentLoop {
 
         const step: Step = { index: steps, threadId, scopeId, signal };
         const { shouldBreak, usage: stepUsage } = await this.executeModelStep(step, messages, controller, {
-          ctx: modelRequestContext,
+          ctx: requestContext,
           session,
           traceSession,
           toolApprovalState,
@@ -210,15 +210,7 @@ export class AgentLoop {
         steps++;
       }
 
-      await this.pipeline.leave(
-        new ModelRequestContext({
-          agent: this.agent,
-          messages: [...messages],
-          tools: [...this.agent.tools],
-          thread,
-          scopeId,
-        }),
-      );
+      await this.pipeline.leave(requestContext);
 
       const finalStatus = interrupted.value ? 'aborted' : 'completed';
       await threadStore.updateTurn(turn.id, { status: finalStatus, steps });
