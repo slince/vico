@@ -6,8 +6,7 @@ import {InMemoryThreadStore} from "../thread/memory-thread-store.js";
 
 
 /**
- * 独立创建 Agent 实例，不依赖 Vico 容器。
- * config 中明确传入的值优先于 options 中的默认值。
+ * 独立创建 Agent 实例。
  */
 export function createAgent(config: AgentConfig): Agent {
 
