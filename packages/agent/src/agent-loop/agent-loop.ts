@@ -1,12 +1,11 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {RunTurnOptions, Step, TurnEvent, TurnResult} from './types.js';
+import type {RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
 import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
-import type {TurnSession} from './types.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
-import type {Thread, ThreadStore} from '../thread/types.js';
+import type {ThreadStore} from '../thread/types.js';
 import type {ToolBroker} from '../tool/tool-broker.js';
 import type {LoopTracer, TurnTraceSession} from '../observable/loop-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
@@ -42,6 +41,14 @@ export interface AgentLoopOptions {
   processors?: ContextProcessor[];
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
+}
+
+/** executeModelStep / callModel 共享上下文 */
+interface StepSharedContext {
+  ctx: ModelRequestContext;
+  session: TurnSession;
+  traceSession?: TurnTraceSession;
+  toolApprovalState: Map<string, boolean>;
 }
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
@@ -191,9 +198,8 @@ export class AgentLoop {
 
         const step: Step = { index: steps, threadId, scopeId, signal };
         const { shouldBreak, usage: stepUsage } = await this.executeModelStep(step, messages, controller, {
-          ctx: ctx,
+          ctx,
           session,
-          persistence: { store: threadStore },
           traceSession,
           toolApprovalState,
         });
@@ -248,7 +254,6 @@ export class AgentLoop {
    * @param shared - 共享上下文
    * @param shared.ctx - 模型请求上下文
    * @param shared.session - turn 会话
-   * @param shared.persistence - 持久化存储
    * @param shared.traceSession - 链路追踪会话
    * @param shared.toolApprovalState - 工具审批状态缓存
    * @returns 是否终止循环及 token 用量
@@ -257,13 +262,7 @@ export class AgentLoop {
     step: Step,
     messages: ModelMessage[],
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    shared: {
-      ctx: ModelRequestContext;
-      session: TurnSession;
-      persistence: { store: ThreadStore };
-      traceSession?: TurnTraceSession;
-      toolApprovalState: Map<string, boolean>;
-    },
+    shared: StepSharedContext,
   ): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
 
@@ -278,7 +277,7 @@ export class AgentLoop {
 
     const { ctx } = shared;
     const fullMessages = [...ctx.before, ...messages, ...ctx.after];
-    const modelResult = await this.callModel(ctx.systemPrompt, fullMessages, ctx.tools, shared.session.thread, step, controller, shared.traceSession);
+    const modelResult = await this.callModel(fullMessages, step, controller, shared);
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
@@ -291,7 +290,7 @@ export class AgentLoop {
     // 持久化 assistant 消息
     const last = messages.at(-1);
     if (last?.role === 'assistant') {
-      await shared.persistence.store.appendEntry({
+      await this.agent.thread.appendEntry({
         threadId: shared.session.thread.id,
         turnId: shared.session.turn.id,
         role: last.role,
@@ -385,7 +384,7 @@ export class AgentLoop {
     for (const r of toolResults) {
       const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
-      await shared.persistence.store.appendEntry({
+      await this.agent.thread.appendEntry({
         threadId: shared.session.thread.id,
         turnId: shared.session.turn.id,
         role: 'tool',
@@ -427,33 +426,22 @@ export class AgentLoop {
   }
 
   /**
-   * 单次模型调用。systemPrompt/messages/tools 已由调用方预处理，
+   * 单次模型调用。messages 已由调用方预处理（含 ctx.before/after），
    * 不修改入参，结果通过 CallModelResult 返回。
-   *
-   * @param systemPrompt - 系统提示词
-   * @param messages - 消息列表
-   * @param tools - 可用工具列表
-   * @param thread - 当前会话线程
-   * @param step - 当前 step 信息
-   * @param controller - 流控制器
-   * @param traceSession - 链路追踪会话（可选）
-   * @returns 模型调用结果（文本、工具调用、用量）
    */
-  private async  callModel(
-    systemPrompt: string,
+  private async callModel(
     messages: ModelMessage[],
-    tools: Tool[],
-    thread: Thread,
     step: Step,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    traceSession?: TurnTraceSession,
+    shared: StepSharedContext,
   ): Promise<CallModelResult> {
+    const { ctx, traceSession } = shared;
     const modelUsage = { input: 0, output: 0 };
 
     const request: ModelRequest = {
-      system: systemPrompt || undefined,
+      system: ctx.systemPrompt || undefined,
       messages,
-      tools: tools.map(toToolDescriptor),
+      tools: ctx.tools.map(toToolDescriptor),
       maxOutputTokens: this.agent.maxTokens,
       temperature: this.agent.temperature,
     };
@@ -464,6 +452,8 @@ export class AgentLoop {
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
     traceSession?.recordModelRequest(step, request);
+
+    console.log("model request", request);
 
     const { stream } = await this.agent.modelClient.stream({
       ...request,

@@ -128,7 +128,7 @@ export {
 export {
   createAdaptersFromLevel,
   type TraceAdapter,
-} from './observable/trace-adapter';
+} from './observable/trace-adapter.js';
 export { ConsoleTraceAdapter } from './observable/console-trace-adapter.js';
 export { FileTraceAdapter, DEFAULT_TRACE_DIR, type FileTraceAdapterOptions } from './observable/file-trace-adapter.js';
 export type { TraceOptions } from './container/options.js';
