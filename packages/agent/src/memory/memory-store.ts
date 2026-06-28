@@ -1,7 +1,6 @@
 // @vico/agent - MemoryStore: memory processing class wrapping three-layer memory + RAG
 import type {ConversationHistoryMemory} from './conversation-history-memory.js';
 import type {SemanticRecallMemory, WorkingMemory,} from './types.js';
-import {InMemoryWorkingMemory} from './working/in-memory-working-memory.js';
 
 /** MemoryStore 构造选项 — 各层均可选，未提供时使用内存默认实现 */
 export interface MemoryStoreOptions {
@@ -16,7 +15,7 @@ export interface MemoryStoreOptions {
 export class MemoryStore {
   readonly conversation?: ConversationHistoryMemory;
   readonly semantic?: SemanticRecallMemory;
-  readonly working: WorkingMemory;
+  readonly working?: WorkingMemory;
 
   /** 会话历史窗口大小 */
   readonly conversationWindow: number;
@@ -27,6 +26,6 @@ export class MemoryStore {
 
     this.semantic = options.semantic;
 
-    this.working = options.working ?? new InMemoryWorkingMemory();
+    this.working = options.working;
   }
 }

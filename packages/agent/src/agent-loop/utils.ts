@@ -40,7 +40,9 @@ export function buildLoop(agent: Agent): AgentLoop {
 
   if (agent.memory) {
     processors.push(new MemoryProcessor(agent.memory));
-    toolBroker.registerAll([createUpdateWorkingMemoryTool(agent.memory.working)]);
+    if (agent.memory.working) {
+      toolBroker.registerAll([createUpdateWorkingMemoryTool(agent.memory.working)]);
+    }
   }
 
   // 注册自定义的tool

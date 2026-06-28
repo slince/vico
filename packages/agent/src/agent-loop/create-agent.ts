@@ -13,6 +13,7 @@ import {createLanguageModel} from "../model/factory.js";
 import {InMemoryThreadStore} from "../thread/memory-thread-store.js";
 import {MittEventRecorder} from "../events/event-recorder.js";
 import {baseBuiltinTools, fileBuiltinTools} from "../tool/builtin/index.js";
+import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 
 
 /** LanguageModel 工厂类型 */
@@ -47,9 +48,13 @@ export function createAgent(config: AgentConfig): Agent {
     : config.model
 
   const events = config.events || new MittEventRecorder<TurnEvent>()
+  const memory = config.memory || new MemoryStore();
 
-  // 默认工具：基础工具始终包含，文件工具仅在配置 workspace 时启用
+  // 默认工具：基础工具始终包含；启用 working memory 时追加更新工具；文件工具仅在配置 workspace 时启用
   const defaultTools: Tool[] = [...baseBuiltinTools];
+  if (memory.working) {
+    defaultTools.push(createUpdateWorkingMemoryTool(memory.working));
+  }
   if (config.workspace) {
     defaultTools.push(...fileBuiltinTools);
   }
@@ -64,7 +69,7 @@ export function createAgent(config: AgentConfig): Agent {
     maxSteps: config.maxSteps ?? 10,
     skills: config.skills || [],
     tools: [...defaultTools, ...(config.tools || [])],
-    memory: config.memory || new MemoryStore(),
+    memory: memory,
     thread: config.thread || new InMemoryThreadStore(),
     workspace: config.workspace,
     tracer: config.tracer || new TurnTracer(events, []),
