@@ -54,8 +54,9 @@ export class ConsoleTraceAdapter implements TraceAdapter {
 
         // tools
         if (req.tools?.length) {
+          console.log(`  │   tools (${req.tools.length}):`);
           for (const t of req.tools) {
-            console.log(`  │   tool: ${t.name} — ${t.description?.slice(0, 60) ?? '-'}`);
+            console.log(`  │      ${t.name} — ${t.description?.slice(0, 60) ?? '-'}`);
           }
         }
         console.log(`  └──────────────────────────────────────────────────────────────`);
