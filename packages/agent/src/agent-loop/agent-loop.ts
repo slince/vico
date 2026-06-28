@@ -304,11 +304,40 @@ export class AgentLoop {
       return { shouldBreak: true, usage };
     }
 
-    // 审批阶段
+    // 审批 + 执行 + 持久化
+    const { approvedCalls, deniedResults } = await this.resolveToolApprovals(
+      modelResult.toolCalls, controller, shared,
+    );
+
+    const toolResults: ToolResult[] = [];
+    if (approvedCalls.length > 0) {
+      toolResults.push(...await this.executeToolCalls(approvedCalls, shared.session, step, shared.traceSession));
+    }
+    toolResults.push(...deniedResults);
+
+    await this.appendToolResults(toolResults, messages, shared);
+
+    this.emit({ type: 'step-end', step: step.index + 1 });
+    return { shouldBreak: false, usage };
+  }
+
+  /**
+   * 解析工具审批：遍历 toolCalls，按策略分类为 approvedCalls / deniedResults。
+   *
+   * @param toolCalls - 模型返回的工具调用
+   * @param controller - 流控制器
+   * @param shared - 共享上下文
+   * @returns 审批通过和拒绝的分类结果
+   */
+  private async resolveToolApprovals(
+    toolCalls: ToolCall[],
+    controller: ReadableStreamDefaultController<ModelStreamChunk>,
+    shared: StepSharedContext,
+  ): Promise<{ approvedCalls: ToolCall[]; deniedResults: ToolResult[] }> {
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
 
-    for (const call of modelResult.toolCalls) {
+    for (const call of toolCalls) {
       const tool = this.toolBroker.findTool(call.name);
       const policy = tool?.policy ?? 'auto';
 
@@ -366,24 +395,25 @@ export class AgentLoop {
       }
     }
 
-    // 执行 + 合并结果
-    const toolResults: ToolResult[] = [];
-    if (approvedCalls.length > 0) {
-      toolResults.push(...await this.executeToolCalls(approvedCalls, shared.session, step, shared.traceSession));
-    }
-    toolResults.push(...deniedResults);
+    return { approvedCalls, deniedResults };
+  }
 
-    // 追加 tool 消息
+  /**
+   * 将工具结果追加到 messages 并持久化到 threadStore。
+   *
+   * @param toolResults - 工具执行结果
+   * @param messages - 消息列表（会被原地修改）
+   * @param shared - 共享上下文
+   */
+  private async appendToolResults(
+    toolResults: ToolResult[],
+    messages: ModelMessage[],
+    shared: StepSharedContext,
+  ): Promise<void> {
     for (const r of toolResults) {
       const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
-    }
-
-    // 持久化 tool 消息
-    for (const r of toolResults) {
-      const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
-      const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       await this.agent.thread.appendEntry({
         threadId: shared.session.thread.id,
         turnId: shared.session.turn.id,
@@ -392,9 +422,6 @@ export class AgentLoop {
         toolCallId: r.callId,
       });
     }
-
-    this.emit({ type: 'step-end', step: step.index + 1 });
-    return { shouldBreak: false, usage };
   }
 
   /**
