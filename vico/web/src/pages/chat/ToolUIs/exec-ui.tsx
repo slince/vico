@@ -7,7 +7,7 @@
  */
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
 import { Terminal, Check, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ToolApprovalCard } from '@/components/assistant-ui/tool-approval-card';
 
 export const ExecToolRenderer: ToolCallMessagePartComponent<
   { command?: string },
@@ -41,43 +41,17 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<
   // 需要审批
   if (status.type === 'requires-action' || status.type === 'running') {
     return (
-      <div className="border rounded-lg p-3 my-2 bg-muted/30 space-y-2">
-        <div className="flex items-center gap-2">
-          <Terminal size={14} className="text-muted-foreground" />
-          <span className="text-sm font-medium">Exec Approval Required</span>
-        </div>
+      <ToolApprovalCard
+        toolName="Exec"
+        title="Exec Approval Required"
+        icon={Terminal}
+        respondToApproval={respondToApproval}
+        addResult={addResult}
+      >
         <pre className="text-xs bg-background p-2 rounded border overflow-x-auto whitespace-pre-wrap break-all max-h-32">
           {command}
         </pre>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="default"
-            onClick={() => {
-              if (respondToApproval) {
-                respondToApproval({ approved: true });
-              } else {
-                addResult?.('approved' as any);
-              }
-            }}
-          >
-            Approve
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (respondToApproval) {
-                respondToApproval({ approved: false });
-              } else {
-                addResult?.('rejected' as any);
-              }
-            }}
-          >
-            Reject
-          </Button>
-        </div>
-      </div>
+      </ToolApprovalCard>
     );
   }
 
