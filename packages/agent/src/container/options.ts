@@ -23,7 +23,10 @@ export type SkillOptions = Skill[] | SkillSettings
 
 /** 自定义 Trace 适配器配置 */
 export interface TraceSettings {
-  adapters: TraceAdapter[];
+  /** 追踪级别，与 createAdaptersFromLevel 组合，不传则不附加默认适配器 */
+  level?: TraceLevel;
+  /** 自定义适配器，与 level 对应的默认适配器合并 */
+  adapters?: TraceAdapter[];
 }
 
-export type TraceOptions = TraceLevel | TraceSettings;;
+export type TraceOptions = TraceLevel | TraceSettings;

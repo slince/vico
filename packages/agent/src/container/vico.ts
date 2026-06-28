@@ -52,7 +52,7 @@ export interface VicoOptions {
   thread?: ThreadStore;
   /** 工具审批门控（不传则不启用审批） */
   approvalGate?: ApprovalGate;
-  /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（默认读取 VICO_TRACE 环境变量，不传等同 0） */
+  /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（不传等同 0） */
   trace?: TraceOptions
 }
 
@@ -86,15 +86,22 @@ export class Vico {
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
-    const trace = options.trace ?? (parseInt(process.env.VICO_TRACE ?? '0', 10) as TraceLevel);
-    const adapters = typeof trace === 'object' ? trace.adapters : createAdaptersFromLevel(trace);
-    this.tracer = new LoopTracer(this.events, adapters);
+    this.tracer = this.createTracer(options.trace);
     this.languageModelFactory = options.languageModelFactory ?? createLanguageModel;
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
     this.approvalGate = options.approvalGate;
     this.thread = options.thread ?? new InMemoryThreadStore();
     this.skillRegistry = this.createSkillRegistry();
+  }
+
+  /** 根据 TraceOptions 构建 LoopTracer */
+  private createTracer(trace?: TraceOptions): LoopTracer {
+    const resolved = trace ?? 0;
+    const adapters = typeof resolved === 'object'
+      ? [...createAdaptersFromLevel(resolved.level ?? 0), ...(resolved.adapters ?? [])]
+      : createAdaptersFromLevel(resolved);
+    return new LoopTracer(this.events, adapters);
   }
 
   /** 根据配置构建 SkillRegistry，有 skillDirs 时默认追加 FSSkillLoader，支持内联 Skill 数组 */
