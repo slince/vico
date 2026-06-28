@@ -1,11 +1,11 @@
 // src/__tests__/skill-tool-source.test.ts
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { SkillRegistry } from '../skill/skill-registry.js';
-import { SkillLoaderChain } from '../skill/skill-loader-chain.js';
-import { FSSkillLoader } from '../skill/fs-skill-loader.js';
-import { createAllSkillTools } from '../skill/tool/index.js';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { resolve } from 'node:path';
+import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {SkillRegistry} from '../skill/skill-registry.js';
+import {SkillLoaderChain} from '../skill/skill-loader-chain.js';
+import {FSSkillLoader} from '../skill/fs-skill-loader.js';
+import {createSkillTools} from '../skill/tool/index.js';
+import {mkdirSync, rmSync, writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
 
 const TMP = resolve('/tmp/vico-skill-tools-test-' + Date.now());
 
@@ -31,7 +31,7 @@ describe('SkillToolSource', () => {
   const makeCtx = () => ({ userId: 'u1', agentId: 'a1', threadId: 't1', workspace: '/', signal: new AbortController().signal, awaitApproval: async () => ({ approved: true }) });
 
   it('skill tool returns instructions', async () => {
-    const tools = createAllSkillTools(manager);
+    const tools = createSkillTools(manager);
     const skill = tools.find((t) => t.name === 'skill')!;
     const result = await skill.execute({ id: '1', name: 'skill', args: { name: 'code-review' } }, makeCtx() as any) as any;
     expect(result.name).toBe('code-review');
@@ -39,7 +39,7 @@ describe('SkillToolSource', () => {
   });
 
   it('skill tool throws error for unknown skill', async () => {
-    const tools = createAllSkillTools(manager);
+    const tools = createSkillTools(manager);
     const skill = tools.find((t) => t.name === 'skill')!;
     await expect(
       skill.execute({ id: '2', name: 'skill', args: { name: 'nonexistent' } }, makeCtx() as any)
@@ -47,7 +47,7 @@ describe('SkillToolSource', () => {
   });
 
   it('skill_search finds matching skills', async () => {
-    const tools = createAllSkillTools(manager);
+    const tools = createSkillTools(manager);
     const search = tools.find((t) => t.name === 'skill_search')!;
     const result = await search.execute({ id: '3', name: 'skill_search', args: { query: 'review' } }, makeCtx() as any) as any;
     expect(result.results).toHaveLength(1);
@@ -55,7 +55,7 @@ describe('SkillToolSource', () => {
   });
 
   it('skill_tools creates 3 tools', async () => {
-    const tools = createAllSkillTools(manager);
+    const tools = createSkillTools(manager);
     expect(tools).toHaveLength(3);
     expect(tools.map((t) => t.name).sort()).toEqual(['skill', 'skill_read', 'skill_search']);
   });

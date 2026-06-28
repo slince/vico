@@ -4,7 +4,7 @@ import {Agent} from './agent.js';
 import type {ModelRef, TurnEvent} from './types.js';
 import type {Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
-import {createAllSkillTools} from "../skill/tool/index.js";
+import {createSkillTools} from "../skill/tool/index.js";
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/types.js';
 import {TurnTracer} from "../observable/turn-tracer.js";
@@ -54,7 +54,7 @@ export function createAgent(config: AgentConfig): Agent {
   // 默认工具：基础工具始终包含；启用 skill 时追加 Skill 工具；启用 working memory 时追加更新工具；文件工具仅在配置 workspace 时启用
   const tools: Tool[] = [...baseBuiltinTools, ...(config.tools || [])];
   if (config.skills) {
-    tools.push(...createAllSkillTools(config.skills));
+    tools.push(...createSkillTools(config.skills));
   }
   if (memory.working) {
     tools.push(createUpdateWorkingMemoryTool(memory.working));

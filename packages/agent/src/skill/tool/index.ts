@@ -15,7 +15,7 @@ export { createSkillReadTool } from './skill-read.js';
  * @param skills - skills 实例
  * @returns 包含三个 Skill 工具的数组
  */
-export function createAllSkillTools(skills: Skill[]): Tool[] {
+export function createSkillTools(skills: Skill[]): Tool[] {
 
   const registry = new SkillRegistry(skills);
 
