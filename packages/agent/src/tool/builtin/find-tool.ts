@@ -3,7 +3,7 @@ import { readdirSync, statSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
-import type {ToolCall, ToolExecutionContext} from '../types.js';
+import type {ToolExecutionContext} from '../types.js';
 
 const findParams = z.object({
   pattern: z.string().default('*').describe('匹配文件名的 glob 模式'),
@@ -67,8 +67,7 @@ const findOutputSchema = z.object({
   count: z.number().int(),
 });
 
-async function executeFind(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof findOutputSchema>> {
-  const args = call.args as unknown as z.infer<typeof findParams>;
+async function executeFind(args: z.infer<typeof findParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof findOutputSchema>> {
   const searchDir = args.path
     ? resolvePath(ctx.session.workspace, args.path)
     : resolve(ctx.session.workspace, '.');

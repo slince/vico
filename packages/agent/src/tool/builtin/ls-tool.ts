@@ -3,7 +3,7 @@ import { readdirSync, statSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
-import type {ToolCall, ToolExecutionContext} from '../types.js';
+import type {ToolExecutionContext} from '../types.js';
 
 const lsParams = z.object({
   path: z.string().optional().describe('要列出内容的目录路径'),
@@ -24,8 +24,7 @@ const lsOutputSchema = z.object({
   path: z.string(),
 });
 
-async function executeLs(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof lsOutputSchema>> {
-  const args = call.args as unknown as z.infer<typeof lsParams>;
+async function executeLs(args: z.infer<typeof lsParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof lsOutputSchema>> {
   const absPath = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
   const stat = statSync(absPath);

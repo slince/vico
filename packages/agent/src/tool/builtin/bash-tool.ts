@@ -3,7 +3,7 @@ import {ChildProcess, exec} from 'node:child_process';
 import {resolve} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
-import type {ToolCall, ToolExecutionContext} from '../types.js';
+import type {ToolExecutionContext} from '../types.js';
 
 const bashParams = z.object({
   command: z.string().describe('要执行的 shell 命令'),
@@ -40,8 +40,7 @@ function cleanupSession(id: string, entry: SessionEntry): void {
   sessions.delete(id);
 }
 
-async function executeBash(call: ToolCall, ctx: ToolExecutionContext): Promise<string> {
-  const args = call.args as unknown as z.infer<typeof bashParams>;
+async function executeBash(args: z.infer<typeof bashParams>, ctx: ToolExecutionContext): Promise<string> {
   const cwd = resolve(ctx.session.workspace, '.');
 
   switch (args.action) {

@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
-import type {ToolCall, ToolExecutionContext} from '../types.js';
+import type {ToolExecutionContext} from '../types.js';
 
 const editEntry = z.object({
   oldText: z.string().describe('要查找的精确文本'),
@@ -61,9 +61,7 @@ const editOutputSchema = z.object({
   diff: z.string(),
 });
 
-async function executeEdit(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof editOutputSchema>> {
-  const args = call.args as unknown as z.infer<typeof editParams>;
-
+async function executeEdit(args: z.infer<typeof editParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof editOutputSchema>> {
   const edits = args.edits ?? (
     args.oldText !== undefined
       ? [{ oldText: args.oldText, newText: args.newText ?? '' }]

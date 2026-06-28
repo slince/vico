@@ -24,8 +24,8 @@ export function createSkillReadTool(manager: SkillRegistry) {
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],
-    async execute(call) {
-      const { skillName, filePath } = call.args as { skillName: string; filePath: string };
+    async execute(args) {
+      const { skillName, filePath } = args;
       const skill = manager.get(skillName);
       if (!skill) throw new Error(`Skill "${skillName}" not found`);
       const fullPath = resolve(skill.path, filePath);

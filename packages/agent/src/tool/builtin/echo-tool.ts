@@ -13,8 +13,7 @@ export const echoTool = createTool({
   policy: 'auto',
   kind: 'readonly',
   tags: ['builtin'],
-  async execute(call) {
-    const { message } = call.args as { message: string };
-    return { message };
+  async execute(args) {
+    return { message: args.message };
   },
 });

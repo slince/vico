@@ -3,7 +3,7 @@ import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { resolve, relative, dirname } from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
-import type {ToolCall, ToolExecutionContext} from '../types.js';
+import type {ToolExecutionContext} from '../types.js';
 
 const writeParams = z.object({
   path: z.string().describe('要写入的文件路径（相对于工作区或绝对路径）'),
@@ -25,9 +25,7 @@ const writeOutputSchema = z.object({
   size: z.number().int(),
 });
 
-async function executeWrite(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof writeOutputSchema>> {
-  const args = call.args as unknown as z.infer<typeof writeParams>;
-
+async function executeWrite(args: z.infer<typeof writeParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof writeOutputSchema>> {
   const absPath = resolvePath(ctx.session.workspace, args.path);
   const dir = dirname(absPath);
 

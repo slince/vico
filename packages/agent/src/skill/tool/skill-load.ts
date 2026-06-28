@@ -27,8 +27,8 @@ export function createSkillLoadTool(manager: SkillRegistry) {
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],
-    async execute(call) {
-      const { name } = call.args as { name: string };
+    async execute(args) {
+      const { name } = args;
       const skill = manager.get(name);
       if (!skill) throw new Error(`Skill "${name}" not found. Available: ${manager.listAll().map((s) => s.name).join(', ')}`);
       return {

@@ -4,7 +4,7 @@ import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {relative, resolve} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
-import type {ToolCall, ToolExecutionContext} from '../types.js';
+import type {ToolExecutionContext} from '../types.js';
 
 const grepParams = z.object({
   pattern: z.string().describe('要搜索的正则表达式'),
@@ -117,8 +117,7 @@ const grepOutputSchema = z.object({
   count: z.number().int(),
 });
 
-async function executeGrep(call: ToolCall, ctx: ToolExecutionContext): Promise<z.infer<typeof grepOutputSchema>> {
-  const args = call.args as unknown as z.infer<typeof grepParams>;
+async function executeGrep(args: z.infer<typeof grepParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof grepOutputSchema>> {
   const searchDir = args.path ? resolvePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
   const rgOutput = ripgrep(args, searchDir);

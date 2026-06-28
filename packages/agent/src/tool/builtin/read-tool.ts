@@ -3,7 +3,7 @@ import {readFileSync, statSync} from 'node:fs';
 import {relative, resolve} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../create-tool.js';
-import type {ToolCall, ToolExecutionContext} from '../types.js';
+import type {ToolExecutionContext} from '../types.js';
 
 const readParams = z.object({
   path: z.string().describe('要读取的文件路径（相对于工作区或绝对路径）'),
@@ -116,9 +116,7 @@ function readImageFile(absPath: string, ext: string, workspace: string): ReadOut
   };
 }
 
-async function executeRead(call: ToolCall, ctx: ToolExecutionContext): Promise<ReadOutput> {
-  const args = call.args as unknown as z.infer<typeof readParams>;
-
+async function executeRead(args: z.infer<typeof readParams>, ctx: ToolExecutionContext): Promise<ReadOutput> {
   const absPath = resolvePath(ctx.session.workspace, args.path);
   const stat = statSync(absPath);
 

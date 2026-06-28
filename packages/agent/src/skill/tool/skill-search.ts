@@ -26,8 +26,8 @@ export function createSkillSearchTool(manager: SkillRegistry) {
     policy: 'auto',
     kind: 'readonly',
     tags: ['skill'],
-    async execute(call) {
-      const { query, limit } = call.args as { query: string; limit: number };
+    async execute(args) {
+      const { query, limit } = args;
       const results = manager.search(query, limit ?? 10);
       return { results };
     },
