@@ -1,9 +1,8 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { executeAgentChat, executeAgentResume } from '../chat/chat.js';
+import { executeAgentChat } from '../chat/chat.js';
 import { turnEventsToAISDK } from '@vico/agent';
-import { vico } from '../vico.js';
 import logger from '../lib/logger.js';
 
 /** AI SDK transport message part 类型 */
@@ -58,57 +57,26 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;
     const threadId = isLocalThreadId ? crypto.randomUUID() : requestedThreadId;
 
-    // 检测审批响应：若消息中仅含 tool-approval-response 而无文本，自动恢复暂停的 turn
+    // 提取审批决策（若消息中仅含 tool-approval-response 无文本，agent loop 自动恢复 paused turn）
     const approvalDecisions = message ? undefined : extractApprovalDecisions(body);
 
-    if (approvalDecisions && approvalDecisions.length > 0 && agentId && threadId) {
-      try {
-        const agent = vico.runtime.getAgent(agentId);
-        const pausedTurn = agent?.thread?.getLatestTurn
-          ? await agent.thread.getLatestTurn(threadId)
-          : undefined;
-
-        if (pausedTurn && pausedTurn.status === 'paused') {
-          const stream = await executeAgentResume({
-            agentId,
-            threadId,
-            turnId: pausedTurn.id,
-            approvalDecisions,
-            tenantId: auth.tenantId,
-            userId: auth.userId,
-          });
-
-          return turnEventsToAISDK(stream, {
-            onFinish: (finish) => {
-              finish.messageMetadata = { threadId };
-            },
-          });
-        }
-      } catch (error: unknown) {
-        const msg = error instanceof Error ? error.message : 'An internal error occurred';
-        logger.error({ err: error, agentId, tenantId: auth.tenantId }, 'Chat auto-resume stream error');
-        return c.json({ error: msg }, 500);
-      }
-    }
-
-    if (!agentId || !message || !requestedThreadId) {
+    if (!agentId || (!message && !approvalDecisions?.length) || !requestedThreadId) {
       return c.json({ error: 'agentId, message and threadId are required' }, 400);
     }
 
     try {
       const stream = await executeAgentChat({
         agentId,
-        message,
+        message: message ?? '',
         threadId,
         tenantId: auth.tenantId,
         userId: auth.userId,
+        approvalDecisions,
       });
 
       return turnEventsToAISDK(stream, {
         onFinish: (finish) => {
-          if (isLocalThreadId) {
-            finish.messageMetadata = { threadId };
-          }
+          finish.messageMetadata = { threadId };
         },
       });
     } catch (error: unknown) {
@@ -118,7 +86,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     }
   });
 
-  /** 恢复已暂停的 turn */
+  /** 恢复已暂停的 turn（委托给 executeAgentChat，agent loop 自动检测 paused turn） */
   app.post('/api/v1/chat/resume', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
@@ -126,21 +94,20 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     const agentId: string | undefined = body.agentId;
     const threadId: string | undefined = body.threadId;
-    const turnId: string | undefined = body.turnId;
     const approvalDecisions: Array<{ toolCallId: string; approved: boolean }> = body.approvalDecisions ?? [];
 
-    if (!agentId || !threadId || !turnId) {
-      return c.json({ error: 'agentId, threadId and turnId are required' }, 400);
+    if (!agentId || !threadId) {
+      return c.json({ error: 'agentId and threadId are required' }, 400);
     }
 
     try {
-      const stream = await executeAgentResume({
+      const stream = await executeAgentChat({
         agentId,
+        message: '',
         threadId,
-        turnId,
-        approvalDecisions,
         tenantId: auth.tenantId,
         userId: auth.userId,
+        approvalDecisions,
       });
 
       return turnEventsToAISDK(stream, {

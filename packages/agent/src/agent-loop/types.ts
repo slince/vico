@@ -34,17 +34,6 @@ export interface PauseInfo {
   messageCount: number;
 }
 
-/** resumeTurn 选项 */
-export interface ResumeTurnOptions {
-  threadId: string;
-  turnId: string;
-  /** 审批决策（reason='tool-approval' 时需要） */
-  approvalDecisions?: Array<{ toolCallId: string; approved: boolean }>;
-  scopeId?: string;
-  userId?: string;
-  workspace?: string;
-}
-
 /** 一次 turn 的会话标识，贯穿 model 调用和工具执行 */
 export interface TurnSession {
   workspace: string;
@@ -57,6 +46,8 @@ export interface RunTurnOptions {
   scopeId?: string;
   userId?: string;
   workspace?: string;
+  /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
+  approvalDecisions?: Array<{ toolCallId: string; approved: boolean }>;
 }
 
 // ── 核心领域模型：Thread > Turn > Step ──

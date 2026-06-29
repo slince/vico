@@ -8,3 +8,5 @@ data/
 .playwright-mcp
 .superpowers
 tsconfig.tsbuildinfo
+
+vico/**/*.js
