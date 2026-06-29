@@ -114,15 +114,14 @@ export class AgentLoop {
     const stream = new ReadableStream<ModelStreamChunk>({
       start: async (controller) => {
         try {
-          const result = await this.run({
+          const result = await this.startLoop({
             threadId, userMessage, signal: internalAc.signal,
             controller, opts, interrupted,
           });
           resolveResult(result);
         } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          this.emit({ type: 'error', message: msg });
-          rejectResult(err instanceof Error ? err : new Error(msg));
+          this.emit({ type: 'error', error: err instanceof Error ? err : String(err) });
+          rejectResult(err instanceof Error ? err : new Error(String(err)));
         } finally {
           try { controller.close(); } catch { /* already closed */ }
         }
@@ -135,7 +134,7 @@ export class AgentLoop {
   /**
    * runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用。
    */
-  private async run(ctx: {
+  private async startLoop(ctx: {
     threadId: string;
     userMessage: ModelMessage;
     signal: AbortSignal;
@@ -185,55 +184,15 @@ export class AgentLoop {
     // 首轮消息包含（历史消息+当前消息）
     const messages: ModelMessage[] = [...requestContext.messages];
 
-    const shared: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
+    const stepContext: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
-    return this.executeLoop(messages, 0, controller, shared, interrupted, signal, {
+    return this.executeLoop(messages, 0, controller, stepContext, interrupted, signal, {
       threadStore,
       turn,
       threadId,
     }, traceSession, turnSpan, usage);
   }
 
-  /**
-   * 执行 step loop，被 run() 和 resume() 共用。
-   */
-  private async runStepLoop(
-    messages: ModelMessage[],
-    startStep: number,
-    controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    shared: StepContext,
-    interrupted: { value: boolean },
-    signal: AbortSignal,
-    config: { maxSteps: number; threadStore: ThreadStore; turn: Turn; threadId: string },
-  ): Promise<{ finalStatus: 'completed' | 'aborted' | 'paused'; steps: number; usage: { input: number; output: number } }> {
-    const { maxSteps, threadStore, turn, threadId } = config;
-    const usage = { input: 0, output: 0 };
-    let steps = startStep;
-
-    while (steps < maxSteps && !interrupted.value) {
-      if (signal.aborted) {
-        await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
-        return { finalStatus: 'aborted', steps, usage };
-      }
-
-      const step: Step = { index: steps, threadId, scopeId: shared.ctx.scopeId, signal };
-      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage } = await this.executeModelStep(step, messages, controller, shared);
-      usage.input += stepUsage.input;
-      usage.output += stepUsage.output;
-
-      if (shouldPause && pauseInfo) {
-        // 持久化暂停信息到 turn.metadata
-        await threadStore.updateTurn(turn.id, { status: 'paused', steps, metadata: { ...pauseInfo } });
-        controller.enqueue({ type: 'turn-paused', reason: pauseInfo.reason, turnId: turn.id });
-        return { finalStatus: 'paused', steps, usage };
-      }
-
-      if (shouldBreak) break;
-      steps++;
-    }
-
-    return { finalStatus: interrupted.value ? 'aborted' : 'completed', steps, usage };
-  }
 
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
@@ -305,6 +264,47 @@ export class AgentLoop {
   }
 
   /**
+   * 执行 step loop，被 run() 和 resume() 共用。
+   */
+  private async runStepLoop(
+    messages: ModelMessage[],
+    startStep: number,
+    controller: ReadableStreamDefaultController<ModelStreamChunk>,
+    shared: StepContext,
+    interrupted: { value: boolean },
+    signal: AbortSignal,
+    config: { maxSteps: number; threadStore: ThreadStore; turn: Turn; threadId: string },
+  ): Promise<{ finalStatus: 'completed' | 'aborted' | 'paused'; steps: number; usage: { input: number; output: number } }> {
+    const { maxSteps, threadStore, turn, threadId } = config;
+    const usage = { input: 0, output: 0 };
+    let steps = startStep;
+
+    while (steps < maxSteps && !interrupted.value) {
+      if (signal.aborted) {
+        await threadStore.updateTurn(turn.id, { status: 'aborted', steps });
+        return { finalStatus: 'aborted', steps, usage };
+      }
+
+      const step: Step = { index: steps, threadId, scopeId: shared.ctx.scopeId, signal };
+      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage } = await this.executeModelStep(step, messages, controller, shared);
+      usage.input += stepUsage.input;
+      usage.output += stepUsage.output;
+
+      if (shouldPause && pauseInfo) {
+        // 持久化暂停信息到 turn.metadata
+        await threadStore.updateTurn(turn.id, { status: 'paused', steps, metadata: { ...pauseInfo } });
+        controller.enqueue({ type: 'turn-paused', reason: pauseInfo.reason, turnId: turn.id });
+        return { finalStatus: 'paused', steps, usage };
+      }
+
+      if (shouldBreak) break;
+      steps++;
+    }
+
+    return { finalStatus: interrupted.value ? 'aborted' : 'completed', steps, usage };
+  }
+
+  /**
    * 恢复一个已暂停的 turn。
    *
    * @param opts - 恢复选项
@@ -337,9 +337,8 @@ export class AgentLoop {
           });
           resolveResult(result);
         } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          this.emit({ type: 'error', message: msg });
-          rejectResult(err instanceof Error ? err : new Error(msg));
+          this.emit({ type: 'error', error: err instanceof Error ? err : String(err) });
+          rejectResult(err instanceof Error ? err : new Error(String(err)));
         } finally {
           try { controller.close(); } catch { /* already closed */ }
         }
@@ -466,7 +465,7 @@ export class AgentLoop {
     await this.tryCompact(messages, step.signal);
 
     if (this.tokenEconomy?.isInputExhausted()) {
-      this.emit({ type: 'error', message: '输入 token 预算已耗尽' });
+      this.emit({ type: 'error', error: '输入 token 预算已耗尽' });
       return { shouldBreak: true, shouldPause: false, usage };
     }
 
@@ -730,9 +729,9 @@ export class AgentLoop {
 
           case 'error':
             controller.enqueue(chunk);
-            const errMsg = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
-            modelSpan?.error(new Error(errMsg));
-            this.emit({ type: 'error', message: errMsg });
+            const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
+            modelSpan?.error(err instanceof Error ? err : new Error(err));
+            this.emit({ type: 'error', error: err });
             break;
 
           // stream-start/response-metadata/raw：内部使用
@@ -741,7 +740,7 @@ export class AgentLoop {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       modelSpan?.error(new Error(msg));
-      this.emit({ type: 'error', message: msg });
+      this.emit({ type: 'error', error: err instanceof Error ? err : String(err) });
       const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: msg };
       traceSession.recordModelResponse(step, errorResult);
       return errorResult;

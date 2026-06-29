@@ -85,6 +85,6 @@ export type TurnEvent =
   | { type: 'step-start'; step: number }
   | { type: 'step-end'; step: number }
   | { type: 'compacted'; removedTokens: number }
-  | { type: 'error'; message: string }
+  | { type: 'error'; error: string | Error }
   | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName: string; input: unknown }
   | { type: 'done'; usage: { input: number; output: number } };
