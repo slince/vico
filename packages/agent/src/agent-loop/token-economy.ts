@@ -1,4 +1,5 @@
 // src/agent-loop/token-economy.ts
+import type { UsageMetrics } from './types.js';
 
 /** Token 经济管理 — 跟踪累计用量，按预算截断 */
 export class TokenEconomy {
@@ -49,7 +50,7 @@ export class TokenEconomy {
     return output.slice(0, this.maxToolResultLength) + '... [已截断]';
   }
 
-  getUsage(): { input: number; output: number } {
+  getUsage(): UsageMetrics {
     return { input: this.inputTokens, output: this.outputTokens };
   }
 

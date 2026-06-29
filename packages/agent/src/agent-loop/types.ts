@@ -16,11 +16,17 @@ export interface ModelRef {
   apiKey: string;
 }
 
+/** Token 用量统计 */
+export interface UsageMetrics {
+  input: number;
+  output: number;
+}
+
 /** 一次 turn 的执行结果 */
 export interface TurnResult {
   status: 'completed' | 'failed' | 'aborted' | 'interrupted' | 'paused';
   steps: number;
-  usage: { input: number; output: number };
+  usage: UsageMetrics;
   messages: ModelMessage[];
   /** 所属 turn ID */
   turnId?: string;
@@ -91,4 +97,4 @@ export type TurnEvent =
   | { type: 'compacted'; removedTokens: number }
   | { type: 'error'; error: string | Error }
   | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName: string; input: unknown }
-  | { type: 'done'; usage: { input: number; output: number } };
+  | { type: 'done'; usage: UsageMetrics };

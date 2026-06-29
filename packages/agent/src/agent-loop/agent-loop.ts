@@ -1,5 +1,5 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {PauseInfo, RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
+import type {PauseInfo, RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession, UsageMetrics} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {Thread, ThreadContext, Turn} from '../thread/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
@@ -23,7 +23,7 @@ export interface ModelStepResult {
   /** 暂停信息（shouldPause 为 true 时需要） */
   pauseInfo?: PauseInfo;
   /** 本 step 的 token 用量 */
-  usage: { input: number; output: number };
+  usage: UsageMetrics;
 }
 
 /** 审批分类结果 */
@@ -40,7 +40,7 @@ export interface CallModelResult {
   /** 模型请求的工具调用 */
   toolCalls: ToolCall[];
   /** 本次调用的 token 用量 */
-  usage: { input: number; output: number };
+  usage: UsageMetrics;
   /** 错误信息（如有） */
   error?: string | Error;
 }
@@ -150,7 +150,7 @@ export class AgentLoop {
     // 检测未完结的 turn，自动恢复执行
     const latestTurn = await threadStore.getLatestTurn(threadId);
     if (latestTurn && latestTurn.status !== 'completed') {
-      return this.startResumeTurn({thread, turn: latestTurn, signal, controller, options, usage});
+      return this.startResumeTurn({thread, turn: latestTurn, userMessage, signal, controller, options, usage});
     }
     
     // ── 正常新 turn ──
@@ -165,7 +165,7 @@ export class AgentLoop {
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
     options?: RunTurnOptions;
-    usage: { input: number; output: number };
+    usage: UsageMetrics;
   }): Promise<TurnResult> {
     const { thread, threadId, userMessage, signal, controller, options, usage } = params;
     const threadStore = this.agent.thread;
@@ -198,16 +198,17 @@ export class AgentLoop {
     return this.executeLoop(messages, 0, controller, stepContext, signal, traceSession, turnSpan, usage);
   }
 
-  /** 从未完结的 turn 恢复执行 */
+  /** 从未完结的 turn 恢复执行，携带新的用户消息 */
   private async startResumeTurn(params: {
     thread: Thread;
     turn: Turn;
+    userMessage: ModelMessage;
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
     options?: RunTurnOptions;
-    usage: { input: number; output: number };
+    usage: UsageMetrics;
   }): Promise<TurnResult> {
-    const { thread, turn, signal, controller, options, usage } = params;
+    const { thread, turn, userMessage, signal, controller, options, usage } = params;
     const threadStore = this.agent.thread;
 
     // 加载该 turn 的 messages
@@ -219,17 +220,26 @@ export class AgentLoop {
       return msg;
     });
 
+    // 将新的用户消息追加到消息列表并持久化
+    messages.push(userMessage);
+    await threadStore.appendEntry({
+      threadId: thread.id,
+      turnId: turn.id,
+      role: userMessage.role,
+      content: userMessage.content,
+    });
+
     const {scopeId, workspace, approvalDecisions} = options || {}
 
     // 重建 session 和 context
     const session: TurnSession = { workspace, thread, turn: turn };
-    const traceSession = this.tracer.startTurn(thread, { role: 'user', content: '[resume]' });
+    const traceSession = this.tracer.startTurn(thread, userMessage);
     const turnSpan = traceSession.startSpan('agent_resume');
     const toolApprovalState = new Map<string, boolean>();
 
     const requestContext = new ModelRequestContext({
       agent: this.agent,
-      userMessage: { role: 'user', content: '[resume]' },
+      userMessage,
       tools: [...this.agent.tools],
       thread,
       scopeId,
@@ -300,7 +310,7 @@ export class AgentLoop {
     signal: AbortSignal,
     traceSession: TurnTraceSession,
     turnSpan: ReturnType<TurnTraceSession['startSpan']>,
-    usage: { input: number; output: number },
+    usage: UsageMetrics,
   ): Promise<TurnResult> {
 
     const {session: {thread, turn}} = stepContext
@@ -361,7 +371,7 @@ export class AgentLoop {
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     stepContext: StepContext,
     signal: AbortSignal,
-  ): Promise<{ finalStatus: 'completed' | 'aborted' | 'paused'; steps: number; usage: { input: number; output: number } }> {
+  ): Promise<{ finalStatus: 'completed' | 'aborted' | 'paused'; steps: number; usage: UsageMetrics }> {
     const usage = { input: 0, output: 0 };
     let steps = startStep;
 
