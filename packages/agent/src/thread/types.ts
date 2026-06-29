@@ -68,7 +68,7 @@ export interface ThreadStore {
   /** 获取线程最近 limit 条对话记录 */
   getRecentEntries(threadId: string, limit: number): Promise<Message[]>;
   /** 获取指定 turn 的对话记录 */
-  getEntriesByTurn?(turnId: string, options?: { limit?: number; start?: number }): Promise<Message[]>;
+  getEntriesByTurn(turnId: string, options?: { limit?: number; start?: number }): Promise<Message[]>;
   /** 获取线程中最近的一个 turn（用于检测是否有暂停的 turn） */
-  getLatestTurn?(threadId: string): Promise<Turn | undefined>;
+  getLatestTurn(threadId: string): Promise<Turn | undefined>;
 }

@@ -1,6 +1,6 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {ModelClient} from '../model/model-client.js';
-import type {ApprovalDecision, TurnEvent, TurnResult} from './types.js';
+import type {ToolApproval, TurnEvent, TurnResult} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -21,7 +21,7 @@ export interface InvokeOptions {
   workspace?: string;
   scopeId?: string;
   /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
-  approvalDecisions?: ApprovalDecision[];
+  approvalDecisions?: ToolApproval[];
 }
 
 /** Agent 构造参数 */

@@ -1,5 +1,5 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {ApprovalDecision, PauseInfo, RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
+import type {PauseInfo, RunTurnOptions, Step, ToolApproval, TurnEvent, TurnResult, TurnSession} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {Thread, Turn} from '../thread/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
@@ -99,10 +99,8 @@ export class AgentLoop {
     });
 
     const internalAc = new AbortController();
-    const interrupted = { value: false };
 
     const abort = () => {
-      interrupted.value = true;
       internalAc.abort();
     };
 
@@ -111,7 +109,7 @@ export class AgentLoop {
         try {
           const result = await this.startLoop({
             userMessage, signal: internalAc.signal,
-            controller, options, interrupted,
+            controller, options,
           });
           resolveResult(result);
         } catch (err) {
@@ -135,9 +133,8 @@ export class AgentLoop {
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
     options?: RunTurnOptions;
-    interrupted: { value: boolean };
   }): Promise<TurnResult> {
-    const { userMessage, signal, controller, options, interrupted } = ctx;
+    const { userMessage, signal, controller, options } = ctx;
     const threadId = options?.threadId ?? `${this.agent.id}-${Date.now()}`;
     const usage = { input: 0, output: 0 };
     const scopeId = options?.scopeId ?? '';
@@ -154,13 +151,11 @@ export class AgentLoop {
     }
 
     // 检测未完结的 turn，自动恢复执行
-    const latestTurn = threadStore.getLatestTurn
-      ? await threadStore.getLatestTurn(threadId)
-      : undefined;
+    const latestTurn = await threadStore.getLatestTurn(threadId);
 
     if (latestTurn && latestTurn.status === 'paused') {
       return this.startResume(
-        thread, latestTurn, signal, controller, interrupted,
+        thread, latestTurn, signal, controller,
         scopeId, workspace, options?.approvalDecisions, usage,
       );
     }
@@ -192,7 +187,7 @@ export class AgentLoop {
     const messages: ModelMessage[] = [...requestContext.messages];
     const stepContext: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
-    return this.executeLoop(messages, 0, controller, stepContext, interrupted, signal, traceSession, turnSpan, usage);
+    return this.executeLoop(messages, 0, controller, stepContext, signal, traceSession, turnSpan, usage);
   }
 
 
@@ -202,10 +197,9 @@ export class AgentLoop {
     pausedTurn: Turn,
     signal: AbortSignal,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    interrupted: { value: boolean },
     scopeId: string,
     workspace: string,
-    approvalDecisions: ApprovalDecision[] | undefined,
+    approvalDecisions: ToolApproval[] | undefined,
     usage: { input: number; output: number },
   ): Promise<TurnResult> {
     const threadStore = this.agent.thread;
@@ -213,11 +207,7 @@ export class AgentLoop {
     if (!pauseInfo) throw new Error(`Turn ${pausedTurn.id} has no pause metadata`);
 
     // 加载该 turn 的 messages
-    const entries = await (
-      threadStore.getEntriesByTurn
-        ? threadStore.getEntriesByTurn(pausedTurn.id)
-        : threadStore.getEntries(thread.id).then(all => all.filter(e => e.turnId === pausedTurn.id))
-    );
+    const entries = await threadStore.getEntriesByTurn(pausedTurn.id);
     const messages: ModelMessage[] = entries.map(e => {
       const msg: ModelMessage = { role: e.role as ModelMessage['role'], content: e.content };
       if (e.toolCallId) msg.toolCallId = e.toolCallId;
@@ -281,7 +271,7 @@ export class AgentLoop {
 
     return this.executeLoop(
       messages, pauseInfo.pausedAtStep + 1, controller,
-      stepContext, interrupted, signal, traceSession, turnSpan, usage,
+      stepContext, signal, traceSession, turnSpan, usage,
     );
   }
 
@@ -294,7 +284,6 @@ export class AgentLoop {
     startStep: number,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     stepContext: StepContext,
-    interrupted: { value: boolean },
     signal: AbortSignal,
     traceSession: TurnTraceSession,
     turnSpan: ReturnType<TurnTraceSession['startSpan']>,
@@ -305,7 +294,7 @@ export class AgentLoop {
     let loopResult: Awaited<ReturnType<typeof this.runStepLoop>> | undefined;
 
     try {
-      loopResult = await this.runStepLoop(messages, startStep, controller, stepContext, interrupted, signal);
+      loopResult = await this.runStepLoop(messages, startStep, controller, stepContext, signal);
       usage.input += loopResult.usage.input;
       usage.output += loopResult.usage.output;
 
@@ -329,7 +318,7 @@ export class AgentLoop {
 
       const finalResult: TurnResult = {
         status: loopResult.finalStatus === 'aborted'
-          ? (interrupted.value ? 'interrupted' : 'aborted')
+          ? (signal.aborted ? 'interrupted' : 'aborted')
           : 'completed',
         steps: loopResult.steps,
         usage,
@@ -358,19 +347,13 @@ export class AgentLoop {
     startStep: number,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     stepContext: StepContext,
-    interrupted: { value: boolean },
     signal: AbortSignal,
   ): Promise<{ finalStatus: 'completed' | 'aborted' | 'paused'; steps: number; usage: { input: number; output: number } }> {
     const usage = { input: 0, output: 0 };
     let steps = startStep;
 
     const {session: {thread, turn}} = stepContext
-    while (steps < this.agent.maxSteps && !interrupted.value) {
-      if (signal.aborted) {
-        await this.agent.thread.updateTurn(turn.id, { status: 'aborted', steps });
-        return { finalStatus: 'aborted', steps, usage };
-      }
-
+    while (steps < this.agent.maxSteps && !signal.aborted) {
       const step: Step = { index: steps, threadId: thread.id, scopeId: stepContext.ctx.scopeId, signal };
       const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage } = await this.executeModelStep(step, messages, controller, stepContext);
       usage.input += stepUsage.input;
@@ -387,7 +370,7 @@ export class AgentLoop {
       steps++;
     }
 
-    return { finalStatus: interrupted.value ? 'aborted' : 'completed', steps, usage };
+    return { finalStatus: signal.aborted ? 'aborted' : 'completed', steps, usage };
   }
 
   /**

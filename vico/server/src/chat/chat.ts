@@ -1,7 +1,7 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，vico.stream 执行。
  */
-import type {AgentConfig, ApprovalDecision, Tool, TurnOutput} from '@vico/agent';
+import type {AgentConfig, Tool, ToolApproval, TurnOutput} from '@vico/agent';
 import {codingTools, filesystemTools} from '@vico/agent';
 import {agentManager} from '../services/agent/agent-manager.js';
 import type {BuiltinToolsConfig} from '../services/agent/types.js';
@@ -17,7 +17,7 @@ export interface ExecuteChatParams {
   tenantId: string;
   userId: string;
   /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
-  approvalDecisions?: ApprovalDecision[];
+  approvalDecisions?: ToolApproval[];
 }
 
 /**

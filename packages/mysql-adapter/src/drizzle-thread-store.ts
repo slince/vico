@@ -140,12 +140,25 @@ export class DrizzleThreadStore implements ThreadStore {
     return rows.map((r) => this._toMessage(r));
   }
 
+  async getEntriesByTurn(
+    turnId: string,
+    options?: { limit?: number; start?: number },
+  ): Promise<Message[]> {
+    const start = options?.start ?? 0;
+    const base = this.db
+      .select()
+      .from(messages)
+      .where(eq(messages.turn_id, turnId))
+      .orderBy(messages.created_at)
+      .offset(start);
+    const rows = await (options?.limit ? base.limit(options.limit) : base);
+    return rows.map((r) => this._toMessage(r));
+  }
+
   async getRecentEntries(
     threadId: string,
     limit: number,
   ): Promise<Message[]> {
-    // First take `limit` rows by created_at DESC, then reverse order
-    // (FIFO window in chronological order)
     const rows = await this.db
       .select()
       .from(messages)
@@ -153,6 +166,16 @@ export class DrizzleThreadStore implements ThreadStore {
       .orderBy(desc(messages.created_at))
       .limit(limit);
     return rows.reverse().map((r) => this._toMessage(r));
+  }
+
+  async getLatestTurn(threadId: string): Promise<Turn | undefined> {
+    const rows = await this.db
+      .select()
+      .from(turns)
+      .where(eq(turns.thread_id, threadId))
+      .orderBy(desc(turns.created_at))
+      .limit(1);
+    return rows.length === 0 ? undefined : this._toTurn(rows[0]);
   }
 
   // --- Private mappers ---

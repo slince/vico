@@ -171,6 +171,16 @@ export class DrizzleThreadStore implements ThreadStore {
     return rows.map((r) => this._toMessage(r));
   }
 
+  async getLatestTurn(threadId: string): Promise<Turn | undefined> {
+    const rows = await this.db
+      .select()
+      .from(turns)
+      .where(eq(turns.thread_id, threadId))
+      .orderBy(desc(turns.created_at))
+      .limit(1);
+    return rows.length === 0 ? undefined : this._toTurn(rows[0]);
+  }
+
   // --- Private mappers ---
 
   private _toThread(r: typeof threads.$inferSelect): Thread {

@@ -2,8 +2,8 @@
 import type {ModelMessage} from '../model/types.js';
 import type {Thread, Turn} from '../thread/types.js';
 
-/** 工具审批决策 */
-export interface ApprovalDecision {
+/** 客户端工具审批决策（将 toolCallId 与审批结果绑定） */
+export interface ToolApproval {
   toolCallId: string;
   approved: boolean;
 }
@@ -55,7 +55,7 @@ export interface RunTurnOptions {
   userId?: string;
   workspace?: string;
   /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
-  approvalDecisions?: ApprovalDecision[];
+  approvalDecisions?: ToolApproval[];
 }
 
 // ── 核心领域模型：Thread > Turn > Step ──
