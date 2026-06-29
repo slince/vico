@@ -15,7 +15,7 @@ import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ModelRequestContext, ProcessorPipeline} from './context-processors/context-processor.js';
 
 /** executeModelStep 的返回值 */
-interface ModelStepResult {
+export interface ModelStepResult {
   /** 是否终止循环 */
   shouldBreak: boolean;
   /** 是否需要暂停等待外部审批 */
@@ -27,7 +27,7 @@ interface ModelStepResult {
 }
 
 /** 审批分类结果 */
-interface ApprovalClassification {
+export interface ApprovalClassification {
   approvedCalls: ToolCall[];
   deniedResults: ToolResult[];
   pausedCalls: ToolCall[];
@@ -45,6 +45,14 @@ export interface CallModelResult {
   error?: string | Error;
 }
 
+/** executeModelStep / callModel 共享上下文 */
+export interface StepContext {
+  ctx: ModelRequestContext
+  session: TurnSession;
+  traceSession: TurnTraceSession;
+  toolApprovalState: Map<string, boolean>;
+}
+
 /** AgentLoop 构造选项 */
 export interface AgentLoopOptions {
   agent: Agent;
@@ -53,13 +61,6 @@ export interface AgentLoopOptions {
   tokenEconomy?: TokenEconomy;
 }
 
-/** executeModelStep / callModel 共享上下文 */
-interface StepContext {
-  ctx: ModelRequestContext
-  session: TurnSession;
-  traceSession: TurnTraceSession;
-  toolApprovalState: Map<string, boolean>;
-}
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {
