@@ -25,6 +25,8 @@ export interface ModelStepResult {
   pauseInfo?: PauseInfo;
   /** 本 step 的 token 用量 */
   usage: UsageMetrics;
+  /** 本step是否执行出错*/
+  error?: Error | string;
 }
 
 /** 审批分类结果 */
@@ -196,7 +198,7 @@ export class AgentLoop {
     const messages: ModelMessage[] = [...requestContext.messages];
     const stepContext: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
-    return this.executeLoop(messages, 0, controller, stepContext, signal, traceSession, turnSpan, usage);
+    return this.startTurnLoop(messages, 0, controller, stepContext, signal, traceSession, turnSpan, usage);
   }
 
   /** 从未完结的 turn 恢复执行，携带新的用户消息 */
@@ -293,7 +295,7 @@ export class AgentLoop {
     // 恢复 turn 状态为 running
     await threadStore.updateTurn(turn.id, { status: 'running' });
 
-    return this.executeLoop(
+    return this.startTurnLoop(
       messages, startStep, controller,
       stepContext, signal, traceSession, turnSpan, usage,
     );
@@ -303,7 +305,7 @@ export class AgentLoop {
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
    */
-  private async executeLoop(
+  private async startTurnLoop(
     messages: ModelMessage[],
     startStep: number,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
@@ -315,10 +317,10 @@ export class AgentLoop {
   ): Promise<TurnResult> {
 
     const {session: {thread, turn}} = stepContext
-    let loopResult: Awaited<ReturnType<typeof this.runStepLoop>> | undefined;
+    let loopResult: Awaited<ReturnType<typeof this.runTurnLoop>> | undefined;
 
     try {
-      loopResult = await this.runStepLoop(messages, startStep, controller, stepContext, signal);
+      loopResult = await this.runTurnLoop(messages, startStep, controller, stepContext, signal);
       usage.input += loopResult.usage.input;
       usage.output += loopResult.usage.output;
 
@@ -366,7 +368,7 @@ export class AgentLoop {
   /**
    * 执行 step loop，被 startLoop（新 turn）和 startResume（恢复）共用。
    */
-  private async runStepLoop(
+  private async runTurnLoop(
     messages: ModelMessage[],
     startStep: number,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
@@ -418,6 +420,12 @@ export class AgentLoop {
     }
 
     const modelResult = await this.callModel(messages, step, controller, stepContext);
+
+    // 如果模型调用出错，提前结束
+    if (!!modelResult.error) {
+      return { shouldBreak: true, shouldPause: false, usage, error: modelResult.error };
+    }
+
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
@@ -623,9 +631,8 @@ export class AgentLoop {
       abortSignal: step.signal,
     });
 
-    try {
-      for await (const chunk of stream) {
-        switch (chunk.type) {
+    for await (const chunk of stream) {
+      switch (chunk.type) {
           case 'text-start':
           case 'text-end':
           case 'tool-input-start':
@@ -678,23 +685,16 @@ export class AgentLoop {
           case 'error':
             controller.enqueue(chunk);
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            modelSpan?.error(err instanceof Error ? err : new Error(err));
+            modelSpan.error(err instanceof Error ? err : new Error(err));
             this.emit({ type: 'error', error: err });
-            break;
-
+            const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: err };
+            traceSession.recordModelResponse(step, errorResult);
+            return errorResult;
           // stream-start/response-metadata/raw：内部使用
         }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      modelSpan?.error(new Error(msg));
-      this.emit({ type: 'error', error: err instanceof Error ? err : String(err) });
-      const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: msg };
-      traceSession.recordModelResponse(step, errorResult);
-      return errorResult;
     }
 
-    modelSpan?.end({ textLength: fullText.length, toolCalls: toolCalls.length });
+    modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
     const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
     traceSession.recordModelResponse(step, result);
