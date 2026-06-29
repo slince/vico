@@ -2,6 +2,12 @@
 import type {ModelMessage} from '../model/types.js';
 import type {Thread, Turn} from '../thread/types.js';
 
+/** 工具审批决策 */
+export interface ApprovalDecision {
+  toolCallId: string;
+  approved: boolean;
+}
+
 /** 模型引用 */
 export interface ModelRef {
   provider: string;
@@ -43,11 +49,13 @@ export interface TurnSession {
 
 /** runTurn 选项 */
 export interface RunTurnOptions {
+  /** 会话线程 ID，不传则自动生成 */
+  threadId?: string;
   scopeId?: string;
   userId?: string;
   workspace?: string;
   /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
-  approvalDecisions?: Array<{ toolCallId: string; approved: boolean }>;
+  approvalDecisions?: ApprovalDecision[];
 }
 
 // ── 核心领域模型：Thread > Turn > Step ──

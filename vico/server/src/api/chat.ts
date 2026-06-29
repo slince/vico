@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { executeAgentChat } from '../chat/chat.js';
-import { turnEventsToAISDK } from '@vico/agent';
+import { turnEventsToAISDK, type ApprovalDecision } from '@vico/agent';
 import logger from '../lib/logger.js';
 
 /** AI SDK transport message part 类型 */
@@ -30,7 +30,7 @@ function extractMessage(body: Record<string, unknown>): string | undefined {
 /** 从消息 parts 中提取审批决策 */
 function extractApprovalDecisions(
   body: Record<string, unknown>,
-): Array<{ toolCallId: string; approved: boolean }> | undefined {
+): ApprovalDecision[] | undefined {
   const messages = body.messages as AISDKMessage[] | undefined;
   if (!messages?.length) return undefined;
   const lastUserMsg = messages.filter(m => m.role === 'user').pop();
@@ -94,7 +94,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     const agentId: string | undefined = body.agentId;
     const threadId: string | undefined = body.threadId;
-    const approvalDecisions: Array<{ toolCallId: string; approved: boolean }> = body.approvalDecisions ?? [];
+    const approvalDecisions: ApprovalDecision[] = body.approvalDecisions ?? [];
 
     if (!agentId || !threadId) {
       return c.json({ error: 'agentId and threadId are required' }, 400);

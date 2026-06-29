@@ -1,6 +1,6 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {ModelClient} from '../model/model-client.js';
-import type {TurnEvent, TurnResult} from './types.js';
+import type {ApprovalDecision, TurnEvent, TurnResult} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -21,7 +21,7 @@ export interface InvokeOptions {
   workspace?: string;
   scopeId?: string;
   /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
-  approvalDecisions?: Array<{ toolCallId: string; approved: boolean }>;
+  approvalDecisions?: ApprovalDecision[];
 }
 
 /** Agent 构造参数 */
@@ -152,8 +152,8 @@ export class Agent {
    */
   private run(message: string, options?: InvokeOptions) {
     const userMessage: ModelMessage = { role: 'user', content: message };
-    const threadId = options?.threadId ?? `invoke-${this.id}-${Date.now()}`;
-    return this.loop.runTurn(threadId, userMessage, {
+    return this.loop.runTurn(userMessage, {
+      threadId: options?.threadId,
       userId: options?.userId,
       workspace: options?.workspace ?? this.workspace,
       scopeId: options?.scopeId,

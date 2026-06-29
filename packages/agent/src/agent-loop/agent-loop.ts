@@ -1,5 +1,5 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {PauseInfo, RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
+import type {ApprovalDecision, PauseInfo, RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {Thread, Turn} from '../thread/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
@@ -86,12 +86,11 @@ export class AgentLoop {
    * 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise）。
    * 历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止。
    *
-   * @param threadId - 会话线程 ID
    * @param userMessage - 用户消息
-   * @param opts - turn 运行可选参数
+   * @param options - turn 运行可选参数
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  runTurn(threadId: string, userMessage: ModelMessage, opts?: RunTurnOptions): TurnOutput {
+  runTurn(userMessage: ModelMessage, options?: RunTurnOptions): TurnOutput {
     let resolveResult!: (result: TurnResult) => void;
     let rejectResult!: (err: Error) => void;
     const resultPromise = new Promise<TurnResult>((resolve, reject) => {
@@ -111,8 +110,8 @@ export class AgentLoop {
       start: async (controller) => {
         try {
           const result = await this.startLoop({
-            threadId, userMessage, signal: internalAc.signal,
-            controller, opts, interrupted,
+            userMessage, signal: internalAc.signal,
+            controller, options, interrupted,
           });
           resolveResult(result);
         } catch (err) {
@@ -132,18 +131,18 @@ export class AgentLoop {
    * 自动检测 thread 中是否存在 paused turn，有则恢复执行，无则创建新 turn。
    */
   private async startLoop(ctx: {
-    threadId: string;
     userMessage: ModelMessage;
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
-    opts?: RunTurnOptions;
+    options?: RunTurnOptions;
     interrupted: { value: boolean };
   }): Promise<TurnResult> {
-    const { threadId, userMessage, signal, controller, opts, interrupted } = ctx;
+    const { userMessage, signal, controller, options, interrupted } = ctx;
+    const threadId = options?.threadId ?? `${this.agent.id}-${Date.now()}`;
     const usage = { input: 0, output: 0 };
-    const scopeId = opts?.scopeId ?? '';
-    const userId = opts?.userId ?? '';
-    const workspace = opts?.workspace ?? '';
+    const scopeId = options?.scopeId ?? '';
+    const userId = options?.userId ?? '';
+    const workspace = options?.workspace ?? '';
 
     const threadStore = this.agent.thread;
 
@@ -162,7 +161,7 @@ export class AgentLoop {
     if (latestTurn && latestTurn.status === 'paused') {
       return this.startResume(
         thread, latestTurn, signal, controller, interrupted,
-        scopeId, workspace, opts?.approvalDecisions, usage,
+        scopeId, workspace, options?.approvalDecisions, usage,
       );
     }
 
@@ -206,7 +205,7 @@ export class AgentLoop {
     interrupted: { value: boolean },
     scopeId: string,
     workspace: string,
-    approvalDecisions: Array<{ toolCallId: string; approved: boolean }> | undefined,
+    approvalDecisions: ApprovalDecision[] | undefined,
     usage: { input: number; output: number },
   ): Promise<TurnResult> {
     const threadStore = this.agent.thread;
