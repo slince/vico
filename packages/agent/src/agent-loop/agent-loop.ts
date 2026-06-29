@@ -13,6 +13,7 @@ import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ModelRequestContext, ProcessorPipeline} from './context-processors/context-processor.js';
+import {Span} from "../observable/types.js";
 
 /** executeModelStep 的返回值 */
 export interface ModelStepResult {
@@ -152,7 +153,7 @@ export class AgentLoop {
     if (latestTurn && latestTurn.status !== 'completed') {
       return this.startResumeTurn({thread, turn: latestTurn, userMessage, signal, controller, options, usage});
     }
-    
+
     // ── 正常新 turn ──
     return this.startNewTurn({ thread, threadId, userMessage, signal, controller, options, usage });
   }
@@ -251,7 +252,7 @@ export class AgentLoop {
     let startStep = turn.steps;
 
     // 处理暂停恢复（含审批决策）
-    const pauseInfo = turn.metadata as unknown as PauseInfo | undefined;
+    const pauseInfo = turn.metadata?.pauseInfo as PauseInfo | undefined;
     if (pauseInfo) {
       if (messages.length !== pauseInfo.messageCount) {
         console.warn(`Message count mismatch: expected ${pauseInfo.messageCount}, got ${messages.length}`);
@@ -271,7 +272,7 @@ export class AgentLoop {
             deniedResults.push({
               callId: pendingCall.id, name: pendingCall.name,
               status: 'error', output: null,
-              error: '被用户拒绝',
+              error: 'Rejected by user',
             });
           }
         }
@@ -309,7 +310,7 @@ export class AgentLoop {
     stepContext: StepContext,
     signal: AbortSignal,
     traceSession: TurnTraceSession,
-    turnSpan: ReturnType<TurnTraceSession['startSpan']>,
+    turnSpan: Span,
     usage: UsageMetrics,
   ): Promise<TurnResult> {
 
@@ -384,7 +385,7 @@ export class AgentLoop {
 
       if (shouldPause && pauseInfo) {
         // 持久化暂停信息到 turn.metadata
-        await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps, metadata: { ...pauseInfo } });
+        await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps, metadata: { pauseInfo } });
         controller.enqueue({ type: 'turn-paused', reason: pauseInfo.reason, turnId: turn.id });
         return { finalStatus: 'paused', steps, usage };
       }
