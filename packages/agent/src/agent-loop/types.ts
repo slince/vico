@@ -22,6 +22,14 @@ export interface UsageMetrics {
   output: number;
 }
 
+/** runStepLoop 返回的 loop 执行结果 */
+export interface StepLoopResult {
+  finalStatus: 'completed' | 'aborted' | 'paused' | 'failed';
+  steps: number;
+  usage: UsageMetrics;
+  error?: Error | string;
+}
+
 /** 一次 turn 的执行结果 */
 export interface TurnResult {
   status: 'completed' | 'failed' | 'aborted' | 'interrupted' | 'paused';

@@ -1,5 +1,14 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {PauseInfo, RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession, UsageMetrics} from './types.js';
+import type {
+  PauseInfo,
+  RunTurnOptions,
+  Step,
+  StepLoopResult,
+  TurnEvent,
+  TurnResult,
+  TurnSession,
+  UsageMetrics
+} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import type {Thread, ThreadContext, Turn} from '../thread/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
@@ -317,7 +326,7 @@ export class AgentLoop {
   ): Promise<TurnResult> {
 
     const {session: {thread, turn}} = stepContext
-    let loopResult: Awaited<ReturnType<typeof this.runTurnLoop>> | undefined;
+    let loopResult: StepLoopResult | undefined;
 
     try {
       loopResult = await this.runTurnLoop(messages, startStep, controller, stepContext, signal);
@@ -374,14 +383,14 @@ export class AgentLoop {
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     stepContext: StepContext,
     signal: AbortSignal,
-  ): Promise<{ finalStatus: 'completed' | 'aborted' | 'paused'; steps: number; usage: UsageMetrics }> {
+  ): Promise<StepLoopResult> {
     const usage = { input: 0, output: 0 };
     let steps = startStep;
 
     const {session: {thread, turn}} = stepContext
     while (steps < this.agent.maxSteps && !signal.aborted) {
       const step: Step = { index: steps, threadId: thread.id, scopeId: stepContext.ctx.scopeId, signal };
-      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage } = await this.executeModelStep(step, messages, controller, stepContext);
+      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, messages, controller, stepContext);
       usage.input += stepUsage.input;
       usage.output += stepUsage.output;
 
@@ -392,7 +401,13 @@ export class AgentLoop {
         return { finalStatus: 'paused', steps, usage };
       }
 
-      if (shouldBreak) break;
+      if (shouldBreak) {
+        // 如果是因为模型错误 直接短路
+        if (!!error) {
+          return { finalStatus: 'failed', steps, usage, error };
+        }
+        break
+      }
       steps++;
     }
 
