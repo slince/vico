@@ -153,7 +153,7 @@ export class AgentLoop {
     // 检测未完结的 turn，自动恢复执行
     const latestTurn = await threadStore.getLatestTurn(threadId);
 
-    if (latestTurn && latestTurn.status === 'paused') {
+    if (latestTurn && latestTurn.status !== 'completed') {
       return this.startResume(
         thread, latestTurn, signal, controller,
         scopeId, workspace, options?.approvalDecisions, usage,
@@ -191,10 +191,10 @@ export class AgentLoop {
   }
 
 
-  /** 从暂停的 turn 恢复执行 */
+  /** 从未完结的 turn 恢复执行 */
   private async startResume(
     thread: Thread,
-    pausedTurn: Turn,
+    existingTurn: Turn,
     signal: AbortSignal,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
     scopeId: string,
@@ -203,11 +203,9 @@ export class AgentLoop {
     usage: { input: number; output: number },
   ): Promise<TurnResult> {
     const threadStore = this.agent.thread;
-    const pauseInfo = pausedTurn.metadata as unknown as PauseInfo | undefined;
-    if (!pauseInfo) throw new Error(`Turn ${pausedTurn.id} has no pause metadata`);
 
     // 加载该 turn 的 messages
-    const entries = await threadStore.getEntriesByTurn(pausedTurn.id);
+    const entries = await threadStore.getEntriesByTurn(existingTurn.id);
     const messages: ModelMessage[] = entries.map(e => {
       const msg: ModelMessage = { role: e.role as ModelMessage['role'], content: e.content };
       if (e.toolCallId) msg.toolCallId = e.toolCallId;
@@ -215,12 +213,8 @@ export class AgentLoop {
       return msg;
     });
 
-    if (messages.length !== pauseInfo.messageCount) {
-      console.warn(`Message count mismatch: expected ${pauseInfo.messageCount}, got ${messages.length}`);
-    }
-
     // 重建 session 和 context
-    const session: TurnSession = { workspace, thread, turn: pausedTurn };
+    const session: TurnSession = { workspace, thread, turn: existingTurn };
     const traceSession = this.tracer.startTurn(thread, { role: 'user', content: '[resume]' });
     const turnSpan = traceSession.startSpan('agent_resume');
     const toolApprovalState = new Map<string, boolean>();
@@ -236,41 +230,52 @@ export class AgentLoop {
 
     const stepContext: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
-    // 处理审批决策
-    if (pauseInfo.reason === 'tool-approval') {
-      const decisions = approvalDecisions ?? [];
-      const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
-      const approvedCalls: ToolCall[] = [];
-      const deniedResults: ToolResult[] = [];
+    let startStep = existingTurn.steps;
 
-      for (const pendingCall of pauseInfo.pendingToolCalls) {
-        const approved = decisionMap.get(pendingCall.id) ?? false;
-        if (approved) {
-          approvedCalls.push({ id: pendingCall.id, name: pendingCall.name, args: pendingCall.args as Record<string, unknown> });
-        } else {
-          deniedResults.push({
-            callId: pendingCall.id, name: pendingCall.name,
-            status: 'error', output: null,
-            error: '被用户拒绝',
-          });
+    // 处理暂停恢复（含审批决策）
+    const pauseInfo = existingTurn.metadata as unknown as PauseInfo | undefined;
+    if (pauseInfo) {
+      if (messages.length !== pauseInfo.messageCount) {
+        console.warn(`Message count mismatch: expected ${pauseInfo.messageCount}, got ${messages.length}`);
+      }
+
+      if (pauseInfo.reason === 'tool-approval') {
+        const decisions = approvalDecisions ?? [];
+        const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
+        const approvedCalls: ToolCall[] = [];
+        const deniedResults: ToolResult[] = [];
+
+        for (const pendingCall of pauseInfo.pendingToolCalls) {
+          const approved = decisionMap.get(pendingCall.id) ?? false;
+          if (approved) {
+            approvedCalls.push({ id: pendingCall.id, name: pendingCall.name, args: pendingCall.args as Record<string, unknown> });
+          } else {
+            deniedResults.push({
+              callId: pendingCall.id, name: pendingCall.name,
+              status: 'error', output: null,
+              error: '被用户拒绝',
+            });
+          }
         }
+
+        const step: Step = { index: pauseInfo.pausedAtStep, threadId: thread.id, scopeId, signal };
+        const toolResults: ToolResult[] = [];
+        if (approvedCalls.length > 0) {
+          toolResults.push(...await this.executeToolCalls(approvedCalls, session, step, traceSession));
+        }
+        toolResults.push(...deniedResults);
+
+        await this.appendToolResults(toolResults, messages, stepContext);
       }
 
-      const step: Step = { index: pauseInfo.pausedAtStep, threadId: thread.id, scopeId, signal };
-      const toolResults: ToolResult[] = [];
-      if (approvedCalls.length > 0) {
-        toolResults.push(...await this.executeToolCalls(approvedCalls, session, step, traceSession));
-      }
-      toolResults.push(...deniedResults);
-
-      await this.appendToolResults(toolResults, messages, stepContext);
+      startStep = pauseInfo.pausedAtStep + 1;
     }
 
     // 恢复 turn 状态为 running
-    await threadStore.updateTurn(pausedTurn.id, { status: 'running' });
+    await threadStore.updateTurn(existingTurn.id, { status: 'running' });
 
     return this.executeLoop(
-      messages, pauseInfo.pausedAtStep + 1, controller,
+      messages, startStep, controller,
       stepContext, signal, traceSession, turnSpan, usage,
     );
   }
