@@ -1,6 +1,6 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession, PauseInfo, ResumeTurnOptions} from './types.js';
-import type {ToolCall, ToolExecutionContext, ToolResult, ApprovalResolver} from '../tool/types.js';
+import type {PauseInfo, ResumeTurnOptions, RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
+import type {ApprovalResolver, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
@@ -54,7 +54,7 @@ export interface AgentLoopOptions {
 }
 
 /** executeModelStep / callModel 共享上下文 */
-interface StepSharedContext {
+interface StepContext {
   ctx: ModelRequestContext
   session: TurnSession;
   traceSession: TurnTraceSession;
@@ -184,7 +184,7 @@ export class AgentLoop {
     // 首轮消息包含（历史消息+当前消息）
     const messages: ModelMessage[] = [...requestContext.messages];
 
-    const shared: StepSharedContext = { ctx: requestContext, session, traceSession, toolApprovalState };
+    const shared: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
     return this.executeLoop(messages, 0, controller, shared, interrupted, signal, {
       threadStore,
@@ -200,7 +200,7 @@ export class AgentLoop {
     messages: ModelMessage[],
     startStep: number,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    shared: StepSharedContext,
+    shared: StepContext,
     interrupted: { value: boolean },
     signal: AbortSignal,
     config: { maxSteps: number; threadStore: ThreadStore; turn: Turn; threadId: string },
@@ -241,7 +241,7 @@ export class AgentLoop {
     messages: ModelMessage[],
     startStep: number,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    shared: StepSharedContext,
+    shared: StepContext,
     interrupted: { value: boolean },
     signal: AbortSignal,
     config: { threadStore: ThreadStore; turn: Turn; threadId: string },
@@ -405,7 +405,7 @@ export class AgentLoop {
     });
     await this.pipeline.enter(requestContext);
 
-    const shared: StepSharedContext = { ctx: requestContext, session, traceSession, toolApprovalState };
+    const shared: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
     // 6. 处理审批决策
     if (pauseInfo.reason === 'tool-approval') {
@@ -456,7 +456,7 @@ export class AgentLoop {
     step: Step,
     messages: ModelMessage[],
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    shared: StepSharedContext,
+    stepContext: StepContext,
   ): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
 
@@ -469,7 +469,7 @@ export class AgentLoop {
       return { shouldBreak: true, shouldPause: false, usage };
     }
 
-    const modelResult = await this.callModel(messages, step, controller, shared);
+    const modelResult = await this.callModel(messages, step, controller, stepContext);
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
@@ -481,8 +481,8 @@ export class AgentLoop {
       messages.push(assistantMsg);
 
       await this.agent.thread.appendEntry({
-        threadId: shared.session.thread.id,
-        turnId: shared.session.turn.id,
+        threadId: stepContext.session.thread.id,
+        turnId: stepContext.session.turn.id,
         role: assistantMsg.role,
         content: assistantMsg.content,
         toolCalls: assistantMsg.toolCalls,
@@ -496,7 +496,7 @@ export class AgentLoop {
 
     // 审批 + 执行 + 持久化
     const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(
-      modelResult.toolCalls, controller, shared,
+      modelResult.toolCalls, controller, stepContext,
     );
 
     // 有待审批的工具 → 暂停 turn
@@ -514,11 +514,11 @@ export class AgentLoop {
 
     const toolResults: ToolResult[] = [];
     if (approvedCalls.length > 0) {
-      toolResults.push(...await this.executeToolCalls(approvedCalls, shared.session, step, shared.traceSession));
+      toolResults.push(...await this.executeToolCalls(approvedCalls, stepContext.session, step, stepContext.traceSession));
     }
     toolResults.push(...deniedResults);
 
-    await this.appendToolResults(toolResults, messages, shared);
+    await this.appendToolResults(toolResults, messages, stepContext);
 
     this.emit({ type: 'step-end', step: step.index + 1 });
     return { shouldBreak: false, shouldPause: false, usage };
@@ -530,7 +530,7 @@ export class AgentLoop {
   private async resolveToolApprovals(
     toolCalls: ToolCall[],
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    shared: StepSharedContext,
+    stepContext: StepContext,
   ): Promise<ApprovalClassification> {
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
@@ -540,8 +540,8 @@ export class AgentLoop {
       const tool = this.toolBroker.findTool(call.name);
       const policy = tool?.policy ?? 'auto';
 
-      const isFirstUse = !shared.toolApprovalState.has(call.name);
-      const wasApproved = shared.toolApprovalState.get(call.name) ?? false;
+      const isFirstUse = !stepContext.toolApprovalState.has(call.name);
+      const wasApproved = stepContext.toolApprovalState.get(call.name) ?? false;
 
       // 工具未注册 → 直接拒绝
       if (!tool) {
@@ -559,7 +559,7 @@ export class AgentLoop {
       });
 
       if (decision.approved) {
-        shared.toolApprovalState.set(call.name, true);
+        stepContext.toolApprovalState.set(call.name, true);
         approvedCalls.push(call);
         continue;
       }
@@ -601,7 +601,7 @@ export class AgentLoop {
   private async appendToolResults(
     toolResults: ToolResult[],
     messages: ModelMessage[],
-    shared: StepSharedContext,
+    shared: StepContext,
   ): Promise<void> {
     for (const r of toolResults) {
       const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
@@ -648,9 +648,9 @@ export class AgentLoop {
     messages: ReadonlyArray<ModelMessage>,
     step: Step,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    shared: StepSharedContext,
+    stepContext: StepContext,
   ): Promise<CallModelResult> {
-    const { ctx, traceSession } = shared;
+    const { ctx, traceSession } = stepContext;
     const modelUsage = { input: 0, output: 0 };
 
     const request: ModelRequest = {
