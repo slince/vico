@@ -149,12 +149,26 @@ export class AgentLoop {
 
     // 检测未完结的 turn，自动恢复执行
     const latestTurn = await threadStore.getLatestTurn(threadId);
-
     if (latestTurn && latestTurn.status !== 'completed') {
-      return this.startResume({thread, turn: latestTurn, signal, controller, options, usage});
+      return this.startResumeTurn({thread, turn: latestTurn, signal, controller, options, usage});
     }
-
+    
     // ── 正常新 turn ──
+    return this.startNewTurn({ thread, threadId, userMessage, signal, controller, options, usage });
+  }
+
+  /** 创建新的 turn 并开始执行 */
+  private async startNewTurn(params: {
+    thread: Thread;
+    threadId: string;
+    userMessage: ModelMessage;
+    signal: AbortSignal;
+    controller: ReadableStreamDefaultController<ModelStreamChunk>;
+    options?: RunTurnOptions;
+    usage: { input: number; output: number };
+  }): Promise<TurnResult> {
+    const { thread, threadId, userMessage, signal, controller, options, usage } = params;
+    const threadStore = this.agent.thread;
     const turn = await threadStore.createTurn(threadId);
     const session: TurnSession = { ...options, thread, turn };
 
@@ -184,9 +198,8 @@ export class AgentLoop {
     return this.executeLoop(messages, 0, controller, stepContext, signal, traceSession, turnSpan, usage);
   }
 
-
   /** 从未完结的 turn 恢复执行 */
-  private async startResume(params: {
+  private async startResumeTurn(params: {
     thread: Thread;
     turn: Turn;
     signal: AbortSignal;
