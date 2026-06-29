@@ -1,6 +1,15 @@
 // @vico/agent - Thread module type definitions
 import type { ModelMessage } from '../model/types.js';
 
+/** 线程上下文参数，可携带 userId/scopeId/workspace 及任意自定义字段 */
+export interface ThreadContext {
+  userId?: string;
+  scopeId?: string;
+  workspace?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 /** 会话线程 */
 export interface Thread {
   id: string;
@@ -44,7 +53,7 @@ export interface ThreadStore {
   /** Thread 操作 */
 
   /** 创建新线程 */
-  createThread(agentId: string, title: string, id: string, opts?: { userId?: string; metadata?: Record<string, unknown> }): Promise<Thread>;
+  createThread(agentId: string, title: string, id: string, opts?: ThreadContext): Promise<Thread>;
   /** 获取线程详情 */
   getThread(threadId: string): Promise<Thread | undefined>;
   /** 列出线程（可按 agentId / userId 筛选） */

@@ -1,5 +1,5 @@
 /** src/thread/memory-thread-store.ts */
-import type { ThreadStore, Thread, Turn, Message } from './types.js';
+import type { ThreadStore, Thread, Turn, Message, ThreadContext } from './types.js';
 /** 内存版 ThreadStore — 所有数据存于 Map，进程重启后丢失 */
 export class InMemoryThreadStore implements ThreadStore {
   private threads: Map<string, Thread> = new Map();
@@ -8,7 +8,7 @@ export class InMemoryThreadStore implements ThreadStore {
 
   // Thread 操作
 
-  async createThread(agentId: string, title: string, id: string, opts?: { userId?: string; metadata?: Record<string, unknown> }): Promise<Thread> {
+  async createThread(agentId: string, title: string, id: string, opts?: ThreadContext): Promise<Thread> {
     const now = Date.now();
     const thread: Thread = {
       id,

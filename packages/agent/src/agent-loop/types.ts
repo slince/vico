@@ -42,9 +42,12 @@ export interface PauseInfo {
 
 /** 一次 turn 的会话标识，贯穿 model 调用和工具执行 */
 export interface TurnSession {
-  workspace: string;
+  workspace?: string;
   thread: Thread;
   turn: Turn;
+  scopeId?: string;
+  /** 自定义元数据（JSON 可序列化），写入 thread.metadata */
+  metadata?: Record<string, unknown>;
 }
 
 /** runTurn 选项 */
@@ -54,6 +57,8 @@ export interface RunTurnOptions {
   scopeId?: string;
   userId?: string;
   workspace?: string;
+  /** 自定义元数据（JSON 可序列化），写入 thread.metadata */
+  metadata?: Record<string, unknown>;
   /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
   approvalDecisions?: ToolApproval[];
 }
@@ -70,7 +75,7 @@ export interface Step {
   /** 所属 thread */
   threadId: string;
   /** 执行作用域 */
-  scopeId: string;
+  scopeId?: string;
   /** 中断信号 */
   signal: AbortSignal;
 }

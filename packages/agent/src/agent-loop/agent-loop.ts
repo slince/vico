@@ -1,7 +1,7 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {PauseInfo, RunTurnOptions, Step, ToolApproval, TurnEvent, TurnResult, TurnSession} from './types.js';
+import type {PauseInfo, RunTurnOptions, Step, TurnEvent, TurnResult, TurnSession} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
-import type {Thread, Turn} from '../thread/types.js';
+import type {Thread, ThreadContext, Turn} from '../thread/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
@@ -137,9 +137,6 @@ export class AgentLoop {
     const { userMessage, signal, controller, options } = ctx;
     const threadId = options?.threadId ?? `${this.agent.id}-${Date.now()}`;
     const usage = { input: 0, output: 0 };
-    const scopeId = options?.scopeId ?? '';
-    const userId = options?.userId ?? '';
-    const workspace = options?.workspace ?? '';
 
     const threadStore = this.agent.thread;
 
@@ -147,22 +144,19 @@ export class AgentLoop {
     let thread = await threadStore.getThread(threadId);
     if (!thread) {
       const title = userMessage.content.slice(0, 50);
-      thread = await threadStore.createThread(this.agent.id, title, threadId, { userId: userId || undefined });
+      thread = await threadStore.createThread(this.agent.id, title, threadId, options as ThreadContext);
     }
 
     // 检测未完结的 turn，自动恢复执行
     const latestTurn = await threadStore.getLatestTurn(threadId);
 
     if (latestTurn && latestTurn.status !== 'completed') {
-      return this.startResume(
-        thread, latestTurn, signal, controller,
-        scopeId, workspace, options?.approvalDecisions, usage,
-      );
+      return this.startResume({thread, turn: latestTurn, signal, controller, options, usage});
     }
 
     // ── 正常新 turn ──
     const turn = await threadStore.createTurn(threadId);
-    const session: TurnSession = { workspace, thread, turn };
+    const session: TurnSession = { ...options, thread, turn };
 
     const traceSession = this.tracer.startTurn(thread, userMessage);
     const turnSpan = traceSession.startSpan('agent_run');
@@ -173,7 +167,7 @@ export class AgentLoop {
       userMessage,
       tools: [...this.agent.tools],
       thread,
-      scopeId,
+      scopeId: options?.scopeId,
     });
     await this.pipeline.enter(requestContext);
 
@@ -192,20 +186,19 @@ export class AgentLoop {
 
 
   /** 从未完结的 turn 恢复执行 */
-  private async startResume(
-    thread: Thread,
-    existingTurn: Turn,
-    signal: AbortSignal,
-    controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    scopeId: string,
-    workspace: string,
-    approvalDecisions: ToolApproval[] | undefined,
-    usage: { input: number; output: number },
-  ): Promise<TurnResult> {
+  private async startResume(params: {
+    thread: Thread;
+    turn: Turn;
+    signal: AbortSignal;
+    controller: ReadableStreamDefaultController<ModelStreamChunk>;
+    options?: RunTurnOptions;
+    usage: { input: number; output: number };
+  }): Promise<TurnResult> {
+    const { thread, turn, signal, controller, options, usage } = params;
     const threadStore = this.agent.thread;
 
     // 加载该 turn 的 messages
-    const entries = await threadStore.getEntriesByTurn(existingTurn.id);
+    const entries = await threadStore.getEntriesByTurn(turn.id);
     const messages: ModelMessage[] = entries.map(e => {
       const msg: ModelMessage = { role: e.role as ModelMessage['role'], content: e.content };
       if (e.toolCallId) msg.toolCallId = e.toolCallId;
@@ -213,8 +206,10 @@ export class AgentLoop {
       return msg;
     });
 
+    const {scopeId, workspace, approvalDecisions} = options || {}
+
     // 重建 session 和 context
-    const session: TurnSession = { workspace, thread, turn: existingTurn };
+    const session: TurnSession = { workspace, thread, turn: turn };
     const traceSession = this.tracer.startTurn(thread, { role: 'user', content: '[resume]' });
     const turnSpan = traceSession.startSpan('agent_resume');
     const toolApprovalState = new Map<string, boolean>();
@@ -230,10 +225,10 @@ export class AgentLoop {
 
     const stepContext: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
-    let startStep = existingTurn.steps;
+    let startStep = turn.steps;
 
     // 处理暂停恢复（含审批决策）
-    const pauseInfo = existingTurn.metadata as unknown as PauseInfo | undefined;
+    const pauseInfo = turn.metadata as unknown as PauseInfo | undefined;
     if (pauseInfo) {
       if (messages.length !== pauseInfo.messageCount) {
         console.warn(`Message count mismatch: expected ${pauseInfo.messageCount}, got ${messages.length}`);
@@ -272,7 +267,7 @@ export class AgentLoop {
     }
 
     // 恢复 turn 状态为 running
-    await threadStore.updateTurn(existingTurn.id, { status: 'running' });
+    await threadStore.updateTurn(turn.id, { status: 'running' });
 
     return this.executeLoop(
       messages, startStep, controller,

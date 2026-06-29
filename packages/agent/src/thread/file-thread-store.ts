@@ -1,5 +1,5 @@
 /** src/thread/file-thread-store.ts */
-import type { ThreadStore, Thread, Turn, Message } from './types.js';
+import type { ThreadStore, Thread, Turn, Message, ThreadContext } from './types.js';
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -61,7 +61,7 @@ export class FileThreadStore implements ThreadStore {
 
   // Thread 操作
 
-  async createThread(agentId: string, title: string, id: string, opts?: { userId?: string; metadata?: Record<string, unknown> }): Promise<Thread> {
+  async createThread(agentId: string, title: string, id: string, opts?: ThreadContext): Promise<Thread> {
     await this.ensureDirs();
     const now = Date.now();
     const thread: Thread = {
