@@ -326,52 +326,55 @@ export class AgentLoop {
   ): Promise<TurnResult> {
 
     const {session: {thread, turn}} = stepContext
-    let loopResult: StepLoopResult | undefined;
+    const loopResult: StepLoopResult  = await this.runTurnLoop(messages, startStep, controller, stepContext, signal);
+    usage.input += loopResult.usage.input;
+    usage.output += loopResult.usage.output;
 
-    try {
-      loopResult = await this.runTurnLoop(messages, startStep, controller, stepContext, signal);
-      usage.input += loopResult.usage.input;
-      usage.output += loopResult.usage.output;
-
-      // 暂停时跳过正常 finalize
-      if (loopResult.finalStatus === 'paused') {
-        turnSpan.end({ status: 'paused', steps: loopResult.steps });
-        const pausedResult: TurnResult = {
-          status: 'paused', steps: loopResult.steps, usage, messages, turnId: turn.id, threadId: thread.id,
-        };
-        await this.tracer.finish(traceSession, pausedResult);
-        return pausedResult;
-      }
-
-      await this.pipeline.leave(stepContext.ctx);
-
-      const finalStatus = loopResult.finalStatus === 'aborted' ? 'aborted' : 'completed';
-      await this.agent.thread.updateTurn(turn.id, { status: finalStatus, steps: loopResult.steps });
-
-      turnSpan.end({ status: 'completed', steps: loopResult.steps });
-      this.emit({ type: 'done', usage });
-
-      const finalResult: TurnResult = {
-        status: loopResult.finalStatus === 'aborted'
-          ? (signal.aborted ? 'interrupted' : 'aborted')
-          : 'completed',
-        steps: loopResult.steps,
-        usage,
-        messages,
-        turnId: turn.id,
-        threadId: thread.id,
+    // 暂停时跳过正常 finalize
+    if (loopResult.finalStatus === 'paused') {
+      turnSpan.end({ status: 'paused', steps: loopResult.steps });
+      const pausedResult: TurnResult = {
+        status: 'paused', steps: loopResult.steps, usage, messages, turnId: turn.id, threadId: thread.id,
       };
-      await this.tracer.finish(traceSession, finalResult);
-      return finalResult;
-    } catch (err) {
-      await this.agent.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult?.steps ?? startStep });
-      turnSpan.error(err as Error);
+      await this.tracer.finish(traceSession, pausedResult);
+      return pausedResult;
+    }
+
+    await this.pipeline.leave(stepContext.ctx);
+
+    // 模型错误导致的失败
+    if (loopResult.finalStatus === 'failed') {
+      const err = loopResult.error!;
+      await this.agent.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
+      turnSpan.error(err instanceof Error ? err : new Error(String(err)));
+      this.emit({ type: 'error', error: err });
+
       const failResult: TurnResult = {
-        status: 'failed', steps: loopResult?.steps ?? startStep, usage, messages, turnId: turn.id, threadId: thread.id,
+        status: 'failed', steps: loopResult.steps, usage, messages,
+        turnId: turn.id, threadId: thread.id, error: loopResult.error,
       };
       await this.tracer.finish(traceSession, failResult);
-      throw err;
+      return failResult;
     }
+
+    const finalStatus = loopResult.finalStatus === 'aborted' ? 'aborted' : 'completed';
+    await this.agent.thread.updateTurn(turn.id, { status: finalStatus, steps: loopResult.steps });
+
+    turnSpan.end({ status: 'completed', steps: loopResult.steps });
+    this.emit({ type: 'done', usage });
+
+    const finalResult: TurnResult = {
+      status: loopResult.finalStatus === 'aborted'
+        ? (signal.aborted ? 'interrupted' : 'aborted')
+        : 'completed',
+      steps: loopResult.steps,
+      usage,
+      messages,
+      turnId: turn.id,
+      threadId: thread.id,
+    };
+    await this.tracer.finish(traceSession, finalResult);
+    return finalResult;
   }
 
   /**

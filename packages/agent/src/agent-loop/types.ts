@@ -40,6 +40,8 @@ export interface TurnResult {
   turnId?: string;
   /** 所属 thread ID */
   threadId?: string;
+  /** 错误信息（status 为 failed 时） */
+  error?: Error | string;
 }
 
 /** turn 暂停原因及恢复所需信息 */
