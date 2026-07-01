@@ -1,25 +1,21 @@
-import { useMemo, useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/hooks/useAuth';
-import { cn } from '@/lib/utils';
+import {useEffect, useMemo, useState} from 'react';
+import {NavLink} from 'react-router-dom';
+import {useTranslation} from 'react-i18next';
+import {useAuth} from '@/hooks/useAuth';
+import {cn} from '@/lib/utils';
 import {
-  LayoutDashboard,
   Bot,
-  Puzzle,
-  MessageSquare,
-  MessageCircle,
   Database,
-  Settings,
+  LayoutDashboard,
   LogOut,
-  Users,
+  MessageCircle,
+  MessageSquare,
   PanelLeft,
+  Puzzle,
+  Settings,
+  Users,
 } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import {Tooltip, TooltipContent, TooltipTrigger,} from '@/components/ui/tooltip';
 
 const STORAGE_KEY = 'sidebar_collapsed';
 
@@ -85,17 +81,17 @@ export function Sidebar() {
               to={to}
               className={({ isActive }) =>
                 cn(
-                  'rounded-md text-sm transition-colors cursor-pointer',
+                  'text-sm transition-colors cursor-pointer',
                   collapsed
-                    ? 'flex items-center justify-center h-10 w-10 p-0'
-                    : 'flex items-center gap-3 px-3 py-2',
+                    ? 'flex items-center justify-center h-10 w-10 rounded-lg'
+                    : 'flex items-center gap-3 px-3 py-2 rounded-md',
                   isActive
                     ? 'bg-black/5 dark:bg-white/5 text-sidebar-accent-foreground font-medium'
                     : 'text-sidebar-foreground hover:bg-black/5 dark:hover:bg-white/5',
                 )
               }
             >
-              <Icon size={18} className="shrink-0" />
+              <Icon size={18} className="shrink-0 block" />
               {!collapsed && label}
             </NavLink>
           );
