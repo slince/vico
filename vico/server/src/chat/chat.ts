@@ -38,7 +38,7 @@ function resolveFileTools(
       const entry = builtinToolsConfig[tool.name];
       if (entry === undefined) return true; // 未配置，默认启用
       if (typeof entry === 'boolean') return entry;
-      return entry.enabled !== false;
+      return entry.enabled;
     })
     .map((tool) => {
       const entry = builtinToolsConfig[tool.name];

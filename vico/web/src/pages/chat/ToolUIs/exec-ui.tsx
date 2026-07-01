@@ -39,7 +39,7 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<
   }
 
   // 需要审批
-  if (status.type === 'requires-action' || status.type === 'running') {
+  if (status.type === 'requires-action') {
     return (
       <ToolApprovalCard
         toolName="Exec"
@@ -52,6 +52,21 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<
           {command}
         </pre>
       </ToolApprovalCard>
+    );
+  }
+
+  // 执行中
+  if (status.type === 'running') {
+    return (
+      <div className="border rounded-lg p-3 my-2 bg-muted/30 animate-pulse">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Terminal size={16} />
+          <span>Executing command...</span>
+        </div>
+        <pre className="text-xs bg-background p-2 rounded border mt-1 overflow-x-auto whitespace-pre-wrap break-all max-h-32">
+          {command}
+        </pre>
+      </div>
     );
   }
 
