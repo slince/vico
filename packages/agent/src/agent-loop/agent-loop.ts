@@ -702,6 +702,7 @@ export class AgentLoop {
 
           case 'error':
             controller.enqueue(chunk);
+            console.log("error chunk", chunk);
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
             modelSpan.error(err);
             this.emit({ type: 'error', error: err });
@@ -711,6 +712,7 @@ export class AgentLoop {
           // stream-start/response-metadata/raw：内部使用
         }
     }
+    console.log("error chunk", fullText);
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 

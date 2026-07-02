@@ -2,11 +2,11 @@
  * TurnOutput 流（ModelStreamChunk）→ AI SDK UI 流（UIStreamChunk）转换。
  * ModelStreamChunk 来自 AI SDK provider 层，UIStreamChunk 供 @assistant-ui/react 消费。
  */
-import { createSSEResponse } from './sse.js';
-import type { UIStreamChunk } from './types.js';
-import type { TurnResult } from '../agent-loop/types.js';
-import type { TurnOutput } from '../agent-loop/turn-output.js';
-import type { ModelStreamChunk } from '../model/types.js';
+import {createSSEResponse} from './sse.js';
+import type {UIStreamChunk} from './types.js';
+import type {TurnResult} from '../agent-loop/types.js';
+import type {TurnOutput} from '../agent-loop/turn-output.js';
+import type {ModelStreamChunk} from '../model/types.js';
 
 /**
  * TurnOutput 流（ModelStreamChunk）→ AI SDK UI 流（UIStreamChunk）转换。
@@ -166,13 +166,11 @@ export async function turnEventsToAISDK(
     },
   });
 
-  const response = createSSEResponse(
+  return createSSEResponse(
     stream,
     {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     },
   );
-
-  return response;
 }
