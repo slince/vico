@@ -1,6 +1,6 @@
 // @vico/agent - 将 Vico ToolDescriptor[] 转换为 LanguageModelV3FunctionTool[]
-import type { LanguageModelV3FunctionTool } from '@ai-sdk/provider';
-import type { ToolDescriptor } from './types.js';
+import type {LanguageModelV3FunctionTool} from '@ai-sdk/provider';
+import type {ToolDescriptor} from './types.js';
 
 /**
  * 将 Vico 的 ToolDescriptor[] 转换为 provider 层的 LanguageModelV3FunctionTool[]。
@@ -8,7 +8,7 @@ import type { ToolDescriptor } from './types.js';
  * @param tools - Vico 工具描述符数组
  * @returns provider 层函数工具数组
  */
-export function convertTools(tools: ToolDescriptor[]): LanguageModelV3FunctionTool[] {
+export function convertTools(tools: ReadonlyArray<ToolDescriptor>): LanguageModelV3FunctionTool[] {
   return tools.map(t => ({
     type: 'function' as const,
     name: t.name,

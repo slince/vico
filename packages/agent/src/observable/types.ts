@@ -17,7 +17,7 @@ export interface Span {
   /** 正常结束 Span，可附带结果 */
   end(result?: Record<string, unknown>): void;
   /** 以错误结束 Span */
-  error(error: Error): void;
+  error(error: Error|string): void;
 }
 
 /** Span 内部状态（导出给 trace 模块使用） */

@@ -703,7 +703,7 @@ export class AgentLoop {
           case 'error':
             controller.enqueue(chunk);
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            modelSpan.error(err instanceof Error ? err : new Error(err));
+            modelSpan.error(err);
             this.emit({ type: 'error', error: err });
             const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: err };
             traceSession.recordModelResponse(step, errorResult);

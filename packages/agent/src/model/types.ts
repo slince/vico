@@ -34,8 +34,8 @@ export interface ToolDescriptor {
 /** ModelClient.stream() 调用参数 */
 export interface ModelRequest {
   system: string;
-  messages: ReadonlyArray<ModelMessage>;
-  tools: ReadonlyArray<ToolDescriptor>;
+  messages: ReadonlyArray<ModelMessage> | ModelMessage[];
+  tools?: ReadonlyArray<ToolDescriptor> | ToolDescriptor[];
   maxOutputTokens?: number;
   temperature?: number;
   abortSignal?: AbortSignal;

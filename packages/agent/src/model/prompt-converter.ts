@@ -1,12 +1,12 @@
 // @vico/agent - 将内部 ModelMessage[] 转换为 LanguageModelV3Prompt
 import type {
-  LanguageModelV3Prompt,
   LanguageModelV3Message,
+  LanguageModelV3Prompt,
   LanguageModelV3TextPart,
   LanguageModelV3ToolCallPart,
   LanguageModelV3ToolResultPart,
 } from '@ai-sdk/provider';
-import type { ModelMessage } from './types.js';
+import type {ModelMessage} from './types.js';
 
 /**
  * 将 Vico 的 ModelMessage[] 转换为 provider 层的 LanguageModelV3Prompt。
@@ -17,7 +17,7 @@ import type { ModelMessage } from './types.js';
  * @param system - 可选的系统提示词
  * @returns provider 层提示词格式
  */
-export function convertToPrompt(messages: ModelMessage[], system?: string): LanguageModelV3Prompt {
+export function convertToPrompt(messages: ReadonlyArray<ModelMessage>, system?: string): LanguageModelV3Prompt {
   const prompt: LanguageModelV3Prompt = [];
 
   if (system) {
