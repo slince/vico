@@ -643,6 +643,7 @@ export class AgentLoop {
     traceSession.recordModelRequest(step, request);
 
     try {
+      console.log("model request", request)
       const { stream } = await this.agent.modelClient.stream({
         ...request,
         abortSignal: step.signal,
