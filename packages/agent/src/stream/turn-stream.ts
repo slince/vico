@@ -118,10 +118,6 @@ export async function turnOutputToSSEResponse(
               case 'finish':
                 break;
 
-              case 'turn-paused':
-                enqueue({ type: 'data-turn-paused', data: { reason: c.reason, turnId: c.turnId } });
-                break;
-
               case 'error':
                 const errMsg = c.error instanceof Error ? c.error.message : String(c.error);
                 enqueue({ type: 'error', errorText: errMsg });
@@ -152,14 +148,6 @@ export async function turnOutputToSSEResponse(
         };
         await options?.onFinish?.(finish, fullText);
         enqueue(finish);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          enqueue({ type: 'abort' });
-          enqueue({ type: 'finish', finishReason: 'error' });
-        } else {
-          const message = err instanceof Error ? err.message : String(err);
-          enqueue({ type: 'error', errorText: message });
-        }
       } finally {
         controller.close();
       }

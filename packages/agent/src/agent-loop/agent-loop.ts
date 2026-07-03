@@ -400,7 +400,6 @@ export class AgentLoop {
       if (shouldPause && pauseInfo) {
         // 持久化暂停信息到 turn.metadata
         await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps, metadata: { pauseInfo } });
-        controller.enqueue({ type: 'turn-paused', reason: pauseInfo.reason, turnId: turn.id });
         return { finalStatus: 'paused', steps, usage };
       }
 
@@ -685,10 +684,6 @@ export class AgentLoop {
             break;
 
           case 'tool-approval-request':
-            controller.enqueue(chunk);
-            break;
-
-          case 'turn-paused':
             controller.enqueue(chunk);
             break;
 
