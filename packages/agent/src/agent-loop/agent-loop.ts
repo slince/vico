@@ -641,79 +641,85 @@ export class AgentLoop {
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
     traceSession.recordModelRequest(step, request);
 
-    console.log("model request", request);
+    try {
+      const { stream } = await this.agent.modelClient.stream({
+        ...request,
+        abortSignal: step.signal,
+      });
 
-    const { stream } = await this.agent.modelClient.stream({
-      ...request,
-      abortSignal: step.signal,
-    });
+      for await (const chunk of stream) {
+        switch (chunk.type) {
+            case 'text-start':
+            case 'text-end':
+            case 'tool-input-start':
+            case 'tool-input-delta':
+            case 'tool-input-end':
+            case 'tool-result':
+            case 'file':
+            case 'source':
+              controller.enqueue(chunk);
+              break;
 
-    for await (const chunk of stream) {
-      switch (chunk.type) {
-          case 'text-start':
-          case 'text-end':
-          case 'tool-input-start':
-          case 'tool-input-delta':
-          case 'tool-input-end':
-          case 'tool-result':
-          case 'file':
-          case 'source':
-            controller.enqueue(chunk);
-            break;
+            case 'text-delta':
+              controller.enqueue(chunk);
+              fullText += chunk.delta;
+              this.emit({ type: 'text-delta', content: chunk.delta });
+              break;
 
-          case 'text-delta':
-            controller.enqueue(chunk);
-            fullText += chunk.delta;
-            this.emit({ type: 'text-delta', content: chunk.delta });
-            break;
+            case 'reasoning-start':
+            case 'reasoning-end':
+              controller.enqueue(chunk);
+              break;
 
-          case 'reasoning-start':
-          case 'reasoning-end':
-            controller.enqueue(chunk);
-            break;
+            case 'reasoning-delta':
+              controller.enqueue(chunk);
+              this.emit({ type: 'reasoning-delta', content: chunk.delta });
+              break;
 
-          case 'reasoning-delta':
-            controller.enqueue(chunk);
-            this.emit({ type: 'reasoning-delta', content: chunk.delta });
-            break;
+            case 'tool-call':
+              controller.enqueue(chunk);
+              toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+              this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+              break;
 
-          case 'tool-call':
-            controller.enqueue(chunk);
-            toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
-            this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
-            break;
+            case 'tool-approval-request':
+              controller.enqueue(chunk);
+              break;
 
-          case 'tool-approval-request':
-            controller.enqueue(chunk);
-            break;
+            case 'finish':
+              controller.enqueue(chunk);
+              if (chunk.usage) {
+                modelUsage.input = chunk.usage.inputTokens.total ?? 0;
+                modelUsage.output = chunk.usage.outputTokens.total ?? 0;
+              }
+              break;
 
-          case 'finish':
-            controller.enqueue(chunk);
-            if (chunk.usage) {
-              modelUsage.input = chunk.usage.inputTokens.total ?? 0;
-              modelUsage.output = chunk.usage.outputTokens.total ?? 0;
-            }
-            break;
+            case 'error':
+              controller.enqueue(chunk);
+              const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
+              modelSpan.error(err);
+              this.emit({ type: 'error', error: err });
+              traceSession.recordModelResponse(step, { text: fullText, toolCalls, usage: modelUsage, error: err });
+              return { text: fullText, toolCalls, usage: modelUsage, error: err };
+            // stream-start/response-metadata/raw：内部使用
+          }
+      }
 
-          case 'error':
-            controller.enqueue(chunk);
-            console.log("error chunk", chunk);
-            const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            modelSpan.error(err);
-            this.emit({ type: 'error', error: err });
-            const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: err };
-            traceSession.recordModelResponse(step, errorResult);
-            return errorResult;
-          // stream-start/response-metadata/raw：内部使用
-        }
+      modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
+
+      const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
+      traceSession.recordModelResponse(step, result);
+      return result;
+    } catch (err) {
+      
+      const error = err instanceof Error ? err : String(err);
+      controller.enqueue({type: 'error', error: error});
+      modelSpan.error(error);
+      this.emit({ type: 'error', error: error });
+      const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: error };
+      traceSession.recordModelResponse(step, errorResult);
+      return errorResult;
     }
-    console.log("error chunk", fullText);
-
-    modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
-
-    const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
-    traceSession.recordModelResponse(step, result);
-    return result;
   }
 
   /**
