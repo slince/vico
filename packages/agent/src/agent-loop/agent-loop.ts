@@ -232,15 +232,6 @@ export class AgentLoop {
       return msg;
     });
 
-    // 将新的用户消息追加到消息列表并持久化
-    messages.push(userMessage);
-    await threadStore.appendEntry({
-      threadId: thread.id,
-      turnId: turn.id,
-      role: userMessage.role,
-      content: userMessage.content,
-    });
-
     const {scopeId, workspace, approvalDecisions} = options || {}
 
     // 重建 session 和 context
@@ -262,7 +253,8 @@ export class AgentLoop {
 
     let startStep = turn.steps;
 
-    // 处理暂停恢复（含审批决策）
+    // 处理暂停恢复（含审批决策）—— 必须在追加用户消息之前，
+    // 确保 tool_result 紧跟在 assistant(toolCalls) 之后，否则模型 API 会拒绝请求
     const pauseInfo = turn.metadata?.pauseInfo as PauseInfo | undefined;
     if (pauseInfo) {
       if (messages.length !== pauseInfo.messageCount) {
@@ -300,6 +292,15 @@ export class AgentLoop {
 
       startStep = pauseInfo.pausedAtStep + 1;
     }
+
+    // 工具结果追加完毕后再追加用户消息，保证顺序正确
+    messages.push(userMessage);
+    await threadStore.appendEntry({
+      threadId: thread.id,
+      turnId: turn.id,
+      role: userMessage.role,
+      content: userMessage.content,
+    });
 
     // 恢复 turn 状态为 running
     await threadStore.updateTurn(turn.id, { status: 'running' });
@@ -711,7 +712,7 @@ export class AgentLoop {
       traceSession.recordModelResponse(step, result);
       return result;
     } catch (err) {
-      
+      console.log("call model error", err);
       const error = err instanceof Error ? err : String(err);
       controller.enqueue({type: 'error', error: error});
       modelSpan.error(error);
