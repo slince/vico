@@ -172,7 +172,7 @@ export { type TurnResult, type TurnEvent, type RunTurnOptions, type ToolApproval
 export { TokenEconomy } from './agent-loop/token-economy.js';
 
 // Stream
-export { turnEventsToAISDK } from './stream/turn-stream.js';
+export { turnOutputToSSEResponse } from './stream/turn-stream.js';
 
 // Container
 export {

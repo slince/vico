@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { executeAgentChat } from '../chat/chat.js';
-import { turnEventsToAISDK, type ToolApproval } from '@vico/agent';
+import { turnOutputToSSEResponse, type ToolApproval } from '@vico/agent';
 import logger from '../lib/logger.js';
 
 /** AI SDK transport message part 类型 */
@@ -74,7 +74,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         approvalDecisions,
       });
 
-      return turnEventsToAISDK(stream, {
+      return turnOutputToSSEResponse(stream, {
         onFinish: (finish) => {
           finish.messageMetadata = { threadId };
         },
@@ -110,7 +110,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         approvalDecisions,
       });
 
-      return turnEventsToAISDK(stream, {
+      return turnOutputToSSEResponse(stream, {
         onFinish: (finish) => {
           finish.messageMetadata = { threadId };
         },

@@ -15,7 +15,7 @@ import type {ModelStreamChunk} from '../model/types.js';
  * @param options - 可选配置，包含 onFinish 回调
  * @returns SSE 格式的 Response 对象
  */
-export async function turnEventsToAISDK(
+export async function turnOutputToSSEResponse(
   output: TurnOutput,
   options?: { onFinish?: (finish: Extract<UIStreamChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },
 ): Promise<Response> {
