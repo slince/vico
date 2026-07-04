@@ -59,7 +59,7 @@ export interface CallModelResult {
 }
 
 /** executeModelStep / callModel 共享上下文 */
-export interface StepContext {
+export interface TurnContext {
   ctx: ModelRequestContext
   session: TurnSession;
   traceSession: TurnTraceSession;
@@ -201,9 +201,9 @@ export class AgentLoop {
     });
 
     const messages: ModelMessage[] = [...requestContext.messages];
-    const stepContext: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
+    const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
-    return this.startTurnLoop(messages, 0, controller, stepContext, signal, traceSession, turnSpan, usage);
+    return this.startTurnLoop(messages, 0, controller, turnContext, signal, traceSession, turnSpan, usage);
   }
 
   /** 从未完结的 turn 恢复执行，携带新的用户消息 */
@@ -245,7 +245,7 @@ export class AgentLoop {
     });
     await this.pipeline.enter(requestContext);
 
-    const stepContext: StepContext = { ctx: requestContext, session, traceSession, toolApprovalState };
+    const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState };
 
     let startStep = turn.steps;
 
@@ -257,12 +257,12 @@ export class AgentLoop {
 
     if (pauseInfo) {
       // 路径 A：有 pauseInfo → 标准暂停恢复流程
-      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions, messages, stepContext, scopeId, signal);
+      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions, messages, turnContext, scopeId, signal);
       startStep = pauseInfo.pausedAtStep + 1;
     } else {
       // 路径 B：无 pauseInfo → 愈合模式，补齐缺失的 tool_result
       const healResult = await this.healTurnMessages(
-        messages, controller, stepContext, thread, turn, scopeId, signal, startStep, usage,
+        messages, controller, turnContext, thread, turn, scopeId, signal, startStep, usage,
       );
       if (healResult) return healResult;
     }
@@ -281,7 +281,7 @@ export class AgentLoop {
 
     return this.startTurnLoop(
       messages, startStep, controller,
-      stepContext, signal, traceSession, turnSpan, usage,
+      turnContext, signal, traceSession, turnSpan, usage,
     );
   }
 
@@ -293,13 +293,13 @@ export class AgentLoop {
     pauseInfo: PauseInfo,
     approvalDecisions: ToolApproval[] | undefined,
     messages: ModelMessage[],
-    stepContext: StepContext,
+    turnContext: TurnContext,
     scopeId: string | undefined,
     signal: AbortSignal,
   ): Promise<void> {
     if (pauseInfo.reason !== 'tool-approval') return;
 
-    const { session, traceSession } = stepContext;
+    const { session, traceSession } = turnContext;
     const { thread } = session;
     const decisions = approvalDecisions ?? [];
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
@@ -345,7 +345,7 @@ export class AgentLoop {
     toolResults.push(...await this.executeAndCollectResults(approvedCalls, session, step, traceSession));
     toolResults.push(...deniedResults);
 
-    await this.appendToolResults(toolResults, messages, stepContext);
+    await this.appendToolResults(toolResults, messages, turnContext);
   }
 
   /**
@@ -357,7 +357,7 @@ export class AgentLoop {
   private async healTurnMessages(
     messages: ModelMessage[],
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    stepContext: StepContext,
+    turnContext: TurnContext,
     thread: Thread,
     turn: Turn,
     scopeId: string | undefined,
@@ -369,7 +369,7 @@ export class AgentLoop {
     if (!unresolvedCalls || unresolvedCalls.length === 0) return null;
 
     const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(
-      unresolvedCalls, controller, stepContext,
+      unresolvedCalls, controller, turnContext,
     );
 
     if (pausedCalls.length > 0) {
@@ -390,12 +390,12 @@ export class AgentLoop {
     }
 
     // 全部可自动处理 → 执行并追加 tool_results
-    const { session, traceSession } = stepContext;
+    const { session, traceSession } = turnContext;
     const step: Step = { index: startStep, threadId: thread.id, scopeId, signal };
     const toolResults = await this.executeAndCollectResults(approvedCalls, session, step, traceSession);
     toolResults.push(...deniedResults);
 
-    await this.appendToolResults(toolResults, messages, stepContext);
+    await this.appendToolResults(toolResults, messages, turnContext);
     return null;
   }
 
@@ -406,15 +406,15 @@ export class AgentLoop {
     messages: ModelMessage[],
     startStep: number,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    stepContext: StepContext,
+    turnContext: TurnContext,
     signal: AbortSignal,
     traceSession: TurnTraceSession,
     turnSpan: Span,
     usage: UsageMetrics,
   ): Promise<TurnResult> {
 
-    const {session: {thread, turn}} = stepContext
-    const loopResult: StepLoopResult  = await this.runTurnLoop(messages, startStep, controller, stepContext, signal);
+    const {session: {thread, turn}} = turnContext
+    const loopResult: StepLoopResult  = await this.runTurnLoop(messages, startStep, controller, turnContext, signal);
     usage.input += loopResult.usage.input;
     usage.output += loopResult.usage.output;
 
@@ -428,7 +428,7 @@ export class AgentLoop {
       return pausedResult;
     }
 
-    await this.pipeline.leave(stepContext.ctx);
+    await this.pipeline.leave(turnContext.ctx);
 
     // 模型错误导致的失败
     if (loopResult.finalStatus === 'failed') {
@@ -472,16 +472,16 @@ export class AgentLoop {
     messages: ModelMessage[],
     startStep: number,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    stepContext: StepContext,
+    turnContext: TurnContext,
     signal: AbortSignal,
   ): Promise<StepLoopResult> {
     const usage = { input: 0, output: 0 };
     let steps = startStep;
 
-    const {session: {thread, turn}} = stepContext
+    const {session: {thread, turn}} = turnContext
     while (steps < this.agent.maxSteps && !signal.aborted) {
-      const step: Step = { index: steps, threadId: thread.id, scopeId: stepContext.ctx.scopeId, signal };
-      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, messages, controller, stepContext);
+      const step: Step = { index: steps, threadId: thread.id, scopeId: turnContext.ctx.scopeId, signal };
+      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, messages, controller, turnContext);
       usage.input += stepUsage.input;
       usage.output += stepUsage.output;
 
@@ -511,7 +511,7 @@ export class AgentLoop {
     step: Step,
     messages: ModelMessage[],
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    stepContext: StepContext,
+    turnContext: TurnContext,
   ): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
 
@@ -529,7 +529,7 @@ export class AgentLoop {
       return { shouldBreak: true, shouldPause: false, usage };
     }
 
-    const modelResult = await this.callModel(messages, step, controller, stepContext);
+    const modelResult = await this.callModel(messages, step, controller, turnContext);
 
     // 如果模型调用出错，提前结束
     if (modelResult.error) {
@@ -551,8 +551,8 @@ export class AgentLoop {
       messages.push(assistantMsg);
 
       await this.agent.thread.appendEntry({
-        threadId: stepContext.session.thread.id,
-        turnId: stepContext.session.turn.id,
+        threadId: turnContext.session.thread.id,
+        turnId: turnContext.session.turn.id,
         role: assistantMsg.role,
         content: assistantMsg.content,
         toolCalls: assistantMsg.toolCalls,
@@ -566,7 +566,7 @@ export class AgentLoop {
 
     // 审批 + 执行 + 持久化
     const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(
-      modelResult.toolCalls, controller, stepContext,
+      modelResult.toolCalls, controller, turnContext,
     );
 
     // 有待审批的工具 → 暂停 turn
@@ -589,10 +589,10 @@ export class AgentLoop {
       return { shouldBreak: false, shouldPause: true, pauseInfo, usage };
     }
 
-    const toolResults = await this.executeAndCollectResults(approvedCalls, stepContext.session, step, stepContext.traceSession);
+    const toolResults = await this.executeAndCollectResults(approvedCalls, turnContext.session, step, turnContext.traceSession);
     toolResults.push(...deniedResults);
 
-    await this.appendToolResults(toolResults, messages, stepContext);
+    await this.appendToolResults(toolResults, messages, turnContext);
 
     this.emit({ type: 'step-end', step: step.index + 1 });
     return { shouldBreak: false, shouldPause: false, usage };
@@ -604,7 +604,7 @@ export class AgentLoop {
   private async resolveToolApprovals(
     toolCalls: ToolCall[],
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    stepContext: StepContext,
+    turnContext: TurnContext,
   ): Promise<ApprovalClassification> {
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
@@ -614,8 +614,8 @@ export class AgentLoop {
       const tool = this.toolBroker.findTool(call.name);
       const policy = tool?.policy ?? 'auto';
 
-      const isFirstUse = !stepContext.toolApprovalState.has(call.name);
-      const wasApproved = stepContext.toolApprovalState.get(call.name) ?? false;
+      const isFirstUse = !turnContext.toolApprovalState.has(call.name);
+      const wasApproved = turnContext.toolApprovalState.get(call.name) ?? false;
 
       // 工具未注册 → 直接拒绝
       if (!tool) {
@@ -633,7 +633,7 @@ export class AgentLoop {
       });
 
       if (decision.approved) {
-        stepContext.toolApprovalState.set(call.name, true);
+        turnContext.toolApprovalState.set(call.name, true);
         approvedCalls.push(call);
         continue;
       }
@@ -703,7 +703,7 @@ export class AgentLoop {
   private async appendToolResults(
     toolResults: ToolResult[],
     messages: ModelMessage[],
-    shared: StepContext,
+    shared: TurnContext,
   ): Promise<void> {
     for (const r of toolResults) {
       const raw = r.status === 'success'
@@ -752,9 +752,9 @@ export class AgentLoop {
     messages: ReadonlyArray<ModelMessage>,
     step: Step,
     controller: ReadableStreamDefaultController<ModelStreamChunk>,
-    stepContext: StepContext,
+    turnContext: TurnContext,
   ): Promise<CallModelResult> {
-    const { ctx, traceSession } = stepContext;
+    const { ctx, traceSession } = turnContext;
     const modelUsage = { input: 0, output: 0 };
 
     const request: ModelRequest = {
