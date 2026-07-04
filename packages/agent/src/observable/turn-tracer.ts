@@ -8,6 +8,7 @@ import type {Thread} from '../thread/types.js';
 import type {ToolResult} from '../tool/types.js';
 import type {Span, SpanState, SpanType} from './types.js';
 import type {TraceAdapter} from './trace-adapter.js';
+import {Stack} from '../utils/Stack.js';
 
 /** 追踪级别：0=关闭，1=console，2=console+文件 */
 export type TraceLevel = 0 | 1 | 2;
@@ -38,6 +39,8 @@ export class TurnTrace {
   result?: TurnResult;
 
   private currentStep?: StepTrace;
+  /** 活跃 span 栈，栈顶为当前未结束的 span，自动作为子 span 的父级 */
+  private activeSpans = new Stack<SpanState>();
 
   constructor(thread: Thread, userMessage: ModelMessage) {
     this.threadId = thread.id;
@@ -46,26 +49,32 @@ export class TurnTrace {
   }
 
   /**
-   * 启动一个追踪 Span。
+   * 启动一个追踪 Span。自动将栈顶未结束的 span 作为父级，构建父子层级。
+   * Spans 按 LIFO 顺序结束——子 span 必须先于父 span 结束。
    * @param type - Span 类型
    * @param metadata - 可选的 Span 元数据
-   * @param parentSpanId - 可选的父 Span ID，用于构建层级关系
    * @returns 包含 id、end() 和 error() 方法的 Span 对象
    */
-  startSpan(type: SpanType, metadata?: Record<string, unknown>, parentSpanId?: string): Span {
+  startSpan(type: SpanType, metadata?: Record<string, unknown>): Span {
+    const parent = this.activeSpans.peek();
+    const parentSpanId = parent?.id;
+
     const id = randomUUID();
     const state: SpanState = { id, type, parentSpanId, metadata: metadata ?? {}, startTime: Date.now() };
     this.spans.push(state);
+    this.activeSpans.push(state);
 
     return {
       id,
       end: (result?: Record<string, unknown>) => {
         state.endTime = Date.now();
         state.result = result;
+        this.activeSpans.pop();
       },
       error: (err: Error) => {
         state.endTime = Date.now();
         state.error = err.message;
+        this.activeSpans.pop();
       },
     };
   }
@@ -160,7 +169,7 @@ export class TurnTracer {
    * @param turnId - 当前 turn ID
    * @returns TurnTrace 实例
    */
-  startTurn(thread: Thread, userMessage: ModelMessage, turnId: string): TurnTrace {
+  create(thread: Thread, userMessage: ModelMessage, turnId: string): TurnTrace {
     const existing = this.sessions.get(turnId);
     if (existing) return existing.trace;
 
