@@ -394,7 +394,7 @@ export class AgentLoop {
     if (loopResult.finalStatus === 'failed') {
       const err = loopResult.error!;
       await this.agent.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
-      turnSpan.error(err instanceof Error ? err : new Error(String(err)));
+      turnSpan.error(err instanceof Error ? err : String(err));
       this.emit({ type: 'error', error: err });
 
       const failResult: TurnResult = {
@@ -797,7 +797,7 @@ export class AgentLoop {
       }
       return results;
     } catch (err) {
-      toolSpan.error(err instanceof Error ? err : new Error(String(err)));
+      toolSpan.error(err instanceof Error ? err :String(err));
       throw err;
     }
   }
