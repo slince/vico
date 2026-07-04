@@ -120,10 +120,7 @@ export class AgentLoop {
     const stream = new ReadableStream<ModelStreamChunk>({
       start: async (controller) => {
         try {
-          const result = await this.startLoop({
-            userMessage, signal: internalAc.signal,
-            controller, options,
-          });
+          const result = await this.startLoop({userMessage, signal: internalAc.signal, controller, options});
           resolveResult(result);
         } catch (err) {
           this.emit({ type: 'error', error: err instanceof Error ? err : String(err) });
@@ -151,20 +148,17 @@ export class AgentLoop {
     const threadId = options?.threadId ?? `${this.agent.id}-${Date.now()}`;
     const usage = { input: 0, output: 0 };
 
-    const threadStore = this.agent.thread;
-
-    // 确保 thread 存在
     // 注意：getLatestTurn → createTurn 之间存在 check-then-act 窗口，
     // 并发请求可能同时判断无未完成 turn 并各自创建。依赖 threadStore 实现侧的并发控制。
-    let thread = await threadStore.getThread(threadId);
+    let thread = await this.agent.thread.getThread(threadId);
     if (!thread) {
       const title = userMessage.content.slice(0, 50);
-      thread = await threadStore.createThread(this.agent.id, title, threadId, options as ThreadContext);
+      thread = await this.agent.thread.createThread(this.agent.id, title, threadId, options as ThreadContext);
     }
 
     // 自动恢复所有未完成的 turn（paused/running/failed），
     // resumeTurn 内置消息链愈合逻辑，能自动补齐缺失的 tool_result
-    const latestTurn = await threadStore.getLatestTurn(threadId);
+    const latestTurn = await this.agent.thread.getLatestTurn(threadId);
     if (latestTurn && latestTurn.status !== 'completed') {
       return this.resumeTurn({thread, turn: latestTurn, userMessage, signal, controller, options, usage});
     }
