@@ -1,15 +1,5 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
-import type {
-  PauseInfo,
-  RunOptions,
-  Step,
-  StepLoopResult,
-  ToolApproval,
-  TurnEvent,
-  TurnResult,
-  TurnSession,
-  UsageMetrics
-} from './types.js';
+import type {TurnEvent, UsageMetrics} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
 import type {Thread, ThreadContext, Turn} from '../thread/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
@@ -18,58 +8,26 @@ import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
-import type {TurnTrace, TurnTracer} from '../observable/turn-tracer.js';
+import type {TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ModelRequestContext, ProcessorPipeline} from './context-processors/context-processor.js';
 import {Span} from "../observable/types.js";
+import {
+  ApprovalClassification,
+  CallModelResult,
+  ModelStepResult,
+  PauseInfo,
+  RunOptions,
+  Step,
+  StepLoopResult,
+  ToolApproval,
+  TurnContext,
+  TurnResult,
+  TurnSession
+} from "./agent-loop-options.js";
 
-/** executeModelStep 的返回值 */
-export interface ModelStepResult {
-  /** 是否终止循环 */
-  shouldBreak: boolean;
-  /** 是否需要暂停等待外部审批 */
-  shouldPause: boolean;
-  /** 暂停信息（shouldPause 为 true 时需要） */
-  pauseInfo?: PauseInfo;
-  /** 本 step 的 token 用量 */
-  usage: UsageMetrics;
-  /** 本step是否执行出错*/
-  error?: Error | string;
-}
-
-/** 审批分类结果 */
-export interface ApprovalClassification {
-  approvedCalls: ToolCall[];
-  deniedResults: ToolResult[];
-  pausedCalls: ToolCall[];
-}
-
-/** callModel 的返回值 */
-export interface CallModelResult {
-  /** 模型生成的完整文本 */
-  text: string;
-  /** 模型请求的工具调用 */
-  toolCalls: ToolCall[];
-  /** 本次调用的 token 用量 */
-  usage: UsageMetrics;
-  /** 错误信息（如有） */
-  error?: string | Error;
-}
-
-/** executeModelStep / callModel 共享上下文 */
-export interface TurnContext {
-  ctx: ModelRequestContext
-  messages: ModelMessage[]
-  session: TurnSession;
-  trace: TurnTrace;
-  toolApprovalState: Map<string, boolean>;
-  /** turn 级中断信号，贯穿 model 调用和工具执行 */
-  signal: AbortSignal;
-  /** 流控制器，用于向客户端推送 chunk */
-  controller: ReadableStreamDefaultController<ModelStreamChunk>;
-}
 
 /** AgentLoop 构造选项 */
 export interface AgentLoopOptions {
