@@ -1,9 +1,9 @@
 // src/tool/builtin/git-tools.ts
-import { execSync } from 'node:child_process';
-import { z } from 'zod';
-import { createTool } from '../../create-tool.js';
-import type { ToolExecutionContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import {execSync} from 'node:child_process';
+import {z} from 'zod';
+import {createTool} from '../../create-tool.js';
+import type {ToolCallContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 /** 在 workspace 目录执行 git 命令并返回输出 */
 function git(cwd: string, args: string[]): string {
@@ -41,7 +41,7 @@ const gitStatusOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeGitStatus(args: z.infer<typeof gitStatusParams>, ctx: ToolExecutionContext) {
+async function executeGitStatus(args: z.infer<typeof gitStatusParams>, ctx: ToolCallContext) {
   const cwd = resolveWorkspacePath(ctx.session.workspace, args.path ?? '.');
   const result = gitSafe(cwd, ['status', '--porcelain=v1', '--branch']);
 
@@ -91,7 +91,7 @@ const gitDiffOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeGitDiff(args: z.infer<typeof gitDiffParams>, ctx: ToolExecutionContext) {
+async function executeGitDiff(args: z.infer<typeof gitDiffParams>, ctx: ToolCallContext) {
   const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
   const cmdArgs = ['diff', '--unified=3'];
   if (args.staged) cmdArgs.push('--cached');
@@ -129,7 +129,7 @@ const gitLogOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeGitLog(args: z.infer<typeof gitLogParams>, ctx: ToolExecutionContext) {
+async function executeGitLog(args: z.infer<typeof gitLogParams>, ctx: ToolCallContext) {
   const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
   const cmdArgs = ['log', `-${args.limit}`, '--format=%H||%s||%ai||%an'];
   if (args.path) cmdArgs.push('--', args.path);
@@ -171,7 +171,7 @@ const gitCommitOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeGitCommit(args: z.infer<typeof gitCommitParams>, ctx: ToolExecutionContext) {
+async function executeGitCommit(args: z.infer<typeof gitCommitParams>, ctx: ToolCallContext) {
   const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
 
   if (args.files && args.files.length > 0) {
@@ -212,7 +212,7 @@ const gitBranchOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeGitBranch(args: z.infer<typeof gitBranchParams>, ctx: ToolExecutionContext) {
+async function executeGitBranch(args: z.infer<typeof gitBranchParams>, ctx: ToolCallContext) {
   const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
 
   if (args.action === 'create') {
@@ -259,7 +259,7 @@ const gitCheckoutOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeGitCheckout(args: z.infer<typeof gitCheckoutParams>, ctx: ToolExecutionContext) {
+async function executeGitCheckout(args: z.infer<typeof gitCheckoutParams>, ctx: ToolCallContext) {
   const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
 
   const cmdArgs = args.isFile ? ['checkout', '--', args.target] : ['checkout', args.target];

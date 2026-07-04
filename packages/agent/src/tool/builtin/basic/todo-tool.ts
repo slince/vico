@@ -1,7 +1,7 @@
 // src/tool/builtin/todo-tool.ts
-import { z } from 'zod';
-import { createTool } from '../../create-tool.js';
-import type { ToolExecutionContext } from '../../types.js';
+import {z} from 'zod';
+import {createTool} from '../../create-tool.js';
+import type {ToolCallContext} from '../../types.js';
 
 const todoEntry = z.object({
   id: z.string().describe('任务唯一标识'),
@@ -21,7 +21,7 @@ const todoOutput = z.object({
 /** per-turn 任务列表，模块级作用域 */
 let currentTasks: z.infer<typeof todoEntry>[] = [];
 
-async function executeTodo(args: z.infer<typeof todoParams>, _ctx: ToolExecutionContext) {
+async function executeTodo(args: z.infer<typeof todoParams>, _ctx: ToolCallContext) {
   currentTasks = args.tasks;
 
   const pending = currentTasks.filter((t) => t.status === 'pending').length;

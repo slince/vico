@@ -1,8 +1,8 @@
 // src/tool/builtin/bash-tool.ts
-import {ChildProcess, exec, spawn} from 'node:child_process';
+import {ChildProcess, spawn} from 'node:child_process';
 import {z} from 'zod';
 import {createTool} from '../../create-tool.js';
-import type {ToolExecutionContext} from '../../types.js';
+import type {ToolCallContext} from '../../types.js';
 import {resolveWorkspacePath} from '../workspace.js';
 
 const bashParams = z.object({
@@ -60,7 +60,7 @@ function cleanupSession(id: string, entry: SessionEntry): void {
   sessions.delete(id);
 }
 
-async function executeBash(args: z.infer<typeof bashParams>, ctx: ToolExecutionContext): Promise<string> {
+async function executeBash(args: z.infer<typeof bashParams>, ctx: ToolCallContext): Promise<string> {
   const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
 
   switch (args.action) {

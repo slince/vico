@@ -1,5 +1,5 @@
 // src/tool/tool-broker.ts
-import type {Tool, ToolCall, ToolExecutionContext, ToolResult} from './types.js';
+import type {Tool, ToolCall, ToolCallContext, ToolResult} from './types.js';
 import {StormBreaker} from './storm-breaker.js';
 
 /** ToolBroker — 聚合工具注册、审批策略和并行执行 */
@@ -36,7 +36,7 @@ export class ToolBroker {
    * @param ctx - 工具执行上下文
    * @returns 工具执行结果
    */
-  async execute(call: ToolCall, ctx: ToolExecutionContext): Promise<ToolResult> {
+  async execute(call: ToolCall, ctx: ToolCallContext): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
@@ -70,9 +70,9 @@ export class ToolBroker {
    * @param ctx - 工具执行上下文
    * @returns 所有工具的执行结果列表
    */
-  async executeBatch(calls: ToolCall[], ctx: ToolExecutionContext): Promise<ToolResult[]> {
+  async executeBatch(calls: ToolCall[], ctx: ToolCallContext): Promise<ToolResult[]> {
     if (calls.length === 0) return [];
-    
+
     // 按 kind 分组：readonly（可并行3个）+ 其他（串行）
     const readonly: ToolCall[] = [];
     const sequential: ToolCall[] = [];

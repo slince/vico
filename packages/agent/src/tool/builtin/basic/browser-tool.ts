@@ -2,9 +2,9 @@
 //
 // 基于 Playwright 的浏览器工具。Playwright 为可选 peer dependency，
 // 未安装时工具返回明确的安装提示。
-import { z } from 'zod';
-import { createTool } from '../../create-tool.js';
-import type { ToolExecutionContext } from '../../types.js';
+import {z} from 'zod';
+import {createTool} from '../../create-tool.js';
+import type {ToolCallContext} from '../../types.js';
 
 /** 懒加载 Playwright（避免编译时模块解析错误） */
 async function loadPlaywright(): Promise<any> {
@@ -45,7 +45,7 @@ const navigateOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeNavigate(args: z.infer<typeof navigateParams>, _ctx: ToolExecutionContext) {
+async function executeNavigate(args: z.infer<typeof navigateParams>, _ctx: ToolCallContext) {
   if (!await checkPlaywright()) {
     return { title: '', url: args.url, ready: false,
       error: `Playwright 未安装。请运行: npm install playwright && npx playwright install chromium\n详情: ${playwrightError}` };
@@ -88,7 +88,7 @@ const snapshotOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeSnapshot(args: z.infer<typeof snapshotParams>, _ctx: ToolExecutionContext) {
+async function executeSnapshot(args: z.infer<typeof snapshotParams>, _ctx: ToolCallContext) {
   if (!await checkPlaywright()) {
     return { text: '', url: args.url,
       error: 'Playwright 未安装。请运行: npm install playwright && npx playwright install chromium' };
@@ -136,7 +136,7 @@ const clickOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeClick(args: z.infer<typeof clickParams>, _ctx: ToolExecutionContext) {
+async function executeClick(args: z.infer<typeof clickParams>, _ctx: ToolCallContext) {
   if (!await checkPlaywright()) {
     return { title: '', url: args.url, clicked: false,
       error: 'Playwright 未安装。请运行: npm install playwright && npx playwright install chromium' };

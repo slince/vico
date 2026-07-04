@@ -1,10 +1,10 @@
 // src/tool/builtin/lsp-tool.ts
-import { spawn, ChildProcess } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { z } from 'zod';
-import { createTool } from '../../create-tool.js';
-import type { ToolExecutionContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import {ChildProcess, spawn} from 'node:child_process';
+import {existsSync} from 'node:fs';
+import {z} from 'zod';
+import {createTool} from '../../create-tool.js';
+import type {ToolCallContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 /** 语言 → LSP 服务器命令映射 */
 const LSP_SERVERS: Record<string, { cmd: string; args: string[] }> = {
@@ -171,7 +171,7 @@ const lspOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeLsp(args: z.infer<typeof lspParams>, ctx: ToolExecutionContext) {
+async function executeLsp(args: z.infer<typeof lspParams>, ctx: ToolCallContext) {
   const absPath = resolveWorkspacePath(ctx.session.workspace, args.filePath);
   if (!existsSync(absPath)) {
     return { result: '', action: args.action, supported: false, error: `文件不存在` };

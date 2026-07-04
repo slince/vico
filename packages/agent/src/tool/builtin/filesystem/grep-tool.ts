@@ -4,7 +4,7 @@ import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {relative, resolve} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../../create-tool.js';
-import type {ToolExecutionContext} from '../../types.js';
+import type {ToolCallContext} from '../../types.js';
 import {resolveWorkspacePath} from '../workspace.js';
 
 const grepParams = z.object({
@@ -110,7 +110,7 @@ const grepOutputSchema = z.object({
   count: z.number().int(),
 });
 
-async function executeGrep(args: z.infer<typeof grepParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof grepOutputSchema>> {
+async function executeGrep(args: z.infer<typeof grepParams>, ctx: ToolCallContext): Promise<z.infer<typeof grepOutputSchema>> {
   const searchDir = args.path ? resolveWorkspacePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
   const rgOutput = ripgrep(args, searchDir);

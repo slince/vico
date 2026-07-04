@@ -1,9 +1,9 @@
 // src/tool/builtin/write-tool.ts
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { relative, dirname } from 'node:path';
+import {existsSync, mkdirSync, writeFileSync} from 'node:fs';
+import {dirname, relative} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../../create-tool.js';
-import type {ToolExecutionContext} from '../../types.js';
+import type {ToolCallContext} from '../../types.js';
 import {resolveWorkspacePath} from '../workspace.js';
 
 const writeParams = z.object({
@@ -18,7 +18,7 @@ const writeOutputSchema = z.object({
   size: z.number().int(),
 });
 
-async function executeWrite(args: z.infer<typeof writeParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof writeOutputSchema>> {
+async function executeWrite(args: z.infer<typeof writeParams>, ctx: ToolCallContext): Promise<z.infer<typeof writeOutputSchema>> {
   const absPath = resolveWorkspacePath(ctx.session.workspace, args.path);
   const dir = dirname(absPath);
 

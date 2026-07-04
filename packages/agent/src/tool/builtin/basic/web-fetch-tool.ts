@@ -1,7 +1,7 @@
 // src/tool/builtin/web-fetch-tool.ts
-import { z } from 'zod';
-import { createTool } from '../../create-tool.js';
-import type { ToolExecutionContext } from '../../types.js';
+import {z} from 'zod';
+import {createTool} from '../../create-tool.js';
+import type {ToolCallContext} from '../../types.js';
 
 const webFetchParams = z.object({
   url: z.string().describe('要请求的 URL（仅支持 http/https）'),
@@ -22,7 +22,7 @@ const webFetchOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executeWebFetch(args: z.infer<typeof webFetchParams>, _ctx: ToolExecutionContext) {
+async function executeWebFetch(args: z.infer<typeof webFetchParams>, _ctx: ToolCallContext) {
   // 仅允许 http/https
   if (!/^https?:\/\//i.test(args.url)) {
     return { status: 0, statusText: 'Invalid URL', headers: {}, body: '', error: '仅支持 http/https URL' };

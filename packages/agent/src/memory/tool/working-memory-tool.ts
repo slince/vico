@@ -1,7 +1,7 @@
 // src/memory/tool/working-memory-tool.ts
 import {z} from 'zod';
 import {createTool} from '../../tool/create-tool.js';
-import type {ToolExecutionContext} from '../../tool/types.js';
+import type {ToolCallContext} from '../../tool/types.js';
 import type {WorkingMemory} from '../types.js';
 
 /**
@@ -26,7 +26,7 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
     policy: 'auto',
     kind: 'mutation',
     tags: ['builtin'],
-    async execute(args: { memory: string }, ctx: ToolExecutionContext) {
+    async execute(args: { memory: string }, ctx: ToolCallContext) {
       const scopeId = wm.scope === 'user' ? ctx.session.thread.userId ?? '' : ctx.session.workspace;
       const current = await wm.get(scopeId);
       if (current && args.memory.trim() === template.trim()) {

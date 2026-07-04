@@ -1,9 +1,9 @@
 // src/tool/builtin/ls-tool.ts
-import { readdirSync, statSync } from 'node:fs';
-import { resolve, relative } from 'node:path';
+import {readdirSync, statSync} from 'node:fs';
+import {relative, resolve} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../../create-tool.js';
-import type {ToolExecutionContext} from '../../types.js';
+import type {ToolCallContext} from '../../types.js';
 import {resolveWorkspacePath} from '../workspace.js';
 
 const lsParams = z.object({
@@ -17,7 +17,7 @@ const lsOutputSchema = z.object({
   path: z.string(),
 });
 
-async function executeLs(args: z.infer<typeof lsParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof lsOutputSchema>> {
+async function executeLs(args: z.infer<typeof lsParams>, ctx: ToolCallContext): Promise<z.infer<typeof lsOutputSchema>> {
   const absPath = args.path ? resolveWorkspacePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
 
   const stat = statSync(absPath);

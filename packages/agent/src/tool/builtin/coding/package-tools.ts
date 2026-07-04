@@ -1,10 +1,10 @@
 // src/tool/builtin/package-tools.ts
-import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { z } from 'zod';
-import { createTool } from '../../create-tool.js';
-import type { ToolExecutionContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import {execSync} from 'node:child_process';
+import {existsSync} from 'node:fs';
+import {z} from 'zod';
+import {createTool} from '../../create-tool.js';
+import type {ToolCallContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 /** 检测项目使用的包管理器 */
 function detectPackageManager(cwd: string): string {
@@ -41,7 +41,7 @@ const packageInstallOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executePackageInstall(args: z.infer<typeof packageInstallParams>, ctx: ToolExecutionContext) {
+async function executePackageInstall(args: z.infer<typeof packageInstallParams>, ctx: ToolCallContext) {
   const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
   const manager = args.manager ?? detectPackageManager(cwd);
 
@@ -104,7 +104,7 @@ const packageRunOutput = z.object({
   error: z.string().optional(),
 });
 
-async function executePackageRun(args: z.infer<typeof packageRunParams>, ctx: ToolExecutionContext) {
+async function executePackageRun(args: z.infer<typeof packageRunParams>, ctx: ToolCallContext) {
   const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
   const manager = args.manager ?? detectPackageManager(cwd);
 

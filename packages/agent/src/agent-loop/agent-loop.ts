@@ -10,7 +10,7 @@ import type {
   TurnSession,
   UsageMetrics
 } from './types.js';
-import type {ApprovalResolver, ToolCall, ToolExecutionContext, ToolResult} from '../tool/types.js';
+import type {ApprovalResolver, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
 import type {Thread, ThreadContext, Turn} from '../thread/types.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
 import {resolvePolicy} from '../tool/utils.js';
@@ -343,7 +343,7 @@ export class AgentLoop {
    */
   private async healTurnMessages(
     messages: ModelMessage[],
-    turnContext: TurnContext,
+    context: TurnContext,
     thread: Thread,
     turn: Turn,
     startStep: number,
@@ -352,9 +352,7 @@ export class AgentLoop {
     const unresolvedCalls = this.findUnresolvedToolCalls(messages);
     if (!unresolvedCalls || unresolvedCalls.length === 0) return null;
 
-    const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(
-      unresolvedCalls, turnContext,
-    );
+    const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(unresolvedCalls, context);
 
     if (pausedCalls.length > 0) {
       const newPauseInfo: PauseInfo = {
@@ -374,10 +372,10 @@ export class AgentLoop {
     }
 
     // 全部可自动处理 → 执行并追加 tool_results
-    const toolResults = await this.executeAndCollectResults(approvedCalls, turnContext);
+    const toolResults = await this.executeAndCollectResults(approvedCalls, context);
     toolResults.push(...deniedResults);
 
-    await this.appendToolResults(toolResults, turnContext);
+    await this.appendToolResults(toolResults, context);
     return null;
   }
 
@@ -560,10 +558,7 @@ export class AgentLoop {
   /**
    * 解析工具审批：遍历 toolCalls，按策略分类为 approvedCalls / deniedResults / pausedCalls。
    */
-  private async resolveToolApprovals(
-    toolCalls: ToolCall[],
-    turnContext: TurnContext,
-  ): Promise<ApprovalClassification> {
+  private async resolveToolApprovals(toolCalls: ToolCall[], context: TurnContext): Promise<ApprovalClassification> {
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
     const pausedCalls: ToolCall[] = [];
@@ -572,8 +567,8 @@ export class AgentLoop {
       const tool = this.toolBroker.findTool(call.name);
       const policy = tool?.policy ?? 'auto';
 
-      const isFirstUse = !turnContext.toolApprovalState.has(call.name);
-      const wasApproved = turnContext.toolApprovalState.get(call.name) ?? false;
+      const isFirstUse = !context.toolApprovalState.has(call.name);
+      const wasApproved = context.toolApprovalState.get(call.name) ?? false;
 
       // 工具未注册 → 直接拒绝
       if (!tool) {
@@ -591,7 +586,7 @@ export class AgentLoop {
       });
 
       if (decision.approved) {
-        turnContext.toolApprovalState.set(call.name, true);
+        context.toolApprovalState.set(call.name, true);
         approvedCalls.push(call);
         continue;
       }
@@ -599,7 +594,7 @@ export class AgentLoop {
       // on-request 工具首次使用 → 暂停等待外部审批，不直接拒绝
       if (policy === 'on-request' && isFirstUse && !wasApproved) {
         // use toolCallId as approvalId so the client’s tool-approval-response maps directly
-        turnContext.controller.enqueue({
+        context.controller.enqueue({
           type: 'tool-approval-request',
           approvalId: call.id,
           toolCallId: call.id,
@@ -632,16 +627,16 @@ export class AgentLoop {
    * 批量调用整体失败时，为每个调用生成 error 结果，确保 tool_use → tool_result 配对完整。
    *
    * @param calls - 待执行的工具调用列表
-   * @param turnContext - 当前 turn 上下文
+   * @param context - 当前 turn 上下文
    * @returns 工具执行结果数组
    */
   private async executeAndCollectResults(
     calls: ToolCall[],
-    turnContext: TurnContext,
+    context: TurnContext,
   ): Promise<ToolResult[]> {
     if (calls.length === 0) return [];
     try {
-      return await this.executeToolCalls(calls, turnContext);
+      return await this.executeToolCalls(calls, context);
     } catch (err) {
       return calls.map(call => ({
         callId: call.id, name: call.name,
@@ -796,13 +791,15 @@ export class AgentLoop {
   /**
    * 执行工具调用，返回结果数组。不修改入参，事件通过 emit 触发。
    */
-  private async executeToolCalls(
-    toolCalls: ToolCall[],
-    turnContext: TurnContext,
-  ): Promise<ToolResult[]> {
-    const toolSpan = turnContext.trace.startSpan('tool_call', { count: toolCalls.length });
+  private async executeToolCalls(toolCalls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
+    const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
     try {
-      const results = await this.dispatchTools(toolCalls, turnContext.session, turnContext.signal);
+      const toolCallContext: ToolCallContext = {
+        session: context.session,
+        agentId: this.agent.id,
+        signal: context.signal,
+      };
+      const results = await this.toolBroker.executeBatch(toolCalls, toolCallContext)
       toolSpan.end({ results: results.length });
 
       for (const r of results) {
@@ -819,16 +816,6 @@ export class AgentLoop {
       toolSpan.error(err instanceof Error ? err : new Error(String(err)));
       throw err;
     }
-  }
-
-  private async dispatchTools(calls: ToolCall[], session: TurnSession, signal: AbortSignal): Promise<ToolResult[]> {
-    const context: ToolExecutionContext = {
-      session,
-      agentId: this.agent.id,
-      signal,
-    };
-
-    return this.toolBroker.executeBatch(calls, context);
   }
 
   /**

@@ -1,8 +1,8 @@
 // src/tool/builtin/delegate-tool.ts
-import { z } from 'zod';
-import { createTool } from '../../create-tool.js';
-import { createAgent, type AgentConfig } from '../../../agent-loop/create-agent.js';
-import type { ToolExecutionContext } from '../../types.js';
+import {z} from 'zod';
+import {createTool} from '../../create-tool.js';
+import {type AgentConfig, createAgent} from '../../../agent-loop/create-agent.js';
+import type {ToolCallContext} from '../../types.js';
 
 const delegateParams = z.object({
   task: z.string().describe('要委托给子 agent 完成的任务描述'),
@@ -24,7 +24,7 @@ const delegateOutput = z.object({
 export function createDelegateTool(parentConfig: {
   getConfig(): AgentConfig;
 }) {
-  async function execute(args: z.infer<typeof delegateParams>, ctx: ToolExecutionContext) {
+  async function execute(args: z.infer<typeof delegateParams>, ctx: ToolCallContext) {
     const parent = parentConfig.getConfig();
 
     // 子 agent 配置：继承 model，仅使用只读工具 + todo

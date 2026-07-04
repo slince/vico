@@ -22,7 +22,7 @@ export interface Tool<TInput = any, TOutput = any> {
   /** 来源标签（如 "builtin", "skill", "agent:xxx"） */
   tags: string[];
   /** 执行工具调用 */
-  execute(call: ToolCall<TInput>, ctx: ToolExecutionContext): Promise<TOutput>;
+  execute(call: ToolCall<TInput>, ctx: ToolCallContext): Promise<TOutput>;
 }
 
 /** LLM 返回的工具调用 */
@@ -42,7 +42,7 @@ export interface ToolResult<TOutput = unknown> {
 }
 
 /** 工具执行上下文 */
-export interface ToolExecutionContext {
+export interface ToolCallContext {
   session: TurnSession;
   agentId: string;
   signal: AbortSignal;

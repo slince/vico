@@ -1,11 +1,11 @@
 // src/skill/tool/skill-execute.ts
-import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { z } from 'zod';
-import { createTool } from '../../tool/create-tool.js';
-import type { ToolExecutionContext } from '../../tool/types.js';
-import type { Skill } from '../types.js';
+import {execSync} from 'node:child_process';
+import {existsSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {z} from 'zod';
+import {createTool} from '../../tool/create-tool.js';
+import type {ToolCallContext} from '../../tool/types.js';
+import type {Skill} from '../types.js';
 
 export interface SkillExecuteOptions {
   /** 获取当前可用的 skills 列表 */
@@ -28,7 +28,7 @@ export function createSkillExecuteTool(options: SkillExecuteOptions) {
     error: z.string().optional(),
   });
 
-  async function execute(args: z.infer<typeof params>, ctx: ToolExecutionContext) {
+  async function execute(args: z.infer<typeof params>, ctx: ToolCallContext) {
     const skills = options.getSkills();
     const skill = skills.find((s) => s.name === args.skillName);
     if (!skill) {

@@ -3,7 +3,7 @@ import {readFileSync, statSync} from 'node:fs';
 import {relative} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../../create-tool.js';
-import type {ToolExecutionContext} from '../../types.js';
+import type {ToolCallContext} from '../../types.js';
 import {resolveWorkspacePath} from '../workspace.js';
 
 const readParams = z.object({
@@ -99,7 +99,7 @@ function readImageFile(absPath: string, ext: string, workspace: string): ReadOut
   };
 }
 
-async function executeRead(args: z.infer<typeof readParams>, ctx: ToolExecutionContext): Promise<ReadOutput> {
+async function executeRead(args: z.infer<typeof readParams>, ctx: ToolCallContext): Promise<ReadOutput> {
   const absPath = resolveWorkspacePath(ctx.session.workspace, args.path);
   const stat = statSync(absPath);
 

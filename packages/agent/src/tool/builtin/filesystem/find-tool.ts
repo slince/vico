@@ -1,9 +1,9 @@
 // src/tool/builtin/find-tool.ts
-import { readdirSync, statSync } from 'node:fs';
-import { resolve, relative } from 'node:path';
+import {readdirSync, statSync} from 'node:fs';
+import {relative, resolve} from 'node:path';
 import {z} from 'zod';
 import {createTool} from '../../create-tool.js';
-import type {ToolExecutionContext} from '../../types.js';
+import type {ToolCallContext} from '../../types.js';
 import {resolveWorkspacePath} from '../workspace.js';
 
 const findParams = z.object({
@@ -60,7 +60,7 @@ const findOutputSchema = z.object({
   count: z.number().int(),
 });
 
-async function executeFind(args: z.infer<typeof findParams>, ctx: ToolExecutionContext): Promise<z.infer<typeof findOutputSchema>> {
+async function executeFind(args: z.infer<typeof findParams>, ctx: ToolCallContext): Promise<z.infer<typeof findOutputSchema>> {
   const searchDir = args.path
     ? resolveWorkspacePath(ctx.session.workspace, args.path)
     : resolve(ctx.session.workspace, '.');

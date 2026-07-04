@@ -1,10 +1,10 @@
 // src/tool/builtin/edit-tool.ts
-import { readFileSync, writeFileSync } from 'node:fs';
-import { relative } from 'node:path';
-import { z } from 'zod';
-import { createTool } from '../../create-tool.js';
-import type { ToolExecutionContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import {readFileSync, writeFileSync} from 'node:fs';
+import {relative} from 'node:path';
+import {z} from 'zod';
+import {createTool} from '../../create-tool.js';
+import type {ToolCallContext} from '../../types.js';
+import {resolveWorkspacePath} from '../workspace.js';
 
 const editEntry = z.object({
   oldText: z.string().describe('要查找的精确文本'),
@@ -122,7 +122,7 @@ function applyLineInsert(original: string, insertAt: number, newContent: string)
 
 async function executeEdit(
   args: z.infer<typeof editParams>,
-  ctx: ToolExecutionContext,
+  ctx: ToolCallContext,
 ): Promise<z.infer<typeof editOutputSchema>> {
   const absPath = resolveWorkspacePath(ctx.session.workspace, args.path);
   const original = readFileSync(absPath, 'utf-8');
