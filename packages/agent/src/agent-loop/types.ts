@@ -69,7 +69,7 @@ export interface TurnSession {
 }
 
 /** runTurn 选项 */
-export interface RunTurnOptions {
+export interface RunOptions {
   /** 会话线程 ID，不传则自动生成 */
   threadId?: string;
   scopeId?: string;

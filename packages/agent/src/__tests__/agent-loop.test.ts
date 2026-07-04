@@ -1,16 +1,16 @@
 // agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
-import { describe, it, expect, vi } from 'vitest';
-import type { LanguageModelV3, LanguageModelV3StreamResult } from '@ai-sdk/provider';
+import {describe, expect, it, vi} from 'vitest';
+import type {LanguageModelV3, LanguageModelV3StreamResult} from '@ai-sdk/provider';
 
-import { AgentLoop } from '../agent-loop/agent-loop.js';
-import { Agent } from '../agent-loop/agent.js';
-import type { TurnEvent } from '../agent-loop/types.js';
-import { MittEventRecorder } from '../events/event-recorder.js';
-import { TurnTracer } from '../observable/turn-tracer.js';
-import { SystemPromptProcessor } from '../agent-loop/context-processors/system-prompt-processor.js';
-import { MemoryStore } from '../memory/memory-store.js';
-import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
-import { collectTurnResult } from '../agent-loop/utils.js';
+import {AgentLoop} from '../agent-loop/agent-loop.js';
+import {Agent} from '../agent-loop/agent.js';
+import type {TurnEvent} from '../agent-loop/types.js';
+import {MittEventRecorder} from '../events/event-recorder.js';
+import {TurnTracer} from '../observable/turn-tracer.js';
+import {SystemPromptProcessor} from '../agent-loop/context-processors/system-prompt-processor.js';
+import {MemoryStore} from '../memory/memory-store.js';
+import {InMemoryThreadStore} from '../thread/memory-thread-store.js';
+import {collectTurnResult} from '../agent-loop/utils.js';
 
 /** Create a mock LanguageModelV3 whose doStream yields given stream parts */
 function createMockModel(chunks: any[]): LanguageModelV3 {
@@ -74,7 +74,7 @@ describe('AgentLoop', () => {
       processors: [new SystemPromptProcessor()],
     });
 
-    const result = await collectTurnResult(loop.runTurn(
+    const result = await collectTurnResult(loop.run(
       'thread-1',
       { role: 'user', content: 'hi' },
     ));
@@ -139,7 +139,7 @@ describe('AgentLoop', () => {
       processors: [new SystemPromptProcessor()],
     });
 
-    const output = loop.runTurn(
+    const output = loop.run(
       'thread-1',
       { role: 'user', content: 'search for test' },
     );
@@ -194,7 +194,7 @@ describe('AgentLoop', () => {
       processors: [new SystemPromptProcessor()],
     });
 
-    const output = loop.runTurn('thread-1', { role: 'user', content: 'hi' });
+    const output = loop.run('thread-1', { role: 'user', content: 'hi' });
     setTimeout(() => output.abort(), 10);
 
     const result = await collectTurnResult(output);

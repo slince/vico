@@ -152,7 +152,7 @@ export class Agent {
    */
   private run(message: string, options?: InvokeOptions) {
     const userMessage: ModelMessage = { role: 'user', content: message };
-    return this.loop.runTurn(userMessage, {
+    return this.loop.run(userMessage, {
       threadId: options?.threadId,
       userId: options?.userId,
       workspace: options?.workspace ?? this.workspace,

@@ -1,7 +1,7 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {
   PauseInfo,
-  RunTurnOptions,
+  RunOptions,
   Step,
   StepLoopResult,
   ToolApproval,
@@ -103,7 +103,7 @@ export class AgentLoop {
    * @param options - turn 运行可选参数
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  runTurn(userMessage: ModelMessage, options?: RunTurnOptions): TurnOutput {
+  run(userMessage: ModelMessage, options?: RunOptions): TurnOutput {
     let resolveResult!: (result: TurnResult) => void;
     let rejectResult!: (err: Error) => void;
     const resultPromise = new Promise<TurnResult>((resolve, reject) => {
@@ -145,7 +145,7 @@ export class AgentLoop {
     userMessage: ModelMessage;
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
-    options?: RunTurnOptions;
+    options?: RunOptions;
   }): Promise<TurnResult> {
     const { userMessage, signal, controller, options } = ctx;
     const threadId = options?.threadId ?? `${this.agent.id}-${Date.now()}`;
@@ -180,7 +180,7 @@ export class AgentLoop {
     userMessage: ModelMessage;
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
-    options?: RunTurnOptions;
+    options?: RunOptions;
     usage: UsageMetrics;
   }): Promise<TurnResult> {
     const { thread, threadId, userMessage, signal, controller, options, usage } = params;
@@ -221,7 +221,7 @@ export class AgentLoop {
     userMessage: ModelMessage;
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
-    options?: RunTurnOptions;
+    options?: RunOptions;
     usage: UsageMetrics;
   }): Promise<TurnResult> {
     const { thread, turn, userMessage, signal, controller, options, usage } = params;
