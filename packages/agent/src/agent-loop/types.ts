@@ -90,6 +90,9 @@ export interface RunOptions {
 export interface Step {
   /** 当前步骤编号（0 起始） */
   index: number;
+
+  /** 本轮step的会话*/
+  messages: ModelMessage[]
 }
 
 /** turn 执行过程中的流式事件（仅用于 agent.on() 订阅） */

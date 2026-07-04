@@ -1,9 +1,9 @@
 // @vico/agent - ModelClient：对 LanguageModelV3.doStream() 的薄封装层
-import type { LanguageModelV3 } from '@ai-sdk/provider';
-import { convertToPrompt } from './prompt-converter.js';
-import { convertTools } from './tool-converter.js';
-import { processStreamParts } from './stream-processor.js';
-import type { ModelRequest, ModelStreamResult } from './types.js';
+import type {LanguageModelV3} from '@ai-sdk/provider';
+import {convertToPrompt} from './prompt-converter.js';
+import {convertTools} from './tool-converter.js';
+import {processStreamParts} from './stream-processor.js';
+import type {ModelRequest, ModelStreamResult} from './types.js';
 
 /**
  * Provider 层语言模型的薄封装。
@@ -20,9 +20,10 @@ export class ModelClient {
    * 返回类型化的异步生成器。
    *
    * @param request - 模型请求参数，包含消息、工具、输出配置等
+   * @param abortSignal 
    * @returns 包含异步生成器的流式结果
    */
-  async stream(request: ModelRequest): Promise<ModelStreamResult> {
+  async stream(request: ModelRequest, abortSignal?: AbortSignal): Promise<ModelStreamResult> {
     const prompt = convertToPrompt(request.messages, request.system);
     const tools = request.tools?.length ? convertTools(request.tools) : undefined;
 
@@ -31,7 +32,7 @@ export class ModelClient {
       tools,
       maxOutputTokens: request.maxOutputTokens,
       temperature: request.temperature,
-      abortSignal: request.abortSignal,
+      abortSignal: abortSignal,
     });
 
     return {

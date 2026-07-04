@@ -61,6 +61,7 @@ export interface CallModelResult {
 /** executeModelStep / callModel 共享上下文 */
 export interface TurnContext {
   ctx: ModelRequestContext
+  messages: ModelMessage[]
   session: TurnSession;
   trace: TurnTrace;
   toolApprovalState: Map<string, boolean>;
@@ -204,9 +205,9 @@ export class AgentLoop {
     });
 
     const messages: ModelMessage[] = [...requestContext.messages];
-    const turnContext: TurnContext = { ctx: requestContext, session, trace, toolApprovalState, signal, controller };
+    const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
 
-    return this.startTurnLoop(messages, 0, turnContext, turnSpan, usage);
+    return this.startTurnLoop( 0, context, turnSpan, usage);
   }
 
   /** 从未完结的 turn 恢复执行，携带新的用户消息 */
@@ -247,7 +248,7 @@ export class AgentLoop {
     });
     await this.pipeline.enter(requestContext);
 
-    const turnContext: TurnContext = { ctx: requestContext, session, trace, toolApprovalState, signal, controller };
+    const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
 
     let startStep = turn.steps;
 
@@ -259,13 +260,11 @@ export class AgentLoop {
 
     if (pauseInfo) {
       // 路径 A：有 pauseInfo → 标准暂停恢复流程
-      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions, messages, turnContext);
+      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions, context);
       startStep = pauseInfo.pausedAtStep + 1;
     } else {
       // 路径 B：无 pauseInfo → 愈合模式，补齐缺失的 tool_result
-      const healResult = await this.healTurnMessages(
-        messages, turnContext, thread, turn, startStep, usage,
-      );
+      const healResult = await this.healTurnMessages(messages, context, thread, turn, startStep, usage);
       if (healResult) return healResult;
     }
 
@@ -281,21 +280,14 @@ export class AgentLoop {
     // 恢复 turn 状态为 running
     await threadStore.updateTurn(turn.id, { status: 'running' });
 
-    return this.startTurnLoop(
-      messages, startStep, turnContext, turnSpan, usage,
-    );
+    return this.startTurnLoop(startStep, context, turnSpan, usage);
   }
 
   /**
    * 从 pauseInfo 恢复工具调用：执行自动批准的调用、追加自动拒绝的结果、
    * 处理等待审批的调用（根据 approvalDecisions 决定执行或拒绝）。
    */
-  private async applyPauseInfoRecovery(
-    pauseInfo: PauseInfo,
-    approvalDecisions: ToolApproval[] | undefined,
-    messages: ModelMessage[],
-    turnContext: TurnContext,
-  ): Promise<void> {
+  private async applyPauseInfoRecovery(pauseInfo: PauseInfo, approvalDecisions: ToolApproval[] | undefined, context: TurnContext): Promise<void> {
     if (pauseInfo.reason !== 'tool-approval') return;
 
     const decisions = approvalDecisions ?? [];
@@ -307,7 +299,7 @@ export class AgentLoop {
       const calls: ToolCall[] = pauseInfo.autoApprovedCalls.map(c => ({
         id: c.id, name: c.name, args: c.args,
       }));
-      toolResults.push(...await this.executeAndCollectResults(calls, turnContext));
+      toolResults.push(...await this.executeAndCollectResults(calls, context));
     }
 
     // 2. 追加暂停前已自动拒绝的结果
@@ -338,10 +330,10 @@ export class AgentLoop {
       }
     }
 
-    toolResults.push(...await this.executeAndCollectResults(approvedCalls, turnContext));
+    toolResults.push(...await this.executeAndCollectResults(approvedCalls, context));
     toolResults.push(...deniedResults);
 
-    await this.appendToolResults(toolResults, messages, turnContext);
+    await this.appendToolResults(toolResults, context);
   }
 
   /**
@@ -386,23 +378,17 @@ export class AgentLoop {
     const toolResults = await this.executeAndCollectResults(approvedCalls, turnContext);
     toolResults.push(...deniedResults);
 
-    await this.appendToolResults(toolResults, messages, turnContext);
+    await this.appendToolResults(toolResults, turnContext);
     return null;
   }
 
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
    */
-  private async startTurnLoop(
-    messages: ModelMessage[],
-    startStep: number,
-    turnContext: TurnContext,
-    turnSpan: Span,
-    usage: UsageMetrics,
-  ): Promise<TurnResult> {
+  private async startTurnLoop(startStep: number, context: TurnContext, turnSpan: Span, usage: UsageMetrics): Promise<TurnResult> {
 
-    const {session: {thread, turn}, trace} = turnContext
-    const loopResult: StepLoopResult  = await this.runTurnLoop(messages, startStep, turnContext);
+    const {session: {thread, turn}, trace} = context
+    const loopResult: StepLoopResult  = await this.runTurnLoop(startStep, context);
     usage.input += loopResult.usage.input;
     usage.output += loopResult.usage.output;
 
@@ -410,11 +396,11 @@ export class AgentLoop {
     if (loopResult.finalStatus === 'paused') {
       turnSpan.end({ status: 'paused', steps: loopResult.steps });
       return {
-        status: 'paused', steps: loopResult.steps, usage, messages, turnId: turn.id, threadId: thread.id,
+        status: 'paused', steps: loopResult.steps, usage, messages: context.messages, turnId: turn.id, threadId: thread.id,
       };
     }
 
-    await this.pipeline.leave(turnContext.ctx);
+    await this.pipeline.leave(context.ctx);
 
     // 模型错误导致的失败
     if (loopResult.finalStatus === 'failed') {
@@ -424,7 +410,7 @@ export class AgentLoop {
       this.emit({ type: 'error', error: err });
 
       const failResult: TurnResult = {
-        status: 'failed', steps: loopResult.steps, usage, messages,
+        status: 'failed', steps: loopResult.steps, usage, messages: context.messages,
         turnId: turn.id, threadId: thread.id, error: loopResult.error,
       };
       await this.tracer.finish(trace, failResult, turn.id);
@@ -439,11 +425,11 @@ export class AgentLoop {
 
     const finalResult: TurnResult = {
       status: loopResult.finalStatus === 'aborted'
-        ? (turnContext.signal.aborted ? 'interrupted' : 'aborted')
+        ? (context.signal.aborted ? 'interrupted' : 'aborted')
         : 'completed',
       steps: loopResult.steps,
       usage,
-      messages,
+      messages: context.messages,
       turnId: turn.id,
       threadId: thread.id,
     };
@@ -454,19 +440,15 @@ export class AgentLoop {
   /**
    * 执行 step loop，被 startLoop（新 turn）和 startResume（恢复）共用。
    */
-  private async runTurnLoop(
-    messages: ModelMessage[],
-    startStep: number,
-    turnContext: TurnContext,
-  ): Promise<StepLoopResult> {
+  private async runTurnLoop(startStep: number, context: TurnContext,): Promise<StepLoopResult> {
     const usage = { input: 0, output: 0 };
     let steps = startStep;
 
-    const {session: {turn}, signal} = turnContext
+    const {session: {turn}, signal} = context
 
     while (steps < this.agent.maxSteps && !signal.aborted) {
-      const step: Step = { index: steps };
-      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, messages, turnContext);
+      const step: Step = { index: steps, messages: context.messages };
+      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, context);
       usage.input += stepUsage.input;
       usage.output += stepUsage.output;
 
@@ -492,16 +474,12 @@ export class AgentLoop {
   /**
    * 执行一个 model step：压缩 → model 调用 → 审批 → 工具执行 → 持久化。
    */
-  private async executeModelStep(
-    step: Step,
-    messages: ModelMessage[],
-    turnContext: TurnContext,
-  ): Promise<ModelStepResult> {
+  private async executeModelStep(step: Step, context: TurnContext): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
 
     const usage = { input: 0, output: 0 };
 
-    await this.tryCompact(messages, turnContext.signal);
+    await this.tryCompact(step, context.signal);
 
     if (this.tokenEconomy?.isInputExhausted()) {
       this.emit({ type: 'error', error: '输入 token 预算已耗尽' });
@@ -513,7 +491,7 @@ export class AgentLoop {
       return { shouldBreak: true, shouldPause: false, usage };
     }
 
-    const modelResult = await this.callModel(messages, step, turnContext);
+    const modelResult = await this.callModel(step, context);
 
     // 如果模型调用出错，提前结束
     if (modelResult.error) {
@@ -521,7 +499,7 @@ export class AgentLoop {
     }
 
     // 模型返回后检查中断信号，避免在已取消的 turn 中继续执行工具
-    if (turnContext.signal.aborted) {
+    if (context.signal.aborted) {
       return { shouldBreak: true, shouldPause: false, usage };
     }
 
@@ -532,11 +510,11 @@ export class AgentLoop {
     // 模型输出后的消息处理
     if (modelResult.text || modelResult.toolCalls.length > 0) {
       const assistantMsg = { role: 'assistant' as const, content: modelResult.text, ...(modelResult.toolCalls.length > 0 && { toolCalls: modelResult.toolCalls }) };
-      messages.push(assistantMsg);
+      context.messages.push(assistantMsg);
 
       await this.agent.thread.appendEntry({
-        threadId: turnContext.session.thread.id,
-        turnId: turnContext.session.turn.id,
+        threadId: context.session.thread.id,
+        turnId: context.session.turn.id,
         role: assistantMsg.role,
         content: assistantMsg.content,
         toolCalls: assistantMsg.toolCalls,
@@ -549,15 +527,13 @@ export class AgentLoop {
     }
 
     // 审批 + 执行 + 持久化
-    const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(
-      modelResult.toolCalls, turnContext,
-    );
+    const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(modelResult.toolCalls, context);
 
     // 有待审批的工具 → 暂停 turn
     // 注意：assistant(toolCalls) 消息已持久化到 DB（用于恢复），但需从内存 messages 中移除，
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pausedCalls.length > 0) {
-      messages.pop(); // 移除内存中的 assistant 消息，DB 中保留用于恢复
+      context.messages.pop(); // 移除内存中的 assistant 消息，DB 中保留用于恢复
 
       const pendingToolCalls = pausedCalls.map(c => ({ id: c.id, name: c.name, args: c.args }));
       const pauseInfo: PauseInfo = {
@@ -567,16 +543,16 @@ export class AgentLoop {
         autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
         autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error ?? 'denied' })) : undefined,
         pausedAtStep: step.index,
-        messageCount: messages.length,
+        messageCount: context.messages.length,
       };
       this.emit({ type: 'step-end', step: step.index + 1 });
       return { shouldBreak: false, shouldPause: true, pauseInfo, usage };
     }
 
-    const toolResults = await this.executeAndCollectResults(approvedCalls, turnContext);
+    const toolResults = await this.executeAndCollectResults(approvedCalls, context);
     toolResults.push(...deniedResults);
 
-    await this.appendToolResults(toolResults, messages, turnContext);
+    await this.appendToolResults(toolResults, context);
 
     this.emit({ type: 'step-end', step: step.index + 1 });
     return { shouldBreak: false, shouldPause: false, usage };
@@ -679,20 +655,16 @@ export class AgentLoop {
   /**
    * 将工具结果追加到 messages 并持久化到 threadStore。
    */
-  private async appendToolResults(
-    toolResults: ToolResult[],
-    messages: ModelMessage[],
-    shared: TurnContext,
-  ): Promise<void> {
+  private async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
     for (const r of toolResults) {
       const raw = r.status === 'success'
         ? (typeof r.output === 'string' ? r.output : JSON.stringify(r.output))
         : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
-      messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
+      context.messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
       await this.agent.thread.appendEntry({
-        threadId: shared.session.thread.id,
-        turnId: shared.session.turn.id,
+        threadId: context.session.thread.id,
+        turnId: context.session.turn.id,
         role: 'tool',
         content: truncated,
         toolCallId: r.callId,
@@ -710,15 +682,12 @@ export class AgentLoop {
   /**
    * 压缩检查，按需原地替换 messages。
    */
-  private async tryCompact(
-    messages: ModelMessage[],
-    signal: AbortSignal,
-  ): Promise<void> {
+  private async tryCompact(step: Step, signal: AbortSignal): Promise<void> {
     if (!this.compactor) return;
-    const result = await this.compactor.compactIfNeeded(messages, this.agent.modelClient, signal);
+    const result = await this.compactor.compactIfNeeded(step.messages, this.agent.modelClient, signal);
     if (result.wasCompacted) {
-      messages.length = 0;
-      messages.push(...result.compacted);
+      step.messages.length = 0;
+      step.messages.push(...result.compacted);
       this.emit({ type: 'compacted', removedTokens: result.removedTokens });
     }
   }
@@ -728,7 +697,6 @@ export class AgentLoop {
    * 不修改入参，结果通过 CallModelResult 返回。
    */
   private async callModel(
-    messages: ReadonlyArray<ModelMessage>,
     step: Step,
     turnContext: TurnContext,
   ): Promise<CallModelResult> {
@@ -737,7 +705,7 @@ export class AgentLoop {
 
     const request: ModelRequest = {
       system: ctx.systemPrompt,
-      messages,
+      messages: step.messages,
       tools: ctx.tools.map(toToolDescriptor),
       maxOutputTokens: this.agent.maxTokens,
       temperature: this.agent.temperature,
@@ -752,10 +720,7 @@ export class AgentLoop {
 
     try {
       console.log("model request", request)
-      const { stream } = await this.agent.modelClient.stream({
-        ...request,
-        abortSignal: turnContext.signal,
-      });
+      const { stream } = await this.agent.modelClient.stream(request, turnContext.signal);
 
       for await (const chunk of stream) {
         switch (chunk.type) {
