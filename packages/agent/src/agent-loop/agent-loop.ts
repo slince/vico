@@ -18,7 +18,7 @@ import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
-import type {TurnTracer, TurnTraceSession} from '../observable/turn-tracer.js';
+import type {TurnTracer, TurnTrace} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
@@ -62,7 +62,7 @@ export interface CallModelResult {
 export interface TurnContext {
   ctx: ModelRequestContext
   session: TurnSession;
-  traceSession: TurnTraceSession;
+  trace: TurnTrace;
   toolApprovalState: Map<string, boolean>;
   /** turn 级中断信号，贯穿 model 调用和工具执行 */
   signal: AbortSignal;
@@ -186,8 +186,8 @@ export class AgentLoop {
     const turn = await this.agent.thread.createTurn(thread.id);
     const session: TurnSession = { ...options, thread, turn };
 
-    const traceSession = this.tracer.startTurn(thread, userMessage, turn.id);
-    const turnSpan = traceSession.startSpan('agent_run');
+    const trace = this.tracer.startTurn(thread, userMessage, turn.id);
+    const turnSpan = trace.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
     const requestContext = new ModelRequestContext({
@@ -206,7 +206,7 @@ export class AgentLoop {
     });
 
     const messages: ModelMessage[] = [...requestContext.messages];
-    const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState, signal, controller, currentSpanId: turnSpan.id };
+    const turnContext: TurnContext = { ctx: requestContext, session, trace, toolApprovalState, signal, controller, currentSpanId: turnSpan.id };
 
     return this.startTurnLoop(messages, 0, turnContext, turnSpan, usage);
   }
@@ -237,8 +237,8 @@ export class AgentLoop {
 
     // 重建 session 和 context
     const session: TurnSession = { workspace, scopeId, thread, turn };
-    const traceSession = this.tracer.startTurn(thread, userMessage, turn.id);
-    const turnSpan = traceSession.startSpan('agent_resume');
+    const trace = this.tracer.startTurn(thread, userMessage, turn.id);
+    const turnSpan = trace.startSpan('agent_resume');
     const toolApprovalState = new Map<string, boolean>();
 
     const requestContext = new ModelRequestContext({
@@ -249,7 +249,7 @@ export class AgentLoop {
     });
     await this.pipeline.enter(requestContext);
 
-    const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState, signal, controller, currentSpanId: turnSpan.id };
+    const turnContext: TurnContext = { ctx: requestContext, session, trace, toolApprovalState, signal, controller, currentSpanId: turnSpan.id };
 
     let startStep = turn.steps;
 
@@ -403,7 +403,7 @@ export class AgentLoop {
     usage: UsageMetrics,
   ): Promise<TurnResult> {
 
-    const {session: {thread, turn}, traceSession} = turnContext
+    const {session: {thread, turn}, trace} = turnContext
     const loopResult: StepLoopResult  = await this.runTurnLoop(messages, startStep, turnContext);
     usage.input += loopResult.usage.input;
     usage.output += loopResult.usage.output;
@@ -429,7 +429,7 @@ export class AgentLoop {
         status: 'failed', steps: loopResult.steps, usage, messages,
         turnId: turn.id, threadId: thread.id, error: loopResult.error,
       };
-      await this.tracer.finish(traceSession, failResult, turn.id);
+      await this.tracer.finish(trace, failResult, turn.id);
       return failResult;
     }
 
@@ -449,7 +449,7 @@ export class AgentLoop {
       turnId: turn.id,
       threadId: thread.id,
     };
-    await this.tracer.finish(traceSession, finalResult, turn.id);
+    await this.tracer.finish(trace, finalResult, turn.id);
     return finalResult;
   }
 
@@ -733,7 +733,7 @@ export class AgentLoop {
     step: Step,
     turnContext: TurnContext,
   ): Promise<CallModelResult> {
-    const { ctx, traceSession, controller } = turnContext;
+    const { ctx, trace, controller } = turnContext;
     const modelUsage = { input: 0, output: 0 };
 
     const request: ModelRequest = {
@@ -747,11 +747,11 @@ export class AgentLoop {
     let fullText = '';
     const toolCalls: ToolCall[] = [];
     const previousSpanId = turnContext.currentSpanId;
-    const modelSpan = traceSession.startSpan('model_step', { step: step.index + 1 }, previousSpanId);
+    const modelSpan = trace.startSpan('model_step', { step: step.index + 1 }, previousSpanId);
     turnContext.currentSpanId = modelSpan.id;
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
-    traceSession.recordModelRequest(step.index, request);
+    trace.recordModelRequest(step.index, request);
 
     try {
       try {
@@ -813,7 +813,7 @@ export class AgentLoop {
                 const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
                 modelSpan.error(err);
                 this.emit({ type: 'error', error: err });
-                traceSession.recordModelResponse(step.index, { text: fullText, toolCalls, usage: modelUsage, error: err });
+                trace.recordModelResponse(step.index, { text: fullText, toolCalls, usage: modelUsage, error: err });
                 return { text: fullText, toolCalls, usage: modelUsage, error: err };
               // stream-start/response-metadata/raw：内部使用
             }
@@ -822,7 +822,7 @@ export class AgentLoop {
         modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
         const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
-        traceSession.recordModelResponse(step.index, result);
+        trace.recordModelResponse(step.index, result);
         return result;
       } catch (err) {
         console.log("call model error", err);
@@ -831,7 +831,7 @@ export class AgentLoop {
         modelSpan.error(error);
         this.emit({ type: 'error', error: error });
         const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: error };
-        traceSession.recordModelResponse(step.index, errorResult);
+        trace.recordModelResponse(step.index, errorResult);
         return errorResult;
       }
     } finally {
@@ -846,7 +846,7 @@ export class AgentLoop {
     toolCalls: ToolCall[],
     turnContext: TurnContext,
   ): Promise<ToolResult[]> {
-    const toolSpan = turnContext.traceSession.startSpan('tool_call', { count: toolCalls.length }, turnContext.currentSpanId);
+    const toolSpan = turnContext.trace.startSpan('tool_call', { count: toolCalls.length }, turnContext.currentSpanId);
     try {
       const results = await this.dispatchTools(toolCalls, turnContext.session, turnContext.signal);
       toolSpan.end({ results: results.length });
