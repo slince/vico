@@ -159,9 +159,10 @@ export class AgentLoop {
       thread = await threadStore.createThread(this.agent.id, title, threadId, options as ThreadContext);
     }
 
-    // 仅恢复处于 paused 状态的 turn（running/failed 的 turn 消息链可能不完整，重新开始更安全）
+    // 自动恢复所有未完成的 turn（paused/running/failed），
+    // resumeTurn 内置消息链愈合逻辑，能自动补齐缺失的 tool_result
     const latestTurn = await threadStore.getLatestTurn(threadId);
-    if (latestTurn && latestTurn.status === 'paused') {
+    if (latestTurn && latestTurn.status !== 'completed') {
       return this.resumeTurn({thread, turn: latestTurn, userMessage, signal, controller, options, usage});
     }
 
@@ -253,10 +254,14 @@ export class AgentLoop {
 
     let startStep = turn.steps;
 
-    // 处理暂停恢复（含审批决策）—— 必须在追加用户消息之前，
-    // 确保 tool_result 紧跟在 assistant(toolCalls) 之后，否则模型 API 会拒绝请求
+    // ── 消息链自检与愈合 ──
+    // 无论 turn 是 paused（有 pauseInfo）还是 running/failed（无 pauseInfo），
+    // 都必须先确保 assistant(toolCalls) → tool_result 链完整，再追加用户消息。
+    // 否则模型 API 会因 tool_use 缺少 tool_result 而拒绝请求。
     const pauseInfo = turn.metadata?.pauseInfo as PauseInfo | undefined;
+
     if (pauseInfo) {
+      // 路径 A：有 pauseInfo → 标准暂停恢复流程
       if (pauseInfo.reason === 'tool-approval') {
         const decisions = approvalDecisions ?? [];
         const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
@@ -328,9 +333,61 @@ export class AgentLoop {
       }
 
       startStep = pauseInfo.pausedAtStep + 1;
+    } else {
+      // 路径 B：无 pauseInfo → 愈合模式：扫描最后一条 assistant 消息，
+      // 补齐未被 tool_result 覆盖的 toolCalls
+      const unresolvedCalls = this.findUnresolvedToolCalls(messages);
+
+      if (unresolvedCalls && unresolvedCalls.length > 0) {
+        const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(
+          unresolvedCalls, controller, stepContext,
+        );
+
+        if (pausedCalls.length > 0) {
+          // on-request 工具需要用户审批 → 重新进入暂停状态，不追加用户消息
+          // 注意：不 pop assistant 消息，因为可能已有部分 tool_result（崩溃前已执行完的调用）。
+          // assistant(toolCalls) 留在 messages 中，下次恢复时 pauseInfo 会精确补齐剩余调用
+
+          const newPauseInfo: PauseInfo = {
+            reason: 'tool-approval',
+            pendingToolCalls: pausedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })),
+            autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
+            autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error! })) : undefined,
+            pausedAtStep: startStep,
+            messageCount: messages.length,
+          };
+
+          await threadStore.updateTurn(turn.id, { status: 'paused', steps: startStep, metadata: { pauseInfo: newPauseInfo } });
+
+          const pausedResult: TurnResult = {
+            status: 'paused', steps: startStep, usage, messages, turnId: turn.id, threadId: thread.id,
+          };
+          return pausedResult;
+        }
+
+        // 全部可自动处理 → 执行并追加 tool_results
+        const step: Step = { index: startStep, threadId: thread.id, scopeId, signal };
+        const toolResults: ToolResult[] = [];
+        if (approvedCalls.length > 0) {
+          try {
+            toolResults.push(...await this.executeToolCalls(approvedCalls, session, step, traceSession));
+          } catch (err) {
+            for (const call of approvedCalls) {
+              toolResults.push({
+                callId: call.id, name: call.name,
+                status: 'error', output: null,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+        }
+        toolResults.push(...deniedResults);
+
+        await this.appendToolResults(toolResults, messages, stepContext);
+      }
     }
 
-    // 工具结果追加完毕后再追加用户消息，保证顺序正确
+    // ── 消息链已完整，安全追加用户消息 ──
     messages.push(userMessage);
     await threadStore.appendEntry({
       threadId: thread.id,
@@ -813,6 +870,41 @@ export class AgentLoop {
     };
 
     return this.toolBroker.executeBatch(calls, context);
+  }
+
+  /**
+   * 扫描 messages 中最后一条 assistant 消息，返回未被 tool_result 覆盖的 toolCalls。
+   * 用于 turn 恢复时的消息链愈合：补齐崩溃/重启后缺失的 tool_result。
+   *
+   * @param messages - 当前消息数组
+   * @returns 未解决的 ToolCall 数组，无需愈合时返回 null
+   */
+  private findUnresolvedToolCalls(messages: ModelMessage[]): ToolCall[] | null {
+    // 从后往前找最后一条 assistant 消息（含 toolCalls）
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role === 'assistant' && msg.toolCalls && Array.isArray(msg.toolCalls) && msg.toolCalls.length > 0) {
+        // 收集该 assistant 消息之后所有 tool_result 的 ID
+        const resolvedIds = new Set<string>();
+        for (let j = i + 1; j < messages.length; j++) {
+          if (messages[j].role === 'tool' && messages[j].toolCallId) {
+            resolvedIds.add(messages[j].toolCallId);
+          }
+        }
+        const toolCalls = msg.toolCalls as Array<{ id: string; name: string; args: unknown }>;
+        const unresolved = toolCalls.filter(tc => !resolvedIds.has(tc.id));
+        if (unresolved.length > 0) {
+          return unresolved.map(tc => ({
+            id: tc.id,
+            name: tc.name,
+            args: tc.args as Record<string, unknown>,
+          }));
+        }
+        // 该 assistant 消息的所有 toolCalls 已解决，继续检查更早的消息
+        // （正常情况下只会有最后一条未解决，但不排除多步崩溃的场景）
+      }
+    }
+    return null;
   }
 
 }
