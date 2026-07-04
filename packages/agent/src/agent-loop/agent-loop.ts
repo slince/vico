@@ -695,11 +695,8 @@ export class AgentLoop {
    * 单次模型调用。messages 已由调用方预处理（含 ctx.before/after），
    * 不修改入参，结果通过 CallModelResult 返回。
    */
-  private async callModel(
-    step: Step,
-    turnContext: TurnContext,
-  ): Promise<CallModelResult> {
-    const { ctx, trace, controller } = turnContext;
+  private async callModel(step: Step, context: TurnContext): Promise<CallModelResult> {
+    const { ctx, trace, controller } = context;
     const modelUsage = { input: 0, output: 0 };
 
     const request: ModelRequest = {
@@ -719,7 +716,7 @@ export class AgentLoop {
 
     try {
       console.log("model request", request)
-      const { stream } = await this.agent.modelClient.stream(request, turnContext.signal);
+      const { stream } = await this.agent.modelClient.stream(request, context.signal);
 
       for await (const chunk of stream) {
         switch (chunk.type) {
