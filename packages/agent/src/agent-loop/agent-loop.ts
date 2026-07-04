@@ -794,12 +794,9 @@ export class AgentLoop {
   private async executeToolCalls(toolCalls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
     const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
     try {
-      const toolCallContext: ToolCallContext = {
-        session: context.session,
-        agentId: this.agent.id,
-        signal: context.signal,
-      };
+      const toolCallContext: ToolCallContext = {session: context.session, agentId: this.agent.id, signal: context.signal};
       const results = await this.toolBroker.executeBatch(toolCalls, toolCallContext)
+      
       toolSpan.end({ results: results.length });
 
       for (const r of results) {
