@@ -159,9 +159,9 @@ export class AgentLoop {
       thread = await threadStore.createThread(this.agent.id, title, threadId, options as ThreadContext);
     }
 
-    // 检测未完结的 turn，自动恢复执行
+    // 仅恢复处于 paused 状态的 turn（running/failed 的 turn 消息链可能不完整，重新开始更安全）
     const latestTurn = await threadStore.getLatestTurn(threadId);
-    if (latestTurn && latestTurn.status !== 'completed') {
+    if (latestTurn && latestTurn.status === 'paused') {
       return this.resumeTurn({thread, turn: latestTurn, userMessage, signal, controller, options, usage});
     }
 
@@ -257,13 +257,42 @@ export class AgentLoop {
     // 确保 tool_result 紧跟在 assistant(toolCalls) 之后，否则模型 API 会拒绝请求
     const pauseInfo = turn.metadata?.pauseInfo as PauseInfo | undefined;
     if (pauseInfo) {
-      if (messages.length !== pauseInfo.messageCount) {
-        console.warn(`Message count mismatch: expected ${pauseInfo.messageCount}, got ${messages.length}`);
-      }
-
       if (pauseInfo.reason === 'tool-approval') {
         const decisions = approvalDecisions ?? [];
         const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
+        const step: Step = { index: pauseInfo.pausedAtStep, threadId: thread.id, scopeId, signal };
+        const toolResults: ToolResult[] = [];
+
+        // 1. 执行暂停前已自动批准的调用
+        if (pauseInfo.autoApprovedCalls && pauseInfo.autoApprovedCalls.length > 0) {
+          const calls: ToolCall[] = pauseInfo.autoApprovedCalls.map(c => ({
+            id: c.id, name: c.name, args: c.args,
+          }));
+          try {
+            toolResults.push(...await this.executeToolCalls(calls, session, step, traceSession));
+          } catch (err) {
+            for (const call of calls) {
+              toolResults.push({
+                callId: call.id, name: call.name,
+                status: 'error', output: null,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+        }
+
+        // 2. 追加暂停前已自动拒绝的结果
+        if (pauseInfo.autoDeniedResults) {
+          for (const r of pauseInfo.autoDeniedResults) {
+            toolResults.push({
+              callId: r.callId, name: r.name,
+              status: 'error', output: null,
+              error: r.error,
+            });
+          }
+        }
+
+        // 3. 处理等待审批的调用
         const approvedCalls: ToolCall[] = [];
         const deniedResults: ToolResult[] = [];
 
@@ -280,10 +309,18 @@ export class AgentLoop {
           }
         }
 
-        const step: Step = { index: pauseInfo.pausedAtStep, threadId: thread.id, scopeId, signal };
-        const toolResults: ToolResult[] = [];
         if (approvedCalls.length > 0) {
-          toolResults.push(...await this.executeToolCalls(approvedCalls, session, step, traceSession));
+          try {
+            toolResults.push(...await this.executeToolCalls(approvedCalls, session, step, traceSession));
+          } catch (err) {
+            for (const call of approvedCalls) {
+              toolResults.push({
+                callId: call.id, name: call.name,
+                status: 'error', output: null,
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
         }
         toolResults.push(...deniedResults);
 
@@ -474,11 +511,18 @@ export class AgentLoop {
     );
 
     // 有待审批的工具 → 暂停 turn
+    // 注意：assistant(toolCalls) 消息已持久化到 DB（用于恢复），但需从内存 messages 中移除，
+    // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pausedCalls.length > 0) {
+      messages.pop(); // 移除内存中的 assistant 消息，DB 中保留用于恢复
+
       const pendingToolCalls = pausedCalls.map(c => ({ id: c.id, name: c.name, args: c.args }));
       const pauseInfo: PauseInfo = {
         reason: 'tool-approval',
         pendingToolCalls,
+        // 保存已在审批阶段自动决策的调用，恢复时直接使用，避免重复审批
+        autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
+        autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error! })) : undefined,
         pausedAtStep: step.index,
         messageCount: messages.length,
       };
@@ -488,7 +532,18 @@ export class AgentLoop {
 
     const toolResults: ToolResult[] = [];
     if (approvedCalls.length > 0) {
-      toolResults.push(...await this.executeToolCalls(approvedCalls, stepContext.session, step, stepContext.traceSession));
+      try {
+        toolResults.push(...await this.executeToolCalls(approvedCalls, stepContext.session, step, stepContext.traceSession));
+      } catch (err) {
+        // 工具执行失败时为每个调用生成错误结果，确保 tool_use → tool_result 配对完整
+        for (const call of approvedCalls) {
+          toolResults.push({
+            callId: call.id, name: call.name,
+            status: 'error', output: null,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
     }
     toolResults.push(...deniedResults);
 

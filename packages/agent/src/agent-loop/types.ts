@@ -50,6 +50,10 @@ export interface PauseInfo {
   reason: 'tool-approval' | 'error';
   /** 等待审批的工具调用 */
   pendingToolCalls: Array<{ id: string; name: string; args: unknown }>;
+  /** 暂停时已自动批准的工具调用（恢复时直接执行，无需再次审批） */
+  autoApprovedCalls?: Array<{ id: string; name: string; args: Record<string, unknown> }>;
+  /** 暂停时已自动拒绝的工具结果（恢复时直接追加） */
+  autoDeniedResults?: Array<{ callId: string; name: string; error: string }>;
   /** 暂停时的 step 索引 */
   pausedAtStep: number;
   /** 暂停时 messages 数组长度（完整性校验） */
