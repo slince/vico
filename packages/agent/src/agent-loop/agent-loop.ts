@@ -206,7 +206,7 @@ export class AgentLoop {
     const messages: ModelMessage[] = [...requestContext.messages];
     const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState, signal, controller };
 
-    return this.startTurnLoop(messages, 0, turnContext, traceSession, turnSpan, usage);
+    return this.startTurnLoop(messages, 0, turnContext, turnSpan, usage);
   }
 
   /** 从未完结的 turn 恢复执行，携带新的用户消息 */
@@ -282,7 +282,7 @@ export class AgentLoop {
     await threadStore.updateTurn(turn.id, { status: 'running' });
 
     return this.startTurnLoop(
-      messages, startStep, turnContext, traceSession, turnSpan, usage,
+      messages, startStep, turnContext, turnSpan, usage,
     );
   }
 
@@ -402,12 +402,11 @@ export class AgentLoop {
     messages: ModelMessage[],
     startStep: number,
     turnContext: TurnContext,
-    traceSession: TurnTraceSession,
     turnSpan: Span,
     usage: UsageMetrics,
   ): Promise<TurnResult> {
 
-    const {session: {thread, turn}} = turnContext
+    const {session: {thread, turn}, traceSession} = turnContext
     const loopResult: StepLoopResult  = await this.runTurnLoop(messages, startStep, turnContext);
     usage.input += loopResult.usage.input;
     usage.output += loopResult.usage.output;
