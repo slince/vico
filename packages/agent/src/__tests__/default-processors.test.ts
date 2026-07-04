@@ -31,8 +31,11 @@ function makeCtx(overrides?: Partial<ModelRequestContext> & { threadId?: string 
   return new ModelRequestContext({
     agent: makeConfig(),
     userMessage: { role: 'user', content: 'hello' },
-    thread: threadId ? { ...defaultThread, id: threadId } : defaultThread,
-    scopeId: 'u1',
+    session: {
+      thread: threadId ? { ...defaultThread, id: threadId } : defaultThread,
+      turn: { id: 'turn1', threadId: threadId ?? 't1', status: 'running' as const, steps: 0, createdAt: 0 },
+      scopeId: 'u1',
+    },
     ...rest,
   });
 }

@@ -1,5 +1,5 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
-import type {Step} from '../types.js';
+import type {Step, TurnSession} from '../types.js';
 import type {ModelMessage} from '../../model/types.js';
 import type {Tool} from '../../tool/types.js';
 import type {Thread} from '../../thread/types.js';
@@ -36,12 +36,10 @@ export class ModelRequestContext {
   messages: ModelMessage[];
   /** 暴露给 LLM 的工具 */
   tools: Tool[];
-  /** 当前会话线程 */
-  thread?: Thread;
+  /** 当前 turn 会话（身份 + 线程引用） */
+  readonly session?: TurnSession;
   /** 当前 step（一次 LLM 调用 + 可选工具执行） */
   step?: Step;
-  /** 工作记忆作用域标识（userId 或 workspace 路径） */
-  scopeId: string;
 
   constructor(init: {
     agent: AgentRef;
@@ -49,27 +47,35 @@ export class ModelRequestContext {
     messages?: ModelMessage[];
     systemPrompt?: string;
     tools?: Tool[];
-    thread?: Thread;
+    session?: TurnSession;
     step?: Step;
-    scopeId?: string;
   }) {
     this.agent = init.agent;
     this.userMessage = init.userMessage ?? init.messages?.find(m => m.role === 'user')!;
     this.messages = init.userMessage ? [init.userMessage] : (init.messages ?? []);
     this.systemPrompt = init.systemPrompt ?? '';
     this.tools = init.tools ?? [];
-    this.thread = init.thread;
+    this.session = init.session;
     this.step = init.step;
-    this.scopeId = init.scopeId ?? '';
   }
-  
+
+  /** 便捷获取当前线程 */
+  get thread(): Thread | undefined {
+    return this.session?.thread;
+  }
+
   /**
    * 便捷获取 threadId。
    *
    * @returns 线程 ID，无线程时返回空字符串
    */
   get threadId(): string {
-    return this.thread?.id ?? '';
+    return this.session?.thread.id ?? '';
+  }
+
+  /** 便捷获取工作记忆作用域标识 */
+  get scopeId(): string {
+    return this.session?.scopeId ?? '';
   }
 
   /**

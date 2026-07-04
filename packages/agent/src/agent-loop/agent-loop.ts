@@ -188,8 +188,7 @@ export class AgentLoop {
       agent: this.agent,
       userMessage,
       tools: [...this.agent.tools],
-      thread,
-      scopeId: options?.scopeId,
+      session,
     });
     await this.pipeline.enter(requestContext);
 
@@ -240,8 +239,7 @@ export class AgentLoop {
       agent: this.agent,
       userMessage,
       tools: [...this.agent.tools],
-      thread,
-      scopeId,
+      session,
     });
     await this.pipeline.enter(requestContext);
 
