@@ -1,7 +1,6 @@
 // @vico/agent - Tool module type definitions
 import type {z} from 'zod';
-
-import type {TurnSession} from '../agent-loop/types.js';
+import {TurnSession} from "../agent-loop/agent-loop-options.js";
 
 /** 工具审批策略 */
 export type ToolPolicy = 'auto' | 'on-request' | 'suggest' | 'never';
