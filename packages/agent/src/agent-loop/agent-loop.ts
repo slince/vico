@@ -295,7 +295,7 @@ export class AgentLoop {
 
     // 1. 执行暂停前已自动批准的调用
     if (pauseInfo.autoApprovedCalls && pauseInfo.autoApprovedCalls.length > 0) {
-      toolResults.push(...await this.executeToolsAndCollect(pauseInfo.autoApprovedCalls, context));
+      toolResults.push(...await this.executeToolCalls(pauseInfo.autoApprovedCalls, context));
     }
 
     // 2. 追加暂停前已自动拒绝的结果
@@ -320,7 +320,7 @@ export class AgentLoop {
       }
     }
 
-    toolResults.push(...await this.executeToolsAndCollect(approvedCalls, context));
+    toolResults.push(...await this.executeToolCalls(approvedCalls, context));
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, context);
@@ -363,7 +363,7 @@ export class AgentLoop {
     }
 
     // 全部可自动处理 → 执行并追加 tool_results
-    const toolResults = await this.executeToolsAndCollect(approvedCalls, context);
+    const toolResults = await this.executeToolCalls(approvedCalls, context);
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, context);
@@ -536,7 +536,7 @@ export class AgentLoop {
       return { shouldBreak: false, shouldPause: true, pauseInfo, usage };
     }
 
-    const toolResults = await this.executeToolsAndCollect(approvedCalls, context);
+    const toolResults = await this.executeToolCalls(approvedCalls, context);
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, context);
@@ -610,27 +610,6 @@ export class AgentLoop {
     }
 
     return { approvedCalls, deniedResults, pausedCalls };
-  }
-
-  /**
-   * 执行工具调用并收集结果，自动处理异常。
-   * 批量调用整体失败时，为每个调用生成 error 结果，确保 tool_use → tool_result 配对完整。
-   *
-   * @param calls - 待执行的工具调用列表
-   * @param context - 当前 turn 上下文
-   * @returns 工具执行结果数组
-   */
-  private async executeToolsAndCollect(calls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
-    if (calls.length === 0) return [];
-    try {
-      return await this.executeToolCalls(calls, context);
-    } catch (err) {
-      return calls.map(call => ({
-        callId: call.id, name: call.name,
-        status: 'error' as const, output: null,
-        error: err instanceof Error ? err.message : String(err),
-      }));
-    }
   }
 
   /**
@@ -779,27 +758,24 @@ export class AgentLoop {
    * 执行工具调用，返回结果数组。不修改入参，事件通过 emit 触发。
    */
   private async executeToolCalls(toolCalls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
+    if (toolCalls.length === 0) return [];
+
     const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
-    try {
-      const toolCallContext: ToolCallContext = {session: context.session, agentId: this.agent.id, signal: context.signal};
-      const results = await this.toolBroker.executeBatch(toolCalls, toolCallContext)
+    const toolCallContext: ToolCallContext = {session: context.session, agentId: this.agent.id, signal: context.signal};
+    const results = await this.toolBroker.executeBatch(toolCalls, toolCallContext);
 
-      toolSpan.end({ results: results.length });
+    toolSpan.end({ results: results.length });
 
-      for (const r of results) {
-        this.emit({
-          type: 'tool-result',
-          id: r.callId,
-          name: r.name,
-          status: r.status,
-          output: r.output,
-        });
-      }
-      return results;
-    } catch (err) {
-      toolSpan.error(err instanceof Error ? err :String(err));
-      throw err;
+    for (const r of results) {
+      this.emit({
+        type: 'tool-result',
+        id: r.callId,
+        name: r.name,
+        status: r.status,
+        output: r.output,
+      });
     }
+    return results;
   }
 
   /**
