@@ -341,7 +341,7 @@ export class AgentLoop {
     usage: UsageMetrics,
   ): Promise<TurnResult | null> {
     const unresolvedCalls = this.findUnresolvedToolCalls(messages);
-    if (!unresolvedCalls || unresolvedCalls.length === 0) return null;
+    if (unresolvedCalls.length === 0) return null;
 
     const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(unresolvedCalls, context);
 
@@ -785,7 +785,7 @@ export class AgentLoop {
    * @param messages - 当前消息数组
    * @returns 未解决的 ToolCall 数组，无需愈合时返回 null
    */
-  private findUnresolvedToolCalls(messages: ModelMessage[]): ToolCall[] | null {
+  private findUnresolvedToolCalls(messages: ModelMessage[]): ToolCall[] {
     // 从后往前找最后一条 assistant 消息（含 toolCalls）
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
@@ -807,7 +807,7 @@ export class AgentLoop {
         // （正常情况下只会有最后一条未解决，但不排除多步崩溃的场景）
       }
     }
-    return null;
+    return [];
   }
 
 }
