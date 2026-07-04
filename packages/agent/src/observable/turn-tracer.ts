@@ -1,7 +1,7 @@
 // @vico/agent - TurnTracer: subscribes to AgentLoop events, collects spans, outputs structured trace on turn end
 import {randomUUID} from 'node:crypto';
 import type {EventRecorder} from '../events/types.js';
-import type {Step, TurnEvent, TurnResult} from '../agent-loop/types.js';
+import type {TurnEvent, TurnResult} from '../agent-loop/types.js';
 import type {CallModelResult} from '../agent-loop/agent-loop.js';
 import type {ModelMessage, ModelRequest} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
@@ -66,11 +66,12 @@ export class TurnTraceSession {
    * 启动一个追踪 Span。
    * @param type - Span 类型
    * @param metadata - 可选的 Span 元数据
+   * @param parentSpanId - 可选的父 Span ID，用于构建层级关系
    * @returns 包含 id、end() 和 error() 方法的 Span 对象
    */
-  startSpan(type: SpanType, metadata?: Record<string, unknown>): Span {
+  startSpan(type: SpanType, metadata?: Record<string, unknown>, parentSpanId?: string): Span {
     const id = randomUUID();
-    const state: SpanState = { id, type, metadata: metadata ?? {}, startTime: Date.now() };
+    const state: SpanState = { id, type, parentSpanId, metadata: metadata ?? {}, startTime: Date.now() };
     this.spans.push(state);
 
     return {
@@ -88,22 +89,22 @@ export class TurnTraceSession {
 
   /**
    * 记录 LLM 请求参数。不依赖事件驱动的 currentStep，直接查找或创建 step。
-   * @param step - 当前 Step 对象（0-based index）
+   * @param stepIndex - 当前 step 序号（0-based）
    * @param request - 模型请求参数
    */
-  recordModelRequest(step: Step, request: ModelRequest): void {
-    const idx = step.index + 1; // 转为 1-based，与 step-start 事件一致
+  recordModelRequest(stepIndex: number, request: ModelRequest): void {
+    const idx = stepIndex + 1; // 转为 1-based，与 step-start 事件一致
     const stepTrace = this.getOrCreateStep(idx);
     stepTrace.request = request;
   }
 
   /**
    * 记录 LLM 响应结果。
-   * @param step - 当前 Step 对象（0-based index）
+   * @param stepIndex - 当前 step 序号（0-based）
    * @param response - 模型调用返回结果
    */
-  recordModelResponse(step: Step, response: CallModelResult): void {
-    const idx = step.index + 1;
+  recordModelResponse(stepIndex: number, response: CallModelResult): void {
+    const idx = stepIndex + 1;
     const stepTrace = this.getOrCreateStep(idx);
     stepTrace.response = response;
   }
@@ -163,27 +164,39 @@ export class TurnTraceSession {
  * 每个 turn 通过 startTurn() 创建独立的 TurnTraceSession，并发安全。
  */
 export class TurnTracer {
+  /** turnId → TurnTraceSession，支持暂停恢复时复用同一会话 */
+  private sessions = new Map<string, TurnTraceSession>();
+
   constructor(
     private readonly events: EventRecorder<TurnEvent>,
     private readonly adapters: ReadonlyArray<TraceAdapter>,
   ) {}
 
   /**
-   * 为当前 turn 创建独立的追踪会话。
+   * 为当前 turn 获取或创建追踪会话。
+   * 若该 turnId 已有暂停的会话则复用（保证 trace 不分裂），否则创建新会话。
    * @param thread - 当前 Thread 对象
    * @param userMessage - 用户消息
-   * @returns 新的 TurnTraceSession 实例
+   * @param turnId - 当前 turn ID，用于暂停恢复时匹配会话
+   * @returns TurnTraceSession 实例
    */
-  startTurn(thread: Thread, userMessage: ModelMessage): TurnTraceSession {
-    return new TurnTraceSession(thread, userMessage, this.events);
+  startTurn(thread: Thread, userMessage: ModelMessage, turnId: string): TurnTraceSession {
+    const existing = this.sessions.get(turnId);
+    if (existing) return existing;
+
+    const session = new TurnTraceSession(thread, userMessage, this.events);
+    this.sessions.set(turnId, session);
+    return session;
   }
 
   /**
-   * 结束 turn：从 session 提取数据，委托所有适配器输出/导出。
+   * 结束 turn：从 session 提取数据，委托所有适配器输出/导出，并清理会话。
    * @param traceSession - 当前 Turn 的追踪会话
    * @param result - Turn 最终结果
+   * @param turnId - 当前 turn ID，用于清理会话映射
    */
-  async finish(traceSession: TurnTraceSession, result: TurnResult): Promise<void> {
+  async finish(traceSession: TurnTraceSession, result: TurnResult, turnId: string): Promise<void> {
+    this.sessions.delete(turnId);
     const trace = traceSession.finalize(result);
 
     for (const adapter of this.adapters) {

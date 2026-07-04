@@ -68,6 +68,8 @@ export interface TurnContext {
   signal: AbortSignal;
   /** 流控制器，用于向客户端推送 chunk */
   controller: ReadableStreamDefaultController<ModelStreamChunk>;
+  /** 当前活跃 Span ID，用于构建 span 父子层级 */
+  currentSpanId?: string;
 }
 
 /** AgentLoop 构造选项 */
@@ -184,7 +186,7 @@ export class AgentLoop {
     const turn = await this.agent.thread.createTurn(thread.id);
     const session: TurnSession = { ...options, thread, turn };
 
-    const traceSession = this.tracer.startTurn(thread, userMessage);
+    const traceSession = this.tracer.startTurn(thread, userMessage, turn.id);
     const turnSpan = traceSession.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
@@ -204,7 +206,7 @@ export class AgentLoop {
     });
 
     const messages: ModelMessage[] = [...requestContext.messages];
-    const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState, signal, controller };
+    const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState, signal, controller, currentSpanId: turnSpan.id };
 
     return this.startTurnLoop(messages, 0, turnContext, turnSpan, usage);
   }
@@ -235,7 +237,7 @@ export class AgentLoop {
 
     // 重建 session 和 context
     const session: TurnSession = { workspace, scopeId, thread, turn };
-    const traceSession = this.tracer.startTurn(thread, userMessage);
+    const traceSession = this.tracer.startTurn(thread, userMessage, turn.id);
     const turnSpan = traceSession.startSpan('agent_resume');
     const toolApprovalState = new Map<string, boolean>();
 
@@ -247,7 +249,7 @@ export class AgentLoop {
     });
     await this.pipeline.enter(requestContext);
 
-    const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState, signal, controller };
+    const turnContext: TurnContext = { ctx: requestContext, session, traceSession, toolApprovalState, signal, controller, currentSpanId: turnSpan.id };
 
     let startStep = turn.steps;
 
@@ -298,11 +300,8 @@ export class AgentLoop {
   ): Promise<void> {
     if (pauseInfo.reason !== 'tool-approval') return;
 
-    const { session, traceSession } = turnContext;
-    const { thread } = session;
     const decisions = approvalDecisions ?? [];
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
-    const step: Step = { index: pauseInfo.pausedAtStep };
     const toolResults: ToolResult[] = [];
 
     // 1. 执行暂停前已自动批准的调用
@@ -310,7 +309,7 @@ export class AgentLoop {
       const calls: ToolCall[] = pauseInfo.autoApprovedCalls.map(c => ({
         id: c.id, name: c.name, args: c.args,
       }));
-      toolResults.push(...await this.executeAndCollectResults(calls, session, turnContext.signal, traceSession));
+      toolResults.push(...await this.executeAndCollectResults(calls, turnContext));
     }
 
     // 2. 追加暂停前已自动拒绝的结果
@@ -341,7 +340,7 @@ export class AgentLoop {
       }
     }
 
-    toolResults.push(...await this.executeAndCollectResults(approvedCalls, session, turnContext.signal, traceSession));
+    toolResults.push(...await this.executeAndCollectResults(approvedCalls, turnContext));
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, messages, turnContext);
@@ -386,9 +385,7 @@ export class AgentLoop {
     }
 
     // 全部可自动处理 → 执行并追加 tool_results
-    const { session, traceSession } = turnContext;
-    const step: Step = { index: startStep };
-    const toolResults = await this.executeAndCollectResults(approvedCalls, session, turnContext.signal, traceSession);
+    const toolResults = await this.executeAndCollectResults(approvedCalls, turnContext);
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, messages, turnContext);
@@ -411,14 +408,12 @@ export class AgentLoop {
     usage.input += loopResult.usage.input;
     usage.output += loopResult.usage.output;
 
-    // 暂停时跳过正常 finalize
+    // 暂停时不 finalize trace session，保留会话供恢复时复用
     if (loopResult.finalStatus === 'paused') {
       turnSpan.end({ status: 'paused', steps: loopResult.steps });
-      const pausedResult: TurnResult = {
+      return {
         status: 'paused', steps: loopResult.steps, usage, messages, turnId: turn.id, threadId: thread.id,
       };
-      await this.tracer.finish(traceSession, pausedResult);
-      return pausedResult;
     }
 
     await this.pipeline.leave(turnContext.ctx);
@@ -434,7 +429,7 @@ export class AgentLoop {
         status: 'failed', steps: loopResult.steps, usage, messages,
         turnId: turn.id, threadId: thread.id, error: loopResult.error,
       };
-      await this.tracer.finish(traceSession, failResult);
+      await this.tracer.finish(traceSession, failResult, turn.id);
       return failResult;
     }
 
@@ -454,7 +449,7 @@ export class AgentLoop {
       turnId: turn.id,
       threadId: thread.id,
     };
-    await this.tracer.finish(traceSession, finalResult);
+    await this.tracer.finish(traceSession, finalResult, turn.id);
     return finalResult;
   }
 
@@ -579,7 +574,7 @@ export class AgentLoop {
       return { shouldBreak: false, shouldPause: true, pauseInfo, usage };
     }
 
-    const toolResults = await this.executeAndCollectResults(approvedCalls, turnContext.session, turnContext.signal, turnContext.traceSession);
+    const toolResults = await this.executeAndCollectResults(approvedCalls, turnContext);
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, messages, turnContext);
@@ -663,20 +658,16 @@ export class AgentLoop {
    * 批量调用整体失败时，为每个调用生成 error 结果，确保 tool_use → tool_result 配对完整。
    *
    * @param calls - 待执行的工具调用列表
-   * @param session - 当前 turn 会话
-   * @param step - 当前 step
-   * @param traceSession - trace session
+   * @param turnContext - 当前 turn 上下文
    * @returns 工具执行结果数组
    */
   private async executeAndCollectResults(
     calls: ToolCall[],
-    session: TurnSession,
-    signal: AbortSignal,
-    traceSession: TurnTraceSession,
+    turnContext: TurnContext,
   ): Promise<ToolResult[]> {
     if (calls.length === 0) return [];
     try {
-      return await this.executeToolCalls(calls, session, signal, traceSession);
+      return await this.executeToolCalls(calls, turnContext);
     } catch (err) {
       return calls.map(call => ({
         callId: call.id, name: call.name,
@@ -755,90 +746,96 @@ export class AgentLoop {
 
     let fullText = '';
     const toolCalls: ToolCall[] = [];
-    const modelSpan = traceSession.startSpan('model_step', { step: step.index + 1 });
+    const previousSpanId = turnContext.currentSpanId;
+    const modelSpan = traceSession.startSpan('model_step', { step: step.index + 1 }, previousSpanId);
+    turnContext.currentSpanId = modelSpan.id;
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
-    traceSession.recordModelRequest(step, request);
+    traceSession.recordModelRequest(step.index, request);
 
     try {
-      console.log("model request", request)
-      const { stream } = await this.agent.modelClient.stream({
-        ...request,
-        abortSignal: turnContext.signal,
-      });
+      try {
+        console.log("model request", request)
+        const { stream } = await this.agent.modelClient.stream({
+          ...request,
+          abortSignal: turnContext.signal,
+        });
 
-      for await (const chunk of stream) {
-        switch (chunk.type) {
-            case 'text-start':
-            case 'text-end':
-            case 'tool-input-start':
-            case 'tool-input-delta':
-            case 'tool-input-end':
-            case 'tool-result':
-            case 'file':
-            case 'source':
-              controller.enqueue(chunk);
-              break;
+        for await (const chunk of stream) {
+          switch (chunk.type) {
+              case 'text-start':
+              case 'text-end':
+              case 'tool-input-start':
+              case 'tool-input-delta':
+              case 'tool-input-end':
+              case 'tool-result':
+              case 'file':
+              case 'source':
+                controller.enqueue(chunk);
+                break;
 
-            case 'text-delta':
-              controller.enqueue(chunk);
-              fullText += chunk.delta;
-              this.emit({ type: 'text-delta', content: chunk.delta });
-              break;
+              case 'text-delta':
+                controller.enqueue(chunk);
+                fullText += chunk.delta;
+                this.emit({ type: 'text-delta', content: chunk.delta });
+                break;
 
-            case 'reasoning-start':
-            case 'reasoning-end':
-              controller.enqueue(chunk);
-              break;
+              case 'reasoning-start':
+              case 'reasoning-end':
+                controller.enqueue(chunk);
+                break;
 
-            case 'reasoning-delta':
-              controller.enqueue(chunk);
-              this.emit({ type: 'reasoning-delta', content: chunk.delta });
-              break;
+              case 'reasoning-delta':
+                controller.enqueue(chunk);
+                this.emit({ type: 'reasoning-delta', content: chunk.delta });
+                break;
 
-            case 'tool-call':
-              controller.enqueue(chunk);
-              toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
-              this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
-              break;
+              case 'tool-call':
+                controller.enqueue(chunk);
+                toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+                this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+                break;
 
-            case 'tool-approval-request':
-              controller.enqueue(chunk);
-              break;
+              case 'tool-approval-request':
+                controller.enqueue(chunk);
+                break;
 
-            case 'finish':
-              controller.enqueue(chunk);
-              if (chunk.usage) {
-                modelUsage.input = chunk.usage.inputTokens.total ?? 0;
-                modelUsage.output = chunk.usage.outputTokens.total ?? 0;
-              }
-              break;
+              case 'finish':
+                controller.enqueue(chunk);
+                if (chunk.usage) {
+                  modelUsage.input = chunk.usage.inputTokens.total ?? 0;
+                  modelUsage.output = chunk.usage.outputTokens.total ?? 0;
+                }
+                break;
 
-            case 'error':
-              controller.enqueue(chunk);
-              const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-              modelSpan.error(err);
-              this.emit({ type: 'error', error: err });
-              traceSession.recordModelResponse(step, { text: fullText, toolCalls, usage: modelUsage, error: err });
-              return { text: fullText, toolCalls, usage: modelUsage, error: err };
-            // stream-start/response-metadata/raw：内部使用
-          }
+              case 'error':
+                controller.enqueue(chunk);
+                const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
+                modelSpan.error(err);
+                this.emit({ type: 'error', error: err });
+                traceSession.recordModelResponse(step.index, { text: fullText, toolCalls, usage: modelUsage, error: err });
+                return { text: fullText, toolCalls, usage: modelUsage, error: err };
+              // stream-start/response-metadata/raw：内部使用
+            }
+        }
+
+        modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
+
+        const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
+        traceSession.recordModelResponse(step.index, result);
+        return result;
+      } catch (err) {
+        console.log("call model error", err);
+        const error = err instanceof Error ? err : String(err);
+        controller.enqueue({type: 'error', error: error});
+        modelSpan.error(error);
+        this.emit({ type: 'error', error: error });
+        const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: error };
+        traceSession.recordModelResponse(step.index, errorResult);
+        return errorResult;
       }
-
-      modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
-
-      const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
-      traceSession.recordModelResponse(step, result);
-      return result;
-    } catch (err) {
-      console.log("call model error", err);
-      const error = err instanceof Error ? err : String(err);
-      controller.enqueue({type: 'error', error: error});
-      modelSpan.error(error);
-      this.emit({ type: 'error', error: error });
-      const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: error };
-      traceSession.recordModelResponse(step, errorResult);
-      return errorResult;
+    } finally {
+      turnContext.currentSpanId = previousSpanId;
     }
   }
 
@@ -847,25 +844,27 @@ export class AgentLoop {
    */
   private async executeToolCalls(
     toolCalls: ToolCall[],
-    session: TurnSession,
-    signal: AbortSignal,
-    traceSession: TurnTraceSession,
+    turnContext: TurnContext,
   ): Promise<ToolResult[]> {
-    const toolSpan = traceSession.startSpan('tool_call', { count: toolCalls.length });
-    const results = await this.dispatchTools(toolCalls, session, signal);
-    toolSpan.end({ results: results.length });
+    const toolSpan = turnContext.traceSession.startSpan('tool_call', { count: toolCalls.length }, turnContext.currentSpanId);
+    try {
+      const results = await this.dispatchTools(toolCalls, turnContext.session, turnContext.signal);
+      toolSpan.end({ results: results.length });
 
-
-    for (const r of results) {
-      this.emit({
-        type: 'tool-result',
-        id: r.callId,
-        name: r.name,
-        status: r.status,
-        output: r.output,
-      });
+      for (const r of results) {
+        this.emit({
+          type: 'tool-result',
+          id: r.callId,
+          name: r.name,
+          status: r.status,
+          output: r.output,
+        });
+      }
+      return results;
+    } catch (err) {
+      toolSpan.error(err instanceof Error ? err : new Error(String(err)));
+      throw err;
     }
-    return results;
   }
 
   private async dispatchTools(calls: ToolCall[], session: TurnSession, signal: AbortSignal): Promise<ToolResult[]> {

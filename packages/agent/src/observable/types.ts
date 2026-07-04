@@ -24,6 +24,7 @@ export interface Span {
 export interface SpanState {
   id: string;
   type: SpanType;
+  parentSpanId?: string;
   metadata: Record<string, unknown>;
   startTime: number;
   endTime?: number;
