@@ -4,7 +4,7 @@ import {useCallback, useEffect, useState} from 'react';
 // 2. Third-party
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useNavigate, useParams} from 'react-router-dom';
-import {AssistantRuntimeProvider} from '@assistant-ui/react';
+import {AssistantRuntimeProvider, Tools, useAui} from '@assistant-ui/react';
 
 // 3. API
 import {api} from '@/api/client';
@@ -17,6 +17,7 @@ import {ChatSkeleton} from './chat/ChatSkeleton';
 import {useAssistantRuntime} from '@/hooks/useAssistantRuntime';
 import {useThread} from '@/hooks/useThread';
 import type {Agent} from '@/types/models';
+import {toolkit} from "@/tools/toolkit";
 
 /**
  * Chat — 聊天页面。
@@ -49,6 +50,8 @@ export default function Chat() {
     threadId: activeThreadId || undefined,
     onThreadCreated: handleThreadCreated,
   });
+
+  const aui = useAui({ tools: Tools({ toolkit }) });
 
   // 获取 Agent 列表
   const { data: agents, isLoading: agentsLoading } = useQuery<Agent[]>({
@@ -102,7 +105,7 @@ export default function Chat() {
   return (
     <div className="flex h-[calc(100vh-0px)] -my-6 -mr-6">
       {selectedAgent && runtime ? (
-        <AssistantRuntimeProvider runtime={runtime} i18nIsDynamicList>
+        <AssistantRuntimeProvider runtime={runtime} aui={aui} i18nIsDynamicList>
           <ChatSidebar
             agents={agentList}
             selectedAgent={selectedAgent}

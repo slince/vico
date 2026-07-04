@@ -1,9 +1,9 @@
-import { useTranslation } from 'react-i18next';
-import { AssistantRuntimeProvider } from '@assistant-ui/react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Thread } from '@/components/assistant-ui/thread';
-import { useTeamAssistantRuntime } from '@/hooks/useTeamAssistantRuntime';
+import {useTranslation} from 'react-i18next';
+import {AssistantRuntimeProvider} from '@assistant-ui/react';
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {Separator} from '@/components/ui/separator';
+import {Thread} from '@/components/assistant-ui/thread';
+import {useTeamAssistantRuntime} from '@/hooks/useTeamAssistantRuntime';
 
 export interface TeamChatPanelProps {
   teamId: string;
@@ -32,10 +32,15 @@ export default function TeamChatPanel({ teamId }: TeamChatPanelProps) {
       <CardContent className="flex-1 overflow-hidden p-0">
         {runtime && (
           <AssistantRuntimeProvider runtime={runtime}>
-            <Thread />
+            <TeamChat />
           </AssistantRuntimeProvider>
         )}
       </CardContent>
     </Card>
   );
+}
+
+/** 内部组件 — 在 AssistantRuntimeProvider 内注册工具 UI 并渲染 Thread */
+function TeamChat() {
+  return <Thread />;
 }

@@ -5,9 +5,9 @@
  * status === 'running' 时显示骨架；status === 'complete' 时显示天气详情；
  * isError 时显示错误态。
  */
-import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
-import { Cloud, Droplets, Thermometer, Wind, MapPin } from 'lucide-react';
-import { ToolApprovalCard } from '@/components/assistant-ui/tool-approval-card';
+import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import {Cloud, Droplets, MapPin, Thermometer, Wind} from 'lucide-react';
+import {ToolApprovalCard} from '@/components/assistant-ui/tool-approval-card';
 
 interface WeatherResult {
   temperature: number;
@@ -19,10 +19,7 @@ interface WeatherResult {
   location: string;
 }
 
-export const WeatherToolRenderer: ToolCallMessagePartComponent<
-  Record<string, unknown>,
-  WeatherResult
-> = ({ status, args, result, isError, approval, respondToApproval, addResult }) => {
+export const WeatherToolRenderer: ToolCallMessagePartComponent<Record<string, unknown>, WeatherResult> = ({ status, args, result, isError, approval, respondToApproval, addResult }) => {
   // 需要审批
   if (status.type === 'requires-action') {
     return (

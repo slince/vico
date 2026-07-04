@@ -1,15 +1,11 @@
 // 1. React
-import {type FC, useEffect} from 'react';
+import {type FC} from 'react';
 
 // 2. Third-party
 import {useTranslation} from 'react-i18next';
-import {useAui} from '@assistant-ui/react';
 
 // 3. Sub-components
 import {Thread} from '@/components/assistant-ui/thread';
-import {WeatherToolRenderer} from './ToolUIs/weather-ui';
-import {ExecToolRenderer} from './ToolUIs/exec-ui';
-import {KnowledgeSearchToolRenderer} from './ToolUIs/knowledge-search-ui';
 
 interface Agent {
   id: string;
@@ -18,34 +14,6 @@ interface Agent {
 
 interface ChatPanelProps {
   agent: Agent;
-}
-
-/** 注册工具渲染器 */
-function ToolRegistrations() {
-  const aui = useAui();
-
-  useEffect(() => {
-    const unsubWeather = aui.tools().setToolUI('get-weather', WeatherToolRenderer, {
-      standalone: true,
-    });
-    const unsubExec = aui.tools().setToolUI(
-      'mastra_workspace_execute_command',
-      ExecToolRenderer,
-      { standalone: true },
-    );
-    const unsubKnowledge = aui.tools().setToolUI(
-      'search_knowledge_base',
-      KnowledgeSearchToolRenderer,
-      { standalone: true },
-    );
-    return () => {
-      unsubWeather();
-      unsubExec();
-      unsubKnowledge();
-    };
-  }, [aui]);
-
-  return null;
 }
 
 /** 自定义欢迎组件，显示 Agent 名称 */
@@ -70,10 +38,9 @@ const Welcome: FC<{ agentName: string }> = ({ agentName }) => {
  * AssistantRuntimeProvider 由父组件 Chat 提供，此组件仅注册工具并渲染 Thread。
  */
 export function ChatPanel({ agent }: ChatPanelProps) {
+
   return (
-    <>
-      <ToolRegistrations />
-      <div className="flex-1 flex flex-col bg-background min-w-0">
+    <div className="flex-1 flex flex-col bg-background min-w-0">
         {/* 顶部标题栏 */}
         <div className="h-12 flex items-center px-4 border-b shrink-0">
           <span className="text-sm font-medium">{agent.name}</span>
@@ -88,6 +55,5 @@ export function ChatPanel({ agent }: ChatPanelProps) {
           />
         </div>
       </div>
-    </>
   );
 }
