@@ -66,8 +66,6 @@ export interface TurnSession {
   thread: Thread;
   turn: Turn;
   scopeId?: string;
-  /** 自定义元数据（JSON 可序列化），写入 thread.metadata */
-  metadata?: Record<string, unknown>;
 }
 
 /** runTurn 选项 */

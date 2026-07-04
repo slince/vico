@@ -4,6 +4,7 @@ import type {
   RunTurnOptions,
   Step,
   StepLoopResult,
+  ToolApproval,
   TurnEvent,
   TurnResult,
   TurnSession,
@@ -153,6 +154,8 @@ export class AgentLoop {
     const threadStore = this.agent.thread;
 
     // 确保 thread 存在
+    // 注意：getLatestTurn → createTurn 之间存在 check-then-act 窗口，
+    // 并发请求可能同时判断无未完成 turn 并各自创建。依赖 threadStore 实现侧的并发控制。
     let thread = await threadStore.getThread(threadId);
     if (!thread) {
       const title = userMessage.content.slice(0, 50);
@@ -236,7 +239,7 @@ export class AgentLoop {
     const {scopeId, workspace, approvalDecisions} = options || {}
 
     // 重建 session 和 context
-    const session: TurnSession = { workspace, thread, turn: turn };
+    const session: TurnSession = { workspace, scopeId, thread, turn };
     const traceSession = this.tracer.startTurn(thread, userMessage);
     const turnSpan = traceSession.startSpan('agent_resume');
     const toolApprovalState = new Map<string, boolean>();
@@ -262,129 +265,14 @@ export class AgentLoop {
 
     if (pauseInfo) {
       // 路径 A：有 pauseInfo → 标准暂停恢复流程
-      if (pauseInfo.reason === 'tool-approval') {
-        const decisions = approvalDecisions ?? [];
-        const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
-        const step: Step = { index: pauseInfo.pausedAtStep, threadId: thread.id, scopeId, signal };
-        const toolResults: ToolResult[] = [];
-
-        // 1. 执行暂停前已自动批准的调用
-        if (pauseInfo.autoApprovedCalls && pauseInfo.autoApprovedCalls.length > 0) {
-          const calls: ToolCall[] = pauseInfo.autoApprovedCalls.map(c => ({
-            id: c.id, name: c.name, args: c.args,
-          }));
-          try {
-            toolResults.push(...await this.executeToolCalls(calls, session, step, traceSession));
-          } catch (err) {
-            for (const call of calls) {
-              toolResults.push({
-                callId: call.id, name: call.name,
-                status: 'error', output: null,
-                error: err instanceof Error ? err.message : String(err),
-              });
-            }
-          }
-        }
-
-        // 2. 追加暂停前已自动拒绝的结果
-        if (pauseInfo.autoDeniedResults) {
-          for (const r of pauseInfo.autoDeniedResults) {
-            toolResults.push({
-              callId: r.callId, name: r.name,
-              status: 'error', output: null,
-              error: r.error,
-            });
-          }
-        }
-
-        // 3. 处理等待审批的调用
-        const approvedCalls: ToolCall[] = [];
-        const deniedResults: ToolResult[] = [];
-
-        for (const pendingCall of pauseInfo.pendingToolCalls) {
-          const approved = decisionMap.get(pendingCall.id) ?? false;
-          if (approved) {
-            approvedCalls.push({ id: pendingCall.id, name: pendingCall.name, args: pendingCall.args as Record<string, unknown> });
-          } else {
-            deniedResults.push({
-              callId: pendingCall.id, name: pendingCall.name,
-              status: 'error', output: null,
-              error: 'Rejected by user',
-            });
-          }
-        }
-
-        if (approvedCalls.length > 0) {
-          try {
-            toolResults.push(...await this.executeToolCalls(approvedCalls, session, step, traceSession));
-          } catch (err) {
-            for (const call of approvedCalls) {
-              toolResults.push({
-                callId: call.id, name: call.name,
-                status: 'error', output: null,
-                error: err instanceof Error ? err.message : String(err),
-              });
-            }
-          }
-        }
-        toolResults.push(...deniedResults);
-
-        await this.appendToolResults(toolResults, messages, stepContext);
-      }
-
+      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions, messages, stepContext, scopeId, signal);
       startStep = pauseInfo.pausedAtStep + 1;
     } else {
-      // 路径 B：无 pauseInfo → 愈合模式：扫描最后一条 assistant 消息，
-      // 补齐未被 tool_result 覆盖的 toolCalls
-      const unresolvedCalls = this.findUnresolvedToolCalls(messages);
-
-      if (unresolvedCalls && unresolvedCalls.length > 0) {
-        const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(
-          unresolvedCalls, controller, stepContext,
-        );
-
-        if (pausedCalls.length > 0) {
-          // on-request 工具需要用户审批 → 重新进入暂停状态，不追加用户消息
-          // 注意：不 pop assistant 消息，因为可能已有部分 tool_result（崩溃前已执行完的调用）。
-          // assistant(toolCalls) 留在 messages 中，下次恢复时 pauseInfo 会精确补齐剩余调用
-
-          const newPauseInfo: PauseInfo = {
-            reason: 'tool-approval',
-            pendingToolCalls: pausedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })),
-            autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
-            autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error! })) : undefined,
-            pausedAtStep: startStep,
-            messageCount: messages.length,
-          };
-
-          await threadStore.updateTurn(turn.id, { status: 'paused', steps: startStep, metadata: { pauseInfo: newPauseInfo } });
-
-          const pausedResult: TurnResult = {
-            status: 'paused', steps: startStep, usage, messages, turnId: turn.id, threadId: thread.id,
-          };
-          return pausedResult;
-        }
-
-        // 全部可自动处理 → 执行并追加 tool_results
-        const step: Step = { index: startStep, threadId: thread.id, scopeId, signal };
-        const toolResults: ToolResult[] = [];
-        if (approvedCalls.length > 0) {
-          try {
-            toolResults.push(...await this.executeToolCalls(approvedCalls, session, step, traceSession));
-          } catch (err) {
-            for (const call of approvedCalls) {
-              toolResults.push({
-                callId: call.id, name: call.name,
-                status: 'error', output: null,
-                error: err instanceof Error ? err.message : String(err),
-              });
-            }
-          }
-        }
-        toolResults.push(...deniedResults);
-
-        await this.appendToolResults(toolResults, messages, stepContext);
-      }
+      // 路径 B：无 pauseInfo → 愈合模式，补齐缺失的 tool_result
+      const healResult = await this.healTurnMessages(
+        messages, controller, stepContext, thread, turn, scopeId, signal, startStep, usage,
+      );
+      if (healResult) return healResult;
     }
 
     // ── 消息链已完整，安全追加用户消息 ──
@@ -405,6 +293,119 @@ export class AgentLoop {
     );
   }
 
+  /**
+   * 从 pauseInfo 恢复工具调用：执行自动批准的调用、追加自动拒绝的结果、
+   * 处理等待审批的调用（根据 approvalDecisions 决定执行或拒绝）。
+   */
+  private async applyPauseInfoRecovery(
+    pauseInfo: PauseInfo,
+    approvalDecisions: ToolApproval[] | undefined,
+    messages: ModelMessage[],
+    stepContext: StepContext,
+    scopeId: string | undefined,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (pauseInfo.reason !== 'tool-approval') return;
+
+    const { session, traceSession } = stepContext;
+    const { thread } = session;
+    const decisions = approvalDecisions ?? [];
+    const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
+    const step: Step = { index: pauseInfo.pausedAtStep, threadId: thread.id, scopeId, signal };
+    const toolResults: ToolResult[] = [];
+
+    // 1. 执行暂停前已自动批准的调用
+    if (pauseInfo.autoApprovedCalls && pauseInfo.autoApprovedCalls.length > 0) {
+      const calls: ToolCall[] = pauseInfo.autoApprovedCalls.map(c => ({
+        id: c.id, name: c.name, args: c.args,
+      }));
+      toolResults.push(...await this.executeAndCollectResults(calls, session, step, traceSession));
+    }
+
+    // 2. 追加暂停前已自动拒绝的结果
+    if (pauseInfo.autoDeniedResults) {
+      for (const r of pauseInfo.autoDeniedResults) {
+        toolResults.push({
+          callId: r.callId, name: r.name,
+          status: 'error', output: null,
+          error: r.error,
+        });
+      }
+    }
+
+    // 3. 处理等待审批的调用
+    const approvedCalls: ToolCall[] = [];
+    const deniedResults: ToolResult[] = [];
+
+    for (const pendingCall of pauseInfo.pendingToolCalls) {
+      const approved = decisionMap.get(pendingCall.id) ?? false;
+      if (approved) {
+        approvedCalls.push({ id: pendingCall.id, name: pendingCall.name, args: pendingCall.args as Record<string, unknown> });
+      } else {
+        deniedResults.push({
+          callId: pendingCall.id, name: pendingCall.name,
+          status: 'error', output: null,
+          error: 'Rejected by user',
+        });
+      }
+    }
+
+    toolResults.push(...await this.executeAndCollectResults(approvedCalls, session, step, traceSession));
+    toolResults.push(...deniedResults);
+
+    await this.appendToolResults(toolResults, messages, stepContext);
+  }
+
+  /**
+   * 愈合模式：扫描消息中未完成的 toolCalls，补齐缺失的 tool_result。
+   * 若愈合过程中遇到需要用户审批的工具，则重新暂停 turn。
+   *
+   * @returns TurnResult 如果愈合过程中暂停，否则 null 表示继续恢复流程
+   */
+  private async healTurnMessages(
+    messages: ModelMessage[],
+    controller: ReadableStreamDefaultController<ModelStreamChunk>,
+    stepContext: StepContext,
+    thread: Thread,
+    turn: Turn,
+    scopeId: string | undefined,
+    signal: AbortSignal,
+    startStep: number,
+    usage: UsageMetrics,
+  ): Promise<TurnResult | null> {
+    const unresolvedCalls = this.findUnresolvedToolCalls(messages);
+    if (!unresolvedCalls || unresolvedCalls.length === 0) return null;
+
+    const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(
+      unresolvedCalls, controller, stepContext,
+    );
+
+    if (pausedCalls.length > 0) {
+      const newPauseInfo: PauseInfo = {
+        reason: 'tool-approval',
+        pendingToolCalls: pausedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })),
+        autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
+        autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error! })) : undefined,
+        pausedAtStep: startStep,
+        messageCount: messages.length,
+      };
+
+      await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps: startStep, metadata: { pauseInfo: newPauseInfo } });
+
+      return {
+        status: 'paused', steps: startStep, usage, messages, turnId: turn.id, threadId: thread.id,
+      };
+    }
+
+    // 全部可自动处理 → 执行并追加 tool_results
+    const { session, traceSession } = stepContext;
+    const step: Step = { index: startStep, threadId: thread.id, scopeId, signal };
+    const toolResults = await this.executeAndCollectResults(approvedCalls, session, step, traceSession);
+    toolResults.push(...deniedResults);
+
+    await this.appendToolResults(toolResults, messages, stepContext);
+    return null;
+  }
 
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
@@ -500,7 +501,7 @@ export class AgentLoop {
 
       if (shouldBreak) {
         // 如果是因为模型错误 直接短路
-        if (!!error) {
+        if (error) {
           return { finalStatus: 'failed', steps, usage, error };
         }
         break
@@ -531,13 +532,22 @@ export class AgentLoop {
       return { shouldBreak: true, shouldPause: false, usage };
     }
 
+    if (this.tokenEconomy?.isOutputExhausted()) {
+      this.emit({ type: 'error', error: '输出 token 预算已耗尽' });
+      return { shouldBreak: true, shouldPause: false, usage };
+    }
+
     const modelResult = await this.callModel(messages, step, controller, stepContext);
 
     // 如果模型调用出错，提前结束
-    if (!!modelResult.error) {
+    if (modelResult.error) {
       return { shouldBreak: true, shouldPause: false, usage, error: modelResult.error };
     }
 
+    // 模型返回后检查中断信号，避免在已取消的 turn 中继续执行工具
+    if (step.signal.aborted) {
+      return { shouldBreak: true, shouldPause: false, usage };
+    }
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
@@ -587,21 +597,7 @@ export class AgentLoop {
       return { shouldBreak: false, shouldPause: true, pauseInfo, usage };
     }
 
-    const toolResults: ToolResult[] = [];
-    if (approvedCalls.length > 0) {
-      try {
-        toolResults.push(...await this.executeToolCalls(approvedCalls, stepContext.session, step, stepContext.traceSession));
-      } catch (err) {
-        // 工具执行失败时为每个调用生成错误结果，确保 tool_use → tool_result 配对完整
-        for (const call of approvedCalls) {
-          toolResults.push({
-            callId: call.id, name: call.name,
-            status: 'error', output: null,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
-      }
-    }
+    const toolResults = await this.executeAndCollectResults(approvedCalls, stepContext.session, step, stepContext.traceSession);
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, messages, stepContext);
@@ -682,6 +678,34 @@ export class AgentLoop {
   }
 
   /**
+   * 执行工具调用并收集结果，自动处理异常。
+   * 批量调用整体失败时，为每个调用生成 error 结果，确保 tool_use → tool_result 配对完整。
+   *
+   * @param calls - 待执行的工具调用列表
+   * @param session - 当前 turn 会话
+   * @param step - 当前 step
+   * @param traceSession - trace session
+   * @returns 工具执行结果数组
+   */
+  private async executeAndCollectResults(
+    calls: ToolCall[],
+    session: TurnSession,
+    step: Step,
+    traceSession: TurnTraceSession,
+  ): Promise<ToolResult[]> {
+    if (calls.length === 0) return [];
+    try {
+      return await this.executeToolCalls(calls, session, step, traceSession);
+    } catch (err) {
+      return calls.map(call => ({
+        callId: call.id, name: call.name,
+        status: 'error' as const, output: null,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+    }
+  }
+
+  /**
    * 将工具结果追加到 messages 并持久化到 threadStore。
    */
   private async appendToolResults(
@@ -690,7 +714,7 @@ export class AgentLoop {
     shared: StepContext,
   ): Promise<void> {
     for (const r of toolResults) {
-      const raw = r.status === 'success' ? JSON.stringify(r.output) : '';
+      const raw = r.status === 'success' ? JSON.stringify(r.output) : (r.error ?? 'tool execution failed');
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
       await this.agent.thread.appendEntry({
