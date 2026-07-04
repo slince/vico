@@ -298,7 +298,7 @@ export class AgentLoop {
       const calls: ToolCall[] = pauseInfo.autoApprovedCalls.map(c => ({
         id: c.id, name: c.name, args: c.args,
       }));
-      toolResults.push(...await this.executeAndCollectResults(calls, context));
+      toolResults.push(...await this.executeToolsAndCollect(calls, context));
     }
 
     // 2. 追加暂停前已自动拒绝的结果
@@ -329,7 +329,7 @@ export class AgentLoop {
       }
     }
 
-    toolResults.push(...await this.executeAndCollectResults(approvedCalls, context));
+    toolResults.push(...await this.executeToolsAndCollect(approvedCalls, context));
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, context);
@@ -372,7 +372,7 @@ export class AgentLoop {
     }
 
     // 全部可自动处理 → 执行并追加 tool_results
-    const toolResults = await this.executeAndCollectResults(approvedCalls, context);
+    const toolResults = await this.executeToolsAndCollect(approvedCalls, context);
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, context);
@@ -546,7 +546,7 @@ export class AgentLoop {
       return { shouldBreak: false, shouldPause: true, pauseInfo, usage };
     }
 
-    const toolResults = await this.executeAndCollectResults(approvedCalls, context);
+    const toolResults = await this.executeToolsAndCollect(approvedCalls, context);
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, context);
@@ -630,10 +630,7 @@ export class AgentLoop {
    * @param context - 当前 turn 上下文
    * @returns 工具执行结果数组
    */
-  private async executeAndCollectResults(
-    calls: ToolCall[],
-    context: TurnContext,
-  ): Promise<ToolResult[]> {
+  private async executeToolsAndCollect(calls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
     if (calls.length === 0) return [];
     try {
       return await this.executeToolCalls(calls, context);
@@ -796,7 +793,7 @@ export class AgentLoop {
     try {
       const toolCallContext: ToolCallContext = {session: context.session, agentId: this.agent.id, signal: context.signal};
       const results = await this.toolBroker.executeBatch(toolCalls, toolCallContext)
-      
+
       toolSpan.end({ results: results.length });
 
       for (const r of results) {
