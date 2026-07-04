@@ -285,10 +285,18 @@ export class AgentLoop {
   }
 
   /**
-   * 愈合模式：扫描消息中未完成的 toolCalls，补齐缺失的 tool_result。
-   * 若愈合过程中遇到需要用户审批的工具，则重新暂停 turn。
+   * 愈合模式：当 turn 因进程崩溃/中断而无 pauseInfo 时，自检消息链完整性。
    *
-   * @returns TurnResult 如果愈合过程中暂停，否则 null 表示继续恢复流程
+   * 流程：找到最后一条 assistant 消息中未配对的 toolCalls → 审批分类 →
+   * 有需审批的则重新暂停 turn，否则执行工具并追加 tool_result。
+   *
+   * @param messages - 当前 turn 的消息数组（会被原地修改）
+   * @param context - turn 上下文
+   * @param thread - 当前 thread
+   * @param turn - 待愈合的 turn
+   * @param startStep - 当前 step 编号
+   * @param usage - token 用量统计
+   * @returns 若愈合过程中暂停则返回 TurnResult，否则 null 表示愈合完成、调用方继续恢复流程
    */
   private async healTurnMessages(
     messages: ModelMessage[],
@@ -298,11 +306,14 @@ export class AgentLoop {
     startStep: number,
     usage: UsageMetrics,
   ): Promise<TurnResult | null> {
+    // 1. 找到最后一条 assistant 消息中未配对的 toolCalls
     const unresolvedCalls = this.findUnresolvedToolCalls(messages);
-    if (unresolvedCalls.length === 0) return null;
+    if (unresolvedCalls.length === 0) return null; // 链已完整，无需愈合
 
+    // 2. 按审批策略分类：可直接执行的 / 直接拒绝的 / 需用户审批的
     const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(unresolvedCalls, context);
 
+    // 3. 有需要用户审批的工具 → 重新暂停 turn，等待外部决策
     if (pausedCalls.length > 0) {
       const newPauseInfo: PauseInfo = {
         reason: 'tool-approval',
@@ -320,12 +331,12 @@ export class AgentLoop {
       };
     }
 
-    // 全部可自动处理 → 执行并追加 tool_results
+    // 4. 全部可自动处理 → 执行已批准的调用，追加拒绝结果，持久化 tool_result
     const toolResults = await this.executeToolCalls(approvedCalls, context);
     toolResults.push(...deniedResults);
 
     await this.appendToolResults(toolResults, context);
-    return null;
+    return null; // 愈合完成
   }
 
   /**
