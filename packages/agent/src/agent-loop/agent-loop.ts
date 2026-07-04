@@ -822,14 +822,10 @@ export class AgentLoop {
             resolvedIds.add(tcId);
           }
         }
-        const toolCalls = msg.toolCalls as Array<{ id: string; name: string; args: unknown }>;
+        const toolCalls = msg.toolCalls;
         const unresolved = toolCalls.filter(tc => !resolvedIds.has(tc.id));
         if (unresolved.length > 0) {
-          return unresolved.map(tc => ({
-            id: tc.id,
-            name: tc.name,
-            args: tc.args as Record<string, unknown>,
-          }));
+          return unresolved
         }
         // 该 assistant 消息的所有 toolCalls 已解决，继续检查更早的消息
         // （正常情况下只会有最后一条未解决，但不排除多步崩溃的场景）

@@ -1,5 +1,6 @@
 // @vico/agent - 模型模块类型定义
 import type {LanguageModelV3FinishReason, LanguageModelV3Usage} from '@ai-sdk/provider';
+import {ToolCall} from "../tool/types.js";
 
 /** 消息角色 */
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
@@ -9,7 +10,7 @@ export interface ModelMessage {
   role: MessageRole;
   content: string;
   toolCallId?: string;
-  toolCalls?: { id: string; name: string; args: unknown }[];
+  toolCalls?: ToolCall[];
 }
 
 // ── ModelClient 类型 ──
