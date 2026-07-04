@@ -385,7 +385,7 @@ export class AgentLoop {
         reason: 'tool-approval',
         pendingToolCalls: pausedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })),
         autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
-        autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error! })) : undefined,
+        autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error ?? 'denied' })) : undefined,
         pausedAtStep: startStep,
         messageCount: messages.length,
       };
@@ -589,7 +589,7 @@ export class AgentLoop {
         pendingToolCalls,
         // 保存已在审批阶段自动决策的调用，恢复时直接使用，避免重复审批
         autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
-        autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error! })) : undefined,
+        autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error ?? 'denied' })) : undefined,
         pausedAtStep: step.index,
         messageCount: messages.length,
       };
@@ -714,7 +714,9 @@ export class AgentLoop {
     shared: StepContext,
   ): Promise<void> {
     for (const r of toolResults) {
-      const raw = r.status === 'success' ? JSON.stringify(r.output) : (r.error ?? 'tool execution failed');
+      const raw = r.status === 'success'
+        ? (typeof r.output === 'string' ? r.output : JSON.stringify(r.output))
+        : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
       await this.agent.thread.appendEntry({
@@ -911,8 +913,9 @@ export class AgentLoop {
         // 收集该 assistant 消息之后所有 tool_result 的 ID
         const resolvedIds = new Set<string>();
         for (let j = i + 1; j < messages.length; j++) {
-          if (messages[j].role === 'tool' && messages[j].toolCallId) {
-            resolvedIds.add(messages[j].toolCallId);
+          const tcId = messages[j].toolCallId;
+          if (messages[j].role === 'tool' && tcId) {
+            resolvedIds.add(tcId);
           }
         }
         const toolCalls = msg.toolCalls as Array<{ id: string; name: string; args: unknown }>;
