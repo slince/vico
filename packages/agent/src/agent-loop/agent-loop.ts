@@ -260,7 +260,7 @@ export class AgentLoop {
 
     if (pauseInfo) {
       // 路径 A：有 pauseInfo → 标准暂停恢复流程
-      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions, context);
+      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions || [], context);
       startStep = pauseInfo.pausedAtStep + 1;
     } else {
       // 路径 B：无 pauseInfo → 愈合模式，补齐缺失的 tool_result
@@ -287,10 +287,9 @@ export class AgentLoop {
    * 从 pauseInfo 恢复工具调用：执行自动批准的调用、追加自动拒绝的结果、
    * 处理等待审批的调用（根据 approvalDecisions 决定执行或拒绝）。
    */
-  private async applyPauseInfoRecovery(pauseInfo: PauseInfo, approvalDecisions: ToolApproval[] | undefined, context: TurnContext): Promise<void> {
+  private async applyPauseInfoRecovery(pauseInfo: PauseInfo, decisions: ToolApproval[], context: TurnContext): Promise<void> {
     if (pauseInfo.reason !== 'tool-approval') return;
 
-    const decisions = approvalDecisions ?? [];
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
     const toolResults: ToolResult[] = [];
 
