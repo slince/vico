@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 /** 审批响应函数签名（兼容 assistant-ui 的 respondToApproval 和旧版 addResult） */
 type ApproveFn = (response: { approved: boolean }) => void;
-type FallbackFn = (result: string) => void;
+type FallbackFn = (result: any) => void;
 
 export interface ToolApprovalCardProps {
   /** 工具名称（展示用） */

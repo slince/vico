@@ -19,7 +19,7 @@ interface WeatherResult {
   location: string;
 }
 
-export const WeatherToolRenderer: ToolCallMessagePartComponent<Record<string, unknown>, WeatherResult> = ({ status, args, result, isError, approval, respondToApproval, addResult }) => {
+export const WeatherToolRenderer: ToolCallMessagePartComponent<Record<string, unknown>, WeatherResult> = ({ status, args, result, isError, respondToApproval, addResult }) => {
   // 需要审批
   if (status.type === 'requires-action') {
     return (
