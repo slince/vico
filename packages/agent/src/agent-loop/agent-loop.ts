@@ -295,21 +295,12 @@ export class AgentLoop {
 
     // 1. 执行暂停前已自动批准的调用
     if (pauseInfo.autoApprovedCalls && pauseInfo.autoApprovedCalls.length > 0) {
-      const calls: ToolCall[] = pauseInfo.autoApprovedCalls.map(c => ({
-        id: c.id, name: c.name, args: c.args,
-      }));
-      toolResults.push(...await this.executeToolsAndCollect(calls, context));
+      toolResults.push(...await this.executeToolsAndCollect(pauseInfo.autoApprovedCalls, context));
     }
 
     // 2. 追加暂停前已自动拒绝的结果
     if (pauseInfo.autoDeniedResults) {
-      for (const r of pauseInfo.autoDeniedResults) {
-        toolResults.push({
-          callId: r.callId, name: r.name,
-          status: 'error', output: null,
-          error: r.error,
-        });
-      }
+      toolResults.push(...pauseInfo.autoDeniedResults);
     }
 
     // 3. 处理等待审批的调用
@@ -319,7 +310,7 @@ export class AgentLoop {
     for (const pendingCall of pauseInfo.pendingToolCalls) {
       const approved = decisionMap.get(pendingCall.id) ?? false;
       if (approved) {
-        approvedCalls.push({ id: pendingCall.id, name: pendingCall.name, args: pendingCall.args as Record<string, unknown> });
+        approvedCalls.push(pendingCall);
       } else {
         deniedResults.push({
           callId: pendingCall.id, name: pendingCall.name,
@@ -357,9 +348,9 @@ export class AgentLoop {
     if (pausedCalls.length > 0) {
       const newPauseInfo: PauseInfo = {
         reason: 'tool-approval',
-        pendingToolCalls: pausedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })),
-        autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
-        autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error ?? 'denied' })) : undefined,
+        pendingToolCalls: pausedCalls,
+        autoApprovedCalls: approvedCalls,
+        autoDeniedResults: deniedResults,
         pausedAtStep: startStep,
         messageCount: messages.length,
       };
@@ -532,13 +523,12 @@ export class AgentLoop {
     if (pausedCalls.length > 0) {
       context.messages.pop(); // 移除内存中的 assistant 消息，DB 中保留用于恢复
 
-      const pendingToolCalls = pausedCalls.map(c => ({ id: c.id, name: c.name, args: c.args }));
       const pauseInfo: PauseInfo = {
         reason: 'tool-approval',
-        pendingToolCalls,
+        pendingToolCalls: pausedCalls,
         // 保存已在审批阶段自动决策的调用，恢复时直接使用，避免重复审批
-        autoApprovedCalls: approvedCalls.length > 0 ? approvedCalls.map(c => ({ id: c.id, name: c.name, args: c.args })) : undefined,
-        autoDeniedResults: deniedResults.length > 0 ? deniedResults.map(r => ({ callId: r.callId, name: r.name, error: r.error ?? 'denied' })) : undefined,
+        autoApprovedCalls: approvedCalls,
+        autoDeniedResults: deniedResults,
         pausedAtStep: step.index,
         messageCount: context.messages.length,
       };

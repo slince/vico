@@ -1,6 +1,7 @@
 // @vico/agent - AgentLoop module type definitions
 import type {ModelMessage} from '../model/types.js';
 import type {Thread, Turn} from '../thread/types.js';
+import type {ToolCall, ToolResult} from '../tool/types.js';
 
 /** 客户端工具审批决策（将 toolCallId 与审批结果绑定） */
 export interface ToolApproval {
@@ -49,11 +50,11 @@ export interface PauseInfo {
   /** 暂停原因 */
   reason: 'tool-approval' | 'error';
   /** 等待审批的工具调用 */
-  pendingToolCalls: Array<{ id: string; name: string; args: unknown }>;
+  pendingToolCalls: ToolCall[];
   /** 暂停时已自动批准的工具调用（恢复时直接执行，无需再次审批） */
-  autoApprovedCalls?: Array<{ id: string; name: string; args: Record<string, unknown> }>;
+  autoApprovedCalls?: ToolCall[];
   /** 暂停时已自动拒绝的工具结果（恢复时直接追加） */
-  autoDeniedResults?: Array<{ callId: string; name: string; error: Error|string }>;
+  autoDeniedResults?: ToolResult[];
   /** 暂停时的 step 索引 */
   pausedAtStep: number;
   /** 暂停时 messages 数组长度（完整性校验） */
