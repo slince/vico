@@ -255,12 +255,12 @@ export class AgentLoop {
 
     if (pauseInfo) {
       // 路径 A：有 pauseInfo → 标准暂停恢复流程
-      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions, messages, turnContext, scopeId, signal);
+      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions, messages, turnContext, signal);
       startStep = pauseInfo.pausedAtStep + 1;
     } else {
       // 路径 B：无 pauseInfo → 愈合模式，补齐缺失的 tool_result
       const healResult = await this.healTurnMessages(
-        messages, controller, turnContext, thread, turn, scopeId, signal, startStep, usage,
+        messages, controller, turnContext, thread, turn, signal, startStep, usage,
       );
       if (healResult) return healResult;
     }
@@ -292,7 +292,6 @@ export class AgentLoop {
     approvalDecisions: ToolApproval[] | undefined,
     messages: ModelMessage[],
     turnContext: TurnContext,
-    scopeId: string | undefined,
     signal: AbortSignal,
   ): Promise<void> {
     if (pauseInfo.reason !== 'tool-approval') return;
@@ -301,7 +300,7 @@ export class AgentLoop {
     const { thread } = session;
     const decisions = approvalDecisions ?? [];
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
-    const step: Step = { index: pauseInfo.pausedAtStep, threadId: thread.id, scopeId, signal };
+    const step: Step = { index: pauseInfo.pausedAtStep, signal };
     const toolResults: ToolResult[] = [];
 
     // 1. 执行暂停前已自动批准的调用
@@ -358,7 +357,6 @@ export class AgentLoop {
     turnContext: TurnContext,
     thread: Thread,
     turn: Turn,
-    scopeId: string | undefined,
     signal: AbortSignal,
     startStep: number,
     usage: UsageMetrics,
@@ -389,7 +387,7 @@ export class AgentLoop {
 
     // 全部可自动处理 → 执行并追加 tool_results
     const { session, traceSession } = turnContext;
-    const step: Step = { index: startStep, threadId: thread.id, scopeId, signal };
+    const step: Step = { index: startStep, signal };
     const toolResults = await this.executeAndCollectResults(approvedCalls, session, step, traceSession);
     toolResults.push(...deniedResults);
 
@@ -478,7 +476,7 @@ export class AgentLoop {
 
     const {session: {thread, turn}} = turnContext
     while (steps < this.agent.maxSteps && !signal.aborted) {
-      const step: Step = { index: steps, threadId: thread.id, scopeId: turnContext.ctx.scopeId, signal };
+      const step: Step = { index: steps, signal };
       const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, messages, controller, turnContext);
       usage.input += stepUsage.input;
       usage.output += stepUsage.output;

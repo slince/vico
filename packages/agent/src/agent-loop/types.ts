@@ -90,10 +90,6 @@ export interface RunOptions {
 export interface Step {
   /** 当前步骤编号（0 起始） */
   index: number;
-  /** 所属 thread */
-  threadId: string;
-  /** 执行作用域 */
-  scopeId?: string;
   /** 中断信号 */
   signal: AbortSignal;
 }
