@@ -779,33 +779,26 @@ export class AgentLoop {
   }
 
   /**
-   * 扫描 messages 中最后一条 assistant 消息，返回未被 tool_result 覆盖的 toolCalls。
-   * 用于 turn 恢复时的消息链愈合：补齐崩溃/重启后缺失的 tool_result。
-   *
-   * @param messages - 当前消息数组
-   * @returns 未解决的 ToolCall 数组，无需愈合时返回 null
+   * 找到最后一条 assistant 消息中未被 tool_result 覆盖的 toolCalls。
+   * 消息链是严格顺序的（下一轮 assistant 出现前，上一轮的 toolCalls 必然已全部解决），
+   * 因此只需检查最后一条，无需遍历全部消息。
    */
   private findUnresolvedToolCalls(messages: ModelMessage[]): ToolCall[] {
-    // 从后往前找最后一条 assistant 消息（含 toolCalls）
     for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
-      if (msg.role === 'assistant' && msg.toolCalls && Array.isArray(msg.toolCalls) && msg.toolCalls.length > 0) {
-        // 收集该 assistant 消息之后所有 tool_result 的 ID
-        const resolvedIds = new Set<string>();
-        for (let j = i + 1; j < messages.length; j++) {
-          const tcId = messages[j].toolCallId;
-          if (messages[j].role === 'tool' && tcId) {
-            resolvedIds.add(tcId);
-          }
+      if (messages[i].role !== 'assistant') continue;
+
+      // 最后一条 assistant 没有 toolCalls → 链已完整，无需愈合
+      if (!messages[i].toolCalls?.length) return [];
+
+      // 收集该 assistant 消息之后的所有 tool_result ID
+      const resolvedIds = new Set<string>();
+      for (let j = i + 1; j < messages.length; j++) {
+        if (messages[j].role === 'tool' && messages[j].toolCallId) {
+          resolvedIds.add(messages[j].toolCallId!);
         }
-        const toolCalls = msg.toolCalls;
-        const unresolved = toolCalls.filter(tc => !resolvedIds.has(tc.id));
-        if (unresolved.length > 0) {
-          return unresolved
-        }
-        // 该 assistant 消息的所有 toolCalls 已解决，继续检查更早的消息
-        // （正常情况下只会有最后一条未解决，但不排除多步崩溃的场景）
       }
+
+      return messages[i].toolCalls!.filter(tc => !resolvedIds.has(tc.id));
     }
     return [];
   }
