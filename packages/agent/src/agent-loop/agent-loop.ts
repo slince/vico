@@ -164,22 +164,20 @@ export class AgentLoop {
     }
 
     // ── 正常新 turn ──
-    return this.startTurn({ thread, threadId, userMessage, signal, controller, options, usage });
+    return this.startTurn({ thread, userMessage, signal, controller, options, usage });
   }
 
   /** 创建新的 turn 并开始执行 */
   private async startTurn(params: {
     thread: Thread;
-    threadId: string;
     userMessage: ModelMessage;
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
     options?: RunOptions;
     usage: UsageMetrics;
   }): Promise<TurnResult> {
-    const { thread, threadId, userMessage, signal, controller, options, usage } = params;
-    const threadStore = this.agent.thread;
-    const turn = await threadStore.createTurn(threadId);
+    const { thread, userMessage, signal, controller, options, usage } = params;
+    const turn = await this.agent.thread.createTurn(thread.id);
     const session: TurnSession = { ...options, thread, turn };
 
     const traceSession = this.tracer.startTurn(thread, userMessage);
@@ -195,8 +193,8 @@ export class AgentLoop {
     });
     await this.pipeline.enter(requestContext);
 
-    await threadStore.appendEntry({
-      threadId,
+    await this.agent.thread.appendEntry({
+      threadId: thread.id,
       turnId: turn.id,
       role: userMessage.role,
       content: userMessage.content,
