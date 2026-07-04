@@ -8,11 +8,9 @@
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
 import { Terminal, Check, X } from 'lucide-react';
 import { ToolApprovalCard } from '@/components/assistant-ui/tool-approval-card';
+import type { BashArgs } from '../bash.tool';
 
-export const ExecToolRenderer: ToolCallMessagePartComponent<
-  { command?: string },
-  unknown
-> = ({ status, args, addResult, respondToApproval, approval, result }) => {
+export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> = ({ status, args, addResult, respondToApproval, approval, result }) => {
   const command =
     typeof args.command === 'string'
       ? args.command

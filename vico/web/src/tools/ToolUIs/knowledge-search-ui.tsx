@@ -9,13 +9,7 @@ import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';
 import { Search, FileText, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-
-interface KnowledgeSearchResult {
-  results?: string[];
-  total?: number;
-  query?: string;
-  message?: string;
-}
+import type { KnowledgeSearchArgs, KnowledgeSearchResult } from '../knowledge-search.tool';
 
 /** 解析 [source: filename#chunkN] content 格式 */
 function parseSourceLine(line: string) {
@@ -25,10 +19,7 @@ function parseSourceLine(line: string) {
   return { filename: source[0] || 'unknown', chunkIndex: source[1] || '', content: match[2] };
 }
 
-export const KnowledgeSearchToolRenderer: ToolCallMessagePartComponent<
-  { query?: string },
-  KnowledgeSearchResult
-> = ({ status, args, result, isError }) => {
+export const KnowledgeSearchToolRenderer: ToolCallMessagePartComponent<KnowledgeSearchArgs, KnowledgeSearchResult> = ({ status, args, result, isError }) => {
   const { t } = useTranslation('assistant');
   if (status.type === 'running') {
     return (

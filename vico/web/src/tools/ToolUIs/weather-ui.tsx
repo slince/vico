@@ -8,18 +8,9 @@
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {Cloud, Droplets, MapPin, Thermometer, Wind} from 'lucide-react';
 import {ToolApprovalCard} from '@/components/assistant-ui/tool-approval-card';
+import type {GetWeatherArgs, GetWeatherResult} from '../get-weather.tool';
 
-interface WeatherResult {
-  temperature: number;
-  feelsLike: number;
-  humidity: number;
-  windSpeed: number;
-  windGust: number;
-  conditions: string;
-  location: string;
-}
-
-export const WeatherToolRenderer: ToolCallMessagePartComponent<Record<string, unknown>, WeatherResult> = ({ status, args, result, isError, respondToApproval, addResult }) => {
+export const WeatherToolRenderer: ToolCallMessagePartComponent<GetWeatherArgs, GetWeatherResult> = ({ status, args, result, isError, respondToApproval, addResult }) => {
   // 需要审批
   if (status.type === 'requires-action') {
     return (
@@ -52,7 +43,7 @@ export const WeatherToolRenderer: ToolCallMessagePartComponent<Record<string, un
     );
   }
 
-  const data = result as WeatherResult | undefined;
+  const data = result as GetWeatherResult | undefined;
   if (!data) return null;
 
   return (
