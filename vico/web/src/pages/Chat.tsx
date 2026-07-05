@@ -113,7 +113,7 @@ export default function Chat() {
             onThreadChange={handleThreadChange}
           />
 
-          <ChatPanel agent={selectedAgent} />
+          <ChatPanel agent={selectedAgent} threadId={activeThreadId || undefined} />
         </AssistantRuntimeProvider>
       ) : (
         <>
