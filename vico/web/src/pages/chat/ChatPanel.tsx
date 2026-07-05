@@ -77,35 +77,34 @@ export function ChatPanel({ agent, threadId }: ChatPanelProps) {
   );
 
   return (
-    <div className="flex-1 flex flex-col bg-background min-w-0">
-      {/* 顶部标题栏 */}
-      <div className="h-12 flex items-center px-4 border-b shrink-0 gap-2">
-        <span className="text-sm font-medium">{agent.name}</span>
-        {threadId && (
-          <Button
-            size="icon"
-            variant={fileExplorerOpen ? 'secondary' : 'ghost'}
-            onClick={toggleFileExplorer}
-            title="文件浏览器"
-          >
-            <FolderOpen className="size-4" />
-          </Button>
+    <div className="flex-1 flex bg-background min-w-0">
+      {/* 左侧：文件预览 + 会话区域（纵向堆叠） */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* 文件工作区 — 顶住窗口最顶部，限制最大高度 */}
+        {threadId && hasOpenTabs && (
+          <div className="flex shrink-0 flex-col max-h-[45vh] min-h-[150px]">
+            <FileTabBar threadId={threadId} />
+            {activeTab && <FileTabContent threadId={threadId} />}
+          </div>
         )}
-        <TokenUsageDisplay />
-      </div>
 
-      {/* 主体：中间区域 + 右侧文件浏览器 */}
-      <div className="flex-1 flex min-h-0">
-        {/* 中间：tabs + thread */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {threadId && hasOpenTabs && (
-            <>
-              <FileTabBar threadId={threadId} />
-              {activeTab && <FileTabContent threadId={threadId} />}
-            </>
-          )}
+        {/* 会话区 topbar + Thread */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="h-12 flex items-center px-4 border-b shrink-0 gap-2">
+            <span className="text-sm font-medium">{agent.name}</span>
+            {threadId && (
+              <Button
+                size="icon"
+                variant={fileExplorerOpen ? 'secondary' : 'ghost'}
+                onClick={toggleFileExplorer}
+                title="文件浏览器"
+              >
+                <FolderOpen className="size-4" />
+              </Button>
+            )}
+            <TokenUsageDisplay />
+          </div>
 
-          {/* Thread 区域 */}
           <div className="flex-1 min-h-0">
             <Thread
               components={{
@@ -114,10 +113,10 @@ export function ChatPanel({ agent, threadId }: ChatPanelProps) {
             />
           </div>
         </div>
-
-        {/* 右侧文件浏览器 */}
-        {threadId && <FileExplorerPanel threadId={threadId} />}
       </div>
+
+      {/* 右侧文件浏览器 — 顶住窗口最顶部 */}
+      {threadId && <FileExplorerPanel threadId={threadId} />}
     </div>
   );
 }
