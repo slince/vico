@@ -19,7 +19,8 @@ const writeOutputSchema = z.object({
 });
 
 async function executeWrite(args: z.infer<typeof writeParams>, ctx: ToolCallContext): Promise<z.infer<typeof writeOutputSchema>> {
-  const absPath = resolveWorkspacePath(ctx.session.workspace, args.path);
+  const workspace = ctx.session.workspace!;
+  const absPath = resolveWorkspacePath(workspace, args.path);
   const dir = dirname(absPath);
 
   mkdirSync(dir, { recursive: true });
@@ -27,7 +28,7 @@ async function executeWrite(args: z.infer<typeof writeParams>, ctx: ToolCallCont
   const existed = existsSync(absPath);
   writeFileSync(absPath, args.content, 'utf-8');
 
-  const rel = relative(ctx.session.workspace, absPath);
+  const rel = relative(workspace, absPath);
   const action = existed ? 'updated' as const : 'created' as const;
   const lines = args.content.split('\n').length;
   const size = Buffer.byteLength(args.content, 'utf-8');

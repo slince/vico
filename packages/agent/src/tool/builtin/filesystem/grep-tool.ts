@@ -111,7 +111,8 @@ const grepOutputSchema = z.object({
 });
 
 async function executeGrep(args: z.infer<typeof grepParams>, ctx: ToolCallContext): Promise<z.infer<typeof grepOutputSchema>> {
-  const searchDir = args.path ? resolveWorkspacePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
+  const workspace = ctx.session.workspace!;
+  const searchDir = args.path ? resolveWorkspacePath(workspace, args.path) : resolve(workspace, '.');
 
   const rgOutput = ripgrep(args, searchDir);
   const matches = rgOutput || nodeGrep(args, searchDir);

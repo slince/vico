@@ -18,7 +18,8 @@ const lsOutputSchema = z.object({
 });
 
 async function executeLs(args: z.infer<typeof lsParams>, ctx: ToolCallContext): Promise<z.infer<typeof lsOutputSchema>> {
-  const absPath = args.path ? resolveWorkspacePath(ctx.session.workspace, args.path) : resolve(ctx.session.workspace, '.');
+  const workspace = ctx.session.workspace!;
+  const absPath = args.path ? resolveWorkspacePath(workspace, args.path) : resolve(workspace, '.');
 
   const stat = statSync(absPath);
   if (!stat.isDirectory()) {
@@ -36,7 +37,7 @@ async function executeLs(args: z.infer<typeof lsParams>, ctx: ToolCallContext): 
     });
 
   const truncated = sorted.slice(0, args.limit);
-  const rel = args.path ? relative(ctx.session.workspace, absPath) : '.';
+  const rel = args.path ? relative(workspace, absPath) : '.';
 
   return { entries: truncated, count: sorted.length, path: rel };
 }

@@ -124,7 +124,8 @@ async function executeEdit(
   args: z.infer<typeof editParams>,
   ctx: ToolCallContext,
 ): Promise<z.infer<typeof editOutputSchema>> {
-  const absPath = resolveWorkspacePath(ctx.session.workspace, args.path);
+  const workspace = ctx.session.workspace!;
+  const absPath = resolveWorkspacePath(workspace, args.path);
   const original = readFileSync(absPath, 'utf-8');
 
   let modified: string;
@@ -157,7 +158,7 @@ async function executeEdit(
 
   writeFileSync(absPath, modified, 'utf-8');
 
-  const rel = relative(ctx.session.workspace, absPath);
+  const rel = relative(workspace, absPath);
   const diff = generateDiff(original, modified);
   const replacements = (modified.split('\n').length !== original.split('\n').length) ||
     modified !== original ? 1 : 0;

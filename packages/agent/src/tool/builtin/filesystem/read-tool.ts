@@ -100,7 +100,8 @@ function readImageFile(absPath: string, ext: string, workspace: string): ReadOut
 }
 
 async function executeRead(args: z.infer<typeof readParams>, ctx: ToolCallContext): Promise<ReadOutput> {
-  const absPath = resolveWorkspacePath(ctx.session.workspace, args.path);
+  const workspace = ctx.session.workspace!;
+  const absPath = resolveWorkspacePath(workspace, args.path);
   const stat = statSync(absPath);
 
   if (!stat.isFile()) {
@@ -108,10 +109,10 @@ async function executeRead(args: z.infer<typeof readParams>, ctx: ToolCallContex
   }
 
   const ext = absPath.slice(absPath.lastIndexOf('.')).toLowerCase();
-  const rel = relative(ctx.session.workspace, absPath);
+  const rel = relative(workspace, absPath);
 
   if (IMAGE_EXTENSIONS.has(ext)) {
-    return readImageFile(absPath, ext, ctx.session.workspace);
+    return readImageFile(absPath, ext, workspace);
   }
 
   const buffer = readFileSync(absPath);

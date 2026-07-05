@@ -61,9 +61,11 @@ const findOutputSchema = z.object({
 });
 
 async function executeFind(args: z.infer<typeof findParams>, ctx: ToolCallContext): Promise<z.infer<typeof findOutputSchema>> {
+  const workspace = ctx.session.workspace!;
+
   const searchDir = args.path
-    ? resolveWorkspacePath(ctx.session.workspace, args.path)
-    : resolve(ctx.session.workspace, '.');
+    ? resolveWorkspacePath(workspace, args.path)
+    : resolve(workspace, '.');
 
   const regex = globToRegex(args.pattern);
   const results = collectFiles(searchDir, regex, args.limit * 2);
@@ -71,7 +73,7 @@ async function executeFind(args: z.infer<typeof findParams>, ctx: ToolCallContex
   const sorted = results
     .sort((a, b) => b.mtime - a.mtime)
     .slice(0, args.limit)
-    .map((r) => relative(ctx.session.workspace, r.path));
+    .map((r) => relative(workspace, r.path));
 
   return { files: sorted, count: sorted.length };
 }
