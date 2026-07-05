@@ -14,9 +14,9 @@ import { resolveWorkspacePath } from '@vico/agent';
 
 const MAX_READ_BYTES = 1_048_576; // 1 MB
 
-/** 构建 thread 的 workspace 绝对路径 */
+/** 构建 thread 的 workspace 绝对路径（复用 resolveWorkspacePath 处理 tilde 展开） */
 function getThreadWorkspace(threadId: string): string {
-  return resolve(config.workspace.base_path, threadId);
+  return resolveWorkspacePath(config.workspace.base_path, threadId);
 }
 
 /**
@@ -53,7 +53,15 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
         ? resolveWorkspacePath(workspace, subPath)
         : resolve(workspace, '.');
 
-      const stat = statSync(absPath);
+      let stat;
+      try {
+        stat = statSync(absPath);
+      } catch (e: any) {
+        if (e.code === 'ENOENT') {
+          return c.json({ entries: [], path: subPath || '.' });
+        }
+        throw e;
+      }
       if (!stat.isDirectory()) {
         return c.json({ error: 'Not a directory' }, 400);
       }
