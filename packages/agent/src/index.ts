@@ -29,7 +29,7 @@ export type {
 } from './model/types.js';
 
 // Stream
-export type { UIStreamChunk } from './stream/types.js';
+export type { UIStreamChunk, UIMessage, UIMessagePart, UserMessage } from './stream/types.js';
 export { createSSEResponse } from './stream/sse.js';
 
 // Context processors (onion model)

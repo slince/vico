@@ -4,8 +4,8 @@
  */
 import {createSSEResponse} from './sse.js';
 import type {UIStreamChunk} from './types.js';
-import type {TurnResult} from '../agent-loop/types.js';
 import type {TurnOutput} from '../agent-loop/turn-output.js';
+import type {TurnResult} from "../agent-loop/agent-loop-options.js";
 
 /**
  * TurnOutput 流（ModelStreamChunk）→ AI SDK UI 流（UIStreamChunk）转换。

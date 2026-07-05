@@ -6,7 +6,8 @@
  */
 import {useMemo} from 'react';
 import {useChatRuntime} from '@assistant-ui/react-ai-sdk';
-import {DefaultChatTransport} from 'ai';
+import {DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses} from 'ai';
+
 import {createThreadHistoryAdapter} from '@/lib/conversation-thread-adapter';
 import {useAuiState} from "@assistant-ui/react";
 
@@ -86,31 +87,7 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
     id: remoteId,
     adapters: { history },
     // 当所有审批决议就绪时自动发送（无需用户手动输入消息）
-    sendAutomaticallyWhen: ({ messages }) => {
-      const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
-      if (!lastAssistant) return false;
-      // 查找所有带 approval 属性的工具部件（不管当前 state 是什么）
-      const approvalParts = lastAssistant.parts?.filter(
-        p => 'approval' in p && (p as any).approval != null,
-      ) ?? [];
-      if (approvalParts.length === 0) return false;
-      // addToolApprovalResponse 将部件的 state 改为 'approval-responded'
-      if (!approvalParts.every(p => (p as any).state === 'approval-responded')) return false;
-      // 防止重复发送：AI SDK 在每次 makeRequest 完成后会再次调用 shouldSendAutomatically，
-      // 若当前所有 approval parts 的响应均已发送过，则不再触发自动发送，避免递归循环
-      const alreadySent = approvalParts.every(approvalPart => {
-        const id = (approvalPart as any).approval?.id;
-        if (!id) return true; // 无 id 的 part 视为已处理，不阻塞
-        return messages.some(m =>
-          m.role === 'user' &&
-          m.parts?.some(p =>
-            p.type === 'tool-approval-response' &&
-            (p as any).approvalId === id,
-          ),
-        );
-      });
-      return !alreadySent;
-    },
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onFinish: ({ message }) => {
       const meta = (message as any)?.metadata;
       // 新线程首次发送后，后端返回真实 threadId

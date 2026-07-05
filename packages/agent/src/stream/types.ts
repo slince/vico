@@ -3,6 +3,29 @@
 /** 附加在流片段上的元数据 */
 type ProviderMetadata = Record<string, Record<string, unknown>>;
 
+// ── UIMessage ──
+
+/** UI 消息部件联合类型（镜像 AI SDK 的 UIMessagePart） */
+export type UIMessagePart =
+  | { type: 'text'; text: string; state?: 'streaming' | 'done'; providerMetadata?: ProviderMetadata; }
+  | { type: 'reasoning'; text: string; state?: 'streaming' | 'done'; providerMetadata?: ProviderMetadata;};
+
+/**
+ * UIMessage — 镜像 ai 包的 UIMessage 类型。
+ * 与 Vercel AI SDK 的 UIMessage 保持兼容，供 Agent.stream/invoke 接受来自客户端的 UI 消息。
+ */
+export interface UIMessage<METADATA = unknown> {
+  id: string;
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+  parts?: UIMessagePart[];
+  createdAt?: Date;
+  metadata?: METADATA;
+}
+
+/** Agent.stream/invoke 接受的消息类型：纯文本字符串或结构化 UIMessage */
+export type UserMessage = string | UIMessage;
+
 /**
  * UIStreamChunk — 镜像 ai 包的 UIMessageChunk。
  * 定义服务端与客户端（@assistant-ui/react）之间的 SSE 协议。

@@ -12,6 +12,7 @@ import {TurnOutput} from "./turn-output.js";
 import {ModelMessage} from "../model/types.js";
 import {TurnTracer} from "../observable/turn-tracer.js";
 import {ToolApproval, TurnResult} from "./agent-loop-options.js";
+import type {UserMessage} from '../stream/types.js';
 
 export type LoopFactory = (agent: Agent) => AgentLoop
 
@@ -112,7 +113,7 @@ export class Agent {
   /**
    * 发起一次对话：发送消息并等待返回最终结果（非流式）。
    *
-   * @param message - 用户消息内容
+   * @param message - 用户消息内容，支持纯文本字符串或 UIMessage 对象
    * @param options - 调用可选参数
    * @param options.threadId - 指定线程 ID（不传则自动生成）
    * @param options.userId - 用户 ID
@@ -120,7 +121,7 @@ export class Agent {
    * @param options.scopeId - 工作记忆作用域标识
    * @returns turn 最终结果
    */
-  async invoke(message: string, options?: InvokeOptions): Promise<TurnResult> {
+  async invoke(message: UserMessage, options?: InvokeOptions): Promise<TurnResult> {
     const output = this.run(message, options);
     return output.result;
   }
@@ -128,7 +129,7 @@ export class Agent {
   /**
    * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise。
    *
-   * @param message - 用户消息内容
+   * @param message - 用户消息内容，支持纯文本字符串或 UIMessage 对象
    * @param options - 调用可选参数
    * @param options.threadId - 指定线程 ID（不传则自动生成）
    * @param options.userId - 用户 ID
@@ -136,23 +137,21 @@ export class Agent {
    * @param options.scopeId - 工作记忆作用域标识
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  stream(message: string, options?: InvokeOptions): TurnOutput {
+  stream(message: UserMessage, options?: InvokeOptions): TurnOutput {
     return this.run(message, options);
   }
 
   /**
    * 构造用户消息并启动 AgentLoop runTurn。
+   * 支持 string（纯文本）、UIMessage（提取 content）、UIMessage[]（逐条转为 ModelMessage）。
    *
    * @param message - 用户消息内容
    * @param options - 调用可选参数
-   * @param options.threadId - 指定线程 ID（不传则自动生成）
-   * @param options.userId - 用户 ID
-   * @param options.workspace - 工作空间路径
-   * @param options.scopeId - 工作记忆作用域标识
    * @returns TurnOutput 实例
    */
-  private run(message: string, options?: InvokeOptions) {
-    const userMessage: ModelMessage = { role: 'user', content: message };
+  private run(message: UserMessage, options?: InvokeOptions) {
+    const content = typeof message === 'string' ? message : message.content;
+    const userMessage: ModelMessage = { role: 'user', content };
     return this.loop.run(userMessage, {
       threadId: options?.threadId,
       userId: options?.userId,
