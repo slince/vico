@@ -1,8 +1,7 @@
 /**
  * Workspace 文件系统 API — 前端文件浏览器后端。
  *
- * 每个 thread 的 workspace = config.workspace.base_path + '/' + threadId，
- * 复用 @vico/agent 的 resolveWorkspacePath 做路径沙箱校验。
+ * 会话 workspace 直接使用 agent 的 workspace 根路径，不复用 threadId 创建子目录。
  */
 import { Hono } from 'hono';
 import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -11,12 +10,13 @@ import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { config } from '../config.js';
 import { resolveWorkspacePath } from '@vico/agent';
+import { homedir } from 'node:os';
 
 const MAX_READ_BYTES = 1_048_576; // 1 MB
 
-/** 构建 thread 的 workspace 绝对路径（复用 resolveWorkspacePath 处理 tilde 展开） */
-function getThreadWorkspace(threadId: string): string {
-  return resolveWorkspacePath(config.workspace.base_path, threadId);
+/** 获取 agent workspace 根路径（展开 tilde） */
+function getWorkspace(): string {
+  return resolve(homedir(), config.workspace.base_path.replace(/^~/, ''));
 }
 
 /**
@@ -44,9 +44,8 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
-    const threadId = c.req.param('threadId');
     const subPath = c.req.query('path') || '';
-    const workspace = getThreadWorkspace(threadId);
+    const workspace = getWorkspace();
 
     try {
       const absPath = subPath
@@ -105,11 +104,10 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
-    const threadId = c.req.param('threadId');
     const filePath = c.req.query('path');
     if (!filePath) return c.json({ error: 'path is required' }, 400);
 
-    const workspace = getThreadWorkspace(threadId);
+    const workspace = getWorkspace();
 
     try {
       const absPath = resolveWorkspacePath(workspace, filePath);
@@ -165,14 +163,13 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
-    const threadId = c.req.param('threadId');
     const raw = await c.req.json().catch(() => null);
     if (!raw || !raw.path || typeof raw.content !== 'string') {
       return c.json({ error: 'Invalid body: path and content required' }, 400);
     }
 
     const { path: filePath, content } = raw as { path: string; content: string };
-    const workspace = getThreadWorkspace(threadId);
+    const workspace = getWorkspace();
 
     try {
       const bytes = Buffer.byteLength(content, 'utf8');
