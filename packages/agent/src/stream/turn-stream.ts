@@ -155,7 +155,7 @@ export async function turnOutputToSSEResponse(
         const finish: UIStreamChunk = {
           type: 'finish',
           finishReason: result.status === 'completed' ? 'stop' : result.status === 'paused' ? 'stop' : 'error',
-          messageMetadata: modelUsage ? { usage: flattenUsage(modelUsage) } : undefined,
+          messageMetadata: modelUsage ? { custom: { usage: flattenUsage(modelUsage) } } : undefined,
         };
         await options?.onFinish?.(finish, fullText);
         enqueue(finish);
