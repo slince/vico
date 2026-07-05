@@ -327,7 +327,7 @@ export class AgentLoop {
       await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps: startStep, metadata: { pauseInfo: newPauseInfo } });
 
       return {
-        status: 'paused', steps: startStep, usage, messages, turnId: turn.id, threadId: thread.id,
+        status: 'paused', steps: startStep, usage, messages, thread, turn,
       };
     }
 
@@ -353,7 +353,7 @@ export class AgentLoop {
     if (loopResult.finalStatus === 'paused') {
       turnSpan.end({ status: 'paused', steps: loopResult.steps });
       return {
-        status: 'paused', steps: loopResult.steps, usage, messages: context.messages, turnId: turn.id, threadId: thread.id,
+        status: 'paused', steps: loopResult.steps, usage, messages: context.messages, thread, turn,
       };
     }
 
@@ -368,7 +368,7 @@ export class AgentLoop {
 
       const failResult: TurnResult = {
         status: 'failed', steps: loopResult.steps, usage, messages: context.messages,
-        turnId: turn.id, threadId: thread.id, error: loopResult.error,
+        thread, turn, error: loopResult.error,
       };
       await this.tracer.finish(trace, failResult, turn.id);
       return failResult;
@@ -387,8 +387,8 @@ export class AgentLoop {
       steps: loopResult.steps,
       usage,
       messages: context.messages,
-      turnId: turn.id,
-      threadId: thread.id,
+      thread,
+      turn,
     };
     await this.tracer.finish(trace, finalResult, turn.id);
     return finalResult;

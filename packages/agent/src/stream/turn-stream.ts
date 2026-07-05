@@ -124,7 +124,7 @@ export async function turnOutputToSSEResponse(
           enqueue({ type: 'abort' });
         }
         if (result.status === 'paused') {
-          enqueue({ type: 'data-turn-paused', data: { reason: 'tool-approval', turnId: result.turnId ?? '' } });
+          enqueue({ type: 'data-turn-paused', data: { reason: 'tool-approval', turnId: result.turn.id } });
         }
         if (inStep) {
           enqueue({ type: 'finish-step' });

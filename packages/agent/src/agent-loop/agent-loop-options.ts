@@ -66,10 +66,10 @@ export interface TurnResult {
   steps: number;
   usage: UsageMetrics;
   messages: ModelMessage[];
-  /** 所属 turn ID */
-  turnId?: string;
-  /** 所属 thread ID */
-  threadId?: string;
+  /** 所属 thread */
+  thread: Thread;
+  /** 所属 turn */
+  turn: Turn;
   /** 错误信息（status 为 failed 时） */
   error?: Error | string;
 }
