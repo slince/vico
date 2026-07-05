@@ -3,9 +3,17 @@ import {type FC} from 'react';
 
 // 2. Third-party
 import {useTranslation} from 'react-i18next';
+import {useThreadTokenUsage} from '@assistant-ui/react-ai-sdk';
 
 // 3. Sub-components
 import {Thread} from '@/components/assistant-ui/thread';
+
+/** 格式化 token 数量为可读字符串 */
+function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
+  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
+  return `${tokens}`;
+}
 
 interface Agent {
   id: string;
@@ -37,6 +45,18 @@ const Welcome: FC<{ agentName: string }> = ({ agentName }) => {
  * 使用 assistant-ui 的 Thread 组件替代手动组装的 ThreadPrimitive + ComposerPrimitive。
  * AssistantRuntimeProvider 由父组件 Chat 提供，此组件仅注册工具并渲染 Thread。
  */
+/** 顶部标题栏内的 Token 用量显示 */
+const TokenUsageDisplay: FC = () => {
+  const usage = useThreadTokenUsage();
+  if (!usage || usage.totalTokens === undefined || usage.totalTokens === 0) return null;
+
+  return (
+    <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
+      {formatTokens(usage.totalTokens)} tokens
+    </span>
+  );
+};
+
 export function ChatPanel({ agent }: ChatPanelProps) {
 
   return (
@@ -44,6 +64,7 @@ export function ChatPanel({ agent }: ChatPanelProps) {
         {/* 顶部标题栏 */}
         <div className="h-12 flex items-center px-4 border-b shrink-0">
           <span className="text-sm font-medium">{agent.name}</span>
+          <TokenUsageDisplay />
         </div>
 
         {/* Thread 区域 */}

@@ -6,6 +6,26 @@ import {createSSEResponse} from './sse.js';
 import type {UIStreamChunk} from './types.js';
 import type {TurnOutput} from '../agent-loop/turn-output.js';
 import type {TurnResult} from "../agent-loop/agent-loop-options.js";
+import type {LanguageModelV3Usage} from '@ai-sdk/provider';
+
+/**
+ * 将 AI SDK 的 LanguageModelV3Usage（嵌套结构）扁平化为
+ * @assistant-ui/react-ai-sdk 的 useThreadTokenUsage 可消费的格式。
+ */
+function flattenUsage(usage: LanguageModelV3Usage): Record<string, number> {
+  const inputTokens = usage.inputTokens.total ?? 0;
+  const outputTokens = usage.outputTokens.total ?? 0;
+  const cachedInputTokens = usage.inputTokens.cacheRead ?? 0;
+  const reasoningTokens = usage.outputTokens.reasoning ?? 0;
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    ...(cachedInputTokens ? { cachedInputTokens } : {}),
+    ...(reasoningTokens ? { reasoningTokens } : {}),
+  };
+}
 
 /**
  * TurnOutput 流（ModelStreamChunk）→ AI SDK UI 流（UIStreamChunk）转换。
@@ -19,6 +39,8 @@ export async function turnOutputToSSEResponse(
   options?: { onFinish?: (finish: Extract<UIStreamChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },
 ): Promise<Response> {
   let fullText = '';
+  /** 从 model finish chunk 中捕获的 token 用量 */
+  let modelUsage: LanguageModelV3Usage | undefined;
 
   const stream = new ReadableStream<UIStreamChunk>({
     async start(controller) {
@@ -104,6 +126,7 @@ export async function turnOutputToSSEResponse(
                 break;
 
               case 'finish':
+                modelUsage = value.usage;
                 break;
 
               case 'error':
@@ -132,6 +155,7 @@ export async function turnOutputToSSEResponse(
         const finish: UIStreamChunk = {
           type: 'finish',
           finishReason: result.status === 'completed' ? 'stop' : result.status === 'paused' ? 'stop' : 'error',
+          messageMetadata: modelUsage ? { usage: flattenUsage(modelUsage) } : undefined,
         };
         await options?.onFinish?.(finish, fullText);
         enqueue(finish);

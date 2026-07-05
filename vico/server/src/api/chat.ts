@@ -76,7 +76,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 
       return turnOutputToSSEResponse(stream, {
         onFinish: (finish) => {
-          finish.messageMetadata = { threadId };
+          finish.messageMetadata = { ...(finish.messageMetadata as any), threadId };
         },
       });
     } catch (error: unknown) {
@@ -112,7 +112,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 
       return turnOutputToSSEResponse(stream, {
         onFinish: (finish) => {
-          finish.messageMetadata = { threadId };
+          finish.messageMetadata = { ...(finish.messageMetadata as any), threadId };
         },
       });
     } catch (error: unknown) {
