@@ -1,6 +1,6 @@
 import type {LanguageModelV3} from '@ai-sdk/provider';
 import {ModelClient} from '../model/model-client.js';
-import type {ToolApproval, TurnEvent, TurnResult} from './types.js';
+import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -11,6 +11,7 @@ import {buildLoop} from "./utils.js";
 import {TurnOutput} from "./turn-output.js";
 import {ModelMessage} from "../model/types.js";
 import {TurnTracer} from "../observable/turn-tracer.js";
+import {ToolApproval, TurnResult} from "./agent-loop-options.js";
 
 export type LoopFactory = (agent: Agent) => AgentLoop
 

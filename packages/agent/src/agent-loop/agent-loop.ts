@@ -469,13 +469,7 @@ export class AgentLoop {
       const assistantMsg = { role: 'assistant' as const, content: modelResult.text, ...(modelResult.toolCalls.length > 0 && { toolCalls: modelResult.toolCalls }) };
       context.messages.push(assistantMsg);
 
-      await this.agent.thread.appendEntry({
-        threadId: context.session.thread.id,
-        turnId: context.session.turn.id,
-        role: assistantMsg.role,
-        content: assistantMsg.content,
-        toolCalls: assistantMsg.toolCalls,
-      });
+      await this.persistMessage(assistantMsg, context);
     }
 
     if (modelResult.toolCalls.length === 0) {
@@ -591,14 +585,22 @@ export class AgentLoop {
         : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
       const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
       context.messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
-      await this.agent.thread.appendEntry({
-        threadId: context.session.thread.id,
-        turnId: context.session.turn.id,
-        role: 'tool',
-        content: truncated,
-        toolCallId: r.callId,
-      });
+      await this.persistMessage({ role: 'tool', content: truncated, toolCallId: r.callId }, context);
     }
+  }
+
+  /**
+   * 持久化单条消息到 threadStore。
+   */
+  private async persistMessage(message: ModelMessage, context: TurnContext): Promise<void> {
+    await this.agent.thread.appendEntry({
+      threadId: context.session.thread.id,
+      turnId: context.session.turn.id,
+      role: message.role,
+      content: message.content,
+      toolCalls: message.toolCalls,
+      toolCallId: message.toolCallId,
+    });
   }
 
   /**
