@@ -3,7 +3,7 @@
  *
  * 工作目录解析优先级：
  * 1. thread.metadata.workspace（通过 chdir 设置，持久化到 ThreadStore）
- * 2. agent 的 workspace（config.workspace.base_path）
+ * 2. agent.workspace（从 AgentConfig 取得）
  * 3. 空（返回空列表）
  */
 import { Hono } from 'hono';
@@ -12,22 +12,17 @@ import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { config } from '../config.js';
 import { resolveWorkspacePath } from '@vico/agent';
 import { vico } from '../vico.js';
+import { getAgent } from '../agent/get-agent.js';
 
 const MAX_READ_BYTES = 1_048_576; // 1 MB
-
-/** 展开 config.workspace.base_path 中的 tilde */
-function expandBasePath(): string {
-  return resolve(homedir(), config.workspace.base_path.replace(/^~/, ''));
-}
 
 /**
  * 获取线程当前的工作目录。
  *
- * 优先返回 thread.metadata.workspace；未绑定时回退到 agent 全局 workspace；
- * 若全局 workspace 也不存在则返回空字符串。
+ * 优先返回 thread.metadata.workspace；未绑定时回退到 agent.workspace；
+ * 若 agent 也无 workspace 则返回空字符串。
  */
 async function getThreadWorkspace(threadId: string): Promise<string> {
   const store = vico.thread;
@@ -37,8 +32,10 @@ async function getThreadWorkspace(threadId: string): Promise<string> {
   const bound = thread?.metadata?.workspace as string | undefined;
   if (bound) return bound;
 
-  const base = expandBasePath();
-  if (existsSync(base)) return base;
+  if (thread?.agentId) {
+    const agent = await getAgent(thread.agentId);
+    if (agent?.workspace) return agent.workspace;
+  }
 
   return '';
 }
