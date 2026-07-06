@@ -94,6 +94,15 @@ export class FileThreadStore implements ThreadStore {
     );
   }
 
+  async updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata'>>): Promise<void> {
+    const t = await this.readJSON<Thread>(join(this.threadsDir, `${threadId}.json`));
+    if (!t) return;
+    if (patch.title !== undefined) t.title = patch.title;
+    if (patch.metadata !== undefined) t.metadata = patch.metadata;
+    t.updatedAt = Date.now();
+    await this.writeJSON(join(this.threadsDir, `${threadId}.json`), t);
+  }
+
   // Turn 操作
 
   async createTurn(threadId: string): Promise<Turn> {

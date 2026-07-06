@@ -67,6 +67,14 @@ export class DrizzleThreadStore implements ThreadStore {
     return rows.map((r) => this._toThread(r));
   }
 
+  async updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata'>>): Promise<void> {
+    const values: Record<string, unknown> = { updated_at: Date.now() };
+    if (patch.title !== undefined) values.title = patch.title;
+    if (patch.metadata !== undefined) values.metadata = JSON.stringify(patch.metadata);
+    if (Object.keys(values).length === 1) return; // only updated_at
+    await this.db.update(threads).set(values).where(eq(threads.id, threadId));
+  }
+
   // --- Turn ---
 
   async createTurn(threadId: string): Promise<Turn> {

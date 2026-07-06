@@ -58,6 +58,8 @@ export interface ThreadStore {
   getThread(threadId: string): Promise<Thread | undefined>;
   /** 列出线程（可按 agentId / userId 筛选） */
   listThreads(filter?: { agentId?: string; userId?: string }): Promise<Thread[]>;
+  /** 更新线程信息（title、metadata 等） */
+  updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata'>>): Promise<void>;
 
   /** Turn 操作 */
 

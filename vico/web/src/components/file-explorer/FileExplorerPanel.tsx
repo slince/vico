@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  Check,
   ChevronDown,
   ChevronRight,
   Database,
@@ -21,15 +22,17 @@ import {
   FileVideo,
   Folder,
   FolderOpen,
+  FolderSync,
   Loader2,
   RefreshCw,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useFileExplorerStore } from '@/stores/fileExplorerStore';
 
@@ -61,6 +64,11 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
 
   const [nodes, setNodes] = useState<Record<string, DirNode>>({});
   const [loadingRoot, setLoadingRoot] = useState(false);
+  const [cwd, setCwd] = useState<string | null>(null);
+  const [chdirOpen, setChdirOpen] = useState(false);
+  const [chdirInput, setChdirInput] = useState('');
+  const [chdirLoading, setChdirLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const loadDir = useCallback(
     async (relPath: string) => {
@@ -81,6 +89,7 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
         );
         const data = await res.json();
         if (data.error) throw new Error(data.error);
+        if (!relPath && data.cwd) setCwd(data.cwd);
         setNodes((prev) => ({
           ...prev,
           [relPath]: {
@@ -122,6 +131,31 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
     void loadDir('').finally(() => setLoadingRoot(false));
   }, [loadDir]);
 
+  /** 切换工作目录 */
+  const handleChdir = useCallback(async () => {
+    const p = chdirInput.trim();
+    if (!p) return;
+    setChdirLoading(true);
+    try {
+      const res = await fetch(`/api/v1/threads/${threadId}/fs/chdir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ path: p }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setCwd(data.cwd);
+      setChdirOpen(false);
+      setChdirInput('');
+      refresh();
+    } catch (err) {
+      // keep input open so user can fix
+    } finally {
+      setChdirLoading(false);
+    }
+  }, [threadId, chdirInput, refresh]);
+
   // 面板打开或 threadId 变化时加载根目录
   useEffect(() => {
     if (!open) return;
@@ -143,6 +177,14 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
           <Button
             size="icon"
             variant="ghost"
+            onClick={() => { setChdirOpen((v) => !v); setChdirInput(cwd ?? ''); }}
+            title="切换目录"
+          >
+            <FolderSync className="size-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
             onClick={refresh}
             title="刷新"
             disabled={loadingRoot}
@@ -154,6 +196,40 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
           </Button>
         </div>
       </header>
+
+      {/* 切换工作目录输入区 */}
+      {chdirOpen && (
+        <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
+          <Input
+            ref={inputRef}
+            value={chdirInput}
+            onChange={(e) => setChdirInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void handleChdir();
+              if (e.key === 'Escape') setChdirOpen(false);
+            }}
+            placeholder="输入目录路径，如 ~/project"
+            className="h-7 flex-1 font-mono text-xs"
+            autoFocus
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => void handleChdir()}
+            disabled={chdirLoading || !chdirInput.trim()}
+            className="size-7 shrink-0"
+          >
+            <Check className="size-3.5" />
+          </Button>
+        </div>
+      )}
+
+      {/* 当前工作目录路径 */}
+      {cwd && (
+        <div className="shrink-0 truncate border-b px-3 py-1 font-mono text-[10px] text-muted-foreground/70">
+          {cwd}
+        </div>
+      )}
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="py-1">

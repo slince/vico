@@ -1,26 +1,50 @@
 /**
  * Workspace 文件系统 API — 前端文件浏览器后端。
  *
- * 会话 workspace 直接使用 agent 的 workspace 根路径，不复用 threadId 创建子目录。
+ * 工作目录解析优先级：
+ * 1. thread.metadata.workspace（通过 chdir 设置，持久化到 ThreadStore）
+ * 2. agent 的 workspace（config.workspace.base_path）
+ * 3. 空（返回空列表）
  */
 import { Hono } from 'hono';
-import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { config } from '../config.js';
 import { resolveWorkspacePath } from '@vico/agent';
-import { homedir } from 'node:os';
+import { vico } from '../vico.js';
 
 const MAX_READ_BYTES = 1_048_576; // 1 MB
 
-/** 获取 agent workspace 根路径（展开 tilde） */
-function getWorkspace(): string {
+/** 展开 config.workspace.base_path 中的 tilde */
+function expandBasePath(): string {
   return resolve(homedir(), config.workspace.base_path.replace(/^~/, ''));
 }
 
 /**
- * 检测文件是否为二进制（null byte 启发式，与 agent readTool 一致）。
+ * 获取线程当前的工作目录。
+ *
+ * 优先返回 thread.metadata.workspace；未绑定时回退到 agent 全局 workspace；
+ * 若全局 workspace 也不存在则返回空字符串。
+ */
+async function getThreadWorkspace(threadId: string): Promise<string> {
+  const store = vico.thread;
+  if (!store) return '';
+
+  const thread = await store.getThread(threadId);
+  const bound = thread?.metadata?.workspace as string | undefined;
+  if (bound) return bound;
+
+  const base = expandBasePath();
+  if (existsSync(base)) return base;
+
+  return '';
+}
+
+/**
+ * 检测文件是否为二进制（null byte 启发式）。
  * 检查缓冲区前 1024 字节中 null 字节的数量，超过 3 个则判定为二进制。
  */
 function isBinary(buffer: Buffer): boolean {
@@ -33,19 +57,44 @@ function isBinary(buffer: Buffer): boolean {
   return false;
 }
 
+/** 将 workspace 路径写入 thread.metadata */
+async function bindThreadWorkspace(threadId: string, workspace: string): Promise<void> {
+  const store = vico.thread;
+  if (!store) return;
+
+  const thread = await store.getThread(threadId);
+  const metadata = { ...(thread?.metadata ?? {}), workspace };
+  await store.updateThread(threadId, { metadata });
+}
+
+/** 清除 thread.metadata.workspace */
+async function unbindThreadWorkspace(threadId: string): Promise<void> {
+  const store = vico.thread;
+  if (!store) return;
+
+  const thread = await store.getThread(threadId);
+  if (!thread?.metadata?.workspace) return;
+
+  const metadata = { ...thread.metadata };
+  delete metadata.workspace;
+  await store.updateThread(threadId, { metadata });
+}
+
 export function fsRoutes(app: Hono<{ Variables: Variables }>) {
   /**
    * GET /api/v1/threads/:threadId/fs/listdir?path=
    *
-   * 列指定路径下的条目（目录 + 文件）。path 为相对 workspace 的路径，省略 = 根目录。
-   * 返回 entries 含 name / isDirectory / size，目录优先 + 字母序。
+   * 列指定路径下的条目（目录 + 文件）。path 为相对当前工作目录的路径，
+   * 省略 = 工作目录根。返回 entries 含 name / isDirectory / size，目录优先 + 字母序。
    */
   app.get('/api/v1/threads/:threadId/fs/listdir', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
+    const threadId = c.req.param('threadId');
     const subPath = c.req.query('path') || '';
-    const workspace = getWorkspace();
+    const workspace = await getThreadWorkspace(threadId);
+    if (!workspace) return c.json({ entries: [], path: '.' });
 
     try {
       const absPath = subPath
@@ -67,7 +116,7 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
 
       const raw = readdirSync(absPath, { withFileTypes: true });
       const entries = raw
-        .filter((e) => !e.name.startsWith('.')) // 隐藏 dotfile
+        .filter((e) => !e.name.startsWith('.'))
         .map((e) => {
           const entry: { name: string; isDirectory: boolean; size?: number } = {
             name: e.name,
@@ -86,7 +135,7 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
           return a.name.localeCompare(b.name);
         });
 
-      return c.json({ entries, path: subPath || '.' });
+      return c.json({ entries, path: subPath || '.', cwd: workspace });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to list directory';
       const status = msg.includes('outside') ? 403 : msg.includes('Not a') ? 400 : 500;
@@ -97,17 +146,19 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
   /**
    * GET /api/v1/threads/:threadId/fs/read?path=
    *
-   * 读取 workspace 内的文本文件。二进制文件返回提示文本。
+   * 读取工作目录内的文本文件。二进制文件返回提示文本。
    * 文件超过 1MB 或 50000 字符会被截断。
    */
   app.get('/api/v1/threads/:threadId/fs/read', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
+    const threadId = c.req.param('threadId');
     const filePath = c.req.query('path');
     if (!filePath) return c.json({ error: 'path is required' }, 400);
 
-    const workspace = getWorkspace();
+    const workspace = await getThreadWorkspace(threadId);
+    if (!workspace) return c.json({ error: 'Workspace not configured' }, 404);
 
     try {
       const absPath = resolveWorkspacePath(workspace, filePath);
@@ -156,20 +207,22 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
   /**
    * POST /api/v1/threads/:threadId/fs/write
    *
-   * 写入 workspace 内的文件（自动创建父目录）。
+   * 写入工作目录内的文件（自动创建父目录）。
    * Body: { path: string, content: string }
    */
   app.post('/api/v1/threads/:threadId/fs/write', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
+    const threadId = c.req.param('threadId');
     const raw = await c.req.json().catch(() => null);
     if (!raw || !raw.path || typeof raw.content !== 'string') {
       return c.json({ error: 'Invalid body: path and content required' }, 400);
     }
 
     const { path: filePath, content } = raw as { path: string; content: string };
-    const workspace = getWorkspace();
+    const workspace = await getThreadWorkspace(threadId);
+    if (!workspace) return c.json({ error: 'Workspace not configured' }, 404);
 
     try {
       const bytes = Buffer.byteLength(content, 'utf8');
@@ -192,5 +245,91 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
       const status = msg.includes('outside') ? 403 : 500;
       return c.json({ error: msg }, status);
     }
+  });
+
+  /**
+   * POST /api/v1/threads/:threadId/fs/chdir
+   *
+   * 切换线程的工作目录，持久化到 thread.metadata.workspace。
+   * Body: { path: string }
+   */
+  app.post('/api/v1/threads/:threadId/fs/chdir', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+
+    const threadId = c.req.param('threadId');
+    const raw = await c.req.json().catch(() => null);
+    if (!raw || typeof raw.path !== 'string') {
+      return c.json({ error: 'Invalid body: path required' }, 400);
+    }
+
+    const targetPath = raw.path as string;
+    let absPath: string;
+    try {
+      absPath = resolve(homedir(), targetPath.replace(/^~/, ''));
+    } catch {
+      return c.json({ error: 'Invalid path' }, 400);
+    }
+
+    if (!existsSync(absPath)) {
+      return c.json({ error: 'Directory not found' }, 404);
+    }
+    if (!statSync(absPath).isDirectory()) {
+      return c.json({ error: 'Not a directory' }, 400);
+    }
+
+    await bindThreadWorkspace(threadId, absPath);
+
+    return c.json({
+      cwd: absPath,
+      bound: true,
+    });
+  });
+
+  /**
+   * GET /api/v1/threads/:threadId/fs/chdir
+   *
+   * 获取当前线程的工作目录信息。
+   */
+  app.get('/api/v1/threads/:threadId/fs/chdir', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+
+    const threadId = c.req.param('threadId');
+    const workspace = await getThreadWorkspace(threadId);
+
+    // 判断是否显式绑定
+    let bound = false;
+    const store = vico.thread;
+    if (store) {
+      const thread = await store.getThread(threadId);
+      bound = !!thread?.metadata?.workspace;
+    }
+
+    return c.json({
+      cwd: workspace || null,
+      bound,
+      empty: !workspace,
+    });
+  });
+
+  /**
+   * DELETE /api/v1/threads/:threadId/fs/chdir
+   *
+   * 清除线程的工作目录绑定，回退到默认 workspace。
+   */
+  app.delete('/api/v1/threads/:threadId/fs/chdir', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+
+    const threadId = c.req.param('threadId');
+    await unbindThreadWorkspace(threadId);
+
+    const workspace = await getThreadWorkspace(threadId);
+    return c.json({
+      cwd: workspace || null,
+      bound: false,
+      empty: !workspace,
+    });
   });
 }
