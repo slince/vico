@@ -9,6 +9,7 @@
 import { Hono } from 'hono';
 import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+
 import { homedir } from 'node:os';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
@@ -263,7 +264,7 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
     const targetPath = raw.path as string;
     let absPath: string;
     try {
-      absPath = resolve(homedir(), targetPath.replace(/^~/, ''));
+      absPath = join(homedir(), targetPath.replace(/^~/, ''));
     } catch {
       return c.json({ error: 'Invalid path' }, 400);
     }
