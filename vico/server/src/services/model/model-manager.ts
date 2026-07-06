@@ -1,8 +1,8 @@
-import { eq, and } from 'drizzle-orm';
-import { v4 as uuid } from 'uuid';
-import { getDb, schema } from '../../db/db.js';
-import { encryptApiKey, decryptApiKey } from '../../lib/crypto.js';
-import type { ModelConfigRow } from './types.js';
+import {and, eq} from 'drizzle-orm';
+import {v4 as uuid} from 'uuid';
+import {getDb, schema} from '../../db/db.js';
+import {decryptApiKey, encryptApiKey} from '../../lib/crypto.js';
+import type {ModelConfigRow} from './types.js';
 
 const { model_configs } = schema;
 
@@ -20,30 +20,11 @@ class ModelManager {
     return rows.map((r) => ({ ...r, api_key: decryptApiKey(r.api_key) })) as ModelConfigRow[];
   }
 
-  /** 获取租户的默认模型，若无则返回第一个可用模型 */
-  async getDefault(tenantId: string): Promise<ModelConfigRow | null> {
-    const db = getDb();
-    const row = await db.select().from(model_configs)
-      .where(and(eq(model_configs.tenant_id, tenantId), eq(model_configs.is_default, 1)))
-      .limit(1)
-      .get();
-    const result = row
-      ? { ...row, api_key: decryptApiKey(row.api_key) }
-      : (await db.select().from(model_configs)
-          .where(eq(model_configs.tenant_id, tenantId))
-          .limit(1)
-          .get());
-    if (result) {
-      (result as ModelConfigRow).api_key = decryptApiKey((result as ModelConfigRow).api_key);
-    }
-    return result as ModelConfigRow | null;
-  }
-
   /** 按 ID 获取模型配置 */
-  async getById(tenantId: string, id: string): Promise<ModelConfigRow | null> {
+  async getById(id: string): Promise<ModelConfigRow | null> {
     const db = getDb();
     const row = await db.select().from(model_configs)
-      .where(and(eq(model_configs.tenant_id, tenantId), eq(model_configs.id, id)))
+      .where(eq(model_configs.id, id))
       .get();
     if (!row) return null;
     return { ...row, api_key: decryptApiKey(row.api_key) } as ModelConfigRow;
@@ -65,7 +46,7 @@ class ModelManager {
       api_key: encryptApiKey(data.api_key), base_url: data.base_url || null,
       is_default: isDefault, created_at: now,
     }).run();
-    return (await this.getById(tenantId, id))!;
+    return (await this.getById(id))!;
   }
 
   /** 更新模型配置，若设为默认则先取消其他默认 */

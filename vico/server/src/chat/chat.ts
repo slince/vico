@@ -1,14 +1,8 @@
 /**
- * Chat 执行引擎 — 纯 Vico 写法：createAgent 注册到 Runtime，vico.stream 执行。
+ * Chat 执行引擎 — 纯 Vico 写法：getAgent 拿到实例，stream 执行。
  */
-import type {AgentConfig, Tool, ToolApproval, TurnOutput} from '@vico/agent';
-import {codingTools, filesystemTools} from '@vico/agent';
-import {agentManager} from '../services/agent/agent-manager.js';
-import type {BuiltinToolsConfig} from '../services/agent/types.js';
-import {vico} from '../vico.js';
-
-/** workspace 工具全集（文件系统 + coding），用于 builtin_tools 过滤 */
-const workspaceTools: Tool[] = [...filesystemTools, ...codingTools];
+import type {ToolApproval, TurnOutput} from '@vico/agent';
+import {getAgent} from '../agent/get-agent.js';
 
 export interface ExecuteChatParams {
   agentId: string;
@@ -20,56 +14,6 @@ export interface ExecuteChatParams {
   approvalDecisions?: ToolApproval[];
 }
 
-/**
- * 根据 builtin_tools 配置过滤并调整文件工具。
- *
- * - 未在配置中出现的工具默认启用
- * - `true` / `{ enabled: true }` → 启用
- * - `false` / `{ enabled: false }` → 禁用
- * - `{ need_approval: true }` → 覆盖策略为 on-request
- */
-function resolveFileTools(
-  builtinToolsConfig: BuiltinToolsConfig | undefined,
-): Tool[] {
-  if (!builtinToolsConfig) return workspaceTools;
-
-  return workspaceTools
-    .filter((tool) => {
-      const entry = builtinToolsConfig[tool.name];
-      if (entry === undefined) return true; // 未配置，默认启用
-      if (typeof entry === 'boolean') return entry;
-      return entry.enabled;
-    })
-    .map((tool) => {
-      const entry = builtinToolsConfig[tool.name];
-      if (typeof entry === 'object' && entry.need_approval) {
-        return { ...tool, policy: 'on-request' as const };
-      }
-      return tool;
-    });
-}
-
-/** 构建 AgentConfig 的公共工厂 */
-function buildAgentConfig(runtimeConfig: NonNullable<Awaited<ReturnType<typeof agentManager.getAgentRuntimeConfig>>>): AgentConfig {
-  const { agent: a, model, workspace, builtin_tools } = runtimeConfig;
-  return {
-    id: a.id,
-    name: a.name,
-    systemPrompt: a.system_prompt,
-    model: {
-      provider: model.provider,
-      model: model.model_name,
-      baseUrl: model.base_url,
-      apiKey: model.api_key,
-    },
-    temperature: a.temperature ?? 0.7,
-    maxTokens: a.max_tokens ?? 4096,
-    maxSteps: a.max_steps ?? 10,
-    workspace,
-    fileTools: resolveFileTools(builtin_tools),
-  };
-}
-
 /** 执行 Agent 对话 — 通过 vico.stream，自动处理新对话和暂停恢复 */
 export async function executeAgentChat(
   params: ExecuteChatParams,
@@ -78,12 +22,7 @@ export async function executeAgentChat(
 
   if (!message?.trim() && !approvalDecisions?.length) throw new Error('Message is required');
 
-  // 确保 Agent 已在 Vico Runtime 注册（不存在则创建）
-  const agent = await vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
-    const runtimeConfig = await agentManager.getAgentRuntimeConfig(tenantId, agentId);
-    if (!runtimeConfig) throw new Error('Agent not found');
-    return buildAgentConfig(runtimeConfig);
-  });
+  const agent = await getAgent(agentId);
 
   return agent.stream(message, {
     threadId,

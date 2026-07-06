@@ -1,17 +1,17 @@
-import { eq, and, desc, count } from 'drizzle-orm';
-import { v4 as uuid } from 'uuid';
-import { getDb, schema } from '../../db/db.js';
-import { modelManager } from '../model/model-manager.js';
-import { config } from '../../config.js';
+import {and, count, desc, eq} from 'drizzle-orm';
+import {v4 as uuid} from 'uuid';
+import {getDb, schema} from '../../db/db.js';
+import {modelManager} from '../model/model-manager.js';
+import {config} from '../../config.js';
 import {
-  createAgentSchema,
-  updateAgentSchema,
-  replaceKnowledgeSchema,
-  type CreateAgentInput,
-  type UpdateAgentInput,
   type AgentDetail,
   type AgentRuntimeConfig,
   type BuiltinToolsConfig,
+  type CreateAgentInput,
+  createAgentSchema,
+  replaceKnowledgeSchema,
+  type UpdateAgentInput,
+  updateAgentSchema,
 } from './types.js';
 
 const { agents } = schema;
@@ -53,16 +53,16 @@ class AgentManager {
     return { ...agent } as AgentDetail;
   }
 
-  async getAgentRuntimeConfig(tenantId: string, agentId: string): Promise<AgentRuntimeConfig | null> {
-    const agent = await this.getById(tenantId, agentId);
+  async getAgentRuntimeConfig(agentId: string): Promise<AgentRuntimeConfig | null> {
+    const db = getDb();
+    const agent = await db.select().from(agents)
+      .where(eq(agents.id, agentId))
+      .get();
     if (!agent) throw new Error('Agent not found');
 
     let model: AgentRuntimeConfig['model'] | null = null;
     if (agent.model_id) {
-      model = await modelManager.getById(tenantId, agent.model_id);
-    }
-    if (!model) {
-      model = await modelManager.getDefault(tenantId);
+      model = await modelManager.getById(agent.model_id);
     }
     if (!model) throw new Error('未配置模型，请先在模型管理中至少添加一个模型');
 
