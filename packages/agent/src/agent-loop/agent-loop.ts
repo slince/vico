@@ -143,7 +143,7 @@ export class AgentLoop {
   }): Promise<TurnResult> {
     const { thread, userMessage, signal, controller, options, usage } = params;
     const turn = await this.agent.thread.createTurn(thread.id);
-    const workspace = options?.workspace ?? (thread.metadata?.workspace as string | undefined) ?? this.agent.workspace;
+    const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.agent.workspace;
     const session: TurnSession = { ...options, workspace, thread, turn };
 
     const trace = this.tracer.create(thread, userMessage, turn.id);
@@ -194,7 +194,7 @@ export class AgentLoop {
     });
 
     const {scopeId, workspace: optWorkspace, approvalDecisions} = options || {}
-    const workspace = optWorkspace ?? (thread.metadata?.workspace as string | undefined) ?? this.agent.workspace;
+    const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
 
     // 重建 session 和 context
     const session: TurnSession = { workspace, scopeId, thread, turn };

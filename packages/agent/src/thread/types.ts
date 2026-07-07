@@ -1,12 +1,24 @@
 // @vico/agent - Thread module type definitions
 import type { ModelMessage } from '../model/types.js';
 
+/** 线程自定义元数据，包含已知字段并支持任意扩展 */
+export interface ThreadMetadata {
+  workspace?: string;
+  [key: string]: unknown;
+}
+
+/** 轮次自定义元数据，包含已知字段并支持任意扩展 */
+export interface TurnMetadata {
+  workspace?: string;
+  [key: string]: unknown;
+}
+
 /** 线程上下文参数，可携带 userId/scopeId/workspace 及任意自定义字段 */
 export interface ThreadContext {
   userId?: string;
   scopeId?: string;
   workspace?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: ThreadMetadata;
   [key: string]: unknown;
 }
 
@@ -17,7 +29,7 @@ export interface Thread {
   userId?: string;
   title?: string;
   /** 自定义上下文字段（JSON 可序列化） */
-  metadata?: Record<string, unknown>;
+  metadata?: ThreadMetadata;
   createdAt: number;
   updatedAt: number;
 }
@@ -29,7 +41,7 @@ export interface Turn {
   status: 'running' | 'completed' | 'failed' | 'aborted' | 'paused';
   steps: number;
   /** 自定义元数据（JSON 可序列化），如 PauseInfo */
-  metadata?: Record<string, unknown>;
+  metadata?: TurnMetadata;
   createdAt: number;
 }
 

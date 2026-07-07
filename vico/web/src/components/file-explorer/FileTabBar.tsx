@@ -18,7 +18,7 @@ export function FileTabBar({ threadId }: { threadId: string }) {
   const closeTab = useFileExplorerStore((s) => s.closeTab);
 
   return (
-    <div className="flex shrink-0 items-center border-b bg-muted/30 overflow-x-auto">
+    <div className="flex shrink-0 items-center border-b bg-muted/30 overflow-x-auto overflow-y-hidden">
       {/* 会话 tab — 最左侧常驻，不可关闭 */}
       <div
         className={cn(
