@@ -17,7 +17,7 @@ const gitCheckoutOutput = z.object({
 });
 
 async function executeGitCheckout(args: z.infer<typeof gitCheckoutParams>, ctx: ToolCallContext) {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
 
   const cmdArgs = args.isFile ? ['checkout', '--', args.target] : ['checkout', args.target];
   const result = gitSafe(cwd, cmdArgs);
@@ -35,6 +35,6 @@ export const gitCheckoutTool = createTool({
   outputSchema: gitCheckoutOutput,
   policy: 'on-request',
   kind: 'file_change',
-  tags: ['builtin', 'git', 'mutation'],
+  tags: ['builtin', 'git', 'mutation', 'requires-workspace'],
   execute: executeGitCheckout,
 });

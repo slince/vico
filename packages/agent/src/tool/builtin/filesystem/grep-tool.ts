@@ -128,6 +128,6 @@ export const grepTool = createTool({
   outputSchema: grepOutputSchema,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'read'],
+  tags: ['builtin', 'read', 'requires-workspace'],
   execute: executeGrep,
 });

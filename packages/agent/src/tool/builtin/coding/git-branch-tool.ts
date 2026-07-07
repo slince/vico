@@ -18,7 +18,7 @@ const gitBranchOutput = z.object({
 });
 
 async function executeGitBranch(args: z.infer<typeof gitBranchParams>, ctx: ToolCallContext) {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
 
   if (args.action === 'create') {
     if (!args.name) return { branches: [], current: '', error: '创建分支需要 name 参数' };
@@ -48,6 +48,6 @@ export const gitBranchTool = createTool({
   outputSchema: gitBranchOutput,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'git', 'read'],
+  tags: ['builtin', 'git', 'read', 'requires-workspace'],
   execute: executeGitBranch,
 });

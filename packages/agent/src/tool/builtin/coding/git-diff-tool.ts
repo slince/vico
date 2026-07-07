@@ -17,7 +17,7 @@ const gitDiffOutput = z.object({
 });
 
 async function executeGitDiff(args: z.infer<typeof gitDiffParams>, ctx: ToolCallContext) {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
   const cmdArgs = ['diff', '--unified=3'];
   if (args.staged) cmdArgs.push('--cached');
   if (args.path) cmdArgs.push('--', args.path);
@@ -33,6 +33,6 @@ export const gitDiffTool = createTool({
   outputSchema: gitDiffOutput,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'git', 'read'],
+  tags: ['builtin', 'git', 'read', 'requires-workspace'],
   execute: executeGitDiff,
 });

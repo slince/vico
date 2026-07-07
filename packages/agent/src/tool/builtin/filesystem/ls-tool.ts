@@ -50,6 +50,6 @@ export const lsTool = createTool({
   outputSchema: lsOutputSchema,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'read'],
+  tags: ['builtin', 'read', 'requires-workspace'],
   execute: executeLs,
 });

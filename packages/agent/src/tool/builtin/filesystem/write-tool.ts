@@ -44,6 +44,6 @@ export const writeTool = createTool({
   outputSchema: writeOutputSchema,
   policy: 'on-request',
   kind: 'file_change',
-  tags: ['builtin', 'write'],
+  tags: ['builtin', 'write', 'requires-workspace'],
   execute: executeWrite,
 });

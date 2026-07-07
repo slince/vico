@@ -61,7 +61,7 @@ function cleanupSession(id: string, entry: SessionEntry): void {
 }
 
 async function executeBash(args: z.infer<typeof bashParams>, ctx: ToolCallContext): Promise<string> {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
 
   switch (args.action) {
     case 'stop':
@@ -197,6 +197,6 @@ export const bashTool = createTool({
   outputSchema: z.string(),
   policy: 'on-request',
   kind: 'command',
-  tags: ['builtin', 'command'],
+  tags: ['builtin', 'command', 'requires-workspace'],
   execute: executeBash,
 });

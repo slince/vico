@@ -22,7 +22,7 @@ const gitStatusOutput = z.object({
 });
 
 async function executeGitStatus(args: z.infer<typeof gitStatusParams>, ctx: ToolCallContext) {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, args.path ?? '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, args.path ?? '.');
   const result = gitSafe(cwd, ['status', '--porcelain=v1', '--branch']);
 
   if (result.error) {
@@ -55,6 +55,6 @@ export const gitStatusTool = createTool({
   outputSchema: gitStatusOutput,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'git', 'read'],
+  tags: ['builtin', 'git', 'read', 'requires-workspace'],
   execute: executeGitStatus,
 });

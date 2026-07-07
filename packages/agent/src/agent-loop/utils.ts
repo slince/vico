@@ -1,4 +1,3 @@
-import {TurnResult} from "./types.js";
 import {TurnOutput} from "./turn-output.js";
 import {Agent} from "./agent.js";
 import {AgentLoop} from "./agent-loop.js";
@@ -6,6 +5,8 @@ import type {ContextProcessor} from "./context-processors/context-processor.js";
 import {SystemPromptProcessor} from "./context-processors/system-prompt-processor.js";
 import {SkillProcessor} from "./context-processors/skill-processor.js";
 import {MemoryProcessor} from "./context-processors/memory-processor.js";
+import {WorkspaceToolProcessor} from "./context-processors/workspace-tool-processor.js";
+import {TurnResult} from "./agent-loop-options.js";
 
 /**
  * 消费 TurnOutput 并返回最终结果（丢弃流数据）。
@@ -31,6 +32,7 @@ export function buildLoop(agent: Agent): AgentLoop {
   const processors: ContextProcessor[] = [
     new SystemPromptProcessor(),
     new SkillProcessor(agent.skills),
+    new WorkspaceToolProcessor(),
   ];
 
   if (agent.memory) {

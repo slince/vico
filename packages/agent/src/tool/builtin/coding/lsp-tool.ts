@@ -172,7 +172,7 @@ const lspOutput = z.object({
 });
 
 async function executeLsp(args: z.infer<typeof lspParams>, ctx: ToolCallContext) {
-  const absPath = resolveWorkspacePath(ctx.session.workspace, args.filePath);
+  const absPath = resolveWorkspacePath(ctx.session.workspace!, args.filePath);
   if (!existsSync(absPath)) {
     return { result: '', action: args.action, supported: false, error: `文件不存在` };
   }
@@ -252,6 +252,6 @@ export const lspTool = createTool({
   outputSchema: lspOutput,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'read'],
+  tags: ['builtin', 'read', 'requires-workspace'],
   execute: executeLsp,
 });

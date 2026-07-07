@@ -86,6 +86,6 @@ export const findTool = createTool({
   outputSchema: findOutputSchema,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'read'],
+  tags: ['builtin', 'read', 'requires-workspace'],
   execute: executeFind,
 });

@@ -28,6 +28,9 @@ function expandTilde(p: string): string {
  * @throws 如果路径在工作区之外则抛出错误
  */
 export function resolveWorkspacePath(workspace: string, targetPath: string): string {
+  if (!workspace) {
+    throw new Error('Workspace path is required but not configured. Please configure a workspace for this agent.');
+  }
   const ws = resolve(expandTilde(workspace));
   const abs = targetPath.startsWith('/') ? targetPath : resolve(ws, targetPath);
 

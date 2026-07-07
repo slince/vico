@@ -42,7 +42,7 @@ const packageInstallOutput = z.object({
 });
 
 async function executePackageInstall(args: z.infer<typeof packageInstallParams>, ctx: ToolCallContext) {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
   const manager = args.manager ?? detectPackageManager(cwd);
 
   let cmd: string;
@@ -87,7 +87,7 @@ export const packageInstallTool = createTool({
   outputSchema: packageInstallOutput,
   policy: 'on-request',
   kind: 'command',
-  tags: ['builtin', 'package'],
+  tags: ['builtin', 'package', 'requires-workspace'],
   execute: executePackageInstall,
 });
 
@@ -105,7 +105,7 @@ const packageRunOutput = z.object({
 });
 
 async function executePackageRun(args: z.infer<typeof packageRunParams>, ctx: ToolCallContext) {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
   const manager = args.manager ?? detectPackageManager(cwd);
 
   let cmd: string;
@@ -132,6 +132,6 @@ export const packageRunTool = createTool({
   outputSchema: packageRunOutput,
   policy: 'on-request',
   kind: 'command',
-  tags: ['builtin', 'package'],
+  tags: ['builtin', 'package', 'requires-workspace'],
   execute: executePackageRun,
 });

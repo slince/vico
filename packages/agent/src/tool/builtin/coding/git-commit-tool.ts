@@ -18,7 +18,7 @@ const gitCommitOutput = z.object({
 });
 
 async function executeGitCommit(args: z.infer<typeof gitCommitParams>, ctx: ToolCallContext) {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
 
   if (args.files && args.files.length > 0) {
     const addResult = gitSafe(cwd, ['add', '--', ...args.files]);
@@ -41,6 +41,6 @@ export const gitCommitTool = createTool({
   outputSchema: gitCommitOutput,
   policy: 'on-request',
   kind: 'mutation',
-  tags: ['builtin', 'git', 'mutation'],
+  tags: ['builtin', 'git', 'mutation', 'requires-workspace'],
   execute: executeGitCommit,
 });

@@ -174,6 +174,6 @@ export const editTool = createTool({
   outputSchema: editOutputSchema,
   policy: 'on-request',
   kind: 'file_change',
-  tags: ['builtin', 'edit'],
+  tags: ['builtin', 'edit', 'requires-workspace'],
   execute: executeEdit,
 });

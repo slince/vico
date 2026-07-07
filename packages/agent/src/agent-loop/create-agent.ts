@@ -58,17 +58,17 @@ export function createAgent(config: AgentConfig): Agent {
     conversation: new ConversationHistoryMemory(thread, 15)
   });
 
-  // 默认工具：基础工具始终包含；启用 skill 时追加 Skill 工具；启用 working memory 时追加更新工具；workspace 工具仅在配置 workspace 时启用
-  const tools: Tool[] = [...basicTools, ...(config.tools || [])];
+  // 默认工具：基础 + workspace 工具始终注册，由 WorkspaceToolProcessor 根据 session.workspace 动态过滤
+  const tools: Tool[] = [
+    ...basicTools,
+    ...(config.fileTools ?? [...filesystemTools, ...codingTools]),
+    ...(config.tools || []),
+  ];
   if (config.skills) {
     tools.push(...createSkillTools(config.skills));
   }
   if (memory.working) {
     tools.push(createUpdateWorkingMemoryTool(memory.working));
-  }
-  if (config.workspace) {
-    const wsTools = config.fileTools ?? [...filesystemTools, ...codingTools];
-    tools.push(...wsTools);
   }
 
   return new Agent({

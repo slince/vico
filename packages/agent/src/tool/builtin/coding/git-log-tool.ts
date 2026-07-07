@@ -22,7 +22,7 @@ const gitLogOutput = z.object({
 });
 
 async function executeGitLog(args: z.infer<typeof gitLogParams>, ctx: ToolCallContext) {
-  const cwd = resolveWorkspacePath(ctx.session.workspace, '.');
+  const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
   const cmdArgs = ['log', `-${args.limit}`, '--format=%H||%s||%ai||%an'];
   if (args.path) cmdArgs.push('--', args.path);
 
@@ -46,6 +46,6 @@ export const gitLogTool = createTool({
   outputSchema: gitLogOutput,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'git', 'read'],
+  tags: ['builtin', 'git', 'read', 'requires-workspace'],
   execute: executeGitLog,
 });
