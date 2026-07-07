@@ -19,14 +19,12 @@ export { lsTool } from './filesystem/ls-tool.js';
 // Coding tools
 export { bashTool } from './coding/bash-tool.js';
 export { lspTool } from './coding/lsp-tool.js';
-export {
-  gitStatusTool,
-  gitDiffTool,
-  gitLogTool,
-  gitCommitTool,
-  gitBranchTool,
-  gitCheckoutTool,
-} from './coding/git-tools.js';
+export { gitStatusTool } from './coding/git-status-tool.js';
+export { gitDiffTool } from './coding/git-diff-tool.js';
+export { gitLogTool } from './coding/git-log-tool.js';
+export { gitCommitTool } from './coding/git-commit-tool.js';
+export { gitBranchTool } from './coding/git-branch-tool.js';
+export { gitCheckoutTool } from './coding/git-checkout-tool.js';
 export { packageInstallTool, packageRunTool } from './coding/package-tools.js';
 export { createDelegateTool } from './coding/delegate-tool.js';
 
@@ -49,14 +47,12 @@ import { lsTool } from './filesystem/ls-tool.js';
 
 import { bashTool } from './coding/bash-tool.js';
 import { lspTool } from './coding/lsp-tool.js';
-import {
-  gitStatusTool,
-  gitDiffTool,
-  gitLogTool,
-  gitCommitTool,
-  gitBranchTool,
-  gitCheckoutTool,
-} from './coding/git-tools.js';
+import { gitStatusTool } from './coding/git-status-tool.js';
+import { gitDiffTool } from './coding/git-diff-tool.js';
+import { gitLogTool } from './coding/git-log-tool.js';
+import { gitCommitTool } from './coding/git-commit-tool.js';
+import { gitBranchTool } from './coding/git-branch-tool.js';
+import { gitCheckoutTool } from './coding/git-checkout-tool.js';
 import { packageInstallTool, packageRunTool } from './coding/package-tools.js';
 
 import type { Tool } from '../types.js';

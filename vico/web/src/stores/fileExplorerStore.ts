@@ -26,6 +26,9 @@ interface FileExplorerState {
   // actions
   openFile: (threadId: string, filePath: string, fileName: string) => void;
   closeTab: (threadId: string, filePath: string) => void;
+  closeTabsToLeft: (threadId: string, filePath: string) => void;
+  closeTabsToRight: (threadId: string, filePath: string) => void;
+  closeAllTabs: (threadId: string) => void;
   setActiveTab: (threadId: string, filePath: string | null) => void;
   setFileContent: (threadId: string, filePath: string, content: string) => void;
   setFileLoading: (threadId: string, filePath: string, loading: boolean) => void;
@@ -92,6 +95,40 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
         activeTabByThread: { ...state.activeTabByThread, [threadId]: newActive },
       };
     });
+  },
+
+  /** 关闭当前 tab 左侧的所有文件 tab */
+  closeTabsToLeft: (threadId, filePath) => {
+    set((state) => {
+      const threadTabs = state.openTabsByThread[threadId] ?? [];
+      const idx = threadTabs.findIndex((t) => t.filePath === filePath);
+      if (idx === -1) return state;
+      const newTabs = threadTabs.slice(idx);
+      return {
+        openTabsByThread: { ...state.openTabsByThread, [threadId]: newTabs },
+      };
+    });
+  },
+
+  /** 关闭当前 tab 右侧的所有文件 tab */
+  closeTabsToRight: (threadId, filePath) => {
+    set((state) => {
+      const threadTabs = state.openTabsByThread[threadId] ?? [];
+      const idx = threadTabs.findIndex((t) => t.filePath === filePath);
+      if (idx === -1) return state;
+      const newTabs = threadTabs.slice(0, idx + 1);
+      return {
+        openTabsByThread: { ...state.openTabsByThread, [threadId]: newTabs },
+      };
+    });
+  },
+
+  /** 关闭所有文件 tab，回到会话 tab */
+  closeAllTabs: (threadId) => {
+    set((state) => ({
+      openTabsByThread: { ...state.openTabsByThread, [threadId]: [] },
+      activeTabByThread: { ...state.activeTabByThread, [threadId]: null },
+    }));
   },
 
   setActiveTab: (threadId, filePath) => {
