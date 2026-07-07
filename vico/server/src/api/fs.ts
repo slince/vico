@@ -264,7 +264,13 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
     const targetPath = raw.path as string;
     let absPath: string;
     try {
-      absPath = join(homedir(), targetPath.replace(/^~/, ''));
+      if (targetPath.startsWith('~')) {
+        absPath = join(homedir(), targetPath.slice(1));
+      } else if (targetPath.startsWith('/')) {
+        absPath = targetPath;
+      } else {
+        absPath = join(homedir(), targetPath);
+      }
     } catch {
       return c.json({ error: 'Invalid path' }, 400);
     }

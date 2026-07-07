@@ -116,7 +116,9 @@ export class AgentLoop {
     let thread = await this.agent.thread.getThread(threadId);
     if (!thread) {
       const title = userMessage.content.slice(0, 50);
-      thread = await this.agent.thread.createThread(this.agent.id, title, threadId, options as ThreadContext);
+      const workspace = options?.workspace ?? this.agent.workspace;
+      const metadata = { ...options?.metadata, workspace };
+      thread = await this.agent.thread.createThread(this.agent.id, title, threadId, { ...options, metadata });
     }
 
     // 自动恢复所有未完成的 turn（paused/running/failed），
@@ -141,7 +143,8 @@ export class AgentLoop {
   }): Promise<TurnResult> {
     const { thread, userMessage, signal, controller, options, usage } = params;
     const turn = await this.agent.thread.createTurn(thread.id);
-    const session: TurnSession = { ...options, thread, turn };
+    const workspace = options?.workspace ?? (thread.metadata?.workspace as string | undefined) ?? this.agent.workspace;
+    const session: TurnSession = { ...options, workspace, thread, turn };
 
     const trace = this.tracer.create(thread, userMessage, turn.id);
     const turnSpan = trace.startSpan('agent_run');
@@ -190,7 +193,8 @@ export class AgentLoop {
       return msg;
     });
 
-    const {scopeId, workspace, approvalDecisions} = options || {}
+    const {scopeId, workspace: optWorkspace, approvalDecisions} = options || {}
+    const workspace = optWorkspace ?? (thread.metadata?.workspace as string | undefined) ?? this.agent.workspace;
 
     // 重建 session 和 context
     const session: TurnSession = { workspace, scopeId, thread, turn };

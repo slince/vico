@@ -1,16 +1,15 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { MessageSquare, X } from 'lucide-react';
 
 import { useFileExplorerStore } from '@/stores/fileExplorerStore';
 import { getFileIcon } from './FileExplorerPanel';
 import { cn } from '@/lib/utils';
 
 /**
- * 水平 tab 条 — 显示当前 thread 已打开的文件 tabs。
+ * 水平 tab 条 — 最左侧常驻「会话」tab，右侧显示已打开的文件 tabs。
  *
- * 与 ChatPanel 的中间区域配合：点击 tab 切换 active file，
- * 点击 X 关闭 tab。
+ * activeTab === null 时表示会话 tab 激活，否则为对应文件路径的 tab 激活。
  */
 export function FileTabBar({ threadId }: { threadId: string }) {
   const openTabs = useFileExplorerStore((s) => s.openTabsByThread[threadId] ?? []);
@@ -18,10 +17,22 @@ export function FileTabBar({ threadId }: { threadId: string }) {
   const setActiveTab = useFileExplorerStore((s) => s.setActiveTab);
   const closeTab = useFileExplorerStore((s) => s.closeTab);
 
-  if (openTabs.length === 0) return null;
-
   return (
     <div className="flex shrink-0 items-center border-b bg-muted/30 overflow-x-auto">
+      {/* 会话 tab — 最左侧常驻，不可关闭 */}
+      <div
+        className={cn(
+          'flex items-center gap-1 shrink-0 cursor-pointer border-r px-3 py-1.5 text-xs transition-colors',
+          activeTab === null
+            ? 'bg-background border-b-2 border-b-primary -mb-[1px]'
+            : 'hover:bg-accent/50 text-muted-foreground',
+        )}
+        onClick={() => setActiveTab(threadId, null)}
+      >
+        <MessageSquare className="size-3 shrink-0" />
+        <span className="truncate">会话</span>
+      </div>
+
       {openTabs.map((tab) => {
         const isActive = tab.filePath === activeTab;
         const { Icon, cls } = getFileIcon(tab.fileName);

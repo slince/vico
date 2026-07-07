@@ -69,51 +69,46 @@ const TokenUsageDisplay: FC = () => {
 export function ChatPanel({ agent, threadId }: ChatPanelProps) {
   const toggleFileExplorer = useFileExplorerStore((s) => s.toggleFileExplorer);
   const fileExplorerOpen = useFileExplorerStore((s) => s.fileExplorerOpen);
-  const hasOpenTabs = useFileExplorerStore(
-    (s) => (s.openTabsByThread[threadId ?? ''] ?? []).length > 0,
-  );
   const activeTab = useFileExplorerStore(
     (s) => s.activeTabByThread[threadId ?? ''] ?? null,
   );
 
   return (
     <div className="flex-1 flex bg-background min-w-0">
-      {/* 左侧：文件预览 + 会话区域（纵向堆叠） */}
+      {/* 左侧：tab 栏 + 内容区（会话 / 文件预览通过 tab 切换） */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 文件工作区 — 顶住窗口最顶部，限制最大高度 */}
-        {threadId && hasOpenTabs && (
-          <div className="flex shrink-0 flex-col max-h-[45vh] min-h-[150px]">
-            <FileTabBar threadId={threadId} />
-            {activeTab && <FileTabContent threadId={threadId} />}
+        {threadId && <FileTabBar threadId={threadId} />}
+
+        {/* 内容区：会话 tab 激活时显示聊天，否则显示文件预览 */}
+        {activeTab ? (
+          <FileTabContent threadId={threadId!} />
+        ) : (
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="h-12 flex items-center px-4 border-b shrink-0 gap-2">
+              <span className="text-sm font-medium">{agent.name}</span>
+              <TokenUsageDisplay />
+              {threadId && (
+                <Button
+                  size="icon"
+                  variant={fileExplorerOpen ? 'secondary' : 'ghost'}
+                  onClick={toggleFileExplorer}
+                  title="文件浏览器"
+                  className="ml-auto"
+                >
+                  <FolderTree className="size-4" />
+                </Button>
+              )}
+            </div>
+
+            <div className="flex-1 min-h-0">
+              <Thread
+                components={{
+                  Welcome: () => <Welcome agentName={agent.name} />,
+                }}
+              />
+            </div>
           </div>
         )}
-
-        {/* 会话区 topbar + Thread */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="h-12 flex items-center px-4 border-b shrink-0 gap-2">
-            <span className="text-sm font-medium">{agent.name}</span>
-            <TokenUsageDisplay />
-            {threadId && (
-              <Button
-                size="icon"
-                variant={fileExplorerOpen ? 'secondary' : 'ghost'}
-                onClick={toggleFileExplorer}
-                title="文件浏览器"
-                className="ml-auto"
-              >
-                <FolderTree className="size-4" />
-              </Button>
-            )}
-          </div>
-
-          <div className="flex-1 min-h-0">
-            <Thread
-              components={{
-                Welcome: () => <Welcome agentName={agent.name} />,
-              }}
-            />
-          </div>
-        </div>
       </div>
 
       {/* 右侧文件浏览器 — 顶住窗口最顶部 */}
