@@ -69,7 +69,7 @@ export {
   type ToolCallContext,
   type ApprovalDecision,
 } from './tool/types.js';
-export { type TurnSession, type CallModelResult } from './agent-loop/types.js';
+export { type TurnSession, type CallModelResult } from './agent-loop/agent-loop-options.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/utils.js';
 export { type PolicyContext, type ApprovalResolver } from './tool/types.js';
@@ -168,7 +168,8 @@ export { AgentLoop } from './agent-loop/agent-loop.js';
 export { type AgentLoopOptions } from './agent-loop/agent-loop.js';
 export { collectTurnResult } from './agent-loop/utils.js';
 export { TurnOutput } from './agent-loop/turn-output.js';
-export { type TurnResult, type TurnEvent, type RunOptions, type ToolApproval } from './agent-loop/types.js';
+export { type TurnEvent } from './agent-loop/types.js';
+export { type TurnResult, type RunOptions, type ToolApproval } from './agent-loop/agent-loop-options.js';
 export { type PauseInfo, type Checkpoint, type CheckpointStore, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, DEFAULT_CHECKPOINT_TTL } from './agent-loop/checkpoint.js';
 export { TokenEconomy } from './agent-loop/token-economy.js';
 
