@@ -161,16 +161,10 @@ export class AgentLoop {
     const turnSpan = trace.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
-    const requestContext = new ModelRequestContext({
-      agent: this.agent,
-      userMessage,
-      tools: [...this.agent.tools],
-      session,
-    });
+    const requestContext = new ModelRequestContext({agent: this.agent, userMessage, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
 
-    const messages: ModelMessage[] = [...requestContext.messages];
-    const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
+    const context: TurnContext = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
 
     await this.persistMessage(userMessage, context);
 
