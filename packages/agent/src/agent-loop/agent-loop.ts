@@ -36,9 +36,6 @@ import { InMemoryCheckpointStore } from './checkpoint-store.js';
 export interface AgentLoopOptions {
   agent: Agent;
   processors?: ContextProcessor[];
-  compactor?: ContextCompactor;
-  tokenEconomy?: TokenEconomy;
-  checkpointStore?: CheckpointStore;
 }
 
 
@@ -56,12 +53,12 @@ export class AgentLoop {
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
     this.toolBroker = new ToolBroker(options.agent.tools);
-    this.compactor = options.compactor;
-    this.tokenEconomy = options.tokenEconomy;
-    this.tracer = options.agent.tracer;
-    this.approvalResolver = options.agent.approvalResolver ?? resolvePolicy;
+    this.compactor = this.agent.compactor;
+    this.tokenEconomy = this.agent.tokenEconomy;
+    this.tracer = this.agent.tracer;
+    this.approvalResolver = this.agent.approvalResolver ?? resolvePolicy;
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
-    this.checkpointStore = options.checkpointStore ?? new InMemoryCheckpointStore();
+    this.checkpointStore = this.agent.checkpointStore ?? new InMemoryCheckpointStore();
   }
 
   /**
