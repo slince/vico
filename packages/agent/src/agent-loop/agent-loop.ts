@@ -225,8 +225,9 @@ export class AgentLoop {
       for (const result of checkpoint.completedToolResults) {
         if (!messages.some(m => m.role === 'tool' && m.toolCallId === result.callId)) {
           const content = this.resolveToolResult(result);
-          messages.push({ role: 'tool', content, toolCallId: result.callId });
-          await this.persistMessage({ role: 'tool', content, toolCallId: result.callId }, context);
+          const msg: ModelMessage = { role: 'tool', content, toolCallId: result.callId };
+          messages.push(msg);
+          await this.persistMessage(msg, context);
         }
       }
 
