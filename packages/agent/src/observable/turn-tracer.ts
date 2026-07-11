@@ -1,14 +1,14 @@
 // @vico/agent - TurnTracer: manages turn-level trace lifecycle, event subscription, span collection, and adapter output
 import {randomUUID} from 'node:crypto';
 import type {EventRecorder} from '../events/types.js';
-import type {TurnEvent, TurnResult} from '../agent-loop/types.js';
-import type {CallModelResult} from '../agent-loop/agent-loop.js';
+import type {TurnEvent} from '../agent-loop/types.js';
 import type {ModelMessage, ModelRequest} from '../model/types.js';
 import type {Thread} from '../thread/types.js';
 import type {ToolResult} from '../tool/types.js';
 import type {Span, SpanState, SpanType} from './types.js';
 import type {TraceAdapter} from './trace-adapter.js';
 import {Stack} from '../utils/Stack.js';
+import {CallModelResult, TurnResult} from "../agent-loop/agent-loop-options.js";
 
 /** 追踪级别：0=关闭，1=console，2=console+文件 */
 export type TraceLevel = 0 | 1 | 2;
