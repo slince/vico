@@ -111,7 +111,6 @@ export class AgentLoop {
   }): Promise<TurnResult> {
     const { userMessage, signal, controller, options } = ctx;
     const threadId = options?.threadId ?? `${this.agent.id}-${Date.now()}`;
-    const usage = { input: 0, output: 0 };
 
     // 注意：getLatestTurn → createTurn 之间存在 check-then-act 窗口，
     // 并发请求可能同时判断无未完成 turn 并各自创建。依赖 threadStore 实现侧的并发控制。
@@ -127,11 +126,11 @@ export class AgentLoop {
     // resumeTurn 内置消息链愈合逻辑，能自动补齐缺失的 tool_result
     const latestTurn = await this.agent.thread.getLatestTurn(threadId);
     if (latestTurn && latestTurn.status !== 'completed') {
-      return this.resumeTurn({thread, turn: latestTurn, userMessage, signal, controller, options, usage});
+      return this.resumeTurn({thread, turn: latestTurn, userMessage, signal, controller, options});
     }
 
     // ── 正常新 turn ──
-    return this.startTurn({ thread, userMessage, signal, controller, options, usage });
+    return this.startTurn({ thread, userMessage, signal, controller, options });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -141,12 +140,13 @@ export class AgentLoop {
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
     options?: RunOptions;
-    usage: UsageMetrics;
   }): Promise<TurnResult> {
-    const { thread, userMessage, signal, controller, options, usage } = params;
+    const { thread, userMessage, signal, controller, options } = params;
     const turn = await this.agent.thread.createTurn(thread.id);
     const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.agent.workspace;
     const session: TurnSession = { ...options, workspace, thread, turn };
+
+    const usage: UsageMetrics = { input: 0, output: 0 };
 
     const trace = this.tracer.create(thread, userMessage, turn.id);
     const turnSpan = trace.startSpan('agent_run');
@@ -176,9 +176,10 @@ export class AgentLoop {
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
     options?: RunOptions;
-    usage: UsageMetrics;
   }): Promise<TurnResult> {
-    const { thread, turn, userMessage, signal, controller, options, usage } = params;
+    const { thread, turn, userMessage, signal, controller, options } = params;
+
+    const usage: UsageMetrics = { input: 0, output: 0 };
 
     // 加载消息
     const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
