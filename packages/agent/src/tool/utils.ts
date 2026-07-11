@@ -24,9 +24,10 @@ export function resolvePolicy(
     case 'never':
       return { approved: false, reason: `工具 ${call.name} 被策略阻止` };
     case 'on-request':
-      // if (!ctx.firstUse && ctx.previousApproved) {
-      //   return { approved: true };
-      // }
+      // 同一 turn 内已审批通过的工具，后续调用自动放行，避免每次 step 都重复审批
+      if (!ctx.firstUse && ctx.previousApproved) {
+        return { approved: true };
+      }
       return { approved: false, reason: `工具 ${call.name} 首次使用需要用户审批` };
     case 'suggest':
       return { approved: true };

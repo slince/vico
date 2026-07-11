@@ -238,16 +238,15 @@ export class AgentLoop {
     if (pauseInfo.reason !== 'tool-approval') return;
 
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
-    const toolResults: ToolResult[] = [];
 
-    // 1. 执行暂停前已自动批准的调用
+    // 1. 执行暂停前已自动批准的调用（executeToolCalls 内部逐条持久化）
     if (pauseInfo.autoApprovedCalls && pauseInfo.autoApprovedCalls.length > 0) {
-      toolResults.push(...await this.executeToolCalls(pauseInfo.autoApprovedCalls, context));
+      await this.executeToolCalls(pauseInfo.autoApprovedCalls, context);
     }
 
-    // 2. 追加暂停前已自动拒绝的结果
-    if (pauseInfo.autoDeniedResults) {
-      toolResults.push(...pauseInfo.autoDeniedResults);
+    // 2. 持久化暂停前已自动拒绝的结果
+    if (pauseInfo.autoDeniedResults && pauseInfo.autoDeniedResults.length > 0) {
+      await this.appendToolResults(pauseInfo.autoDeniedResults, context);
     }
 
     // 3. 处理等待审批的调用
@@ -258,6 +257,8 @@ export class AgentLoop {
       const approved = decisionMap.get(pendingCall.id) ?? false;
       if (approved) {
         approvedCalls.push(pendingCall);
+        // 追踪到 toolApprovalState，确保同一 turn 后续 step 中该工具自动放行
+        context.toolApprovalState.set(pendingCall.name, true);
       } else {
         deniedResults.push({
           callId: pendingCall.id, name: pendingCall.name,
@@ -267,10 +268,14 @@ export class AgentLoop {
       }
     }
 
-    toolResults.push(...await this.executeToolCalls(approvedCalls, context));
-    toolResults.push(...deniedResults);
-
-    await this.appendToolResults(toolResults, context);
+    // 3a. 执行用户批准的调用（内部逐条持久化）
+    if (approvedCalls.length > 0) {
+      await this.executeToolCalls(approvedCalls, context);
+    }
+    // 3b. 持久化用户拒绝的结果
+    if (deniedResults.length > 0) {
+      await this.appendToolResults(deniedResults, context);
+    }
   }
 
   /**
@@ -320,11 +325,11 @@ export class AgentLoop {
       };
     }
 
-    // 4. 全部可自动处理 → 执行已批准的调用，追加拒绝结果，持久化 tool_result
-    const toolResults = await this.executeToolCalls(approvedCalls, context);
-    toolResults.push(...deniedResults);
-
-    await this.appendToolResults(toolResults, context);
+    // 4. 全部可自动处理 → 执行已批准的调用（内部逐条持久化），追加拒绝结果
+    await this.executeToolCalls(approvedCalls, context);
+    if (deniedResults.length > 0) {
+      await this.appendToolResults(deniedResults, context);
+    }
     return null; // 愈合完成
   }
 
@@ -488,10 +493,12 @@ export class AgentLoop {
       return { shouldBreak: false, shouldPause: true, pauseInfo, usage };
     }
 
-    const toolResults = await this.executeToolCalls(approvedCalls, context);
-    toolResults.push(...deniedResults);
-
-    await this.appendToolResults(toolResults, context);
+    // 已批准的调用直接执行（executeToolCalls 内部逐条持久化，无需再次 appendToolResults）
+    await this.executeToolCalls(approvedCalls, context);
+    // 拒绝结果单独持久化
+    if (deniedResults.length > 0) {
+      await this.appendToolResults(deniedResults, context);
+    }
 
     this.emit({ type: 'step-end', step: step.index + 1 });
     return { shouldBreak: false, shouldPause: false, usage };
@@ -722,26 +729,60 @@ export class AgentLoop {
   }
 
   /**
-   * 执行工具调用，返回结果数组。不修改入参，事件通过 emit 触发。
+   * 执行工具调用，每个工具执行后立即持久化结果到消息链，防止进程崩溃后愈合模式
+   * 回放已执行的 mutation 类工具导致重复副作用。
+   *
+   * 执行策略：readonly 工具并行执行，其余串行；每个结果立即写入 threadStore。
+   *
+   * @returns 工具结果数组（结果已持久化到 context.messages 和 threadStore，调用方无需再次持久化）
    */
   private async executeToolCalls(toolCalls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
     if (toolCalls.length === 0) return [];
 
     const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
     const toolCallContext: ToolCallContext = {session: context.session, agentId: this.agent.id, signal: context.signal};
-    const results = await this.toolBroker.executeBatch(toolCalls, toolCallContext);
 
-    toolSpan.end({ results: results.length });
+    // 按 kind 分组：readonly 可并行，其余必须串行
+    const readonlyCalls: ToolCall[] = [];
+    const sequentialCalls: ToolCall[] = [];
+    for (const call of toolCalls) {
+      const tool = this.toolBroker.findTool(call.name);
+      if (tool?.kind === 'readonly') {
+        readonlyCalls.push(call);
+      } else {
+        sequentialCalls.push(call);
+      }
+    }
 
-    for (const r of results) {
+    /**
+     * 执行单个调用并立即持久化 + 发射事件，返回结果。
+     * 每个工具的结果在 DB 中独立提交，崩溃时已完成的工具不会丢失。
+     */
+    const executeAndPersist = async (call: ToolCall): Promise<ToolResult> => {
+      const result = await this.toolBroker.execute(call, toolCallContext);
+      await this.appendToolResults([result], context);
       this.emit({
         type: 'tool-result',
-        id: r.callId,
-        name: r.name,
-        status: r.status,
-        output: r.output,
+        id: result.callId,
+        name: result.name,
+        status: result.status,
+        output: result.output,
       });
+      return result;
+    };
+
+    const results: ToolResult[] = [];
+
+    // readonly 工具并行执行，各自完成即持久化
+    const readonlyResults = await Promise.all(readonlyCalls.map(executeAndPersist));
+    results.push(...readonlyResults);
+
+    // 非 readonly 工具串行执行，逐个持久化
+    for (const call of sequentialCalls) {
+      results.push(await executeAndPersist(call));
     }
+
+    toolSpan.end({ results: results.length });
     return results;
   }
 
