@@ -574,13 +574,20 @@ export class AgentLoop {
    */
   private async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
     for (const r of toolResults) {
-      const raw = r.status === 'success'
-        ? (typeof r.output === 'string' ? r.output : JSON.stringify(r.output))
-        : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
-      const truncated = this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
-      context.messages.push({ role: 'tool', content: truncated, toolCallId: r.callId });
-      await this.persistMessage({ role: 'tool', content: truncated, toolCallId: r.callId }, context);
+      const result = this.resolveToolResult(r)
+
+      const message: ModelMessage = { role: 'tool', content: result, toolCallId: r.callId }
+      context.messages.push(message);
+      await this.persistMessage(message, context);
     }
+  }
+
+  private resolveToolResult(r: ToolResult) {
+    const raw = r.status === 'success'
+      ? (typeof r.output === 'string' ? r.output : JSON.stringify(r.output))
+      : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
+
+    return this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
   }
 
   /**
