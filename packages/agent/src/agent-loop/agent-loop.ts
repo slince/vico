@@ -746,6 +746,8 @@ export class AgentLoop {
 
     const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
     const toolCallContext: ToolCallContext = {session: context.session, agentId: this.agent.id, signal: context.signal};
+    const turnId = context.session.turn.id;
+    const threadId = context.session.thread.id;
 
     // 按 kind 分组：readonly 可并行，其余必须串行
     const readonlyCalls: ToolCall[] = [];
@@ -759,12 +761,34 @@ export class AgentLoop {
       }
     }
 
+    // 最新 checkpoint 引用（闭包内异步更新）
+    let latestCheckpoint = await this.checkpointStore.getByTurn(turnId);
+
     /**
-     * 执行单个调用并立即持久化 + 发射事件，返回结果。
+     * 执行单个调用，在执行前后写入 checkpoint，然后持久化 + 发射事件，返回结果。
+     * tool-pre checkpoint 记录即将执行的调用（含完整 args，恢复时无需查消息链）；
+     * tool-done checkpoint 记录完成的调用，清除 pendingToolCall。
      * 每个工具的结果在 DB 中独立提交，崩溃时已完成的工具不会丢失。
      */
     const executeAndPersist = async (call: ToolCall): Promise<ToolResult> => {
+      // tool-pre checkpoint（含完整 args，恢复时无需查消息链）
+      latestCheckpoint = await this.checkpointStore.save(turnId, threadId, {
+        pendingToolCall: { id: call.id, name: call.name, args: call.args as Record<string, unknown> },
+      });
+
+      // 执行工具
       const result = await this.toolBroker.execute(call, toolCallContext);
+
+      // tool-done checkpoint
+      const prevIds = latestCheckpoint?.completedToolCallIds ?? [];
+      const prevResults = latestCheckpoint?.completedToolResults ?? [];
+      latestCheckpoint = await this.checkpointStore.save(turnId, threadId, {
+        stepIndex: latestCheckpoint?.stepIndex ?? 0,
+        completedToolCallIds: [...prevIds, call.id],
+        completedToolResults: [...prevResults, result],
+        pendingToolCall: null,
+      });
+
       await this.appendToolResults([result], context);
       this.emit({
         type: 'tool-result',
