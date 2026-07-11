@@ -33,11 +33,14 @@ export interface Thread {
   updatedAt: number;
 }
 
+
+export type TurnStatus = 'running' | 'completed' | 'failed' | 'aborted' | 'paused'
+
 /** 单次对话轮次 */
 export interface Turn {
   id: string;
   threadId: string;
-  status: 'running' | 'completed' | 'failed' | 'aborted' | 'paused';
+  status: TurnStatus;
   steps: number;
   /** 自定义元数据（JSON 可序列化），如 PauseInfo */
   metadata?: TurnMetadata;

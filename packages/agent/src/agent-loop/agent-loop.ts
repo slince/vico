@@ -4,6 +4,7 @@ import type {ApprovalResolver, ToolCall, ToolCallContext, ToolResult} from '../t
 import type {Thread, Turn} from '../thread/thread-store.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
 import {resolvePolicy} from '../tool/utils.js';
+import {toModelMessages} from './utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import {MessageRole, ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
@@ -180,12 +181,7 @@ export class AgentLoop {
 
     // 加载该 turn 的 messages
     const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
-    const messages: ModelMessage[] = entries.map(e => {
-      const msg: ModelMessage = { role: e.role as MessageRole, content: e.content };
-      if (e.toolCallId) msg.toolCallId = e.toolCallId;
-      if (e.toolCalls) msg.toolCalls = e.toolCalls as ToolCall[];
-      return msg;
-    });
+    const messages: ModelMessage[] = toModelMessages(entries);
 
     const {scopeId, workspace: optWorkspace, approvalDecisions} = options || {}
     const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;

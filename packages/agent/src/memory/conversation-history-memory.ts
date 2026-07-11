@@ -1,6 +1,7 @@
 // src/memory/conversation-history-memory.ts
 import type {ThreadStore} from '../thread/thread-store.js';
-import type {MessageRole, ModelMessage} from '../model/types.js';
+import type {ModelMessage} from '../model/types.js';
+import {toModelMessages} from '../agent-loop/utils.js';
 
 /**
  * 过滤掉消息列表中所有孤立的 tool 消息。
@@ -42,19 +43,7 @@ export class ConversationHistoryMemory {
     // 批量加载各轮次的消息（单次查询）
     const entries = await this.threadStore.getEntriesByTurns(turns.map((t) => t.id));
 
-    const messages = entries.map((entry) => {
-      const msg: ModelMessage = {
-        role: entry.role as MessageRole,
-        content: entry.content,
-      };
-      if (entry.toolCalls) {
-        msg.toolCalls = entry.toolCalls as ModelMessage['toolCalls'];
-      }
-      if (entry.toolCallId) {
-        msg.toolCallId = entry.toolCallId;
-      }
-      return msg;
-    });
+    const messages = toModelMessages(entries);
 
     return stripOrphanedToolResults(messages);
   }

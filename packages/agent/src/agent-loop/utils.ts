@@ -7,6 +7,24 @@ import {SkillProcessor} from "./context-processors/skill-processor.js";
 import {MemoryProcessor} from "./context-processors/memory-processor.js";
 import {WorkspaceToolProcessor} from "./context-processors/workspace-tool-processor.js";
 import {TurnResult} from "./agent-loop-options.js";
+import type {Message} from '../thread/thread-store.js';
+import type {MessageRole, ModelMessage} from '../model/types.js';
+import {ToolCall} from "../tool/types.js";
+
+/**
+ * 将 ThreadStore Message 数组转换为模型可用的 ModelMessage 数组。
+ *
+ * @param entries - ThreadStore 中的 Message 列表
+ * @returns 模型格式的消息数组
+ */
+export function toModelMessages(entries: Message[]): ModelMessage[] {
+  return entries.map((e) => {
+    const msg: ModelMessage = { role: e.role as MessageRole, content: e.content };
+    if (e.toolCallId) msg.toolCallId = e.toolCallId;
+    if (e.toolCalls) msg.toolCalls = e.toolCalls as ToolCall[];
+    return msg;
+  });
+}
 
 /**
  * 消费 TurnOutput 并返回最终结果（丢弃流数据）。
