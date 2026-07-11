@@ -219,20 +219,16 @@ export class AgentLoop {
 
       // 还原 toolApprovalState
       const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
+      const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
 
       // 还原已完成工具结果到消息链（跳过已有的，并发保护）
       for (const result of checkpoint.completedToolResults) {
         if (!messages.some(m => m.role === 'tool' && m.toolCallId === result.callId)) {
           const content = this.resolveToolResult(result);
           messages.push({ role: 'tool', content, toolCallId: result.callId });
-          await this.persistMessage(
-            { role: 'tool', content, toolCallId: result.callId },
-            { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller }
-          );
+          await this.persistMessage({ role: 'tool', content, toolCallId: result.callId }, context);
         }
       }
-
-      const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
 
       if (checkpoint.pauseInfo) {
         // 路径 A：审批恢复
