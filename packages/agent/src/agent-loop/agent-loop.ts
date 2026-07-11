@@ -9,7 +9,7 @@ import {toModelMessages} from './utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
-import {ToolBroker} from '../tool/tool-broker.js';
+import {ToolExecutor} from './tool-executor.js';
 import type {TurnTrace, TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
@@ -42,7 +42,7 @@ export interface AgentLoopOptions {
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {
   private agent: Agent;
-  private toolBroker: ToolBroker;
+  private toolExecutor: ToolExecutor;
   private compactor?: ContextCompactor;
   private tokenEconomy?: TokenEconomy;
   private approvalResolver: ApprovalResolver;
@@ -52,7 +52,7 @@ export class AgentLoop {
 
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
-    this.toolBroker = new ToolBroker(options.agent.tools);
+    this.toolExecutor = new ToolExecutor(options.agent.tools);
     this.compactor = this.agent.compactor;
     this.tokenEconomy = this.agent.tokenEconomy;
     this.tracer = this.agent.tracer;
@@ -659,7 +659,7 @@ export class AgentLoop {
     const pausedCalls: ToolCall[] = [];
 
     for (const call of toolCalls) {
-      const tool = this.toolBroker.findTool(call.name);
+      const tool = this.toolExecutor.findTool(call.name);
       const policy = tool?.policy ?? 'auto';
 
       const isFirstUse = !context.toolApprovalState.has(call.name);
@@ -896,7 +896,7 @@ export class AgentLoop {
     const readonlyCalls: ToolCall[] = [];
     const sequentialCalls: ToolCall[] = [];
     for (const call of toolCalls) {
-      const tool = this.toolBroker.findTool(call.name);
+      const tool = this.toolExecutor.findTool(call.name);
       if (tool?.kind === 'readonly') {
         readonlyCalls.push(call);
       } else {
@@ -920,7 +920,7 @@ export class AgentLoop {
       });
 
       // 执行工具
-      const result = await this.toolBroker.execute(call, toolCallContext);
+      const result = await this.toolExecutor.execute(call, toolCallContext);
 
       // tool-done checkpoint
       const prevIds = latestCheckpoint?.completedToolCallIds ?? [];

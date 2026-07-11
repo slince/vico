@@ -64,7 +64,7 @@ export {
 
 // Tool system
 export { createTool, toToolDescriptor, type ToolOptions } from './tool/create-tool.js';
-export { ToolBroker } from './tool/tool-broker.js';
+export { ToolExecutor } from './agent-loop/tool-executor.js';
 export {
   type ToolCallContext,
   type ApprovalDecision,

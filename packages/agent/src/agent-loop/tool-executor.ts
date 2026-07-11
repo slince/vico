@@ -1,0 +1,106 @@
+// @vico/agent - ToolExecutor: 工具注册、审批策略和并行执行
+import type {Tool, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
+import {StormBreaker} from '../tool/storm-breaker.js';
+
+/** ToolExecutor — 聚合工具注册、审批策略和并行执行 */
+export class ToolExecutor {
+  private tools: Map<string, Tool> = new Map();
+  private stormBreaker: StormBreaker = new StormBreaker();
+
+  constructor(tools: Tool[] = []) {
+    for (const tool of tools) {
+      this.tools.set(tool.name, tool);
+    }
+  }
+
+  /**
+   * 获取所有已注册工具
+   * @returns 工具列表
+   */
+  list(): Tool[] {
+    return Array.from(this.tools.values());
+  }
+
+  /**
+   * 按名称查找工具（供 AgentLoop 检查 policy）
+   * @param name - 工具名称
+   * @returns 匹配的工具，未找到则返回 undefined
+   */
+  findTool(name: string): Tool | undefined {
+    return this.tools.get(name);
+  }
+
+  /**
+   * 执行单个工具调用
+   * @param call - 工具调用请求
+   * @param ctx - 工具执行上下文
+   * @returns 工具执行结果
+   */
+  async execute(call: ToolCall, ctx: ToolCallContext): Promise<ToolResult> {
+    const tool = this.tools.get(call.name);
+    if (!tool) {
+      return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
+    }
+
+    // 审批策略：_run 已处理 on-request 审批，此处只处理 never 阻断
+    if (tool.policy === 'never') {
+      return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被策略阻止` };
+    }
+
+    // 风暴检测
+    const storm = this.stormBreaker.check(call.name, call.args);
+    if (storm.blocked) {
+      return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被风暴检测阻止：重复调用次数过多` };
+    }
+
+    try {
+      const output = await tool.execute(call, ctx);
+      this.stormBreaker.record(call.name, call.args);
+
+      return { callId: call.id, name: call.name, status: 'success', output };
+    } catch (err) {
+      const error = err instanceof Error ? err : String(err);
+      return { callId: call.id, name: call.name, status: 'error', output: null, error };
+    }
+  }
+
+  /**
+   * 批量执行工具调用，按 kind 分组调度：readonly 工具全部并行执行，其余串行
+   * @param calls - 工具调用请求列表
+   * @param ctx - 工具执行上下文
+   * @returns 所有工具的执行结果列表
+   */
+  async executeBatch(calls: ToolCall[], ctx: ToolCallContext): Promise<ToolResult[]> {
+    if (calls.length === 0) return [];
+
+    // 按 kind 分组：readonly（可并行3个）+ 其他（串行）
+    const readonly: ToolCall[] = [];
+    const sequential: ToolCall[] = [];
+
+    for (const call of calls) {
+      const tool = this.tools.get(call.name);
+      if (tool?.kind === 'readonly') {
+        readonly.push(call);
+      } else {
+        sequential.push(call);
+      }
+    }
+
+    // 只读工具全部并行执行
+    const results: ToolResult[] = await Promise.all(readonly.map((c) => this.execute(c, ctx)));
+
+    // 变更工具串行
+    for (const call of sequential) {
+      results.push(await this.execute(call, ctx));
+    }
+
+    return results;
+  }
+
+  /**
+   * 重置风暴检测器状态
+   */
+  resetStormBreaker(): void {
+    this.stormBreaker.reset();
+  }
+}

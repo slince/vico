@@ -1,7 +1,7 @@
 // src/__tests__/tool-broker.test.ts
 import { describe, it, expect } from 'vitest';
 import {z} from 'zod';
-import { ToolBroker } from '../src/tool/tool-broker.js';
+import { ToolExecutor } from '../src/agent-loop/tool-executor.js';
 import {createTool} from '../src/tool/create-tool.js';
 import {coreBuiltinTools} from '../src/tool/builtin/index.js';
 
@@ -14,11 +14,11 @@ function makeCtx(overrides?: Record<string, unknown>): any {
   };
 }
 
-function makeHost(): ToolBroker {
-  return new ToolBroker(coreBuiltinTools);
+function makeHost(): ToolExecutor {
+  return new ToolExecutor(coreBuiltinTools);
 }
 
-describe('ToolBroker', () => {
+describe('ToolExecutor', () => {
   it('lists builtin tools', () => {
     const host = makeHost();
     const tools = host.list();
@@ -58,7 +58,7 @@ describe('ToolBroker', () => {
   });
 
   it('blocks never-policy tool', async () => {
-    const host = new ToolBroker([createTool({
+    const host = new ToolExecutor([createTool({
       name: 'dangerous', description: '', inputSchema: z.object({}),
       policy: 'never', kind: 'command', tags: ['test'],
       execute: async () => 'should not run',
