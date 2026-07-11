@@ -1,5 +1,5 @@
 // @vico/mysql-adapter — MySQL/Drizzle-backed ThreadStore implementation
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc, inArray, and } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import type { ThreadStore, Thread, Turn, Message } from '@vico/agent';
 import {
@@ -159,16 +159,17 @@ export class DrizzleThreadStore implements ThreadStore {
   }
 
   async getRecentTurns(threadId: string, limit: number, status?: Turn['status']): Promise<Turn[]> {
+    const conditions = [eq(turns.thread_id, threadId)];
+    if (status) {
+      conditions.push(eq(turns.status, status));
+    }
     const rows = await this.db
       .select()
       .from(turns)
-      .where(eq(turns.thread_id, threadId))
-      .orderBy(desc(turns.created_at));
-    let result = rows.map((r) => this._toTurn(r));
-    if (status) {
-      result = result.filter((t) => t.status === status);
-    }
-    return result.slice(0, limit);
+      .where(and(...conditions))
+      .orderBy(desc(turns.created_at))
+      .limit(limit);
+    return rows.map((r) => this._toTurn(r));
   }
 
   async getLatestTurn(threadId: string): Promise<Turn | undefined> {
