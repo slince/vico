@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createFSSkillLoader } from '../skill/fs-skill-loader.js';
+import { createFSSkillLoader } from '../src/skill/fs-skill-loader.js';
 
 const TMP = resolve('/tmp/vico-skill-test-' + Date.now());
 

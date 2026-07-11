@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ModelClient } from '../model-client.js';
+import { ModelClient } from '../../src/model/model-client.js';
 import type { LanguageModelV3, LanguageModelV3CallOptions, LanguageModelV3StreamResult } from '@ai-sdk/provider';
-import type { ModelStreamChunk } from '../types.js';
+import type { ModelStreamChunk } from '../../src/model/types.js';
 
 /** Create a mock LanguageModelV3 with controllable doStream */
 function createMockModel(

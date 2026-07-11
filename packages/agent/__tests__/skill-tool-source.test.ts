@@ -1,8 +1,8 @@
 // src/__tests__/skill-tool-source.test.ts
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
-import {SkillRegistry} from '../skill/skill-registry.js';
-import {createFSSkillLoader} from '../skill/fs-skill-loader.js';
-import {createSkillTools} from '../skill/tool/index.js';
+import {SkillRegistry} from '../src/skill/skill-registry.js';
+import {createFSSkillLoader} from '../src/skill/fs-skill-loader.js';
+import {createSkillTools} from '../src/skill/tool/index.js';
 import {mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 

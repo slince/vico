@@ -1,9 +1,9 @@
 // src/__tests__/tool-broker.test.ts
 import { describe, it, expect } from 'vitest';
 import {z} from 'zod';
-import { ToolBroker } from '../tool/tool-broker.js';
-import {createTool} from '../tool/create-tool.js';
-import {coreBuiltinTools} from '../tool/builtin/index.js';
+import { ToolBroker } from '../src/tool/tool-broker.js';
+import {createTool} from '../src/tool/create-tool.js';
+import {coreBuiltinTools} from '../src/tool/builtin/index.js';
 
 function makeCtx(overrides?: Record<string, unknown>): any {
   return {

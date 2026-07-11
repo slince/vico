@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { convertTools } from '../tool-converter.js';
-import type { ToolDescriptor } from '../types.js';
+import { convertTools } from '../../src/model/tool-converter.js';
+import type { ToolDescriptor } from '../../src/model/types.js';
 
 describe('convertTools', () => {
   it('returns empty array for empty input', () => {

@@ -1,6 +1,6 @@
 // src/__tests__/context-compactor.test.ts
 import { describe, it, expect } from 'vitest';
-import { ContextCompactor } from '../agent-loop/context-compactor.js';
+import { ContextCompactor } from '../src/agent-loop/context-compactor.js';
 
 describe('ContextCompactor', () => {
   it('does not compact below threshold', async () => {

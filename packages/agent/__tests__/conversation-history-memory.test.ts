@@ -1,7 +1,7 @@
 // src/__tests__/conversation-history-memory.test.ts
 import { describe, it, beforeEach, expect } from 'vitest';
-import { ConversationHistoryMemory } from '../memory/conversation-history-memory.js';
-import { InMemoryThreadStore } from '../thread/memory-thread-store.js';
+import { ConversationHistoryMemory } from '../src/memory/conversation-history-memory.js';
+import { InMemoryThreadStore } from '../src/thread/memory-thread-store.js';
 
 describe('ConversationHistoryMemory', () => {
   let threadStore: InMemoryThreadStore;

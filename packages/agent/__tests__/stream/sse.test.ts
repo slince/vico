@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createSSEResponse } from '../sse.js';
-import type { UIStreamChunk } from '../types.js';
+import { createSSEResponse } from '../../src/stream/sse.js';
+import type { UIStreamChunk } from '../../src/stream/types.js';
 
 async function readSSEBody(response: Response): Promise<string[]> {
   const text = await response.text();

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { processStreamParts } from '../stream-processor.js';
+import { processStreamParts } from '../../src/model/stream-processor.js';
 import type { LanguageModelV3StreamPart } from '@ai-sdk/provider';
-import type { ModelStreamChunk } from '../types.js';
+import type { ModelStreamChunk } from '../../src/model/types.js';
 
 /** Helper: create a readable stream from LanguageModelV3StreamPart array */
 function createMockStream(parts: LanguageModelV3StreamPart[]): ReadableStream<LanguageModelV3StreamPart> {

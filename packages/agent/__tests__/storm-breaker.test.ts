@@ -1,6 +1,6 @@
 // src/__tests__/storm-breaker.test.ts
 import { describe, it, expect } from 'vitest';
-import { StormBreaker } from '../tool/storm-breaker.js';
+import { StormBreaker } from '../src/tool/storm-breaker.js';
 
 describe('StormBreaker', () => {
   it('allows first calls', () => {

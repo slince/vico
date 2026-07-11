@@ -1,6 +1,6 @@
 // src/__tests__/token-economy.test.ts
 import { describe, it, expect } from 'vitest';
-import { TokenEconomy } from '../agent-loop/token-economy.js';
+import { TokenEconomy } from '../src/agent-loop/token-economy.js';
 
 describe('TokenEconomy', () => {
   it('tracks usage', () => {

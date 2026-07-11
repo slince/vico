@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { convertToPrompt } from '../prompt-converter.js';
-import type { ModelMessage } from '../types.js';
+import { convertToPrompt } from '../../src/model/prompt-converter.js';
+import type { ModelMessage } from '../../src/model/types.js';
 
 describe('convertToPrompt', () => {
   it('converts system option to system message', () => {
