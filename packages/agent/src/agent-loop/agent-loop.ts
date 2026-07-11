@@ -10,7 +10,7 @@ import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import {ToolExecutor} from './tool-executor.js';
-import type {TurnTrace, TurnTracer} from '../observable/turn-tracer.js';
+import type {TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
@@ -202,18 +202,23 @@ export class AgentLoop {
     // ——— checkpoint 恢复逻辑 ———
     const checkpoint = await this.checkpointStore.getByTurn(turn.id);
 
+    const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState: new Map(), signal, controller };
+
     if (checkpoint) {
+      // 还原 toolApprovalState
+      context.toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState))
+
       // 校验消息链完整性
       if (checkpoint.messageCount !== messages.length) {
         // 不一致 → 降级到 heal 模式
         this.log.warn({ turnId: turn.id, expected: checkpoint.messageCount, actual: messages.length }, 'checkpoint message count mismatch, falling back to heal');
         await this.checkpointStore.deleteByTurn(turn.id);
-        return this.legacyHealResume({ thread, turn, userMessage, signal, controller, options, usage, messages, trace, turnSpan, requestContext });
+        return this.legacyHealResume({
+          context: context,
+          userMessage, options, usage, turnSpan,
+        });
       }
 
-      // 还原 toolApprovalState
-      const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
-      const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
 
       // 还原已完成工具结果到消息链（跳过已有的，并发保护）
       for (const result of checkpoint.completedToolResults) {
@@ -248,7 +253,7 @@ export class AgentLoop {
 
     // 无 checkpoint → 降级到现有 heal 模式
     this.log.info({ turnId: turn.id }, 'no checkpoint, falling back to heal');
-    return this.legacyHealResume({ thread, turn, userMessage, signal, controller, options, usage, messages, trace, turnSpan, requestContext });
+    return this.legacyHealResume({context, userMessage, options, usage, turnSpan});
   }
 
   /**
@@ -338,28 +343,18 @@ export class AgentLoop {
   }
 
   /**
-   * 降级恢复路径：使用现有的 healTurnMessages + applyPauseInfoRecovery 逻辑。
-   * 当没有 checkpoint 或 checkpoint 校验失败时使用。
+   * 降级恢复路径：当没有 checkpoint 或 checkpoint 校验失败时使用。
    */
   private async legacyHealResume(params: {
-    thread: Thread;
-    turn: Turn;
+    context: TurnContext;
     userMessage: ModelMessage;
-    signal: AbortSignal;
-    controller: ReadableStreamDefaultController<ModelStreamChunk>;
     options?: RunOptions;
     usage: UsageMetrics;
-    messages: ModelMessage[];
-    trace: TurnTrace;
     turnSpan: Span;
-    requestContext: ModelRequestContext;
   }): Promise<TurnResult> {
-    const { thread, turn, userMessage, signal, controller, options, usage, messages, trace, turnSpan, requestContext } = params;
-    const { scopeId, workspace: optWorkspace, approvalDecisions } = options || {};
-    const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
-
-    const toolApprovalState = new Map<string, boolean>();
-    const context: TurnContext = { ctx: requestContext, messages, session: { workspace, scopeId, thread, turn }, trace, toolApprovalState, signal, controller };
+    const { context, userMessage, options, usage, turnSpan } = params;
+    const { turn, thread } = context.session;
+    const { approvalDecisions } = options || {};
 
     // 原有 heal 逻辑：pauseInfo from turn.metadata（兼容旧数据）
     const pauseInfo = turn.metadata?.pauseInfo as PauseInfo | undefined;
@@ -369,11 +364,11 @@ export class AgentLoop {
       await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions || [], context);
       startStep = pauseInfo.pausedAtStep + 1;
     } else {
-      const healResult = await this.healTurnMessages(messages, context, thread, turn, startStep, usage);
+      const healResult = await this.healTurnMessages(context.messages, context, thread, turn, startStep, usage);
       if (healResult) return healResult;
     }
 
-    messages.push(userMessage);
+    context.messages.push(userMessage);
     await this.persistMessage(userMessage, context);
     await this.agent.thread.updateTurn(turn.id, { status: 'running' });
     return this.startTurnLoop(startStep, context, turnSpan, usage);
