@@ -65,6 +65,32 @@ export async function ensureTables(
     ON vico_messages(thread_id)
   `);
 
+  // turn 执行状态检查点，用于崩溃恢复和审批恢复
+  await db.run(sql`
+    CREATE TABLE IF NOT EXISTS checkpoints (
+      id TEXT PRIMARY KEY,
+      turn_id TEXT NOT NULL UNIQUE,
+      thread_id TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1,
+      step_index INTEGER NOT NULL DEFAULT 0,
+      paused INTEGER NOT NULL DEFAULT 0,
+      pending_tool TEXT,
+      snapshot TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+  `);
+
+  await db.run(sql`
+    CREATE INDEX IF NOT EXISTS idx_checkpoints_thread_id
+    ON checkpoints(thread_id)
+  `);
+
+  await db.run(sql`
+    CREATE INDEX IF NOT EXISTS idx_checkpoints_created_at
+    ON checkpoints(created_at)
+  `);
+
   // 记忆条目表 — embedding 使用 libsql 原生 F32_BLOB 向量类型
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_memory_entries (

@@ -102,9 +102,7 @@ export class ToolExecutor {
     let latestCheckpoint = await this.host.checkpointStore.getByTurn(turnId);
 
     const executeAndPersist = async (call: ToolCall): Promise<ToolResult> => {
-      latestCheckpoint = await this.host.checkpointStore.save(turnId, threadId, {
-        pendingToolCall: { id: call.id, name: call.name, args: call.args as Record<string, unknown> },
-      });
+      latestCheckpoint = await this.host.checkpointStore.save(turnId, threadId, {pendingToolCall: call});
 
       const result = await this.execute(call, toolCallContext);
 

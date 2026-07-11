@@ -30,7 +30,7 @@ export interface Checkpoint {
 
   completedToolCallIds: string[];
   completedToolResults: ToolResult[];
-  pendingToolCall: { id: string; name: string; args: Record<string, unknown> } | null;
+  pendingToolCall: ToolCall | null;
 
   createdAt: number;
   updatedAt: number;
