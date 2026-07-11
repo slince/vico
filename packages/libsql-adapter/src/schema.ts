@@ -1,5 +1,5 @@
 // @vico/libsql-adapter — Drizzle table definitions for thread and memory persistence
-import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob, index } from 'drizzle-orm/sqlite-core';
 
 // --- Thread tables ---
 
@@ -38,6 +38,22 @@ export const messages = sqliteTable('vico_messages', {
   created_at: integer('created_at').notNull(),
 });
 
+// --- Checkpoints ---
+
+/** turn 执行状态检查点，用于崩溃恢复和审批恢复 */
+export const checkpoints = sqliteTable('checkpoints', {
+  id: text('id').primaryKey(),
+  turnId: text('turn_id').notNull().unique(),
+  threadId: text('thread_id').notNull(),
+  version: integer('version').notNull().default(1),
+  stepIndex: integer('step_index').notNull().default(0),
+  paused: integer('paused').notNull().default(0),
+  pendingTool: text('pending_tool'),
+  snapshot: text('snapshot').notNull(),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 // --- Memory tables ---
 
 /** 记忆条目 — working 和 semantic 共享表，通过 type 字段区分 */
@@ -56,3 +72,8 @@ export const memoryEntries = sqliteTable('vico_memory_entries', {
   importance: integer('importance').notNull().default(0),
   created_at: integer('created_at').notNull(),
 });
+
+// --- Indexes ---
+
+export const checkpointsThreadIdIdx = index('idx_checkpoints_thread_id').on(checkpoints.threadId);
+export const checkpointsCreatedAtIdx = index('idx_checkpoints_created_at').on(checkpoints.createdAt);
