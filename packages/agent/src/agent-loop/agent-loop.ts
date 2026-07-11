@@ -1,4 +1,5 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
+import type {Logger} from 'pino';
 import type {TurnEvent, UsageMetrics} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
 import type {Thread, Turn} from '../thread/thread-store.js';
@@ -58,6 +59,10 @@ export class AgentLoop {
     this.approvalResolver = this.agent.approvalResolver ?? resolvePolicy;
     this.checkpointStore = this.agent.checkpointStore;
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
+  }
+
+  private get log(): Logger {
+    return this.agent.logger;
   }
 
   /**
@@ -120,12 +125,14 @@ export class AgentLoop {
       const workspace = options?.workspace ?? this.agent.workspace;
       const metadata = { ...options?.metadata, workspace };
       thread = await this.agent.thread.createThread(this.agent.id, title, threadId, { ...options, metadata });
+      this.log.info({ threadId, agentId: this.agent.id }, 'thread created');
     }
 
     // 自动恢复所有未完成的 turn（paused/running/failed），
     // resumeTurn 内置消息链愈合逻辑，能自动补齐缺失的 tool_result
     const latestTurn = await this.agent.thread.getLatestTurn(threadId);
     if (latestTurn && latestTurn.status !== 'completed') {
+      this.log.info({ turnId: latestTurn.id, threadId, status: latestTurn.status }, 'resuming turn');
       return this.resumeTurn({thread, turn: latestTurn, userMessage, signal, controller, options});
     }
 
@@ -143,6 +150,7 @@ export class AgentLoop {
   }): Promise<TurnResult> {
     const { thread, userMessage, signal, controller, options } = params;
     const turn = await this.agent.thread.createTurn(thread.id);
+    this.log.info({ turnId: turn.id, threadId: thread.id }, 'turn started');
     const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.agent.workspace;
     const session: TurnSession = { ...options, workspace, thread, turn };
 
@@ -203,6 +211,7 @@ export class AgentLoop {
       // 校验消息链完整性
       if (checkpoint.messageCount !== messages.length) {
         // 不一致 → 降级到 heal 模式
+        this.log.warn({ turnId: turn.id, expected: checkpoint.messageCount, actual: messages.length }, 'checkpoint message count mismatch, falling back to heal');
         await this.checkpointStore.deleteByTurn(turn.id);
         return this.legacyHealResume({ thread, turn, userMessage, signal, controller, options, usage, messages, trace, turnSpan, requestContext });
       }
@@ -226,14 +235,18 @@ export class AgentLoop {
 
       if (checkpoint.pauseInfo) {
         // 路径 A：审批恢复
+        this.log.info({ turnId: turn.id }, 'resume path A: approval recovery');
         await this.applyPauseInfoRecovery(checkpoint.pauseInfo, approvalDecisions || [], context);
         // 清除 pauseInfo
         await this.checkpointStore.save(turn.id, thread.id, { pauseInfo: null });
       } else if (checkpoint.pendingToolCall) {
         // 路径 B：工具重试
+        this.log.info({ turnId: turn.id, toolName: checkpoint.pendingToolCall.name }, 'resume path B: tool retry');
         await this.resolvePendingTool(checkpoint.pendingToolCall, checkpoint, messages, context);
+      } else {
+        // 路径 C：pendingToolCall == null → 直接继续
+        this.log.info({ turnId: turn.id }, 'resume path C: direct continue');
       }
-      // 路径 C：pendingToolCall == null → 直接继续
 
       messages.push(userMessage);
       await this.persistMessage(userMessage, context);
@@ -242,6 +255,7 @@ export class AgentLoop {
     }
 
     // 无 checkpoint → 降级到现有 heal 模式
+    this.log.info({ turnId: turn.id }, 'no checkpoint, falling back to heal');
     return this.legacyHealResume({ thread, turn, userMessage, signal, controller, options, usage, messages, trace, turnSpan, requestContext });
   }
 
@@ -451,6 +465,7 @@ export class AgentLoop {
 
     // 暂停时不 finalize trace session，保留会话供恢复时复用
     if (loopResult.finalStatus === 'paused') {
+      this.log.info({ turnId: turn.id, steps: loopResult.steps }, 'turn paused');
       turnSpan.end({ status: 'paused', steps: loopResult.steps });
       return {
         status: 'paused', steps: loopResult.steps, usage, messages: context.messages, thread, turn,
@@ -462,6 +477,7 @@ export class AgentLoop {
     // 模型错误导致的失败
     if (loopResult.finalStatus === 'failed') {
       const err = loopResult.error!;
+      this.log.error({ turnId: turn.id, error: err instanceof Error ? err.message : String(err) }, 'turn failed');
       await this.agent.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
       turnSpan.error(err instanceof Error ? err : String(err));
       this.emit({ type: 'error', error: err });
@@ -479,6 +495,7 @@ export class AgentLoop {
 
     // completed 终态：清理 checkpoint
     if (finalStatus === 'completed') {
+      this.log.info({ turnId: turn.id, steps: loopResult.steps }, 'turn completed, cleaning checkpoint');
       await this.checkpointStore.deleteByTurn(turn.id);
     }
 
@@ -544,6 +561,7 @@ export class AgentLoop {
    */
   private async executeModelStep(step: Step, context: TurnContext): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
+    this.log.debug({ turnId: context.session.turn.id, step: step.index, messageCount: context.messages.length }, 'step start');
 
     // step-start checkpoint：记录当前 step 进度
     await this.checkpointStore.save(context.session.turn.id, context.session.thread.id, {
@@ -559,11 +577,13 @@ export class AgentLoop {
     await this.tryCompact(step, context.signal);
 
     if (this.tokenEconomy?.isInputExhausted()) {
+      this.log.warn({ turnId: context.session.turn.id, step: step.index }, 'input token budget exhausted');
       this.emit({ type: 'error', error: '输入 token 预算已耗尽' });
       return { shouldBreak: true, shouldPause: false, usage };
     }
 
     if (this.tokenEconomy?.isOutputExhausted()) {
+      this.log.warn({ turnId: context.session.turn.id, step: step.index }, 'output token budget exhausted');
       this.emit({ type: 'error', error: '输出 token 预算已耗尽' });
       return { shouldBreak: true, shouldPause: false, usage };
     }
@@ -572,6 +592,7 @@ export class AgentLoop {
 
     // 如果模型调用出错，提前结束
     if (modelResult.error) {
+      this.log.error({ turnId: context.session.turn.id, step: step.index, error: modelResult.error instanceof Error ? modelResult.error.message : String(modelResult.error) }, 'model call failed');
       return { shouldBreak: true, shouldPause: false, usage, error: modelResult.error };
     }
 
@@ -604,6 +625,7 @@ export class AgentLoop {
     // 注意：assistant(toolCalls) 消息已持久化到 DB（用于恢复），但需从内存 messages 中移除，
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pausedCalls.length > 0) {
+      this.log.info({ turnId: context.session.turn.id, step: step.index, pausedCount: pausedCalls.length, toolNames: pausedCalls.map(c => c.name) }, 'tool approval required, pausing turn');
       context.messages.pop(); // 移除内存中的 assistant 消息，DB 中保留用于恢复
 
       const pauseInfo: PauseInfo = {
@@ -776,7 +798,7 @@ export class AgentLoop {
     trace.recordModelRequest(step.index, request);
 
     try {
-      console.log("model request", request)
+      this.log.debug({ step: step.index, turnId: context.session.turn.id, messages: step.messages.length, tools: request.tools?.length }, 'model request')
       const { stream } = await this.agent.modelClient.stream(request, context.signal);
 
       for await (const chunk of stream) {
@@ -843,8 +865,8 @@ export class AgentLoop {
       trace.recordModelResponse(step.index, result);
       return result;
     } catch (err) {
-      console.log("call model error", err);
       const error = err instanceof Error ? err : String(err);
+      this.log.error({ step: step.index, turnId: context.session.turn.id, error: error instanceof Error ? error.message : String(error) }, 'model stream error');
       controller.enqueue({type: 'error', error: error});
       modelSpan.error(error);
       this.emit({ type: 'error', error: error });
@@ -864,6 +886,8 @@ export class AgentLoop {
    */
   private async executeToolCalls(toolCalls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
     if (toolCalls.length === 0) return [];
+
+    this.log.info({ turnId: context.session.turn.id, count: toolCalls.length, names: toolCalls.map(c => c.name) }, 'executing tool calls');
 
     const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
     const toolCallContext: ToolCallContext = {session: context.session, agentId: this.agent.id, signal: context.signal};

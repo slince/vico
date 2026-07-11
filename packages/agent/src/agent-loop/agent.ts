@@ -16,6 +16,7 @@ import type {UserMessage} from '../stream/types.js';
 import type {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {CheckpointStore} from './checkpoint.js';
+import pino, { Logger } from 'pino';
 
 export type LoopFactory = (agent: Agent) => AgentLoop
 
@@ -52,6 +53,7 @@ export interface AgentOptions {
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
   checkpointStore: CheckpointStore;
+  logger?: Logger;
 }
 
 /** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
@@ -76,6 +78,7 @@ export class Agent {
   readonly compactor?: ContextCompactor;
   readonly tokenEconomy?: TokenEconomy;
   readonly checkpointStore: CheckpointStore;
+  readonly logger: Logger;
 
   constructor(params: AgentOptions) {
     this.id = params.id;
@@ -97,6 +100,7 @@ export class Agent {
     this.compactor = params.compactor;
     this.tokenEconomy = params.tokenEconomy;
     this.checkpointStore = params.checkpointStore;
+    this.logger = params.logger ?? pino();
 
     const loopFactory = params.loopFactory || buildLoop;
     this.loop = loopFactory(this)
