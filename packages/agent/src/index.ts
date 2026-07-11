@@ -69,7 +69,7 @@ export {
   type ToolCallContext,
   type ApprovalDecision,
 } from './tool/types.js';
-export { type TurnSession } from './agent-loop/types.js';
+export { type TurnSession, type CallModelResult } from './agent-loop/types.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/utils.js';
 export { type PolicyContext, type ApprovalResolver } from './tool/types.js';
@@ -165,7 +165,7 @@ export { createAgent } from './agent-loop/create-agent.js';
 
 // AgentLoop
 export { AgentLoop } from './agent-loop/agent-loop.js';
-export { type AgentLoopOptions, type CallModelResult } from './agent-loop/agent-loop.js';
+export { type AgentLoopOptions } from './agent-loop/agent-loop.js';
 export { collectTurnResult } from './agent-loop/utils.js';
 export { TurnOutput } from './agent-loop/turn-output.js';
 export { type TurnResult, type TurnEvent, type RunOptions, type ToolApproval } from './agent-loop/types.js';

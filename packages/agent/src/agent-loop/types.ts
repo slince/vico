@@ -1,5 +1,12 @@
 // @vico/agent - AgentLoop module type definitions
 
+export {
+  type TurnResult,
+  type RunOptions,
+  type ToolApproval,
+  type TurnSession,
+  type CallModelResult,
+} from './agent-loop-options.js';
 
 /** 模型引用 */
 export interface ModelRef {
