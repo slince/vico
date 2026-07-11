@@ -57,5 +57,11 @@ export function buildLoop(agent: Agent): AgentLoop {
     processors.push(new MemoryProcessor(agent.memory));
   }
 
-  return new AgentLoop({agent, processors});
+  return new AgentLoop({
+    agent,
+    processors,
+    compactor: agent.compactor,
+    tokenEconomy: agent.tokenEconomy,
+    checkpointStore: agent.checkpointStore,
+  });
 }
