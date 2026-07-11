@@ -75,7 +75,7 @@ export class AgentLoop {
    */
   run(userMessage: ModelMessage, options?: RunOptions): TurnOutput {
     let resolveResult!: (result: TurnResult) => void;
-    let rejectResult!: (err: Error) => void;
+    let rejectResult!: (err: Error|string) => void;
     const resultPromise = new Promise<TurnResult>((resolve, reject) => {
       resolveResult = resolve;
       rejectResult = reject;
@@ -93,8 +93,9 @@ export class AgentLoop {
           const result = await this.start({userMessage, signal: internalAc.signal, controller, options});
           resolveResult(result);
         } catch (err) {
-          this.emit({ type: 'error', error: err instanceof Error ? err : String(err) });
-          rejectResult(err instanceof Error ? err : new Error(String(err)));
+          const error = err instanceof Error ? err : String(err)
+          this.emit({ type: 'error', error});
+          rejectResult(error);
         } finally {
           try { controller.close(); } catch { /* already closed */ }
         }
