@@ -177,10 +177,9 @@ export class AgentLoop {
     usage: UsageMetrics;
   }): Promise<TurnResult> {
     const { thread, turn, userMessage, signal, controller, options, usage } = params;
-    const threadStore = this.agent.thread;
 
     // 加载该 turn 的 messages
-    const entries = await threadStore.getEntriesByTurns([turn.id]);
+    const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
     const messages: ModelMessage[] = entries.map(e => {
       const msg: ModelMessage = { role: e.role as MessageRole, content: e.content };
       if (e.toolCallId) msg.toolCallId = e.toolCallId;
@@ -230,7 +229,7 @@ export class AgentLoop {
     await this.persistMessage(userMessage, context);
 
     // 恢复 turn 状态为 running
-    await threadStore.updateTurn(turn.id, { status: 'running' });
+    await this.agent.thread.updateTurn(turn.id, { status: 'running' });
 
     return this.startTurnLoop(startStep, context, turnSpan, usage);
   }
