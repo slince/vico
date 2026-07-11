@@ -67,7 +67,7 @@ export async function ensureTables(
 
   // turn 执行状态检查点，用于崩溃恢复和审批恢复
   await db.run(sql`
-    CREATE TABLE IF NOT EXISTS checkpoints (
+    CREATE TABLE IF NOT EXISTS vico_checkpoints (
       id TEXT PRIMARY KEY,
       turn_id TEXT NOT NULL UNIQUE,
       thread_id TEXT NOT NULL,
@@ -82,13 +82,13 @@ export async function ensureTables(
   `);
 
   await db.run(sql`
-    CREATE INDEX IF NOT EXISTS idx_checkpoints_thread_id
-    ON checkpoints(thread_id)
+    CREATE INDEX IF NOT EXISTS idx_thread_id
+    ON vico_checkpoints(thread_id)
   `);
 
   await db.run(sql`
-    CREATE INDEX IF NOT EXISTS idx_checkpoints_created_at
-    ON checkpoints(created_at)
+    CREATE INDEX IF NOT EXISTS idx_created_at
+    ON vico_checkpoints(created_at)
   `);
 
   // 记忆条目表 — embedding 使用 libsql 原生 F32_BLOB 向量类型

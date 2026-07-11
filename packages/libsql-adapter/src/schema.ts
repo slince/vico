@@ -41,7 +41,7 @@ export const messages = sqliteTable('vico_messages', {
 // --- Checkpoints ---
 
 /** turn 执行状态检查点，用于崩溃恢复和审批恢复 */
-export const checkpoints = sqliteTable('checkpoints', {
+export const checkpoints = sqliteTable('vico_checkpoints', {
   id: text('id').primaryKey(),
   turnId: text('turn_id').notNull().unique(),
   threadId: text('thread_id').notNull(),
@@ -75,5 +75,5 @@ export const memoryEntries = sqliteTable('vico_memory_entries', {
 
 // --- Indexes ---
 
-export const checkpointsThreadIdIdx = index('idx_checkpoints_thread_id').on(checkpoints.threadId);
-export const checkpointsCreatedAtIdx = index('idx_checkpoints_created_at').on(checkpoints.createdAt);
+export const checkpointsThreadIdIdx = index('idx_thread_id').on(checkpoints.threadId);
+export const checkpointsCreatedAtIdx = index('idx_created_at').on(checkpoints.createdAt);
