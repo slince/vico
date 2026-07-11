@@ -7,7 +7,7 @@ import {resolvePolicy} from '../tool/utils.js';
 import {toModelMessages} from './utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
-import {MessageRole, ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
+import {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
 import type {TurnTrace, TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
@@ -27,9 +27,8 @@ import {
   TurnResult,
   TurnSession
 } from "./agent-loop-options.js";
-import { PauseInfo } from "./checkpoint.js";
-import type { Checkpoint, CheckpointStore } from './checkpoint.js';
-import { InMemoryCheckpointStore } from './checkpoint-store.js';
+import type {Checkpoint, CheckpointStore} from './checkpoint.js';
+import {PauseInfo} from "./checkpoint.js";
 
 
 /** AgentLoop 构造选项 */
@@ -57,8 +56,8 @@ export class AgentLoop {
     this.tokenEconomy = this.agent.tokenEconomy;
     this.tracer = this.agent.tracer;
     this.approvalResolver = this.agent.approvalResolver ?? resolvePolicy;
+    this.checkpointStore = this.agent.checkpointStore;
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
-    this.checkpointStore = this.agent.checkpointStore ?? new InMemoryCheckpointStore();
   }
 
   /**

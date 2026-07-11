@@ -16,6 +16,8 @@ import {basicTools, codingTools, filesystemTools} from "../tool/builtin/index.js
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
 import {resolvePolicy} from "../tool/utils.js";
+import type {CheckpointStore} from "./checkpoint.js";
+import {InMemoryCheckpointStore} from "./checkpoint-store.js";
 
 
 /** LanguageModel 工厂类型 */
@@ -36,12 +38,11 @@ export interface AgentConfig {
   thread?: ThreadStore;
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
-  /** 覆盖默认的文件工具列表（用于按 agent 配置过滤启用的工具） */
-  fileTools?: Tool[];
   tracer?: TurnTracer;
   events?: EventRecorder<TurnEvent>;
   /** 审批决策器，未提供则按 ToolPolicy 默认决策 */
   approvalResolver?: ApprovalResolver;
+  checkpointStore?: CheckpointStore;
 }
 
 /**
@@ -59,16 +60,12 @@ export function createAgent(config: AgentConfig): Agent {
   });
 
   // 默认工具：基础 + workspace 工具始终注册，由 WorkspaceToolProcessor 根据 session.workspace 动态过滤
-  const tools: Tool[] = [
-    ...basicTools,
-    ...(config.fileTools ?? [...filesystemTools, ...codingTools]),
-    ...(config.tools || []),
-  ];
-  if (config.skills) {
-    tools.push(...createSkillTools(config.skills));
-  }
+  const tools: Tool[] = [...basicTools, ...filesystemTools, ...codingTools, ...(config.tools || [])];
   if (memory.working) {
     tools.push(createUpdateWorkingMemoryTool(memory.working));
+  }
+  if (config.skills) {
+    tools.push(...createSkillTools(config.skills));
   }
 
   return new Agent({
@@ -87,5 +84,6 @@ export function createAgent(config: AgentConfig): Agent {
     tracer: config.tracer || new TurnTracer(events, []),
     events: events,
     approvalResolver: config.approvalResolver || resolvePolicy,
+    checkpointStore: config.checkpointStore || new InMemoryCheckpointStore()
   });
 }

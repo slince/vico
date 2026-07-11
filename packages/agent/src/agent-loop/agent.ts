@@ -51,7 +51,7 @@ export interface AgentOptions {
   loopFactory?: LoopFactory;
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
-  checkpointStore?: CheckpointStore;
+  checkpointStore: CheckpointStore;
 }
 
 /** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
@@ -75,7 +75,7 @@ export class Agent {
   readonly workspace?: string;
   readonly compactor?: ContextCompactor;
   readonly tokenEconomy?: TokenEconomy;
-  readonly checkpointStore?: CheckpointStore;
+  readonly checkpointStore: CheckpointStore;
 
   constructor(params: AgentOptions) {
     this.id = params.id;
