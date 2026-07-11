@@ -158,15 +158,10 @@ export class AgentLoop {
     });
     await this.pipeline.enter(requestContext);
 
-    await this.agent.thread.appendEntry({
-      threadId: thread.id,
-      turnId: turn.id,
-      role: userMessage.role,
-      content: userMessage.content,
-    });
-
     const messages: ModelMessage[] = [...requestContext.messages];
     const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
+
+    await this.persistMessage(userMessage, context);
 
     return this.startTurnLoop( 0, context, turnSpan, usage);
   }
@@ -232,12 +227,7 @@ export class AgentLoop {
 
     // ── 消息链已完整，安全追加用户消息 ──
     messages.push(userMessage);
-    await threadStore.appendEntry({
-      threadId: thread.id,
-      turnId: turn.id,
-      role: userMessage.role,
-      content: userMessage.content,
-    });
+    await this.persistMessage(userMessage, context);
 
     // 恢复 turn 状态为 running
     await threadStore.updateTurn(turn.id, { status: 'running' });
