@@ -1,5 +1,5 @@
 /** src/thread/memory-thread-store.ts */
-import type { ThreadStore, Thread, Turn, Message, ThreadContext } from './types.js';
+import type { ThreadStore, Thread, Turn, Message, ThreadContext } from './thread-store.js';
 /** 内存版 ThreadStore — 所有数据存于 Map，进程重启后丢失 */
 export class InMemoryThreadStore implements ThreadStore {
   private threads: Map<string, Thread> = new Map();

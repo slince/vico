@@ -3,7 +3,7 @@ import {ToolCall, ToolResult} from "../tool/types.js";
 import {ModelRequestContext} from "./context-processors/context-processor.js";
 import {TurnTrace} from "../observable/turn-tracer.js";
 import {ModelMessage, ModelStreamChunk} from "../model/types.js";
-import {Thread, Turn} from "../thread/types.js";
+import {Thread, Turn} from "../thread/thread-store.js";
 
 /** executeModelStep 的返回值 */
 export interface ModelStepResult {

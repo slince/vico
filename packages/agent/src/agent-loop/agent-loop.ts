@@ -1,7 +1,7 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {TurnEvent, UsageMetrics} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
-import type {Thread, Turn} from '../thread/types.js';
+import type {Thread, Turn} from '../thread/thread-store.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';

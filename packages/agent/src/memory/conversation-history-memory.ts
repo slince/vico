@@ -1,5 +1,5 @@
 // src/memory/conversation-history-memory.ts
-import type {ThreadStore} from '../thread/types.js';
+import type {ThreadStore} from '../thread/thread-store.js';
 import type {MessageRole, ModelMessage} from '../model/types.js';
 
 /**

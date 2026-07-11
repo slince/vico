@@ -1,5 +1,5 @@
 /** src/thread/file-thread-store.ts */
-import type { ThreadStore, Thread, Turn, Message, ThreadContext } from './types.js';
+import type { ThreadStore, Thread, Turn, Message, ThreadContext } from './thread-store.js';
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 

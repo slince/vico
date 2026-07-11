@@ -4,7 +4,7 @@ import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
-import type {ThreadStore} from '../thread/types.js';
+import type {ThreadStore} from '../thread/thread-store.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {AgentLoop} from './agent-loop.js';
 import {buildLoop} from "./utils.js";

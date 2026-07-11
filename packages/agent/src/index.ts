@@ -130,7 +130,7 @@ export {
   type Thread,
   type Turn,
   type Message,
-} from './thread/types.js';
+} from './thread/thread-store.js';
 export { InMemoryThreadStore } from './thread/memory-thread-store.js';
 export { FileThreadStore, type FileThreadStoreOptions } from './thread/file-thread-store.js';
 

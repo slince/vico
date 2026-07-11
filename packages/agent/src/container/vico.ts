@@ -7,7 +7,7 @@ import type {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
 import {createFSSkillLoader} from '../skill/fs-skill-loader.js';
 import {MemoryStore} from '../memory/memory-store.js';
-import type {ThreadStore} from '../thread/types.js';
+import type {ThreadStore} from '../thread/thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';

@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import type {EventRecorder} from '../events/types.js';
 import type {TurnEvent} from '../agent-loop/types.js';
 import type {ModelMessage, ModelRequest} from '../model/types.js';
-import type {Thread} from '../thread/types.js';
+import type {Thread} from '../thread/thread-store.js';
 import type {ToolResult} from '../tool/types.js';
 import type {Span, SpanState, SpanType} from './types.js';
 import type {TraceAdapter} from './trace-adapter.js';
