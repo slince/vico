@@ -213,10 +213,11 @@ export class AgentLoop {
         // 不一致 → 降级到 heal 模式
         this.log.warn({ turnId: turn.id, expected: checkpoint.messageCount, actual: messages.length }, 'checkpoint message count mismatch, falling back to heal');
         await this.checkpointStore.deleteByTurn(turn.id);
-        return this.legacyHealResume({
-          context: context,
-          userMessage, options, usage, turnSpan,
-        });
+        this.log.info({ turnId: turn.id }, 'checkpoint discarded, restarting as new turn');
+        context.messages.push(userMessage);
+        await this.persistMessage(userMessage, context);
+        await this.agent.thread.updateTurn(turn.id, { status: 'running' });
+        return this.startTurnLoop(0, context, turnSpan, usage);
       }
 
 
@@ -251,9 +252,12 @@ export class AgentLoop {
       return this.startTurnLoop(checkpoint.stepIndex, context, turnSpan, usage);
     }
 
-    // 无 checkpoint → 降级到现有 heal 模式
-    this.log.info({ turnId: turn.id }, 'no checkpoint, falling back to heal');
-    return this.legacyHealResume({context, userMessage, options, usage, turnSpan});
+    // 无 checkpoint → 当作新 turn 处理
+    this.log.info({ turnId: turn.id }, 'no checkpoint, starting as new turn');
+    context.messages.push(userMessage);
+    await this.persistMessage(userMessage, context);
+    await this.agent.thread.updateTurn(turn.id, { status: 'running' });
+    return this.startTurnLoop(0, context, turnSpan, usage);
   }
 
   /**
@@ -340,100 +344,6 @@ export class AgentLoop {
 
     // 执行工具并持久化（pending 中已存完整 args，直接构造 ToolCall 即可）
     await this.toolExecutor.executeToolCalls([{ id: pending.id, name: pending.name, args: pending.args }], context);
-  }
-
-  /**
-   * 降级恢复路径：当没有 checkpoint 或 checkpoint 校验失败时使用。
-   */
-  private async legacyHealResume(params: {
-    context: TurnContext;
-    userMessage: ModelMessage;
-    options?: RunOptions;
-    usage: UsageMetrics;
-    turnSpan: Span;
-  }): Promise<TurnResult> {
-    const { context, userMessage, options, usage, turnSpan } = params;
-    const { turn, thread } = context.session;
-    const { approvalDecisions } = options || {};
-
-    // 原有 heal 逻辑：pauseInfo from turn.metadata（兼容旧数据）
-    const pauseInfo = turn.metadata?.pauseInfo as PauseInfo | undefined;
-    let startStep = turn.steps;
-
-    if (pauseInfo) {
-      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions || [], context);
-      startStep = pauseInfo.pausedAtStep + 1;
-    } else {
-      const healResult = await this.healTurnMessages(context.messages, context, thread, turn, startStep, usage);
-      if (healResult) return healResult;
-    }
-
-    context.messages.push(userMessage);
-    await this.persistMessage(userMessage, context);
-    await this.agent.thread.updateTurn(turn.id, { status: 'running' });
-    return this.startTurnLoop(startStep, context, turnSpan, usage);
-  }
-
-  /**
-   * 愈合模式：当 turn 因进程崩溃/中断而无 pauseInfo 时，自检消息链完整性。
-   *
-   * 流程：找到最后一条 assistant 消息中未配对的 toolCalls → 审批分类 →
-   * 有需审批的则重新暂停 turn，否则执行工具并追加 tool_result。
-   *
-   * @param messages - 当前 turn 的消息数组（会被原地修改）
-   * @param context - turn 上下文
-   * @param thread - 当前 thread
-   * @param turn - 待愈合的 turn
-   * @param startStep - 当前 step 编号
-   * @param usage - token 用量统计
-   * @returns 若愈合过程中暂停则返回 TurnResult，否则 null 表示愈合完成、调用方继续恢复流程
-   */
-  private async healTurnMessages(
-    messages: ModelMessage[],
-    context: TurnContext,
-    thread: Thread,
-    turn: Turn,
-    startStep: number,
-    usage: UsageMetrics,
-  ): Promise<TurnResult | null> {
-    // 1. 找到最后一条 assistant 消息中未配对的 toolCalls
-    const unresolvedCalls = this.findUnresolvedToolCalls(messages);
-    if (unresolvedCalls.length === 0) return null; // 链已完整，无需愈合
-
-    // 2. 按审批策略分类：可直接执行的 / 直接拒绝的 / 需用户审批的
-    const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(unresolvedCalls, context);
-
-    // 3. 有需要用户审批的工具 → 重新暂停 turn，等待外部决策
-    if (pausedCalls.length > 0) {
-      const newPauseInfo: PauseInfo = {
-        reason: 'tool-approval',
-        pendingToolCalls: pausedCalls,
-        autoApprovedCalls: approvedCalls,
-        autoDeniedResults: deniedResults,
-        pausedAtStep: startStep,
-        messageCount: messages.length,
-      };
-
-      // 写入 checkpoint 而非 turn.metadata
-      await this.checkpointStore.save(turn.id, thread.id, {
-        pauseInfo: newPauseInfo,
-        stepIndex: startStep,
-        messageCount: messages.length,
-        toolApprovalState: Object.fromEntries(context.toolApprovalState),
-      });
-      await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps: startStep });
-
-      return {
-        status: 'paused', steps: startStep, usage, messages, thread, turn,
-      };
-    }
-
-    // 4. 全部可自动处理 → 执行已批准的调用（内部逐条持久化），追加拒绝结果
-    await this.toolExecutor.executeToolCalls(approvedCalls, context);
-    if (deniedResults.length > 0) {
-      await this.appendToolResults(deniedResults, context);
-    }
-    return null; // 愈合完成
   }
 
   /**
@@ -854,31 +764,6 @@ export class AgentLoop {
       trace.recordModelResponse(step.index, errorResult);
       return errorResult;
     }
-  }
-
-  /**
-   * 找到最后一条 assistant 消息中未被 tool_result 覆盖的 toolCalls。
-   * 消息链是严格顺序的（下一轮 assistant 出现前，上一轮的 toolCalls 必然已全部解决），
-   * 因此只需检查最后一条，无需遍历全部消息。
-   */
-  private findUnresolvedToolCalls(messages: ModelMessage[]): ToolCall[] {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role !== 'assistant') continue;
-
-      // 最后一条 assistant 没有 toolCalls → 链已完整，无需愈合
-      if (!messages[i].toolCalls?.length) return [];
-
-      // 收集该 assistant 消息之后的所有 tool_result ID
-      const resolvedIds = new Set<string>();
-      for (let j = i + 1; j < messages.length; j++) {
-        if (messages[j].role === 'tool' && messages[j].toolCallId) {
-          resolvedIds.add(messages[j].toolCallId!);
-        }
-      }
-
-      return messages[i].toolCalls!.filter(tc => !resolvedIds.has(tc.id));
-    }
-    return [];
   }
 
 }
