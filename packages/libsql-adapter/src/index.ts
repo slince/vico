@@ -5,6 +5,7 @@ export {
   threads,
   turns,
   messages,
+  checkpoints,
   memoryEntries,
 } from './schema.js';
 
@@ -25,6 +26,11 @@ export {
   LibSQLVectorStore,
   type LibSQLVectorStoreOptions,
 } from './libsql-vector-store.js';
+
+// CheckpointStore adapter
+export {
+  LibSqlCheckpointStore,
+} from './checkpoint-store.js';
 
 // 启动时自动建表
 export { ensureTables } from './migrate.js';
