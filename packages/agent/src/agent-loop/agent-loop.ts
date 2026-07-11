@@ -9,7 +9,7 @@ import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import {MessageRole, ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
 import {ToolBroker} from '../tool/tool-broker.js';
-import type {TurnTracer} from '../observable/turn-tracer.js';
+import type {TurnTrace, TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
@@ -28,7 +28,7 @@ import {
   TurnSession
 } from "./agent-loop-options.js";
 import { PauseInfo } from "./checkpoint.js";
-import type { CheckpointStore } from './checkpoint.js';
+import type { Checkpoint, CheckpointStore } from './checkpoint.js';
 import { InMemoryCheckpointStore } from './checkpoint-store.js';
 
 
@@ -184,18 +184,17 @@ export class AgentLoop {
   }): Promise<TurnResult> {
     const { thread, turn, userMessage, signal, controller, options, usage } = params;
 
-    // 加载该 turn 的 messages
+    // 加载消息
     const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
     const messages: ModelMessage[] = toModelMessages(entries);
 
-    const {scopeId, workspace: optWorkspace, approvalDecisions} = options || {}
+    const { scopeId, workspace: optWorkspace, approvalDecisions } = options || {};
     const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
 
     // 重建 session 和 context
     const session: TurnSession = { workspace, scopeId, thread, turn };
     const trace = this.tracer.create(thread, userMessage, turn.id);
     const turnSpan = trace.startSpan('agent_resume');
-    const toolApprovalState = new Map<string, boolean>();
 
     const requestContext = new ModelRequestContext({
       agent: this.agent,
@@ -205,34 +204,53 @@ export class AgentLoop {
     });
     await this.pipeline.enter(requestContext);
 
-    const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
+    // ——— checkpoint 恢复逻辑 ———
+    const checkpoint = await this.checkpointStore.getByTurn(turn.id);
 
-    let startStep = turn.steps;
+    if (checkpoint) {
+      // 校验消息链完整性
+      if (checkpoint.messageCount !== messages.length) {
+        // 不一致 → 降级到 heal 模式
+        await this.checkpointStore.deleteByTurn(turn.id);
+        return this.legacyHealResume({ thread, turn, userMessage, signal, controller, options, usage, messages, trace, turnSpan, requestContext });
+      }
 
-    // ── 消息链自检与愈合 ──
-    // 无论 turn 是 paused（有 pauseInfo）还是 running/failed（无 pauseInfo），
-    // 都必须先确保 assistant(toolCalls) → tool_result 链完整，再追加用户消息。
-    // 否则模型 API 会因 tool_use 缺少 tool_result 而拒绝请求。
-    const pauseInfo = turn.metadata?.pauseInfo as PauseInfo | undefined;
+      // 还原 toolApprovalState
+      const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
 
-    if (pauseInfo) {
-      // 路径 A：有 pauseInfo → 标准暂停恢复流程
-      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions || [], context);
-      startStep = pauseInfo.pausedAtStep + 1;
-    } else {
-      // 路径 B：无 pauseInfo → 愈合模式，补齐缺失的 tool_result
-      const healResult = await this.healTurnMessages(messages, context, thread, turn, startStep, usage);
-      if (healResult) return healResult;
+      // 还原已完成工具结果到消息链（跳过已有的，并发保护）
+      for (const result of checkpoint.completedToolResults) {
+        if (!messages.some(m => m.role === 'tool' && m.toolCallId === result.callId)) {
+          const content = this.resolveToolResult(result);
+          messages.push({ role: 'tool', content, toolCallId: result.callId });
+          await this.persistMessage(
+            { role: 'tool', content, toolCallId: result.callId },
+            { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller }
+          );
+        }
+      }
+
+      const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
+
+      if (checkpoint.pauseInfo) {
+        // 路径 A：审批恢复
+        await this.applyPauseInfoRecovery(checkpoint.pauseInfo, approvalDecisions || [], context);
+        // 清除 pauseInfo
+        await this.checkpointStore.save(turn.id, thread.id, { pauseInfo: null });
+      } else if (checkpoint.pendingToolCall) {
+        // 路径 B：工具重试
+        await this.resolvePendingTool(checkpoint.pendingToolCall, checkpoint, messages, context);
+      }
+      // 路径 C：pendingToolCall == null → 直接继续
+
+      messages.push(userMessage);
+      await this.persistMessage(userMessage, context);
+      await this.agent.thread.updateTurn(turn.id, { status: 'running' });
+      return this.startTurnLoop(checkpoint.stepIndex, context, turnSpan, usage);
     }
 
-    // ── 消息链已完整，安全追加用户消息 ──
-    messages.push(userMessage);
-    await this.persistMessage(userMessage, context);
-
-    // 恢复 turn 状态为 running
-    await this.agent.thread.updateTurn(turn.id, { status: 'running' });
-
-    return this.startTurnLoop(startStep, context, turnSpan, usage);
+    // 无 checkpoint → 降级到现有 heal 模式
+    return this.legacyHealResume({ thread, turn, userMessage, signal, controller, options, usage, messages, trace, turnSpan, requestContext });
   }
 
   /**
@@ -284,6 +302,90 @@ export class AgentLoop {
   }
 
   /**
+   * 路径 B：重试 pending 工具。
+   * 执行前检查消息链，若已有 tool_result 则跳过（并发恢复保护）。
+   */
+  private async resolvePendingTool(
+    pending: { id: string; name: string; args: Record<string, unknown> },
+    checkpoint: Checkpoint,
+    messages: ModelMessage[],
+    context: TurnContext,
+  ): Promise<void> {
+    const turnId = context.session.turn.id;
+    const threadId = context.session.thread.id;
+
+    // 检查消息链中是否已有此 toolCall 的 tool_result（并发保护）
+    const alreadyResolved = messages.some(
+      m => m.role === 'tool' && m.toolCallId === pending.id
+    );
+
+    if (alreadyResolved) {
+      // 跳过执行，从消息链提取已有结果并更新 checkpoint
+      const existingResult: ToolResult = {
+        callId: pending.id,
+        name: pending.name,
+        status: 'success',
+        output: messages.find(m => m.role === 'tool' && m.toolCallId === pending.id)?.content ?? null,
+      };
+      await this.checkpointStore.save(turnId, threadId, {
+        completedToolCallIds: [...checkpoint.completedToolCallIds, pending.id],
+        completedToolResults: [...checkpoint.completedToolResults, existingResult],
+        pendingToolCall: null,
+      });
+      return;
+    }
+
+    // 执行工具并持久化（pending 中已存完整 args，直接构造 ToolCall 即可）
+    await this.executeToolCalls(
+      [{ id: pending.id, name: pending.name, args: pending.args }],
+      context,
+    );
+    // executeToolCalls 内部已持久化消息和更新 checkpoint（tool-done）
+  }
+
+  /**
+   * 降级恢复路径：使用现有的 healTurnMessages + applyPauseInfoRecovery 逻辑。
+   * 当没有 checkpoint 或 checkpoint 校验失败时使用。
+   */
+  private async legacyHealResume(params: {
+    thread: Thread;
+    turn: Turn;
+    userMessage: ModelMessage;
+    signal: AbortSignal;
+    controller: ReadableStreamDefaultController<ModelStreamChunk>;
+    options?: RunOptions;
+    usage: UsageMetrics;
+    messages: ModelMessage[];
+    trace: TurnTrace;
+    turnSpan: Span;
+    requestContext: ModelRequestContext;
+  }): Promise<TurnResult> {
+    const { thread, turn, userMessage, signal, controller, options, usage, messages, trace, turnSpan, requestContext } = params;
+    const { scopeId, workspace: optWorkspace, approvalDecisions } = options || {};
+    const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
+
+    const toolApprovalState = new Map<string, boolean>();
+    const context: TurnContext = { ctx: requestContext, messages, session: { workspace, scopeId, thread, turn }, trace, toolApprovalState, signal, controller };
+
+    // 原有 heal 逻辑：pauseInfo from turn.metadata（兼容旧数据）
+    const pauseInfo = turn.metadata?.pauseInfo as PauseInfo | undefined;
+    let startStep = turn.steps;
+
+    if (pauseInfo) {
+      await this.applyPauseInfoRecovery(pauseInfo, approvalDecisions || [], context);
+      startStep = pauseInfo.pausedAtStep + 1;
+    } else {
+      const healResult = await this.healTurnMessages(messages, context, thread, turn, startStep, usage);
+      if (healResult) return healResult;
+    }
+
+    messages.push(userMessage);
+    await this.persistMessage(userMessage, context);
+    await this.agent.thread.updateTurn(turn.id, { status: 'running' });
+    return this.startTurnLoop(startStep, context, turnSpan, usage);
+  }
+
+  /**
    * 愈合模式：当 turn 因进程崩溃/中断而无 pauseInfo 时，自检消息链完整性。
    *
    * 流程：找到最后一条 assistant 消息中未配对的 toolCalls → 审批分类 →
@@ -323,7 +425,14 @@ export class AgentLoop {
         messageCount: messages.length,
       };
 
-      await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps: startStep, metadata: { pauseInfo: newPauseInfo } });
+      // 写入 checkpoint 而非 turn.metadata
+      await this.checkpointStore.save(turn.id, thread.id, {
+        pauseInfo: newPauseInfo,
+        stepIndex: startStep,
+        messageCount: messages.length,
+        toolApprovalState: Object.fromEntries(context.toolApprovalState),
+      });
+      await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps: startStep });
 
       return {
         status: 'paused', steps: startStep, usage, messages, thread, turn,
