@@ -19,7 +19,6 @@ import {
   ApprovalClassification,
   CallModelResult,
   ModelStepResult,
-  PauseInfo,
   RunOptions,
   Step,
   StepLoopResult,
@@ -28,6 +27,7 @@ import {
   TurnResult,
   TurnSession
 } from "./agent-loop-options.js";
+import { PauseInfo } from "./checkpoint.js";
 
 
 /** AgentLoop 构造选项 */

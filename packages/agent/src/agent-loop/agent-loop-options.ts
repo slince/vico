@@ -1,5 +1,6 @@
 import {UsageMetrics} from "./types.js";
 import {ToolCall, ToolResult} from "../tool/types.js";
+import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/context-processor.js";
 import {TurnTrace} from "../observable/turn-tracer.js";
 import {ModelMessage, ModelStreamChunk} from "../model/types.js";
@@ -73,23 +74,6 @@ export interface TurnResult {
   /** 错误信息（status 为 failed 时） */
   error?: Error | string;
 }
-
-/** turn 暂停原因及恢复所需信息 */
-export interface PauseInfo {
-  /** 暂停原因 */
-  reason: 'tool-approval' | 'error';
-  /** 等待审批的工具调用 */
-  pendingToolCalls: ToolCall[];
-  /** 暂停时已自动批准的工具调用（恢复时直接执行，无需再次审批） */
-  autoApprovedCalls?: ToolCall[];
-  /** 暂停时已自动拒绝的工具结果（恢复时直接追加） */
-  autoDeniedResults?: ToolResult[];
-  /** 暂停时的 step 索引 */
-  pausedAtStep: number;
-  /** 暂停时 messages 数组长度（完整性校验） */
-  messageCount: number;
-}
-
 
 // ── 核心领域模型：Thread > Turn > Step ──
 
