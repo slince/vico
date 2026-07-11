@@ -28,6 +28,8 @@ import {
   TurnSession
 } from "./agent-loop-options.js";
 import { PauseInfo } from "./checkpoint.js";
+import type { CheckpointStore } from './checkpoint.js';
+import { InMemoryCheckpointStore } from './checkpoint-store.js';
 
 
 /** AgentLoop 构造选项 */
@@ -36,6 +38,7 @@ export interface AgentLoopOptions {
   processors?: ContextProcessor[];
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
+  checkpointStore?: CheckpointStore;
 }
 
 
@@ -48,6 +51,7 @@ export class AgentLoop {
   private approvalResolver: ApprovalResolver;
   private tracer: TurnTracer;
   private pipeline: ProcessorPipeline;
+  private checkpointStore: CheckpointStore;
 
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
@@ -57,6 +61,7 @@ export class AgentLoop {
     this.tracer = options.agent.tracer;
     this.approvalResolver = options.agent.approvalResolver ?? resolvePolicy;
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
+    this.checkpointStore = options.checkpointStore ?? new InMemoryCheckpointStore();
   }
 
   /**
