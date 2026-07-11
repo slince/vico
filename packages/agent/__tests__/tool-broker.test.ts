@@ -1,9 +1,10 @@
 // src/__tests__/tool-broker.test.ts
-import { describe, it, expect } from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {z} from 'zod';
-import { ToolExecutor } from '../src/agent-loop/tool-executor.js';
+import {ToolExecutor} from '../src/agent-loop/tool-executor.js';
 import {createTool} from '../src/tool/create-tool.js';
 import {coreBuiltinTools} from '../src/tool/builtin/index.js';
+import {InMemoryCheckpointStore} from '../src/agent-loop/checkpoint-store.js';
 
 function makeCtx(overrides?: Record<string, unknown>): any {
   return {
@@ -14,8 +15,14 @@ function makeCtx(overrides?: Record<string, unknown>): any {
   };
 }
 
-function makeHost(): ToolExecutor {
-  return new ToolExecutor(coreBuiltinTools);
+function makeHost(tools = coreBuiltinTools): ToolExecutor {
+  return new ToolExecutor({
+    tools,
+    checkpointStore: new InMemoryCheckpointStore(),
+    emit: vi.fn(),
+    persistMessage: vi.fn(),
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
+  });
 }
 
 describe('ToolExecutor', () => {
@@ -46,19 +53,10 @@ describe('ToolExecutor', () => {
     const result = await host.execute({ id: '3', name: 'nonexistent', args: {} }, makeCtx());
     expect(result.status).toBe('error');
   });
-
-  it('executes batch with readonly parallel', async () => {
-    const host = makeHost();
-    const results = await host.executeBatch([
-      { id: '1', name: 'echo', args: { message: 'a' } },
-      { id: '2', name: 'echo', args: { message: 'b' } },
-    ], makeCtx());
-    expect(results).toHaveLength(2);
-    expect(results.every((r) => r.status === 'success')).toBe(true);
-  });
+  
 
   it('blocks never-policy tool', async () => {
-    const host = new ToolExecutor([createTool({
+    const host = makeHost([createTool({
       name: 'dangerous', description: '', inputSchema: z.object({}),
       policy: 'never', kind: 'command', tags: ['test'],
       execute: async () => 'should not run',

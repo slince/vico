@@ -1,7 +1,7 @@
 // @vico/agent - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {Logger} from 'pino';
 import type {TurnEvent, UsageMetrics} from './types.js';
-import type {ApprovalResolver, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
+import type {ApprovalResolver, ToolCall, ToolResult} from '../tool/types.js';
 import type {Thread, Turn} from '../thread/thread-store.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
 import {resolvePolicy} from '../tool/utils.js';
@@ -52,12 +52,19 @@ export class AgentLoop {
 
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
-    this.toolExecutor = new ToolExecutor(options.agent.tools);
     this.compactor = this.agent.compactor;
     this.tokenEconomy = this.agent.tokenEconomy;
     this.tracer = this.agent.tracer;
     this.approvalResolver = this.agent.approvalResolver ?? resolvePolicy;
     this.checkpointStore = this.agent.checkpointStore;
+    this.toolExecutor = new ToolExecutor({
+      tools: options.agent.tools,
+      checkpointStore: this.checkpointStore,
+      emit: this.emit,
+      persistMessage: (msg, ctx) => this.persistMessage(msg, ctx),
+      logger: this.agent.logger,
+      tokenEconomy: this.tokenEconomy,
+    });
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
 
@@ -268,7 +275,7 @@ export class AgentLoop {
 
     // 1. 执行暂停前已自动批准的调用（executeToolCalls 内部逐条持久化）
     if (pauseInfo.autoApprovedCalls && pauseInfo.autoApprovedCalls.length > 0) {
-      await this.executeToolCalls(pauseInfo.autoApprovedCalls, context);
+      await this.toolExecutor.executeToolCalls(pauseInfo.autoApprovedCalls, context);
     }
 
     // 2. 持久化暂停前已自动拒绝的结果
@@ -297,7 +304,7 @@ export class AgentLoop {
 
     // 3a. 执行用户批准的调用（内部逐条持久化）
     if (approvedCalls.length > 0) {
-      await this.executeToolCalls(approvedCalls, context);
+      await this.toolExecutor.executeToolCalls(approvedCalls, context);
     }
     // 3b. 持久化用户拒绝的结果
     if (deniedResults.length > 0) {
@@ -340,11 +347,7 @@ export class AgentLoop {
     }
 
     // 执行工具并持久化（pending 中已存完整 args，直接构造 ToolCall 即可）
-    await this.executeToolCalls(
-      [{ id: pending.id, name: pending.name, args: pending.args }],
-      context,
-    );
-    // executeToolCalls 内部已持久化消息和更新 checkpoint（tool-done）
+    await this.toolExecutor.executeToolCalls([{ id: pending.id, name: pending.name, args: pending.args }], context);
   }
 
   /**
@@ -444,7 +447,7 @@ export class AgentLoop {
     }
 
     // 4. 全部可自动处理 → 执行已批准的调用（内部逐条持久化），追加拒绝结果
-    await this.executeToolCalls(approvedCalls, context);
+    await this.toolExecutor.executeToolCalls(approvedCalls, context);
     if (deniedResults.length > 0) {
       await this.appendToolResults(deniedResults, context);
     }
@@ -640,7 +643,7 @@ export class AgentLoop {
     }
 
     // 已批准的调用直接执行（executeToolCalls 内部逐条持久化，无需再次 appendToolResults）
-    await this.executeToolCalls(approvedCalls, context);
+    await this.toolExecutor.executeToolCalls(approvedCalls, context);
     // 拒绝结果单独持久化
     if (deniedResults.length > 0) {
       await this.appendToolResults(deniedResults, context);
@@ -718,27 +721,6 @@ export class AgentLoop {
   }
 
   /**
-   * 将工具结果追加到 messages 并持久化到 threadStore。
-   */
-  private async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
-    for (const r of toolResults) {
-      const result = this.resolveToolResult(r)
-
-      const message: ModelMessage = { role: 'tool', content: result, toolCallId: r.callId }
-      context.messages.push(message);
-      await this.persistMessage(message, context);
-    }
-  }
-
-  private resolveToolResult(r: ToolResult) {
-    const raw = r.status === 'success'
-      ? (typeof r.output === 'string' ? r.output : JSON.stringify(r.output))
-      : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
-
-    return this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
-  }
-
-  /**
    * 持久化单条消息到 threadStore。
    */
   private async persistMessage(message: ModelMessage, context: TurnContext): Promise<void> {
@@ -758,6 +740,23 @@ export class AgentLoop {
   private emit = (event: TurnEvent): void => {
     this.agent.events.emit(event);
   };
+
+  /** 将 ToolResult 转为消息文本，可选 token 截断 */
+  private resolveToolResult(r: ToolResult): string {
+    return r.status === 'success'
+      ? (typeof r.output === 'string' ? r.output : JSON.stringify(r.output))
+      : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
+  }
+
+  /** 工具结果 → 消息 + 持久化 */
+  private async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
+    for (const r of toolResults) {
+      const content = this.resolveToolResult(r);
+      const message: ModelMessage = { role: 'tool', content, toolCallId: r.callId };
+      context.messages.push(message);
+      await this.persistMessage(message, context);
+    }
+  }
 
   /**
    * 压缩检查，按需原地替换 messages。
@@ -872,90 +871,6 @@ export class AgentLoop {
       trace.recordModelResponse(step.index, errorResult);
       return errorResult;
     }
-  }
-
-  /**
-   * 执行工具调用，每个工具执行后立即持久化结果到消息链，防止进程崩溃后愈合模式
-   * 回放已执行的 mutation 类工具导致重复副作用。
-   *
-   * 执行策略：readonly 工具并行执行，其余串行；每个结果立即写入 threadStore。
-   *
-   * @returns 工具结果数组（结果已持久化到 context.messages 和 threadStore，调用方无需再次持久化）
-   */
-  private async executeToolCalls(toolCalls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
-    if (toolCalls.length === 0) return [];
-
-    this.log.info({ turnId: context.session.turn.id, count: toolCalls.length, names: toolCalls.map(c => c.name) }, 'executing tool calls');
-
-    const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
-    const toolCallContext: ToolCallContext = {session: context.session, agentId: this.agent.id, signal: context.signal};
-    const turnId = context.session.turn.id;
-    const threadId = context.session.thread.id;
-
-    // 按 kind 分组：readonly 可并行，其余必须串行
-    const readonlyCalls: ToolCall[] = [];
-    const sequentialCalls: ToolCall[] = [];
-    for (const call of toolCalls) {
-      const tool = this.toolExecutor.findTool(call.name);
-      if (tool?.kind === 'readonly') {
-        readonlyCalls.push(call);
-      } else {
-        sequentialCalls.push(call);
-      }
-    }
-
-    // 最新 checkpoint 引用（闭包内异步更新）
-    let latestCheckpoint = await this.checkpointStore.getByTurn(turnId);
-
-    /**
-     * 执行单个调用，在执行前后写入 checkpoint，然后持久化 + 发射事件，返回结果。
-     * tool-pre checkpoint 记录即将执行的调用（含完整 args，恢复时无需查消息链）；
-     * tool-done checkpoint 记录完成的调用，清除 pendingToolCall。
-     * 每个工具的结果在 DB 中独立提交，崩溃时已完成的工具不会丢失。
-     */
-    const executeAndPersist = async (call: ToolCall): Promise<ToolResult> => {
-      // tool-pre checkpoint（含完整 args，恢复时无需查消息链）
-      latestCheckpoint = await this.checkpointStore.save(turnId, threadId, {
-        pendingToolCall: { id: call.id, name: call.name, args: call.args as Record<string, unknown> },
-      });
-
-      // 执行工具
-      const result = await this.toolExecutor.execute(call, toolCallContext);
-
-      // tool-done checkpoint
-      const prevIds = latestCheckpoint?.completedToolCallIds ?? [];
-      const prevResults = latestCheckpoint?.completedToolResults ?? [];
-      latestCheckpoint = await this.checkpointStore.save(turnId, threadId, {
-        stepIndex: latestCheckpoint?.stepIndex ?? 0,
-        completedToolCallIds: [...prevIds, call.id],
-        completedToolResults: [...prevResults, result],
-        pendingToolCall: null,
-      });
-
-      await this.appendToolResults([result], context);
-      this.emit({
-        type: 'tool-result',
-        id: result.callId,
-        name: result.name,
-        status: result.status,
-        output: result.output,
-      });
-      return result;
-    };
-
-    const results: ToolResult[] = [];
-
-    // readonly 工具并行执行，各自完成即持久化
-    const readonlyResults = await Promise.all(readonlyCalls.map(executeAndPersist));
-    results.push(...readonlyResults);
-
-    // 非 readonly 工具串行执行，逐个持久化
-    for (const call of sequentialCalls) {
-      results.push(await executeAndPersist(call));
-    }
-
-    toolSpan.end({ results: results.length });
-    return results;
   }
 
   /**

@@ -11,6 +11,7 @@ import { MemoryStore } from '../src/memory/memory-store.js';
 import { InMemoryThreadStore } from '../src/thread/memory-thread-store.js';
 import { collectTurnResult } from '../src/agent-loop/utils.js';
 import { InMemoryCheckpointStore } from '../src/agent-loop/checkpoint-store.js';
+import type { CheckpointStore } from '../src/agent-loop/checkpoint.js';
 import type { Tool } from '../src/tool/types.js';
 import { z } from 'zod';
 
@@ -46,7 +47,7 @@ const mockSearchTool: Tool = {
   execute: async () => 'ok',
 };
 
-function makeAgent(chunks: any[]) {
+function makeAgent(chunks: any[], checkpointStore?: CheckpointStore) {
   const events = new MittEventRecorder<TurnEvent>();
   return new Agent({
     id: '00000000-0000-4000-8000-000000000001',
@@ -63,6 +64,8 @@ function makeAgent(chunks: any[]) {
     tools: [mockSearchTool],
     skills: [],
     approvalResolver: () => ({ approved: true }),
+    checkpointStore: checkpointStore ?? new InMemoryCheckpointStore(),
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
   });
 }
 
@@ -95,6 +98,7 @@ describe('AgentLoop with checkpoint', () => {
     };
 
     const events = new MittEventRecorder<TurnEvent>();
+    const checkpointStore = new InMemoryCheckpointStore();
     const agent = new Agent({
       id: '00000000-0000-4000-8000-000000000001',
       name: 'test-agent',
@@ -110,13 +114,13 @@ describe('AgentLoop with checkpoint', () => {
       tools: [mockSearchTool],
       skills: [],
       approvalResolver: () => ({ approved: true }),
+      checkpointStore,
+      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
     });
 
-    const checkpointStore = new InMemoryCheckpointStore();
     const loop = new AgentLoop({
       agent,
       processors: [new SystemPromptProcessor()],
-      checkpointStore,
     });
 
     const output = loop.run(
@@ -136,18 +140,17 @@ describe('AgentLoop with checkpoint', () => {
   });
 
   it('removes checkpoint on turn completed', async () => {
+    const checkpointStore = new InMemoryCheckpointStore();
     const agent = makeAgent([
       { type: 'text-start', id: '1' },
       { type: 'text-delta', id: '1', delta: 'Hello!' },
       { type: 'text-end', id: '1' },
       { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: { inputTokens: { total: 10 }, outputTokens: { total: 5 } } },
-    ]);
+    ], checkpointStore);
 
-    const checkpointStore = new InMemoryCheckpointStore();
     const loop = new AgentLoop({
       agent,
       processors: [new SystemPromptProcessor()],
-      checkpointStore,
     });
 
     const result = await collectTurnResult(loop.run(

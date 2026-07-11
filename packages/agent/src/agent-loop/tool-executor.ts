@@ -1,53 +1,66 @@
 // @vico/agent - ToolExecutor: 工具注册、审批策略和并行执行
+import type {Logger} from 'pino';
 import type {Tool, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
 import {StormBreaker} from '../tool/storm-breaker.js';
+import type {ModelMessage} from '../model/types.js';
+import type {CheckpointStore} from './checkpoint.js';
+import type {TokenEconomy} from './token-economy.js';
+import type {TurnContext} from './agent-loop-options.js';
+import type {TurnEvent} from './types.js';
 
-/** ToolExecutor — 聚合工具注册、审批策略和并行执行 */
+/** ToolExecutor 构造选项 */
+export interface ToolExecutorOptions {
+  tools?: Tool[];
+  checkpointStore: CheckpointStore;
+  emit: (event: TurnEvent) => void;
+  persistMessage: (message: ModelMessage, context: TurnContext) => Promise<void>;
+  logger: Logger;
+  tokenEconomy?: TokenEconomy;
+}
+
+/** ToolExecutor — 工具注册、执行、结果持久化 */
 export class ToolExecutor {
   private tools: Map<string, Tool> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();
+  private checkpointStore: CheckpointStore;
+  private emit: (event: TurnEvent) => void;
+  private persistMessage: (message: ModelMessage, context: TurnContext) => Promise<void>;
+  private log: Logger;
+  private tokenEconomy?: TokenEconomy;
 
-  constructor(tools: Tool[] = []) {
-    for (const tool of tools) {
+  constructor(options: ToolExecutorOptions) {
+    this.checkpointStore = options.checkpointStore;
+    this.emit = options.emit;
+    this.persistMessage = options.persistMessage;
+    this.log = options.logger;
+    this.tokenEconomy = options.tokenEconomy;
+
+    for (const tool of options.tools ?? []) {
       this.tools.set(tool.name, tool);
     }
   }
 
-  /**
-   * 获取所有已注册工具
-   * @returns 工具列表
-   */
+  /** 获取所有已注册工具 */
   list(): Tool[] {
     return Array.from(this.tools.values());
   }
 
-  /**
-   * 按名称查找工具（供 AgentLoop 检查 policy）
-   * @param name - 工具名称
-   * @returns 匹配的工具，未找到则返回 undefined
-   */
+  /** 按名称查找工具 */
   findTool(name: string): Tool | undefined {
     return this.tools.get(name);
   }
 
-  /**
-   * 执行单个工具调用
-   * @param call - 工具调用请求
-   * @param ctx - 工具执行上下文
-   * @returns 工具执行结果
-   */
+  /** 执行单个工具调用 */
   async execute(call: ToolCall, ctx: ToolCallContext): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
     }
 
-    // 审批策略：_run 已处理 on-request 审批，此处只处理 never 阻断
     if (tool.policy === 'never') {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被策略阻止` };
     }
 
-    // 风暴检测
     const storm = this.stormBreaker.check(call.name, call.args);
     if (storm.blocked) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被风暴检测阻止：重复调用次数过多` };
@@ -56,7 +69,6 @@ export class ToolExecutor {
     try {
       const output = await tool.execute(call, ctx);
       this.stormBreaker.record(call.name, call.args);
-
       return { callId: call.id, name: call.name, status: 'success', output };
     } catch (err) {
       const error = err instanceof Error ? err : String(err);
@@ -65,42 +77,69 @@ export class ToolExecutor {
   }
 
   /**
-   * 批量执行工具调用，按 kind 分组调度：readonly 工具全部并行执行，其余串行
-   * @param calls - 工具调用请求列表
-   * @param ctx - 工具执行上下文
-   * @returns 所有工具的执行结果列表
+   * 执行工具调用，逐条持久化 + checkpoint 追踪。
+   * readonly 并行，其余串行。
    */
-  async executeBatch(calls: ToolCall[], ctx: ToolCallContext): Promise<ToolResult[]> {
-    if (calls.length === 0) return [];
+  async executeToolCalls(toolCalls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
+    if (toolCalls.length === 0) return [];
 
-    // 按 kind 分组：readonly（可并行3个）+ 其他（串行）
-    const readonly: ToolCall[] = [];
-    const sequential: ToolCall[] = [];
+    this.log.info({ turnId: context.session.turn.id, count: toolCalls.length, names: toolCalls.map(c => c.name) }, 'executing tool calls');
 
-    for (const call of calls) {
-      const tool = this.tools.get(call.name);
+    const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
+    const toolCallContext: ToolCallContext = { session: context.session, signal: context.signal };
+    const turnId = context.session.turn.id;
+    const threadId = context.session.thread.id;
+
+    const readonlyCalls: ToolCall[] = [];
+    const sequentialCalls: ToolCall[] = [];
+    for (const call of toolCalls) {
+      const tool = this.findTool(call.name);
       if (tool?.kind === 'readonly') {
-        readonly.push(call);
+        readonlyCalls.push(call);
       } else {
-        sequential.push(call);
+        sequentialCalls.push(call);
       }
     }
 
-    // 只读工具全部并行执行
-    const results: ToolResult[] = await Promise.all(readonly.map((c) => this.execute(c, ctx)));
+    let latestCheckpoint = await this.checkpointStore.getByTurn(turnId);
 
-    // 变更工具串行
-    for (const call of sequential) {
-      results.push(await this.execute(call, ctx));
+    const executeAndPersist = async (call: ToolCall): Promise<ToolResult> => {
+      latestCheckpoint = await this.checkpointStore.save(turnId, threadId, {
+        pendingToolCall: { id: call.id, name: call.name, args: call.args as Record<string, unknown> },
+      });
+
+      const result = await this.execute(call, toolCallContext);
+
+      const prevIds = latestCheckpoint?.completedToolCallIds ?? [];
+      const prevResults = latestCheckpoint?.completedToolResults ?? [];
+      latestCheckpoint = await this.checkpointStore.save(turnId, threadId, {
+        stepIndex: latestCheckpoint?.stepIndex ?? 0,
+        completedToolCallIds: [...prevIds, call.id],
+        completedToolResults: [...prevResults, result],
+        pendingToolCall: null,
+      });
+
+      const content = result.status === 'success'
+        ? (typeof result.output === 'string' ? result.output : JSON.stringify(result.output))
+        : (result.error instanceof Error ? result.error.message : (result.error ?? 'tool execution failed'));
+
+      const message: ModelMessage = { role: 'tool', content, toolCallId: result.callId };
+      context.messages.push(message);
+      await this.persistMessage(message, context);
+      this.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
+      return result;
+    };
+
+    const results: ToolResult[] = [];
+
+    const readonlyResults = await Promise.all(readonlyCalls.map(executeAndPersist));
+    results.push(...readonlyResults);
+
+    for (const call of sequentialCalls) {
+      results.push(await executeAndPersist(call));
     }
 
+    toolSpan.end({ results: results.length });
     return results;
-  }
-
-  /**
-   * 重置风暴检测器状态
-   */
-  resetStormBreaker(): void {
-    this.stormBreaker.reset();
   }
 }

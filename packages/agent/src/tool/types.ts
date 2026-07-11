@@ -43,7 +43,6 @@ export interface ToolResult<TOutput = unknown> {
 /** 工具执行上下文 */
 export interface ToolCallContext {
   session: TurnSession;
-  agentId: string;
   signal: AbortSignal;
 }
 
