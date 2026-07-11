@@ -193,12 +193,7 @@ export class AgentLoop {
     const trace = this.tracer.create(thread, userMessage, turn.id);
     const turnSpan = trace.startSpan('agent_resume');
 
-    const requestContext = new ModelRequestContext({
-      agent: this.agent,
-      userMessage,
-      tools: [...this.agent.tools],
-      session,
-    });
+    const requestContext = new ModelRequestContext({agent: this.agent, userMessage, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
 
     // ——— checkpoint 恢复逻辑 ———
