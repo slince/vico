@@ -1,5 +1,5 @@
 // @vico/libsql-adapter — Drizzle-backed ThreadStore implementation
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, inArray } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type { ThreadStore, Thread, Turn, Message } from '@vico/agent';
 import {
@@ -150,33 +150,27 @@ export class DrizzleThreadStore implements ThreadStore {
     return rows.map((r) => this._toMessage(r));
   }
 
-  async getRecentEntries(
-    threadId: string,
-    limit: number,
-  ): Promise<Message[]> {
-    // 先按 created_at DESC 取 limit 条，再反转顺序（FIFO 窗口按时间正序）
+  async getEntriesByTurns(turnIds: string[]): Promise<Message[]> {
+    if (turnIds.length === 0) return [];
     const rows = await this.db
       .select()
       .from(messages)
-      .where(eq(messages.thread_id, threadId))
-      .orderBy(desc(messages.created_at))
-      .limit(limit);
-    return rows.reverse().map((r) => this._toMessage(r));
+      .where(inArray(messages.turn_id, turnIds))
+      .orderBy(messages.created_at);
+    return rows.map((r) => this._toMessage(r));
   }
 
-  async getEntriesByTurn(
-    turnId: string,
-    options?: { limit?: number; start?: number },
-  ): Promise<Message[]> {
-    const start = options?.start ?? 0;
-    const base = this.db
+  async getRecentTurns(threadId: string, limit: number, status?: Turn['status']): Promise<Turn[]> {
+    const rows = await this.db
       .select()
-      .from(messages)
-      .where(eq(messages.turn_id, turnId))
-      .orderBy(messages.created_at)
-      .offset(start);
-    const rows = await (options?.limit ? base.limit(options.limit) : base);
-    return rows.map((r) => this._toMessage(r));
+      .from(turns)
+      .where(eq(turns.thread_id, threadId))
+      .orderBy(desc(turns.created_at));
+    let result = rows.map((r) => this._toTurn(r));
+    if (status) {
+      result = result.filter((t) => t.status === status);
+    }
+    return result.slice(0, limit);
   }
 
   async getLatestTurn(threadId: string): Promise<Turn | undefined> {

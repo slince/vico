@@ -26,13 +26,21 @@ function stripOrphanedToolResults(messages: ModelMessage[]): ModelMessage[] {
   });
 }
 
-/** 包装 ThreadStore，以 FIFO 滑动窗口读取会话历史并转为模型格式 */
+/**
+ * 包装 ThreadStore，按已完结轮次读取会话历史并转为模型格式。
+ * conversationWindow 表示取最近 N 轮已完结的轮次（status === 'completed'）。
+ */
 export class ConversationHistoryMemory {
 
   constructor(readonly threadStore: ThreadStore, readonly conversationWindow: number) {}
 
   async get(threadId: string): Promise<ModelMessage[]> {
-    const entries = await this.threadStore.getRecentEntries(threadId, this.conversationWindow);
+    const turns = await this.threadStore.getRecentTurns(threadId, this.conversationWindow, 'completed');
+
+    if (turns.length === 0) return [];
+
+    // 批量加载各轮次的消息（单次查询）
+    const entries = await this.threadStore.getEntriesByTurns(turns.map((t) => t.id));
 
     const messages = entries.map((entry) => {
       const msg: ModelMessage = {

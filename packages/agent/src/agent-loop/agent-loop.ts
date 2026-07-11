@@ -180,7 +180,7 @@ export class AgentLoop {
     const threadStore = this.agent.thread;
 
     // 加载该 turn 的 messages
-    const entries = await threadStore.getEntriesByTurn(turn.id);
+    const entries = await threadStore.getEntriesByTurns([turn.id]);
     const messages: ModelMessage[] = entries.map(e => {
       const msg: ModelMessage = { role: e.role as MessageRole, content: e.content };
       if (e.toolCallId) msg.toolCallId = e.toolCallId;

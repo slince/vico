@@ -88,11 +88,6 @@ export class InMemoryThreadStore implements ThreadStore {
     return [...list].slice(start, end);
   }
 
-  async getRecentEntries(threadId: string, limit: number): Promise<Message[]> {
-    const list = this.messages.get(threadId) ?? [];
-    return list.length > limit ? [...list].slice(list.length - limit) : [...list];
-  }
-
   async getLatestTurn(threadId: string): Promise<Turn | undefined> {
     let latest: Turn | undefined;
     for (const turn of this.turns.values()) {
@@ -105,16 +100,28 @@ export class InMemoryThreadStore implements ThreadStore {
     return latest;
   }
 
-  async getEntriesByTurn(turnId: string, options?: { limit?: number; start?: number }): Promise<Message[]> {
+  async getRecentTurns(threadId: string, limit: number, status?: Turn['status']): Promise<Turn[]> {
+    const result: Turn[] = [];
+    for (const turn of this.turns.values()) {
+      if (turn.threadId === threadId && (!status || turn.status === status)) {
+        result.push(turn);
+      }
+    }
+    result.sort((a, b) => b.createdAt - a.createdAt);
+    return result.slice(0, limit);
+  }
+
+  async getEntriesByTurns(turnIds: string[]): Promise<Message[]> {
+    if (turnIds.length === 0) return [];
+    const ids = new Set(turnIds);
     const all: Message[] = [];
     for (const list of this.messages.values()) {
       for (const m of list) {
-        if (m.turnId === turnId) all.push(m);
+        if (ids.has(m.turnId)) all.push(m);
       }
     }
     all.sort((a, b) => a.createdAt - b.createdAt);
-    const start = options?.start ?? 0;
-    const end = options?.limit ? start + options.limit : undefined;
-    return all.slice(start, end);
+    return all;
   }
+
 }

@@ -12,7 +12,7 @@ import type {EventRecorder} from "../events/types.js";
 import {createLanguageModel} from "../model/factory.js";
 import {InMemoryThreadStore} from "../thread/memory-thread-store.js";
 import {MittEventRecorder} from "../events/event-recorder.js";
-import {basicTools, filesystemTools, codingTools} from "../tool/builtin/index.js";
+import {basicTools, codingTools, filesystemTools} from "../tool/builtin/index.js";
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
 import {resolvePolicy} from "../tool/utils.js";
@@ -55,7 +55,7 @@ export function createAgent(config: AgentConfig): Agent {
   const events = config.events || new MittEventRecorder<TurnEvent>()
   const thread = config.thread || new InMemoryThreadStore()
   const memory = config.memory || new MemoryStore({
-    conversation: new ConversationHistoryMemory(thread, 15)
+    conversation: new ConversationHistoryMemory(thread, 10)
   });
 
   // 默认工具：基础 + workspace 工具始终注册，由 WorkspaceToolProcessor 根据 session.workspace 动态过滤

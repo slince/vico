@@ -1,5 +1,4 @@
 // @vico/agent - Thread module type definitions
-import type { ModelMessage } from '../model/types.js';
 
 /** 线程自定义元数据，包含已知字段并支持任意扩展 */
 export interface ThreadMetadata {
@@ -88,10 +87,10 @@ export interface ThreadStore {
   appendEntry(entry: Omit<Message, 'id' | 'createdAt'>): Promise<Message>;
   /** 获取线程的对话记录列表（支持分页） */
   getEntries(threadId: string, options?: { limit?: number; start?: number }): Promise<Message[]>;
-  /** 获取线程最近 limit 条对话记录 */
-  getRecentEntries(threadId: string, limit: number): Promise<Message[]>;
-  /** 获取指定 turn 的对话记录 */
-  getEntriesByTurn(turnId: string, options?: { limit?: number; start?: number }): Promise<Message[]>;
+  /** 批量获取多个 turn 的对话记录 */
+  getEntriesByTurns(turnIds: string[]): Promise<Message[]>;
   /** 获取线程中最近的一个 turn（用于检测是否有暂停的 turn） */
   getLatestTurn(threadId: string): Promise<Turn | undefined>;
+  /** 获取线程最近 limit 个轮次（按创建时间倒序），可选按状态过滤 */
+  getRecentTurns(threadId: string, limit: number, status?: Turn['status']): Promise<Turn[]>;
 }

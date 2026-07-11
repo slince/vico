@@ -1,7 +1,8 @@
-import { eq } from 'drizzle-orm';
-import { getDb, schema } from '../../db/db.js';
-import { vico } from '../../vico.js';
-import type { ConversationItem, ConversationDetail, MessageItem, RecentConversation } from './types.js';
+import {eq} from 'drizzle-orm';
+import {getDb, schema} from '../../db/db.js';
+import {vico} from '../../vico.js';
+import type {ConversationDetail, ConversationItem, MessageItem, RecentConversation} from './types.js';
+import {ThreadStore} from "@vico/agent";
 
 const { agents } = schema;
 
@@ -28,8 +29,8 @@ function extractMessageText(msg: any): string {
 
 class ConversationManager {
   /** Vico 容器的共享 ThreadStore */
-  private get store() {
-    return vico.thread;
+  private get store(): ThreadStore {
+    return vico.thread!;
   }
 
   private threadToConversation(thread: any): ConversationItem {

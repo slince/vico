@@ -130,6 +130,15 @@ export class FileThreadStore implements ThreadStore {
     return this.readJSON<Turn>(join(this.turnsDir, `${turnId}.json`));
   }
 
+  async getRecentTurns(threadId: string, limit: number, status?: Turn['status']): Promise<Turn[]> {
+    const all = await this.listJSON<Turn>(
+      this.turnsDir,
+      (t) => t.threadId === threadId && (!status || t.status === status),
+    );
+    all.sort((a, b) => b.createdAt - a.createdAt);
+    return all.slice(0, limit);
+  }
+
   async getLatestTurn(threadId: string): Promise<Turn | undefined> {
     const all = await this.listJSON<Turn>(
       this.turnsDir,
@@ -164,23 +173,15 @@ export class FileThreadStore implements ThreadStore {
     return all.slice(start, end);
   }
 
-  async getRecentEntries(threadId: string, limit: number): Promise<Message[]> {
+  async getEntriesByTurns(turnIds: string[]): Promise<Message[]> {
+    if (turnIds.length === 0) return [];
+    const ids = new Set(turnIds);
     const all = await this.listJSON<Message>(
       this.messagesDir,
-      (m) => m.threadId === threadId,
+      (m) => ids.has(m.turnId),
     );
     all.sort((a, b) => a.createdAt - b.createdAt);
-    return all.length > limit ? all.slice(all.length - limit) : all;
+    return all;
   }
 
-  async getEntriesByTurn(turnId: string, options?: { limit?: number; start?: number }): Promise<Message[]> {
-    const all = await this.listJSON<Message>(
-      this.messagesDir,
-      (m) => m.turnId === turnId,
-    );
-    all.sort((a, b) => a.createdAt - b.createdAt);
-    const start = options?.start ?? 0;
-    const end = options?.limit ? start + options.limit : undefined;
-    return all.slice(start, end);
-  }
 }
