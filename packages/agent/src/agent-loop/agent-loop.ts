@@ -42,13 +42,13 @@ export interface AgentLoopOptions {
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {
   private agent: Agent;
-  private toolExecutor: ToolExecutor;
+  toolExecutor: ToolExecutor;
   private compactor?: ContextCompactor;
-  private tokenEconomy?: TokenEconomy;
+  tokenEconomy?: TokenEconomy;
   private approvalResolver: ApprovalResolver;
   private tracer: TurnTracer;
   private pipeline: ProcessorPipeline;
-  private checkpointStore: CheckpointStore;
+  checkpointStore: CheckpointStore;
 
   constructor(options: AgentLoopOptions) {
     this.agent = options.agent;
@@ -57,18 +57,11 @@ export class AgentLoop {
     this.tracer = this.agent.tracer;
     this.approvalResolver = this.agent.approvalResolver ?? resolvePolicy;
     this.checkpointStore = this.agent.checkpointStore;
-    this.toolExecutor = new ToolExecutor({
-      tools: options.agent.tools,
-      checkpointStore: this.checkpointStore,
-      emit: this.emit,
-      persistMessage: (msg, ctx) => this.persistMessage(msg, ctx),
-      logger: this.agent.logger,
-      tokenEconomy: this.tokenEconomy,
-    });
+    this.toolExecutor = new ToolExecutor({ tools: options.agent.tools, host: this });
     this.pipeline = new ProcessorPipeline(options.processors ?? []);
   }
 
-  private get log(): Logger {
+  get log(): Logger {
     return this.agent.logger;
   }
 
@@ -723,7 +716,7 @@ export class AgentLoop {
   /**
    * 持久化单条消息到 threadStore。
    */
-  private async persistMessage(message: ModelMessage, context: TurnContext): Promise<void> {
+  async persistMessage(message: ModelMessage, context: TurnContext): Promise<void> {
     await this.agent.thread.appendEntry({
       threadId: context.session.thread.id,
       turnId: context.session.turn.id,
@@ -737,19 +730,20 @@ export class AgentLoop {
   /**
    * 发射事件到订阅者（箭头函数绑定 this，可直接作为回调传递）。
    */
-  private emit = (event: TurnEvent): void => {
+  emit = (event: TurnEvent): void => {
     this.agent.events.emit(event);
   };
 
   /** 将 ToolResult 转为消息文本，可选 token 截断 */
-  private resolveToolResult(r: ToolResult): string {
-    return r.status === 'success'
+  resolveToolResult(r: ToolResult): string {
+    const raw = r.status === 'success'
       ? (typeof r.output === 'string' ? r.output : JSON.stringify(r.output))
       : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
+    return this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
   }
 
   /** 工具结果 → 消息 + 持久化 */
-  private async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
+  async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
     for (const r of toolResults) {
       const content = this.resolveToolResult(r);
       const message: ModelMessage = { role: 'tool', content, toolCallId: r.callId };

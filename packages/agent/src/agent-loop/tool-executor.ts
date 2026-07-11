@@ -1,4 +1,4 @@
-// @vico/agent - ToolExecutor: 工具注册、审批策略和并行执行
+// @vico/agent - ToolExecutor: 工具注册、执行、checkpoint 追踪
 import type {Logger} from 'pino';
 import type {Tool, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
 import {StormBreaker} from '../tool/storm-breaker.js';
@@ -8,33 +8,31 @@ import type {TokenEconomy} from './token-economy.js';
 import type {TurnContext} from './agent-loop-options.js';
 import type {TurnEvent} from './types.js';
 
+/** AgentLoop 暴露给 ToolExecutor 的方法和属性 */
+export interface ToolExecutorHost {
+  emit(event: TurnEvent): void;
+  persistMessage(message: ModelMessage, context: TurnContext): Promise<void>;
+  resolveToolResult(r: ToolResult): string;
+  appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void>;
+  checkpointStore: CheckpointStore;
+  log: Logger;
+  tokenEconomy?: TokenEconomy;
+}
+
 /** ToolExecutor 构造选项 */
 export interface ToolExecutorOptions {
   tools?: Tool[];
-  checkpointStore: CheckpointStore;
-  emit: (event: TurnEvent) => void;
-  persistMessage: (message: ModelMessage, context: TurnContext) => Promise<void>;
-  logger: Logger;
-  tokenEconomy?: TokenEconomy;
+  host: ToolExecutorHost;
 }
 
 /** ToolExecutor — 工具注册、执行、结果持久化 */
 export class ToolExecutor {
   private tools: Map<string, Tool> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();
-  private checkpointStore: CheckpointStore;
-  private emit: (event: TurnEvent) => void;
-  private persistMessage: (message: ModelMessage, context: TurnContext) => Promise<void>;
-  private log: Logger;
-  private tokenEconomy?: TokenEconomy;
+  private host: ToolExecutorHost;
 
   constructor(options: ToolExecutorOptions) {
-    this.checkpointStore = options.checkpointStore;
-    this.emit = options.emit;
-    this.persistMessage = options.persistMessage;
-    this.log = options.logger;
-    this.tokenEconomy = options.tokenEconomy;
-
+    this.host = options.host;
     for (const tool of options.tools ?? []) {
       this.tools.set(tool.name, tool);
     }
@@ -83,7 +81,7 @@ export class ToolExecutor {
   async executeToolCalls(toolCalls: ToolCall[], context: TurnContext): Promise<ToolResult[]> {
     if (toolCalls.length === 0) return [];
 
-    this.log.info({ turnId: context.session.turn.id, count: toolCalls.length, names: toolCalls.map(c => c.name) }, 'executing tool calls');
+    this.host.log.info({ turnId: context.session.turn.id, count: toolCalls.length, names: toolCalls.map(c => c.name) }, 'executing tool calls');
 
     const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
     const toolCallContext: ToolCallContext = { session: context.session, signal: context.signal };
@@ -101,10 +99,10 @@ export class ToolExecutor {
       }
     }
 
-    let latestCheckpoint = await this.checkpointStore.getByTurn(turnId);
+    let latestCheckpoint = await this.host.checkpointStore.getByTurn(turnId);
 
     const executeAndPersist = async (call: ToolCall): Promise<ToolResult> => {
-      latestCheckpoint = await this.checkpointStore.save(turnId, threadId, {
+      latestCheckpoint = await this.host.checkpointStore.save(turnId, threadId, {
         pendingToolCall: { id: call.id, name: call.name, args: call.args as Record<string, unknown> },
       });
 
@@ -112,21 +110,15 @@ export class ToolExecutor {
 
       const prevIds = latestCheckpoint?.completedToolCallIds ?? [];
       const prevResults = latestCheckpoint?.completedToolResults ?? [];
-      latestCheckpoint = await this.checkpointStore.save(turnId, threadId, {
+      latestCheckpoint = await this.host.checkpointStore.save(turnId, threadId, {
         stepIndex: latestCheckpoint?.stepIndex ?? 0,
         completedToolCallIds: [...prevIds, call.id],
         completedToolResults: [...prevResults, result],
         pendingToolCall: null,
       });
 
-      const content = result.status === 'success'
-        ? (typeof result.output === 'string' ? result.output : JSON.stringify(result.output))
-        : (result.error instanceof Error ? result.error.message : (result.error ?? 'tool execution failed'));
-
-      const message: ModelMessage = { role: 'tool', content, toolCallId: result.callId };
-      context.messages.push(message);
-      await this.persistMessage(message, context);
-      this.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
+      await this.host.appendToolResults([result], context);
+      this.host.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
       return result;
     };
 

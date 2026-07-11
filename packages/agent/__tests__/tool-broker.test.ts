@@ -1,7 +1,7 @@
 // src/__tests__/tool-broker.test.ts
 import {describe, expect, it, vi} from 'vitest';
 import {z} from 'zod';
-import {ToolExecutor} from '../src/agent-loop/tool-executor.js';
+import {ToolExecutor, type ToolExecutorHost} from '../src/agent-loop/tool-executor.js';
 import {createTool} from '../src/tool/create-tool.js';
 import {coreBuiltinTools} from '../src/tool/builtin/index.js';
 import {InMemoryCheckpointStore} from '../src/agent-loop/checkpoint-store.js';
@@ -16,13 +16,15 @@ function makeCtx(overrides?: Record<string, unknown>): any {
 }
 
 function makeHost(tools = coreBuiltinTools): ToolExecutor {
-  return new ToolExecutor({
-    tools,
+  const host: ToolExecutorHost = {
     checkpointStore: new InMemoryCheckpointStore(),
     emit: vi.fn(),
     persistMessage: vi.fn(),
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
-  });
+    resolveToolResult: vi.fn((r) => typeof r.output === 'string' ? r.output : JSON.stringify(r.output)),
+    appendToolResults: vi.fn(),
+    log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
+  };
+  return new ToolExecutor({ tools, host });
 }
 
 describe('ToolExecutor', () => {
