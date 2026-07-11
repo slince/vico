@@ -85,7 +85,7 @@ export class AgentLoop {
     const stream = new ReadableStream<ModelStreamChunk>({
       start: async (controller) => {
         try {
-          const result = await this.startLoop({userMessage, signal: internalAc.signal, controller, options});
+          const result = await this.start({userMessage, signal: internalAc.signal, controller, options});
           resolveResult(result);
         } catch (err) {
           this.emit({ type: 'error', error: err instanceof Error ? err : String(err) });
@@ -103,7 +103,7 @@ export class AgentLoop {
    * runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用。
    * 自动检测 thread 中是否存在 paused turn，有则恢复执行，无则创建新 turn。
    */
-  private async startLoop(ctx: {
+  private async start(ctx: {
     userMessage: ModelMessage;
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<ModelStreamChunk>;
