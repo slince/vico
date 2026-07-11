@@ -376,6 +376,11 @@ export class AgentLoop {
     const finalStatus = loopResult.finalStatus === 'aborted' ? 'aborted' : 'completed';
     await this.agent.thread.updateTurn(turn.id, { status: finalStatus, steps: loopResult.steps });
 
+    // completed 终态：清理 checkpoint
+    if (finalStatus === 'completed') {
+      await this.checkpointStore.deleteByTurn(turn.id);
+    }
+
     turnSpan.end({ status: 'completed', steps: loopResult.steps });
     this.emit({ type: 'done', usage });
 
@@ -409,8 +414,14 @@ export class AgentLoop {
       usage.output += stepUsage.output;
 
       if (shouldPause && pauseInfo) {
-        // 持久化暂停信息到 turn.metadata
-        await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps, metadata: { pauseInfo } });
+        // 持久化暂停信息到 checkpoint（替代 turn.metadata）
+        await this.checkpointStore.save(turn.id, context.session.thread.id, {
+          pauseInfo,
+          toolApprovalState: Object.fromEntries(context.toolApprovalState),
+          messageCount: context.messages.length,
+          stepIndex: steps,
+        });
+        await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps });
         return { finalStatus: 'paused', steps, usage };
       }
 
@@ -432,6 +443,15 @@ export class AgentLoop {
    */
   private async executeModelStep(step: Step, context: TurnContext): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
+
+    // step-start checkpoint：记录当前 step 进度
+    await this.checkpointStore.save(context.session.turn.id, context.session.thread.id, {
+      stepIndex: step.index,
+      pendingToolCall: null,
+      messageCount: context.messages.length,
+      lastMessageId: null,
+      toolApprovalState: Object.fromEntries(context.toolApprovalState),
+    });
 
     const usage = { input: 0, output: 0 };
 
