@@ -25,7 +25,12 @@ import {createFSSkillLoader} from "../skill/fs-skill-loader.js";
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
 
-type ToolOptions = Tool[] | { tools: Tool[]; config?: Record<string, boolean> }
+type ToolSetting<T extends Tool[] = Tool[]> = {
+  tools: T;
+  config?: Partial<Record<T[number]['name'], boolean>>
+}
+
+type ToolOptions = Tool[] | ToolSetting
 
 /** 组装工具列表：内置工具 + 额外工具 + working memory 工具 + skill 工具，支持按名称关闭 */
 function buildTools(
