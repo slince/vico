@@ -4,6 +4,7 @@ import {Agent} from './agent.js';
 import type {ModelRef, TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
+import type {WorkingMemory} from '../memory/types.js';
 import {createSkillTools} from "../skill/tool/index.js";
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
@@ -23,6 +24,27 @@ import {InMemoryCheckpointStore} from "./checkpoint-store.js";
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
 
+type ToolOption = Tool[] | { tools: Tool[]; config?: Record<string, boolean> }
+
+/** 组装工具列表：内置工具 + 额外工具 + working memory 工具 + skill 工具，支持按名称关闭 */
+function buildTools(
+  toolsOption: ToolOption | undefined,
+  workingMemory: WorkingMemory | undefined,
+  skills: Skill[] | undefined,
+): Tool[] {
+  const extraTools = Array.isArray(toolsOption) ? toolsOption : (toolsOption?.tools ?? []);
+  const toolConfig = Array.isArray(toolsOption) ? undefined : toolsOption?.config;
+  const allTools: Tool[] = [...basicTools, ...filesystemTools, ...codingTools, ...extraTools];
+  if (workingMemory) {
+    allTools.push(createUpdateWorkingMemoryTool(workingMemory));
+  }
+  if (skills) {
+    allTools.push(...createSkillTools(skills));
+  }
+  // 对象模式下支持按名称关闭工具（config 中标记为 false 的被移除）
+  return toolConfig ? allTools.filter(t => toolConfig[t.name]) : allTools;
+}
+
 /** 创建 Agent 的输入配置 */
 export interface AgentConfig {
   id: string;
@@ -32,7 +54,8 @@ export interface AgentConfig {
   temperature?: number;
   maxTokens?: number;
   maxSteps?: number;
-  tools?: Tool[];
+  /** 额外工具（数组模式）或 { tools, config } 对象模式（可手动关闭工具） */
+  tools?: ToolOption;
   skills?: Skill[];
   memory?: MemoryStore;
   thread?: ThreadStore;
@@ -59,14 +82,7 @@ export function createAgent(config: AgentConfig): Agent {
     conversation: new ConversationHistoryMemory(thread, 10)
   });
 
-  // 默认工具：基础 + workspace 工具始终注册，由 WorkspaceToolProcessor 根据 session.workspace 动态过滤
-  const tools: Tool[] = [...basicTools, ...filesystemTools, ...codingTools, ...(config.tools || [])];
-  if (memory.working) {
-    tools.push(createUpdateWorkingMemoryTool(memory.working));
-  }
-  if (config.skills) {
-    tools.push(...createSkillTools(config.skills));
-  }
+  const tools = buildTools(config.tools, memory.working, config.skills);
 
   return new Agent({
     id: config.id,
