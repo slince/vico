@@ -5,7 +5,6 @@ import type {ApprovalResolver, ToolCall, ToolResult} from '../tool/types.js';
 import type {Thread, Turn} from '../thread/thread-store.js';
 import {toToolDescriptor} from '../tool/create-tool.js';
 import {resolvePolicy} from '../tool/utils.js';
-import {toModelMessages} from './utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
@@ -188,9 +187,8 @@ export class AgentLoop {
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
-    // 加载消息
-    const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
-    const messages: ModelMessage[] = toModelMessages(entries);
+    // 从 checkpoint 直接还原消息序列，无需从 thread store 重新加载
+    const messages = [...checkpoint.messages];
 
     const { scopeId, workspace: optWorkspace, approvalDecisions } = options || {};
     const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
@@ -206,16 +204,6 @@ export class AgentLoop {
     // ——— checkpoint 恢复逻辑 ———
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
     const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
-
-    // 校验消息链完整性
-    if (checkpoint.messageCount !== messages.length) {
-      this.log.warn({ turnId: turn.id, expected: checkpoint.messageCount, actual: messages.length }, 'checkpoint message count mismatch, discarding checkpoint');
-      // await this.checkpointStore.deleteByTurn(turn.id);
-      // context.messages.push(userMessage);
-      // await this.persistMessage(userMessage, context);
-      // await this.agent.thread.updateTurn(turn.id, { status: 'running' });
-      return this.startTurnLoop(0, context, turnSpan, usage);
-    }
 
     // 还原已完成工具结果到消息链（跳过已有的，并发保护）
     for (const result of checkpoint.completedToolResults) {
@@ -417,7 +405,7 @@ export class AgentLoop {
         await this.checkpointStore.save(turn.id, context.session.thread.id, {
           pauseInfo,
           toolApprovalState: Object.fromEntries(context.toolApprovalState),
-          messageCount: context.messages.length,
+          messages: [...context.messages],
           stepIndex: steps,
         });
         await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps });
@@ -444,11 +432,11 @@ export class AgentLoop {
     this.emit({ type: 'step-start', step: step.index + 1 });
     this.log.debug({ turnId: context.session.turn.id, step: step.index, messageCount: context.messages.length }, 'step start');
 
-    // step-start checkpoint：记录当前 step 进度
+    // step-start checkpoint：记录当前 step 进度和消息快照
     await this.checkpointStore.save(context.session.turn.id, context.session.thread.id, {
       stepIndex: step.index,
       pendingToolCall: null,
-      messageCount: context.messages.length,
+      messages: [...context.messages],
       lastMessageId: null,
       toolApprovalState: Object.fromEntries(context.toolApprovalState),
     });
@@ -677,6 +665,9 @@ export class AgentLoop {
 
     try {
       this.log.debug({ step: step.index, turnId: context.session.turn.id, messages: step.messages.length, tools: request.tools?.length }, 'model request')
+
+      console.log("model request", request)
+
       const { stream } = await this.agent.modelClient.stream(request, context.signal);
 
       for await (const chunk of stream) {
@@ -744,6 +735,9 @@ export class AgentLoop {
       return result;
     } catch (err) {
       const error = err instanceof Error ? err : String(err);
+
+      console.log("error", error);
+
       this.log.error({ step: step.index, turnId: context.session.turn.id, error: error instanceof Error ? error.message : String(error) }, 'model stream error');
       controller.enqueue({type: 'error', error: error});
       modelSpan.error(error);

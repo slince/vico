@@ -196,7 +196,7 @@ export class TurnTracer {
 
     for (const adapter of this.adapters) {
       try {
-        await adapter.write(trace);
+        // await adapter.write(trace);
       } catch {
         // 适配器失败不影响主流程
       }

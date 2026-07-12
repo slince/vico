@@ -46,6 +46,7 @@ export class InMemoryCheckpointStore implements CheckpointStore {
       pauseInfo: null,
       messageCount: 0,
       lastMessageId: null,
+      messages: [],
       completedToolCallIds: [],
       completedToolResults: [],
       pendingToolCall: null,
