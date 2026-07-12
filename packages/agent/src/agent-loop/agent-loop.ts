@@ -495,7 +495,6 @@ export class AgentLoop {
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pausedCalls.length > 0) {
       this.log.info({ turnId: context.session.turn.id, step: step.index, pausedCount: pausedCalls.length, toolNames: pausedCalls.map(c => c.name) }, 'tool approval required, pausing turn');
-      context.messages.pop(); // 移除内存中的 assistant 消息，DB 中保留用于恢复
 
       const pauseInfo: PauseInfo = {
         reason: 'tool-approval',
