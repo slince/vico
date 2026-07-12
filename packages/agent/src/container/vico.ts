@@ -13,6 +13,7 @@ import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
 import type {SkillOptions, TraceOptions} from "./options.js";
 import {Skill, SkillLoader} from "../skill/types.js";
+import type {CheckpointStore} from "../agent-loop/checkpoint.js";
 
 /** Vico 配置选项 */
 export interface VicoOptions {
@@ -24,12 +25,14 @@ export interface VicoOptions {
   languageModelFactory?: LanguageModelFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
   maxCached?: number;
+  /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（不传等同 0） */
+  trace?: TraceOptions;
   /** 全局 MemoryStore（agent 自身未配置时使用） */
   memory?: MemoryStore;
   /** 全局 ThreadStore（agent 自身未配置时使用） */
   thread?: ThreadStore;
-  /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（不传等同 0） */
-  trace?: TraceOptions
+  /** 全局 CheckpointStore（agent 自身未配置时使用） */
+  checkpointStore?: CheckpointStore;
 }
 
 /**
@@ -57,6 +60,7 @@ export class Vico {
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
   readonly thread?: ThreadStore;
+  readonly checkpointStore?: CheckpointStore;
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
@@ -64,6 +68,7 @@ export class Vico {
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
     this.thread = options.thread;
+    this.checkpointStore = options.checkpointStore;
     this.skills = [];
   }
 
@@ -147,6 +152,7 @@ export class Vico {
       skills: config.skills ?? this.skills,
       memory: config.memory ?? this.memory,
       thread: config.thread ?? this.thread,
+      checkpointStore: config.checkpointStore ?? this.checkpointStore,
       tracer: config.tracer ?? this.tracer,
       events: config.events ?? this.events,
     });

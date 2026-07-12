@@ -12,7 +12,7 @@
 import {Vico} from '@vico/agent';
 import {ensureTables} from '@vico/libsql-adapter';
 import {getDb} from './db/db.js';
-import {getMemory, getThreadStore} from './agent/memory-setup.js';
+import {getMemory, getThreadStore, getCheckpointStore} from './agent/memory-setup.js';
 import {createApp} from './app.js';
 import logger from './lib/logger.js';
 import {weatherTool} from "./agent/tools/weather-tool";
@@ -26,6 +26,7 @@ export const vico = new Vico({
   tools: [weatherTool],
   memory: getMemory(),
   thread: getThreadStore(),
+  checkpointStore: getCheckpointStore(),
   trace: 2
 });
 

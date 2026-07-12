@@ -1,19 +1,21 @@
 /**
- * Memory + Vector 初始化（不再依赖 Mastra）。
+ * Memory + Vector + Checkpoint 初始化（不再依赖 Mastra）。
  *
  * 提供：
  * - getMemory() — MemoryStore 单例
- * - getThreadStore() — DrizzleThreadStore 单例
+ * - getThreadStore() — LibSqlThreadStore 单例
  * - getVector() — 基于 LibSQLVectorStore 的向量存储
+ * - getCheckpointStore() — LibSqlCheckpointStore 单例
  */
-import {ConversationHistoryMemory, MemoryStore} from '@vico/agent';
-import {DrizzleThreadStore, LibSQLVectorStore} from '@vico/libsql-adapter';
+import {ConversationHistoryMemory, MemoryStore, type CheckpointStore} from '@vico/agent';
+import {LibSqlThreadStore, LibSQLVectorStore, LibSqlCheckpointStore} from '@vico/libsql-adapter';
 import {getDb} from '../db/db.js';
 import {getClient} from '../db/init-libsql.js';
 
 let _memoryStore: MemoryStore;
-let _threadStore: DrizzleThreadStore;
+let _threadStore: LibSqlThreadStore;
 let _vectorStore: LibSQLVectorStore;
+let _checkpointStore: LibSqlCheckpointStore;
 
 export function getMemory(): MemoryStore {
   if (!_memoryStore) {
@@ -24,9 +26,9 @@ export function getMemory(): MemoryStore {
   return _memoryStore;
 }
 
-export function getThreadStore(): DrizzleThreadStore {
+export function getThreadStore(): LibSqlThreadStore {
   if (!_threadStore) {
-    _threadStore = new DrizzleThreadStore({ db: getDb() as any });
+    _threadStore = new LibSqlThreadStore({ db: getDb() as any });
   }
   return _threadStore;
 }
@@ -36,5 +38,12 @@ export function getVector(): LibSQLVectorStore {
     _vectorStore = new LibSQLVectorStore({ client: getClient() });
   }
   return _vectorStore;
+}
+
+export function getCheckpointStore(): CheckpointStore {
+  if (!_checkpointStore) {
+    _checkpointStore = new LibSqlCheckpointStore(getDb() as any);
+  }
+  return _checkpointStore;
 }
 
