@@ -5,14 +5,12 @@ import {createAgent} from '../agent-loop/create-agent.js';
 import type {Tool} from '../tool/types.js';
 import type {Agent} from '../agent-loop/agent.js';
 import {AgentRuntime} from '../agent-loop/agent-runtime.js';
-import {createFSSkillLoader} from '../skill/fs-skill-loader.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import {TurnTracer} from '../observable/turn-tracer.js';
 import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
 import type {SkillOptions, TraceOptions} from "./options.js";
-import {Skill, SkillLoader} from "../skill/types.js";
 import type {CheckpointStore} from "../agent-loop/checkpoint.js";
 
 /** Vico 配置选项 */
@@ -54,8 +52,6 @@ export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
   readonly tracer: TurnTracer;
 
-  private initialized = false;
-  private skills: Skill[];
   private options: VicoOptions;
   readonly runtime: AgentRuntime;
   readonly memory?: MemoryStore;
@@ -69,13 +65,6 @@ export class Vico {
     this.memory = options.memory;
     this.thread = options.thread;
     this.checkpointStore = options.checkpointStore;
-    this.skills = [];
-  }
-
-  /** 初始化：加载 Skill 等异步资源 */
-  async init(): Promise<void> {
-    this.skills = await this.createSkillLoader()();
-    this.initialized = true;
   }
 
   /** 根据 TraceOptions 构建 TurnTracer */
@@ -85,35 +74,6 @@ export class Vico {
       ? [...createAdaptersFromLevel(resolved.level ?? 0), ...(resolved.adapters ?? [])]
       : createAdaptersFromLevel(resolved);
     return new TurnTracer(this.events, adapters);
-  }
-
-  /** 根据配置构建 SkillLoader，有 skillDirs 时默认追加 FS 扫描，支持内联 Skill 数组 */
-  private createSkillLoader(): SkillLoader{
-    const skills = this.options.skills;
-
-    // Skill[] 数组形式
-    if (Array.isArray(skills)) {
-      return async () => skills;
-    }
-
-    // SkillSettings 对象形式
-    if (skills) {
-      const { skillDirs, skills: inlineSkills } = skills;
-      return async () => {
-        const all: Skill[] = [];
-        if (skillDirs?.length) {
-          const fsLoader = createFSSkillLoader(skillDirs);
-          all.push(...await fsLoader());
-        }
-        if (inlineSkills) {
-          all.push(...inlineSkills);
-        }
-        return all;
-      };
-    }
-
-    // 无任何 skills 配置
-    return async () => [];
   }
 
   /**
@@ -143,13 +103,10 @@ export class Vico {
    * 创建单个 Agent（无缓存），委托到独立 buildAgent。
    */
   private async buildAgent(config: AgentConfig): Promise<Agent> {
-    if (!this.initialized) {
-      throw new Error('Vico not initialized — call await vico.init() first');
-    }
     return createAgent({
       ...config,
       tools: config.tools ?? this.options.tools,
-      skills: config.skills ?? this.skills,
+      skills: config.skills ?? this.options.skills,
       memory: config.memory ?? this.memory,
       thread: config.thread ?? this.thread,
       checkpointStore: config.checkpointStore ?? this.checkpointStore,
