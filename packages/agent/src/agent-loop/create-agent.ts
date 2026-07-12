@@ -19,16 +19,17 @@ import {ConversationHistoryMemory} from "../memory/conversation-history-memory.j
 import {resolvePolicy} from "../tool/utils.js";
 import type {CheckpointStore} from "./checkpoint.js";
 import {InMemoryCheckpointStore} from "./checkpoint-store.js";
+import {createFSSkillLoader} from "../skill/fs-skill-loader.js";
 
 
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
 
-type ToolOption = Tool[] | { tools: Tool[]; config?: Record<string, boolean> }
+type ToolOptions = Tool[] | { tools: Tool[]; config?: Record<string, boolean> }
 
 /** 组装工具列表：内置工具 + 额外工具 + working memory 工具 + skill 工具，支持按名称关闭 */
 function buildTools(
-  toolsOption: ToolOption | undefined,
+  toolsOption: ToolOptions | undefined,
   workingMemory: WorkingMemory | undefined,
   skills: Skill[] | undefined,
 ): Tool[] {
@@ -45,6 +46,46 @@ function buildTools(
   return toolConfig ? allTools.filter(t => toolConfig[t.name]) : allTools;
 }
 
+/** Skill 扫描配置 */
+export type SkillSettings = {
+  /** Vico 原生 Skill 扫描根目录 */
+  skillDirs?: string[];
+
+  skills?: Skill[];
+
+  /** 开启后自动扫描第三方 AI Agent 产品的全局 Skills（Claude、OpenClaw、Hermes、通用 agents） */
+  compatible?: boolean;
+};
+
+export type SkillOptions = Skill[] | SkillSettings
+
+async function buildSkills(skillsOptions?: SkillOptions): Promise<Skill[]>{
+  if (!skillsOptions) {
+    return []
+  }
+
+  // Skill[] 数组形式
+  if (Array.isArray(skillsOptions)) {
+    return skillsOptions;
+  }
+
+  // SkillSettings 对象形式
+  if (skillsOptions) {
+    const { skillDirs, skills: inlineSkills } = skillsOptions;
+    const all: Skill[] = [];
+    if (skillDirs?.length) {
+      const fsLoader = createFSSkillLoader(skillDirs);
+      all.push(...await fsLoader());
+    }
+    if (inlineSkills) {
+      all.push(...inlineSkills);
+    }
+    return all;
+  }
+  // 无任何 skills 配置
+  return []
+}
+
 /** 创建 Agent 的输入配置 */
 export interface AgentConfig {
   id: string;
@@ -55,8 +96,8 @@ export interface AgentConfig {
   maxTokens?: number;
   maxSteps?: number;
   /** 额外工具（数组模式）或 { tools, config } 对象模式（可手动关闭工具） */
-  tools?: ToolOption;
-  skills?: Skill[];
+  tools?: ToolOptions;
+  skills?: SkillOptions;
   memory?: MemoryStore;
   thread?: ThreadStore;
   /** 工作空间路径，作为工具执行的默认工作目录 */
@@ -71,7 +112,7 @@ export interface AgentConfig {
 /**
  * 独立创建 Agent 实例。
  */
-export function createAgent(config: AgentConfig): Agent {
+export async function createAgent(config: AgentConfig): Promise<Agent> {
   const model = 'provider' in config.model
     ? createLanguageModel(config.model as ModelRef)
     : config.model
@@ -82,7 +123,8 @@ export function createAgent(config: AgentConfig): Agent {
     conversation: new ConversationHistoryMemory(thread, 10)
   });
 
-  const tools = buildTools(config.tools, memory.working, config.skills);
+  const skills = await buildSkills(config.skills)
+  const tools = buildTools(config.tools, memory.working, skills);
 
   return new Agent({
     id: config.id,
@@ -92,7 +134,7 @@ export function createAgent(config: AgentConfig): Agent {
     temperature: config.temperature ?? 0.7,
     maxTokens: config.maxTokens ?? 4096,
     maxSteps: config.maxSteps ?? 10,
-    skills: config.skills || [],
+    skills: skills || [],
     tools: tools,
     memory: memory,
     thread: config.thread || new InMemoryThreadStore(),

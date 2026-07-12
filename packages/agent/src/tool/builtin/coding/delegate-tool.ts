@@ -21,9 +21,7 @@ const delegateOutput = z.object({
  * 子 agent 使用独立的 AgentLoop 执行子任务，
  * 继承父 agent 的 model 配置但使用受限的工具集。
  */
-export function createDelegateTool(parentConfig: {
-  getConfig(): AgentConfig;
-}) {
+export function createDelegateTool(parentConfig: { getConfig(): AgentConfig}) {
   async function execute(args: z.infer<typeof delegateParams>, ctx: ToolCallContext) {
     const parent = parentConfig.getConfig();
 
@@ -47,7 +45,7 @@ export function createDelegateTool(parentConfig: {
       thread: parent.thread,
     };
 
-    const childAgent = createAgent(childConfig);
+    const childAgent = await createAgent(childConfig);
 
     const message = [
       `## 子任务`,
