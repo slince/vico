@@ -20,6 +20,7 @@ import {resolvePolicy} from "../tool/utils.js";
 import type {CheckpointStore} from "./checkpoint.js";
 import {InMemoryCheckpointStore} from "./checkpoint-store.js";
 import {createFSSkillLoader} from "../skill/fs-skill-loader.js";
+import {collectSkillDirs} from "./utils.js";
 
 
 /** LanguageModel 工厂类型 */
@@ -76,10 +77,11 @@ async function buildSkills(skillsOptions?: SkillOptions): Promise<Skill[]>{
 
   // SkillSettings 对象形式
   if (skillsOptions) {
-    const { skillDirs, skills: inlineSkills } = skillsOptions;
+    const { skills: inlineSkills } = skillsOptions;
+    const dirs = collectSkillDirs(skillsOptions);
     const all: Skill[] = [];
-    if (skillDirs?.length) {
-      const fsLoader = createFSSkillLoader(skillDirs);
+    if (dirs.length) {
+      const fsLoader = createFSSkillLoader(dirs);
       all.push(...await fsLoader());
     }
     if (inlineSkills) {
