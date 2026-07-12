@@ -396,11 +396,11 @@ export class AgentLoop {
 
     while (steps < this.agent.maxSteps && !signal.aborted) {
       const step: Step = { index: steps, messages: context.messages };
-      const { shouldBreak, shouldPause, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, context);
+      const { action, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, context);
       usage.input += stepUsage.input;
       usage.output += stepUsage.output;
 
-      if (shouldPause && pauseInfo) {
+      if (action === 'pause') {
         // 持久化暂停信息到 checkpoint（替代 turn.metadata）
         await this.checkpointStore.save(turn.id, context.session.thread.id, {
           pauseInfo,
@@ -412,7 +412,7 @@ export class AgentLoop {
         return { finalStatus: 'paused', steps, usage };
       }
 
-      if (shouldBreak) {
+      if (action === 'break') {
         // 如果是因为模型错误 直接短路
         if (error) {
           return { finalStatus: 'failed', steps, usage, error };
@@ -448,13 +448,13 @@ export class AgentLoop {
     if (this.tokenEconomy?.isInputExhausted()) {
       this.log.warn({ turnId: context.session.turn.id, step: step.index }, 'input token budget exhausted');
       this.emit({ type: 'error', error: '输入 token 预算已耗尽' });
-      return { shouldBreak: true, shouldPause: false, usage };
+      return { action: 'break', usage };
     }
 
     if (this.tokenEconomy?.isOutputExhausted()) {
       this.log.warn({ turnId: context.session.turn.id, step: step.index }, 'output token budget exhausted');
       this.emit({ type: 'error', error: '输出 token 预算已耗尽' });
-      return { shouldBreak: true, shouldPause: false, usage };
+      return { action: 'break', usage };
     }
 
     const modelResult = await this.callModel(step, context);
@@ -462,12 +462,12 @@ export class AgentLoop {
     // 如果模型调用出错，提前结束
     if (modelResult.error) {
       this.log.error({ turnId: context.session.turn.id, step: step.index, error: modelResult.error instanceof Error ? modelResult.error.message : String(modelResult.error) }, 'model call failed');
-      return { shouldBreak: true, shouldPause: false, usage, error: modelResult.error };
+      return { action: 'break', usage, error: modelResult.error };
     }
 
     // 模型返回后检查中断信号，避免在已取消的 turn 中继续执行工具
     if (context.signal.aborted) {
-      return { shouldBreak: true, shouldPause: false, usage };
+      return { action: 'break', usage };
     }
 
     usage.input += modelResult.usage.input;
@@ -484,7 +484,7 @@ export class AgentLoop {
 
     if (modelResult.toolCalls.length === 0) {
       this.emit({ type: 'step-end', step: step.index + 1 });
-      return { shouldBreak: true, shouldPause: false, usage };
+      return { action: 'break', usage };
     }
 
     // 审批 + 执行 + 持久化
@@ -506,7 +506,7 @@ export class AgentLoop {
         messageCount: context.messages.length,
       };
       this.emit({ type: 'step-end', step: step.index + 1 });
-      return { shouldBreak: false, shouldPause: true, pauseInfo, usage };
+      return { action: 'pause', pauseInfo, usage };
     }
 
     // 已批准的调用直接执行（executeToolCalls 内部逐条持久化，无需再次 appendToolResults）
@@ -517,7 +517,7 @@ export class AgentLoop {
     }
 
     this.emit({ type: 'step-end', step: step.index + 1 });
-    return { shouldBreak: false, shouldPause: false, usage };
+    return { action: 'continue', usage };
   }
 
   /**

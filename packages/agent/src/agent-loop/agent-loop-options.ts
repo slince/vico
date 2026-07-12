@@ -6,13 +6,11 @@ import {TurnTrace} from "../observable/turn-tracer.js";
 import {ModelMessage, ModelStreamChunk} from "../model/types.js";
 import {Thread, Turn} from "../thread/thread-store.js";
 
-/** executeModelStep 的返回值 */
+/** executeModelStep 返回值 */
 export interface ModelStepResult {
-  /** 是否终止循环 */
-  shouldBreak: boolean;
-  /** 是否需要暂停等待外部审批 */
-  shouldPause: boolean;
-  /** 暂停信息（shouldPause 为 true 时需要） */
+  /** 步骤执行后的动作：break=终止循环, pause=暂停等待审批, continue=继续下一步 */
+  action: 'break' | 'pause' | 'continue';
+  /** 暂停信息（action 为 pause 时需要） */
   pauseInfo?: PauseInfo;
   /** 本 step 的 token 用量 */
   usage: UsageMetrics;
