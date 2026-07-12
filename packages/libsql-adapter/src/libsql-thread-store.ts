@@ -1,6 +1,6 @@
-// @vico/mysql-adapter — MySQL/Drizzle-backed ThreadStore implementation
+// @vico/libsql-adapter — Drizzle-backed ThreadStore implementation
 import { eq, desc, inArray, and } from 'drizzle-orm';
-import type { MySql2Database } from 'drizzle-orm/mysql2';
+import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type { ThreadStore, Thread, Turn, Message } from '@vico/agent';
 import {
   threads,
@@ -9,21 +9,20 @@ import {
 } from './schema.js';
 import type * as schema from './schema.js';
 
-/** DrizzleThreadStore construction options */
-export interface DrizzleThreadStoreOptions {
-  /** Drizzle MySQL database instance (schema must include this package's tables) */
-  db: MySql2Database<typeof schema>;
+/** LibSqlThreadStore 构造选项 */
+export interface LibSqlThreadStoreOptions {
+  /** Drizzle LibSQL 数据库实例（schema 需包含本包的表） */
+  db: LibSQLDatabase<typeof schema>;
 }
 
 /**
- * MySQL/Drizzle-based ThreadStore.
- * No tenant filtering; suitable for single-tenant scenarios.
- * Multi-tenant scenarios should wrap with WHERE tenant_id externally.
+ * LibSQL 版 ThreadStore。
+ * 无租户过滤，适合单租户场景；多租户请外层包装 WHERE tenant_id。
  */
-export class DrizzleThreadStore implements ThreadStore {
-  private db: MySql2Database<typeof schema>;
+export class LibSqlThreadStore implements ThreadStore {
+  private db: LibSQLDatabase<typeof schema>;
 
-  constructor(options: DrizzleThreadStoreOptions) {
+  constructor(options: LibSqlThreadStoreOptions) {
     this.db = options.db;
   }
 
@@ -37,7 +36,7 @@ export class DrizzleThreadStore implements ThreadStore {
       agent_id: agentId,
       user_id: opts?.userId ?? null,
       title: title ?? null,
-      metadata: opts?.metadata ?? null,
+      metadata: opts?.metadata ? JSON.stringify(opts.metadata) : null,
       created_at: now,
       updated_at: now,
     });
@@ -71,8 +70,8 @@ export class DrizzleThreadStore implements ThreadStore {
   async updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata'>>): Promise<void> {
     const values: Record<string, unknown> = { updated_at: Date.now() };
     if (patch.title !== undefined) values.title = patch.title;
-    if (patch.metadata !== undefined) values.metadata = patch.metadata;
-    if (Object.keys(values).length === 1) return;
+    if (patch.metadata !== undefined) values.metadata = JSON.stringify(patch.metadata);
+    if (Object.keys(values).length === 1) return; // only updated_at
     await this.db.update(threads).set(values).where(eq(threads.id, threadId));
   }
 
@@ -95,6 +94,7 @@ export class DrizzleThreadStore implements ThreadStore {
     const values: Record<string, unknown> = {};
     if (patch.status !== undefined) values.status = patch.status;
     if (patch.steps !== undefined) values.steps = patch.steps;
+    if (patch.metadata !== undefined) values.metadata = JSON.stringify(patch.metadata);
     if (Object.keys(values).length === 0) return;
     await this.db
       .update(turns)
@@ -125,9 +125,11 @@ export class DrizzleThreadStore implements ThreadStore {
       role: entry.role,
       content: entry.content,
       tool_call_id: entry.toolCallId ?? null,
-      tool_calls: entry.toolCalls,
-      tool_results: entry.toolResults,
-      metadata: entry.metadata ?? null,
+      tool_calls: entry.toolCalls ? JSON.stringify(entry.toolCalls) : null,
+      tool_results: entry.toolResults
+        ? JSON.stringify(entry.toolResults)
+        : null,
+      metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
       created_at: now,
     });
     return { ...entry, id, createdAt: now };
@@ -190,7 +192,7 @@ export class DrizzleThreadStore implements ThreadStore {
       agentId: r.agent_id,
       userId: r.user_id ?? undefined,
       title: r.title ?? undefined,
-      metadata: r.metadata as Record<string, unknown> | undefined,
+      metadata: r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     };
@@ -202,6 +204,7 @@ export class DrizzleThreadStore implements ThreadStore {
       threadId: r.thread_id,
       status: r.status as Turn['status'],
       steps: r.steps,
+      metadata: r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : undefined,
       createdAt: r.created_at,
     };
   }
@@ -214,9 +217,13 @@ export class DrizzleThreadStore implements ThreadStore {
       role: r.role,
       content: r.content,
       toolCallId: r.tool_call_id ?? undefined,
-      toolCalls: r.tool_calls as unknown,
-      toolResults: r.tool_results as unknown,
-      metadata: r.metadata as Record<string, unknown> | undefined,
+      toolCalls: r.tool_calls
+        ? (JSON.parse(r.tool_calls) as unknown)
+        : undefined,
+      toolResults: r.tool_results
+        ? (JSON.parse(r.tool_results) as unknown)
+        : undefined,
+      metadata: r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : undefined,
       createdAt: r.created_at,
     };
   }

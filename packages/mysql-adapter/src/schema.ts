@@ -37,6 +37,22 @@ export const messages = mysqlTable('vico_messages', {
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
 
+// --- Checkpoints ---
+
+/** turn execution state checkpoint, for crash recovery and approval recovery */
+export const checkpoints = mysqlTable('vico_checkpoints', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  turnId: varchar('turn_id', { length: 36 }).notNull().unique(),
+  threadId: varchar('thread_id', { length: 36 }).notNull(),
+  version: int('version').notNull().default(1),
+  stepIndex: int('step_index').notNull().default(0),
+  paused: int('paused').notNull().default(0),
+  pendingTool: text('pending_tool'),
+  snapshot: text('snapshot').notNull(),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+});
+
 // --- Memory tables ---
 
 /** memory entries — working and semantic share table, distinguished by type field */

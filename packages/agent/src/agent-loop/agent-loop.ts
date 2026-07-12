@@ -210,10 +210,10 @@ export class AgentLoop {
     // 校验消息链完整性
     if (checkpoint.messageCount !== messages.length) {
       this.log.warn({ turnId: turn.id, expected: checkpoint.messageCount, actual: messages.length }, 'checkpoint message count mismatch, discarding checkpoint');
-      await this.checkpointStore.deleteByTurn(turn.id);
-      context.messages.push(userMessage);
-      await this.persistMessage(userMessage, context);
-      await this.agent.thread.updateTurn(turn.id, { status: 'running' });
+      // await this.checkpointStore.deleteByTurn(turn.id);
+      // context.messages.push(userMessage);
+      // await this.persistMessage(userMessage, context);
+      // await this.agent.thread.updateTurn(turn.id, { status: 'running' });
       return this.startTurnLoop(0, context, turnSpan, usage);
     }
 

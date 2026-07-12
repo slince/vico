@@ -58,6 +58,24 @@ export async function ensureTables(
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  // Checkpoints table
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS vico_checkpoints (
+      id VARCHAR(36) PRIMARY KEY,
+      turn_id VARCHAR(36) NOT NULL UNIQUE,
+      thread_id VARCHAR(36) NOT NULL,
+      version INT NOT NULL DEFAULT 1,
+      step_index INT NOT NULL DEFAULT 0,
+      paused INT NOT NULL DEFAULT 0,
+      pending_tool TEXT,
+      snapshot TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      KEY idx_thread_id (thread_id),
+      KEY idx_created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   // Memory entries table
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS vico_memory_entries (

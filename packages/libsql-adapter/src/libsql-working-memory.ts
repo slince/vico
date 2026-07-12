@@ -1,6 +1,6 @@
-// @vico/mysql-adapter — MySQL/Drizzle-backed WorkingMemory implementation
+// @vico/libsql-adapter — Drizzle-backed WorkingMemory implementation
 import { eq, and } from 'drizzle-orm';
-import type { MySql2Database } from 'drizzle-orm/mysql2';
+import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type { WorkingMemory } from '@vico/agent';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
@@ -18,23 +18,23 @@ const DEFAULT_TEMPLATE = `# User Facts
 - **Current Task**:
 `;
 
-/** DrizzleWorkingMemory construction options */
-export interface DrizzleWorkingMemoryOptions {
-  /** Drizzle MySQL database instance (schema must include this package's tables) */
-  db: MySql2Database<typeof schema>;
-  /** Scope, default 'user' */
+/** LibSqlWorkingMemory 构造选项 */
+export interface LibSqlWorkingMemoryOptions {
+  /** Drizzle LibSQL 数据库实例（schema 需包含本包的表） */
+  db: LibSQLDatabase<typeof schema>;
+  /** 作用域，默认 'user' */
   scope?: 'user' | 'workspace';
-  /** Markdown template, uses default template if not provided */
+  /** Markdown 模板，未提供时使用默认模板 */
   template?: string;
 }
 
-/** MySQL/Drizzle-based working memory implementation — one row per scope */
-export class DrizzleWorkingMemory implements WorkingMemory {
+/** LibSQL 版工作记忆实现 — 每个 scope 一行 */
+export class LibSqlWorkingMemory implements WorkingMemory {
   readonly scope: 'user' | 'workspace';
-  private db: MySql2Database<typeof schema>;
+  private db: LibSQLDatabase<typeof schema>;
   private template: string;
 
-  constructor(options: DrizzleWorkingMemoryOptions) {
+  constructor(options: LibSqlWorkingMemoryOptions) {
     this.db = options.db;
     this.scope = options.scope ?? 'user';
     this.template = options.template ?? DEFAULT_TEMPLATE;
@@ -56,7 +56,7 @@ export class DrizzleWorkingMemory implements WorkingMemory {
   }
 
   async set(scopeId: string, content: string): Promise<void> {
-    // Use deterministic id for upsert (INSERT … ON DUPLICATE KEY UPDATE)
+    // 使用确定性 id 实现 upsert（INSERT … ON CONFLICT DO UPDATE）
     const id = `${this.scope}:${scopeId}:working`;
     const now = Date.now();
 
@@ -70,11 +70,12 @@ export class DrizzleWorkingMemory implements WorkingMemory {
         type: 'working',
         content,
         embedding: null,
-        metadata: {},
+        metadata: '{}',
         importance: 0,
         created_at: now,
       })
-      .onDuplicateKeyUpdate({
+      .onConflictDoUpdate({
+        target: memoryEntries.id,
         set: { content, created_at: now },
       });
   }

@@ -11,15 +11,15 @@ export {
 
 // ThreadStore adapter
 export {
-  DrizzleThreadStore,
-  type DrizzleThreadStoreOptions,
-} from './drizzle-thread-store.js';
+  LibSqlThreadStore,
+  type LibSqlThreadStoreOptions,
+} from './libsql-thread-store.js';
 
 // WorkingMemory adapter
 export {
-  DrizzleWorkingMemory,
-  type DrizzleWorkingMemoryOptions,
-} from './drizzle-working-memory.js';
+  LibSqlWorkingMemory,
+  type LibSqlWorkingMemoryOptions,
+} from './libsql-working-memory.js';
 
 // VectorStore adapter
 export {
@@ -30,7 +30,7 @@ export {
 // CheckpointStore adapter
 export {
   LibSqlCheckpointStore,
-} from './checkpoint-store.js';
+} from './libsql-checkpoint-store.js';
 
 // 启动时自动建表
 export { ensureTables } from './migrate.js';
