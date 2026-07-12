@@ -12,7 +12,7 @@
 import {Vico} from '@vico/agent';
 import {ensureTables} from '@vico/libsql-adapter';
 import {getDb} from './db/db.js';
-import {getMemory, getThreadStore, getCheckpointStore} from './agent/memory-setup.js';
+import {getCheckpointStore, getMemory, getThreadStore} from './agent/memory-setup.js';
 import {createApp} from './app.js';
 import logger from './lib/logger.js';
 import {weatherTool} from "./agent/tools/weather-tool";
@@ -37,6 +37,5 @@ export const app = createApp();
 export async function initVico(): Promise<void> {
   // 确保 Vico 持久化表存在（vico_threads / vico_turns / vico_messages / vico_memory_entries）
   await ensureTables(db as any);
-  await vico.init();
   logger.info('Vico agent framework initialized');
 }
