@@ -14,25 +14,46 @@ export interface PauseInfo {
   messageCount: number;
 }
 
-/** 单个 checkpoint 的完整数据结构 */
+/**
+ * 单个 checkpoint 的完整数据结构。
+ * 存储层采用"关键列 + JSON 快照"混合模式：turnId/threadId/paused/createdAt 作为索引列支持高效查询，
+ * 其余复杂嵌套字段序列化到 snapshot JSON 中，方便 Schema 演进和懒迁移。
+ */
 export interface Checkpoint {
+  /** 主键 */
   id: string;
+  /** 关联的 turn，getByTurn 点查键，DB 层有唯一约束 */
   turnId: string;
+  /** 关联的 thread，listByThread 批量查询键 */
   threadId: string;
+  /** Schema 版本号，用于懒迁移（checkpointMigrations） */
   version: number;
 
+  /** 当前执行到的 step 索引，崩溃恢复时从此步继续 loop */
   stepIndex: number;
+  /**
+   * 本 turn 中已审批通过的工具名 → true。
+   * 同一 turn 内后续 step 遇到同名工具调用时自动放行，无需重复审批。
+   */
   toolApprovalState: Record<string, boolean>;
+  /** 非空表示 turn 被暂停（等待审批或出错），包含暂停原因和待审批的工具调用 */
   pauseInfo: PauseInfo | null;
 
+  /** 快照时的消息数量，恢复时用于校验消息序列是否被篡改（不匹配则丢弃 checkpoint） */
   messageCount: number;
+  /** 最后一条消息的 ID */
   lastMessageId: string | null;
 
+  /** 已完成（已持久化结果）的工具调用 ID 列表，恢复时跳过以幂等重放 */
   completedToolCallIds: string[];
+  /** 已完成工具调用的结果，恢复时直接追加到上下文消息中 */
   completedToolResults: ToolResult[];
+  /** 正在执行中尚未持久化的工具调用，恢复时走 retry 路径重新执行 */
   pendingToolCall: ToolCall | null;
 
+  /** 创建时间（Unix ms），purgeExpired 按此字段清理 */
   createdAt: number;
+  /** 更新时间（Unix ms） */
   updatedAt: number;
 }
 
