@@ -42,8 +42,6 @@ export interface Checkpoint {
 
   /** 快照时的消息数量，恢复时用于校验消息序列是否被篡改（不匹配则丢弃 checkpoint） */
   messageCount: number;
-  /** 最后一条消息的 ID */
-  lastMessageId: string | null;
 
   /** 已完成（已持久化结果）的工具调用 ID 列表，恢复时跳过以幂等重放 */
   completedToolCallIds: string[];

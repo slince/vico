@@ -45,7 +45,7 @@ export class InMemoryCheckpointStore implements CheckpointStore {
       toolApprovalState: {},
       pauseInfo: null,
       messageCount: 0,
-      lastMessageId: null,
+
       messages: [],
       completedToolCallIds: [],
       completedToolResults: [],

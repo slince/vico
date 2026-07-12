@@ -56,7 +56,7 @@ export class LibSqlCheckpointStore implements CheckpointStore {
       toolApprovalState: {},
       pauseInfo: null,
       messageCount: 0,
-      lastMessageId: null,
+
       completedToolCallIds: [],
       completedToolResults: [],
       pendingToolCall: null,

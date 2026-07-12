@@ -437,7 +437,7 @@ export class AgentLoop {
       stepIndex: step.index,
       pendingToolCall: null,
       messages: [...context.messages],
-      lastMessageId: null,
+
       toolApprovalState: Object.fromEntries(context.toolApprovalState),
     });
 
