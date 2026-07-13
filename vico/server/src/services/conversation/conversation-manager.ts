@@ -2,7 +2,7 @@ import {eq} from 'drizzle-orm';
 import {getDb, schema} from '../../db/db.js';
 import {vico} from '../../vico.js';
 import type {ConversationDetail, ConversationItem, MessageItem, RecentConversation} from './types.js';
-import {ThreadStore} from "@vico/agent";
+import {Message, ThreadStore} from "@vico/agent";
 
 const { agents } = schema;
 
@@ -85,23 +85,18 @@ class ConversationManager {
 
     const conv = this.threadToConversation(thread);
 
-    let messages: MessageItem[] = [];
-    try {
-      const entries = await this.store.getEntries(id);
-      conv.message_count = entries.length;
+    const entries = await this.store.getEntries(id);
+    conv.message_count = entries.length;
 
-      messages = entries.map((msg: any) => ({
-        id: msg.id,
-        thread_id: msg.threadId || id,
-        role: ['user', 'assistant', 'system'].includes(msg.role) ? msg.role : 'system',
-        content: extractMessageText(msg),
-        tool_calls: msg.toolCalls ? JSON.stringify(msg.toolCalls) : undefined,
-        token_usage: 0,
-        created_at: msg.createdAt || Date.now(),
-      }));
-    } catch {
-      conv.message_count = 0;
-    }
+    const messages: MessageItem[] = entries.map((msg: Message) => ({
+      id: msg.id,
+      thread_id: msg.threadId || id,
+      role: ['user', 'assistant', 'system'].includes(msg.role) ? msg.role : 'system',
+      content: extractMessageText(msg),
+      tool_calls: msg.toolCalls ? JSON.stringify(msg.toolCalls) : undefined,
+      token_usage: 0,
+      created_at: msg.createdAt || Date.now(),
+    }));
 
     return { ...conv, messages };
   }
