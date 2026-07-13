@@ -1,5 +1,7 @@
 // @vico/agent - Thread module type definitions
 
+import {ToolCall, ToolResult} from "../tool/types.js";
+
 /** 线程自定义元数据，包含已知字段并支持任意扩展 */
 export interface ThreadMetadata {
   workspace?: string;
@@ -54,8 +56,8 @@ export interface Message {
   role: string;
   content: string;
   toolCallId?: string;
-  toolCalls?: unknown;
-  toolResults?: unknown;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
   /** 自定义上下文字段（JSON 可序列化） */
   metadata?: Record<string, unknown>;
   createdAt: number;
