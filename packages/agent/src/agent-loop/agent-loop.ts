@@ -29,6 +29,7 @@ import {
 } from "./agent-loop-options.js";
 import type {Checkpoint, CheckpointStore} from './checkpoint.js';
 import {PauseInfo} from "./checkpoint.js";
+import {toModelMessages} from './utils.js';
 
 
 /** AgentLoop 构造选项 */
@@ -187,9 +188,6 @@ export class AgentLoop {
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
-    // 从 checkpoint 直接还原消息序列，无需从 thread store 重新加载
-    const messages = [...checkpoint.messages];
-
     const { scopeId, workspace: optWorkspace, approvalDecisions } = options || {};
     const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
 
@@ -198,9 +196,13 @@ export class AgentLoop {
     const trace = this.tracer.create(thread, userMessage, turn.id);
     const turnSpan = trace.startSpan('agent_resume');
 
-    const requestContext = new ModelRequestContext({agent: this.agent, userMessage, tools: [...this.agent.tools], session});
-    await this.pipeline.enter(requestContext);
+    // 加载历史消息
+    const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
+    const messages = toModelMessages(entries);
 
+    const requestContext = new ModelRequestContext({agent: this.agent, userMessage, messages, tools: [...this.agent.tools], session});
+    await this.pipeline.enter(requestContext);
+    
     // ——— checkpoint 恢复逻辑 ———
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
     const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
@@ -405,7 +407,6 @@ export class AgentLoop {
         await this.checkpointStore.save(turn.id, context.session.thread.id, {
           pauseInfo,
           toolApprovalState: Object.fromEntries(context.toolApprovalState),
-          messages: [...context.messages],
           stepIndex: steps,
         });
         await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps });
@@ -432,12 +433,10 @@ export class AgentLoop {
     this.emit({ type: 'step-start', step: step.index + 1 });
     this.log.debug({ turnId: context.session.turn.id, step: step.index, messageCount: context.messages.length }, 'step start');
 
-    // step-start checkpoint：记录当前 step 进度和消息快照
+    // step-start checkpoint：记录当前 step 进度
     await this.checkpointStore.save(context.session.turn.id, context.session.thread.id, {
       stepIndex: step.index,
       pendingToolCall: null,
-      messages: [...context.messages],
-
       toolApprovalState: Object.fromEntries(context.toolApprovalState),
     });
 
@@ -503,7 +502,6 @@ export class AgentLoop {
         autoApprovedCalls: approvedCalls,
         autoDeniedResults: deniedResults,
         pausedAtStep: step.index,
-        messageCount: context.messages.length,
       };
       this.emit({ type: 'step-end', step: step.index + 1 });
       return { action: 'pause', pauseInfo, usage };

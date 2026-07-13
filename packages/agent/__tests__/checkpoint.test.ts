@@ -36,7 +36,7 @@ describe('InMemoryCheckpointStore', () => {
   it('purges expired checkpoints', async () => {
     const store = new InMemoryCheckpointStore();
     // Create an "expired" checkpoint (directly manipulate internal store to set old timestamp)
-    const ckpt = await store.save('turn-1', 'thread-1', { pauseInfo: { reason: 'tool-approval', pendingToolCalls: [], pausedAtStep: 0, messageCount: 0 } });
+    const ckpt = await store.save('turn-1', 'thread-1', { pauseInfo: { reason: 'tool-approval', pendingToolCalls: [], pausedAtStep: 0 } });
     // Use very short TTL (1ms) to trigger expiry
     await new Promise(r => setTimeout(r, 5));
     const expired = await store.purgeExpired(1);

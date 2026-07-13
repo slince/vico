@@ -1,6 +1,5 @@
 // @vico/agent - Checkpoint 类型 + CheckpointStore 接口 + 版本迁移
 import type { ToolCall, ToolResult } from '../tool/types.js';
-import type { ModelMessage } from '../model/types.js';
 
 /** Checkpoint schema 当前版本 */
 export const CHECKPOINT_CURRENT_VERSION = 1;
@@ -12,7 +11,6 @@ export interface PauseInfo {
   autoApprovedCalls?: ToolCall[];
   autoDeniedResults?: ToolResult[];
   pausedAtStep: number;
-  messageCount: number;
 }
 
 /**
@@ -40,18 +38,12 @@ export interface Checkpoint {
   /** 非空表示 turn 被暂停（等待审批或出错），包含暂停原因和待审批的工具调用 */
   pauseInfo: PauseInfo | null;
 
-  /** 快照时的消息数量，恢复时用于校验消息序列是否被篡改（不匹配则丢弃 checkpoint） */
-  messageCount: number;
-
   /** 已完成（已持久化结果）的工具调用 ID 列表，恢复时跳过以幂等重放 */
   completedToolCallIds: string[];
   /** 已完成工具调用的结果，恢复时直接追加到上下文消息中 */
   completedToolResults: ToolResult[];
   /** 正在执行中尚未持久化的工具调用，恢复时走 retry 路径重新执行 */
   pendingToolCall: ToolCall | null;
-
-  /** 当前 turn 上下文消息序列，恢复时直接还原，无需从 thread store 重新加载 */
-  messages: ModelMessage[];
 
   /** 创建时间（Unix ms），purgeExpired 按此字段清理 */
   createdAt: number;
