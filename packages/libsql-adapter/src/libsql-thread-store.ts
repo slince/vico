@@ -126,9 +126,6 @@ export class LibSqlThreadStore implements ThreadStore {
       content: entry.content,
       tool_call_id: entry.toolCallId ?? null,
       tool_calls: entry.toolCalls ? JSON.stringify(entry.toolCalls) : null,
-      tool_results: entry.toolResults
-        ? JSON.stringify(entry.toolResults)
-        : null,
       metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
       created_at: now,
     });
@@ -219,9 +216,6 @@ export class LibSqlThreadStore implements ThreadStore {
       toolCallId: r.tool_call_id ?? undefined,
       toolCalls: r.tool_calls
         ? (JSON.parse(r.tool_calls) as unknown)
-        : undefined,
-      toolResults: r.tool_results
-        ? (JSON.parse(r.tool_results) as unknown)
         : undefined,
       metadata: r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : undefined,
       createdAt: r.created_at,

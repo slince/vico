@@ -32,7 +32,6 @@ export const messages = mysqlTable('vico_messages', {
   content: text('content').notNull(),
   tool_call_id: varchar('tool_call_id', { length: 255 }),
   tool_calls: json('tool_calls'),
-  tool_results: json('tool_results'),
   metadata: json('metadata'),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });

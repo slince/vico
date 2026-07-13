@@ -33,7 +33,6 @@ export const messages = sqliteTable('vico_messages', {
   content: text('content').notNull(),
   tool_call_id: text('tool_call_id'),
   tool_calls: text('tool_calls'),
-  tool_results: text('tool_results'),
   metadata: text('metadata'),
   created_at: integer('created_at').notNull(),
 });

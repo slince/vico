@@ -52,7 +52,6 @@ export async function ensureTables(
       content TEXT NOT NULL,
       tool_call_id VARCHAR(255),
       tool_calls JSON,
-      tool_results JSON,
       created_at BIGINT NOT NULL,
       KEY idx_msg_thread (thread_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

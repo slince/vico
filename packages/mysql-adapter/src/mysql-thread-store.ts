@@ -126,7 +126,6 @@ export class MysqlThreadStore implements ThreadStore {
       content: entry.content,
       tool_call_id: entry.toolCallId ?? null,
       tool_calls: entry.toolCalls,
-      tool_results: entry.toolResults,
       metadata: entry.metadata ?? null,
       created_at: now,
     });
@@ -215,7 +214,6 @@ export class MysqlThreadStore implements ThreadStore {
       content: r.content,
       toolCallId: r.tool_call_id ?? undefined,
       toolCalls: r.tool_calls as unknown,
-      toolResults: r.tool_results as unknown,
       metadata: r.metadata as Record<string, unknown> | undefined,
       createdAt: r.created_at,
     };

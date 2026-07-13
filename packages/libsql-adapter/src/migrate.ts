@@ -54,7 +54,6 @@ export async function ensureTables(
       content TEXT NOT NULL,
       tool_call_id TEXT,
       tool_calls TEXT,
-      tool_results TEXT,
       metadata TEXT,
       created_at INTEGER NOT NULL
     )
