@@ -27,6 +27,9 @@ function extractMessageText(msg: any): string {
   }
 }
 
+/** 前台展示的消息角色（排除内部 tool 消息） */
+const VISIBLE_ROLES = ['user', 'assistant', 'system'];
+
 class ConversationManager {
   /** Vico 容器的共享 ThreadStore */
   private get store(): ThreadStore {
@@ -63,7 +66,7 @@ class ConversationManager {
       const conv = this.threadToConversation(thread);
 
       try {
-        const entries = await this.store.getEntries(thread.id);
+        const entries = await this.store.getEntries(thread.id, { roles: VISIBLE_ROLES });
         conv.message_count = entries.length;
       } catch {
         conv.message_count = 0;
@@ -90,10 +93,10 @@ class ConversationManager {
 
     const conv = this.threadToConversation(thread);
 
-    const entries = await this.store.getEntries(id, pagination);
+    const entries = await this.store.getEntries(id, { ...pagination, roles: VISIBLE_ROLES });
     // message_count 需要总数，分页时单独查询
     if (pagination?.limit != null) {
-      const all = await this.store.getEntries(id);
+      const all = await this.store.getEntries(id, { roles: VISIBLE_ROLES });
       conv.message_count = all.length;
     } else {
       conv.message_count = entries.length;
@@ -137,7 +140,7 @@ class ConversationManager {
       let lastMessage: string | undefined;
       let messageCount = 0;
       try {
-        const entries = await this.store.getEntries(thread.id);
+        const entries = await this.store.getEntries(thread.id, { roles: VISIBLE_ROLES });
         messageCount = entries.length;
         if (entries.length > 0) {
           const last = entries[entries.length - 1];

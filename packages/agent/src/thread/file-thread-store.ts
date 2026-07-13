@@ -162,11 +162,15 @@ export class FileThreadStore implements ThreadStore {
     return msg;
   }
 
-  async getEntries(threadId: string, options?: { limit?: number; start?: number }): Promise<Message[]> {
-    const all = await this.listJSON<Message>(
+  async getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[] }): Promise<Message[]> {
+    let all = await this.listJSON<Message>(
       this.messagesDir,
       (m) => m.threadId === threadId,
     );
+    if (options?.roles?.length) {
+      const roleSet = new Set(options.roles);
+      all = all.filter((m) => roleSet.has(m.role));
+    }
     all.sort((a, b) => a.createdAt - b.createdAt);
     const start = options?.start ?? 0;
     const end = options?.limit ? start + options.limit : undefined;

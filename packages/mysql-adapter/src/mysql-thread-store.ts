@@ -134,13 +134,17 @@ export class MysqlThreadStore implements ThreadStore {
 
   async getEntries(
     threadId: string,
-    options?: { limit?: number; start?: number },
+    options?: { limit?: number; start?: number; roles?: string[] },
   ): Promise<Message[]> {
     const start = options?.start ?? 0;
+    const conditions = [eq(messages.thread_id, threadId)];
+    if (options?.roles?.length) {
+      conditions.push(inArray(messages.role, options.roles));
+    }
     const base = this.db
       .select()
       .from(messages)
-      .where(eq(messages.thread_id, threadId))
+      .where(and(...conditions))
       .orderBy(messages.created_at)
       .offset(start);
     const rows = await (options?.limit ? base.limit(options.limit) : base);

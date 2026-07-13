@@ -88,8 +88,8 @@ export interface ThreadStore {
 
   /** 追加对话记录 */
   appendEntry(entry: Omit<Message, 'id' | 'createdAt'>): Promise<Message>;
-  /** 获取线程的对话记录列表（支持分页） */
-  getEntries(threadId: string, options?: { limit?: number; start?: number }): Promise<Message[]>;
+  /** 获取线程的对话记录列表（支持分页和角色筛选） */
+  getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[] }): Promise<Message[]>;
   /** 批量获取多个 turn 的对话记录 */
   getEntriesByTurns(turnIds: string[]): Promise<Message[]>;
   /** 获取线程中最近的一个 turn（用于检测是否有暂停的 turn） */

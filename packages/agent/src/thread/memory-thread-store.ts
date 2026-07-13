@@ -81,8 +81,12 @@ export class InMemoryThreadStore implements ThreadStore {
     return msg;
   }
 
-  async getEntries(threadId: string, options?: { limit?: number; start?: number }): Promise<Message[]> {
-    const list = this.messages.get(threadId) ?? [];
+  async getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[] }): Promise<Message[]> {
+    let list = this.messages.get(threadId) ?? [];
+    if (options?.roles?.length) {
+      const roleSet = new Set(options.roles);
+      list = list.filter((m) => roleSet.has(m.role));
+    }
     const start = options?.start ?? 0;
     const end = options?.limit ? start + options.limit : undefined;
     return [...list].slice(start, end);
