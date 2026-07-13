@@ -1,7 +1,7 @@
 // @vico/mysql-adapter — MySQL/Drizzle-backed ThreadStore implementation
 import { eq, desc, inArray, and } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import type { ThreadStore, Thread, Turn, Message } from '@vico/agent';
+import type { ThreadStore, Thread, Turn, Message, ToolCall } from '@vico/agent';
 import {
   threads,
   turns,
@@ -213,7 +213,7 @@ export class MysqlThreadStore implements ThreadStore {
       role: r.role,
       content: r.content,
       toolCallId: r.tool_call_id ?? undefined,
-      toolCalls: r.tool_calls as unknown,
+      toolCalls: r.tool_calls as ToolCall[],
       metadata: r.metadata as Record<string, unknown> | undefined,
       createdAt: r.created_at,
     };
