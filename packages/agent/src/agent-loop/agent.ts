@@ -16,16 +16,18 @@ import type {UserMessage} from '../stream/types.js';
 import type {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {CheckpointStore} from './checkpoint.js';
-import pino, { Logger } from 'pino';
+import pino, {Logger} from 'pino';
 
 export type LoopFactory = (agent: Agent) => AgentLoop
 
 /** invoke 调用选项 */
-export interface InvokeOptions {
+export interface InvokeOptions<TMetadata extends Record<string, unknown> = Record<string, unknown>> {
   threadId?: string;
   userId?: string;
   workspace?: string;
   scopeId?: string;
+  /** 自定义元数据（JSON 可序列化），写入 thread.metadata */
+  metadata?: TMetadata;
   /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
   approvalDecisions?: ToolApproval[];
 }
@@ -57,7 +59,7 @@ export interface AgentOptions {
 }
 
 /** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
-export class Agent {
+export class Agent<TMetadata extends Record<string, unknown> = Record<string, unknown>> {
   readonly id: string;
   readonly name: string;
   readonly systemPrompt: string;
@@ -103,7 +105,7 @@ export class Agent {
     this.logger = params.logger ?? pino();
 
     const loopFactory = params.loopFactory || buildLoop;
-    this.loop = loopFactory(this)
+    this.loop = loopFactory(this as unknown as Agent)
   }
 
   /**
@@ -137,7 +139,7 @@ export class Agent {
    * @param options.scopeId - 工作记忆作用域标识
    * @returns turn 最终结果
    */
-  async invoke(message: UserMessage, options?: InvokeOptions): Promise<TurnResult> {
+  async invoke(message: UserMessage, options?: InvokeOptions<TMetadata>): Promise<TurnResult> {
     const output = this.run(message, options);
     return output.result;
   }
@@ -153,7 +155,7 @@ export class Agent {
    * @param options.scopeId - 工作记忆作用域标识
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  stream(message: UserMessage, options?: InvokeOptions): TurnOutput {
+  stream(message: UserMessage, options?: InvokeOptions<TMetadata>): TurnOutput {
     return this.run(message, options);
   }
 
@@ -165,15 +167,13 @@ export class Agent {
    * @param options - 调用可选参数
    * @returns TurnOutput 实例
    */
-  private run(message: UserMessage, options?: InvokeOptions) {
+  private run(message: UserMessage, options?: InvokeOptions<TMetadata>) {
     const content = typeof message === 'string' ? message : message.content;
     const userMessage: ModelMessage = { role: 'user', content };
     return this.loop.run(userMessage, {
-      threadId: options?.threadId,
-      userId: options?.userId,
+      ...(options ?? {}),
       workspace: options?.workspace ?? this.workspace,
-      scopeId: options?.scopeId,
-      approvalDecisions: options?.approvalDecisions,
+      metadata: options?.metadata,
     });
   }
 
