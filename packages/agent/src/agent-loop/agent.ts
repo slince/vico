@@ -11,7 +11,7 @@ import {buildLoop} from "./utils.js";
 import {TurnOutput} from "./turn-output.js";
 import {ModelMessage} from "../model/types.js";
 import {TurnTracer} from "../observable/turn-tracer.js";
-import {ToolApproval, TurnResult} from "./agent-loop-options.js";
+import {RunOptions, TurnResult} from "./agent-loop-options.js";
 import type {UserMessage} from '../stream/types.js';
 import type {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
@@ -19,18 +19,6 @@ import type {CheckpointStore} from './checkpoint.js';
 import pino, {Logger} from 'pino';
 
 export type LoopFactory = (agent: Agent) => AgentLoop
-
-/** invoke 调用选项 */
-export interface InvokeOptions<TMetadata extends Record<string, unknown> = Record<string, unknown>> {
-  threadId?: string;
-  userId?: string;
-  workspace?: string;
-  scopeId?: string;
-  /** 自定义元数据（JSON 可序列化），写入 thread.metadata */
-  metadata?: TMetadata;
-  /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
-  approvalDecisions?: ToolApproval[];
-}
 
 /** Agent 构造参数 */
 export interface AgentOptions {
@@ -139,7 +127,7 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
    * @param options.scopeId - 工作记忆作用域标识
    * @returns turn 最终结果
    */
-  async invoke(message: UserMessage, options?: InvokeOptions<TMetadata>): Promise<TurnResult> {
+  async invoke(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnResult> {
     const output = this.run(message, options);
     return output.result;
   }
@@ -155,7 +143,7 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
    * @param options.scopeId - 工作记忆作用域标识
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  stream(message: UserMessage, options?: InvokeOptions<TMetadata>): TurnOutput {
+  stream(message: UserMessage, options?: RunOptions<TMetadata>): TurnOutput {
     return this.run(message, options);
   }
 
@@ -167,13 +155,12 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
    * @param options - 调用可选参数
    * @returns TurnOutput 实例
    */
-  private run(message: UserMessage, options?: InvokeOptions<TMetadata>) {
+  private run(message: UserMessage, options?: RunOptions<TMetadata>) {
     const content = typeof message === 'string' ? message : message.content;
     const userMessage: ModelMessage = { role: 'user', content };
     return this.loop.run(userMessage, {
       ...(options ?? {}),
       workspace: options?.workspace ?? this.workspace,
-      metadata: options?.metadata,
     });
   }
 

@@ -160,7 +160,7 @@ export { type EventRecorder, type EventPayload, type TypedEvent } from './events
 export { AgentRuntime } from './agent-loop/agent-runtime.js';
 
 // Agent
-export { Agent, type AgentOptions, type InvokeOptions } from './agent-loop/agent.js';
+export { Agent, type AgentOptions } from './agent-loop/agent.js';
 export { createAgent } from './agent-loop/create-agent.js';
 
 // AgentLoop

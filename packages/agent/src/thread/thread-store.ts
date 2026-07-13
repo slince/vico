@@ -18,7 +18,6 @@ export interface ThreadContext {
   scopeId?: string;
   workspace?: string;
   metadata?: ThreadMetadata;
-  [key: string]: unknown;
 }
 
 /** 会话线程 */
