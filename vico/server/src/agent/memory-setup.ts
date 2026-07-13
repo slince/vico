@@ -7,8 +7,8 @@
  * - getVector() — 基于 LibSQLVectorStore 的向量存储
  * - getCheckpointStore() — LibSqlCheckpointStore 单例
  */
-import {ConversationHistoryMemory, MemoryStore, type CheckpointStore} from '@vico/agent';
-import {LibSqlThreadStore, LibSQLVectorStore, LibSqlCheckpointStore} from '@vico/libsql-adapter';
+import {type CheckpointStore, ConversationHistoryMemory, MemoryStore} from '@vico/agent';
+import {LibSqlCheckpointStore, LibSqlThreadStore, LibSQLVectorStore} from '@vico/libsql-adapter';
 import {getDb} from '../db/db.js';
 import {getClient} from '../db/init-libsql.js';
 
@@ -20,7 +20,7 @@ let _checkpointStore: LibSqlCheckpointStore;
 export function getMemory(): MemoryStore {
   if (!_memoryStore) {
     _memoryStore = new MemoryStore({
-      conversation: new ConversationHistoryMemory(getThreadStore(), 1)
+      conversation: new ConversationHistoryMemory(getThreadStore(), 10)
     });
   }
   return _memoryStore;
