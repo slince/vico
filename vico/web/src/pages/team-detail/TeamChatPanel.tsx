@@ -3,7 +3,7 @@ import {AssistantRuntimeProvider} from '@assistant-ui/react';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Separator} from '@/components/ui/separator';
 import {Thread} from '@/components/assistant-ui/thread';
-import {useTeamAssistantRuntime} from '@/hooks/useTeamAssistantRuntime';
+import {useTeamAssistantRuntime} from '@/hooks/use-team-assistant-runtime';
 
 export interface TeamChatPanelProps {
   teamId: string;

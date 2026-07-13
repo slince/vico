@@ -9,7 +9,7 @@
 import {useMemo} from 'react';
 import {useRemoteThreadListRuntime} from '@assistant-ui/react';
 import {createConversationThreadAdapter} from '@/lib/conversation-thread-adapter';
-import {useChatThreadRuntime} from '@/hooks/useChatThreadRuntime';
+import {useChatThreadRuntime} from '@/hooks/use-chat-thread-runtime';
 
 export interface UseAssistantRuntimeOptions {
   /** Agent ID，同时用于对话列表过滤和发送消息 */

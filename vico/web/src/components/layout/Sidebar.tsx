@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import {NavLink} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
-import {useAuth} from '@/hooks/useAuth';
+import {useAuth} from '@/hooks/use-auth';
 import {cn} from '@/lib/utils';
 import {
   Bot,

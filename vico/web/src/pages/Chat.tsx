@@ -14,8 +14,8 @@ import {ChatSidebar} from './chat/ChatSidebar';
 import {ChatPanel} from './chat/ChatPanel';
 import {ChatEmpty} from './chat/ChatEmpty';
 import {ChatSkeleton} from './chat/ChatSkeleton';
-import {useAssistantRuntime} from '@/hooks/useAssistantRuntime';
-import {useThread} from '@/hooks/useThread';
+import {useAssistantRuntime} from '@/hooks/use-assistant-runtime';
+import {useThread} from '@/hooks/use-thread';
 import type {Agent} from '@/types/models';
 import {toolkit} from "@/tools/toolkit";
 

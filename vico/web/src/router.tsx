@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { AuthProvider, useAuth } from '@/hooks/use-auth';
 // 新版页面（shadcn/ui 重写）
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
