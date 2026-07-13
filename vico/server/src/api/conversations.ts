@@ -15,11 +15,15 @@ export function conversationRoutes(app: Hono<{ Variables: Variables }>) {
     return c.json(await conversationManager.list(auth.userId, filters));
   });
 
-  /** GET /api/v1/conversations/:id — 对话详情（含消息） */
+  /** GET /api/v1/conversations/:id — 对话详情（含消息，支持分页） */
   app.get('/api/v1/conversations/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const conv = await conversationManager.getById(auth.userId, c.req.param('id'));
+    const rawLimit = c.req.query('limit');
+    const rawStart = c.req.query('start');
+    const limit = rawLimit ? parseInt(rawLimit, 10) : undefined;
+    const start = rawStart ? parseInt(rawStart, 10) : undefined;
+    const conv = await conversationManager.getById(auth.userId, c.req.param('id'), { limit, start });
     if (!conv) return c.json({ error: 'Conversation not found' }, 404);
     return c.json(conv);
   });

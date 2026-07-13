@@ -79,23 +79,34 @@ class ConversationManager {
     return convs;
   }
 
-  async getById(userId: string, id: string): Promise<ConversationDetail | null> {
+  async getById(
+    userId: string,
+    id: string,
+    pagination?: { limit?: number; start?: number },
+  ): Promise<ConversationDetail | null> {
     const thread = await this.store.getThread(id);
     if (!thread) return null;
+    if (thread.userId && thread.userId !== userId) return null;
 
     const conv = this.threadToConversation(thread);
 
-    const entries = await this.store.getEntries(id);
-    conv.message_count = entries.length;
+    const entries = await this.store.getEntries(id, pagination);
+    // message_count 需要总数，分页时单独查询
+    if (pagination?.limit != null) {
+      const all = await this.store.getEntries(id);
+      conv.message_count = all.length;
+    } else {
+      conv.message_count = entries.length;
+    }
 
     const messages: MessageItem[] = entries.map((msg: Message) => ({
       id: msg.id,
-      thread_id: msg.threadId || id,
+      thread_id: msg.threadId ?? id,
       role: ['user', 'assistant', 'system'].includes(msg.role) ? msg.role : 'system',
       content: extractMessageText(msg),
       tool_calls: msg.toolCalls ? JSON.stringify(msg.toolCalls) : undefined,
       token_usage: 0,
-      created_at: msg.createdAt || Date.now(),
+      created_at: msg.createdAt ?? Date.now(),
     }));
 
     return { ...conv, messages };
@@ -150,6 +161,7 @@ class ConversationManager {
   async delete(userId: string, id: string): Promise<boolean> {
     const thread = await this.store.getThread(id);
     if (!thread) return false;
+    if (thread.userId && thread.userId !== userId) return false;
 
     try {
       const db = getDb();
