@@ -5,6 +5,7 @@ import {useCallback, useEffect, useState} from 'react';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useNavigate, useParams} from 'react-router-dom';
 import {AssistantRuntimeProvider, Tools, useAui} from '@assistant-ui/react';
+import {DevToolsModal} from "@assistant-ui/react-devtools";
 
 // 3. API
 import {api} from '@/api/client';
@@ -106,6 +107,7 @@ export default function Chat() {
     <div className="flex h-[calc(100vh-0px)] -my-6 -mr-6">
       {selectedAgent && runtime ? (
         <AssistantRuntimeProvider runtime={runtime} aui={aui} i18nIsDynamicList>
+          <DevToolsModal />
           <ChatSidebar
             agents={agentList}
             selectedAgent={selectedAgent}
