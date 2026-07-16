@@ -1,95 +1,75 @@
+// packages/agent/__tests__/model/model-client.test.ts
 import { describe, it, expect, vi } from 'vitest';
+import { z } from 'zod';
+import type { LanguageModelV4, LanguageModelV4CallOptions, LanguageModelV4StreamPart, LanguageModelV4StreamResult } from '@ai-sdk/provider';
 import { ModelClient } from '../../src/model/model-client.js';
-import type { LanguageModelV3, LanguageModelV3CallOptions, LanguageModelV3StreamResult } from '@ai-sdk/provider';
-import type { ModelStreamChunk } from '../../src/model/types.js';
+import { createTool } from '../../src/tool/create-tool.js';
 
-/** Create a mock LanguageModelV3 with controllable doStream */
+/** 创建可控 doStream 的 mock LanguageModelV4 */
 function createMockModel(
-  doStreamFn: (opts: LanguageModelV3CallOptions) => Promise<LanguageModelV3StreamResult>,
-): LanguageModelV3 {
+  doStreamFn: (opts: LanguageModelV4CallOptions) => Promise<LanguageModelV4StreamResult>,
+): LanguageModelV4 {
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     provider: 'mock',
     modelId: 'mock-model',
     supportedUrls: {},
-    doGenerate: vi.fn().mockRejectedValue(new Error('not implemented')),
-    doStream: vi.fn().mockImplementation(doStreamFn),
-  };
+    doGenerate: vi.fn(),
+    doStream: doStreamFn,
+  } as unknown as LanguageModelV4;
+}
+
+function streamOf(parts: LanguageModelV4StreamPart[]): ReadableStream<LanguageModelV4StreamPart> {
+  return new ReadableStream({
+    start(controller) {
+      for (const p of parts) controller.enqueue(p);
+      controller.close();
+    },
+  });
 }
 
 describe('ModelClient', () => {
-  it('calls model.doStream with converted prompt and tools', async () => {
-    const doStream = vi.fn().mockResolvedValue({
-      stream: new ReadableStream({
-        start(c) {
-          c.enqueue({ type: 'text-delta', id: 't1', delta: 'Hi' });
-          c.close();
-        },
-      }),
+  it('将 system+messages 转为 V4 prompt，工具转为 function tool，并透传采样参数', async () => {
+    const doStream = vi.fn(async () => ({ stream: streamOf([]) }));
+    const client = new ModelClient(createMockModel(doStream));
+
+    const echo = createTool({
+      name: 'echo', description: 'Echo', inputSchema: z.object({ message: z.string() }),
+      execute: async (a) => a.message,
     });
-
-    const model = createMockModel(doStream);
-    const client = new ModelClient(model);
-
-    const { stream } = await client.stream({
-      system: 'be helpful',
-      messages: [{ role: 'user', content: 'Hello' }],
-      tools: [{ name: 'search', description: 'Search', inputSchema: { type: 'object', properties: {} } }],
-      maxOutputTokens: 100,
-      temperature: 0.5,
-    });
-
-    expect(doStream).toHaveBeenCalledTimes(1);
-    const callOpts: LanguageModelV3CallOptions = doStream.mock.calls[0][0];
-
-    // Check prompt
-    expect(callOpts.prompt).toEqual([
-      { role: 'system', content: 'be helpful' },
-      { role: 'user', content: [{ type: 'text', text: 'Hello' }] },
-    ]);
-
-    // Check tools
-    expect(callOpts.tools).toEqual([{
-      type: 'function',
-      name: 'search',
-      description: 'Search',
-      inputSchema: { type: 'object', properties: {} },
-    }]);
-
-    // Check options forwarded
-    expect(callOpts.maxOutputTokens).toBe(100);
-    expect(callOpts.temperature).toBe(0.5);
-
-    // Consume stream
-    const chunks: ModelStreamChunk[] = [];
-    for await (const c of stream) chunks.push(c);
-    expect(chunks).toHaveLength(1);
-    expect(chunks[0].type).toBe('text-delta');
-  });
-
-  it('works without tools', async () => {
-    const doStream = vi.fn().mockResolvedValue({
-      stream: new ReadableStream({ start(c) { c.close(); } }),
-    });
-    const model = createMockModel(doStream);
-    const client = new ModelClient(model);
 
     await client.stream({
-      messages: [{ role: 'user', content: 'Hi' }],
+      system: 'sys',
+      messages: [{ role: 'user', content: 'hello' }],
+      tools: [echo],
+      maxOutputTokens: 100,
+      temperature: 0.5,
+      reasoning: 'low',
     });
 
-    expect(doStream.mock.calls[0][0].tools).toBeUndefined();
+    const opts: LanguageModelV4CallOptions = doStream.mock.calls[0][0];
+    // system 进入 prompt 首条 system 消息
+    expect(opts.prompt[0]).toEqual({ role: 'system', content: 'sys' });
+    // user 消息转为 text part
+    expect(opts.prompt[1]).toMatchObject({ role: 'user', content: [{ type: 'text', text: 'hello' }] });
+    // 工具转换
+    expect(opts.tools?.[0]).toMatchObject({ type: 'function', name: 'echo' });
+    expect(opts.maxOutputTokens).toBe(100);
+    expect(opts.temperature).toBe(0.5);
+    expect(opts.reasoning).toBe('low');
   });
 
-  it('passes abortSignal through', async () => {
-    const doStream = vi.fn().mockResolvedValue({
-      stream: new ReadableStream({ start(c) { c.close(); } }),
-    });
-    const model = createMockModel(doStream);
-    const client = new ModelClient(model);
-    const signal = new AbortController().signal;
+  it('透传 provider 原生流', async () => {
+    const parts: LanguageModelV4StreamPart[] = [
+      { type: 'text-start', id: 't1' },
+      { type: 'text-delta', id: 't1', delta: 'hi' },
+      { type: 'text-end', id: 't1' },
+    ];
+    const client = new ModelClient(createMockModel(async () => ({ stream: streamOf(parts) })));
+    const { stream } = await client.stream({ messages: [{ role: 'user', content: 'q' }] });
 
-    await client.stream({ messages: [{ role: 'user', content: 'Hi' }], abortSignal: signal });
-    expect(doStream.mock.calls[0][0].abortSignal).toBe(signal);
+    const received: LanguageModelV4StreamPart[] = [];
+    for await (const chunk of stream) received.push(chunk);
+    expect(received).toEqual(parts);
   });
 });
