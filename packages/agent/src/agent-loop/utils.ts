@@ -8,25 +8,32 @@ import {MemoryProcessor} from "./context-processors/memory-processor.js";
 import {WorkspaceToolProcessor} from "./context-processors/workspace-tool-processor.js";
 import {TurnResult} from "./agent-loop-options.js";
 import type {Message} from '../thread/thread-store.js';
-import type {MessageRole, ModelMessage} from '../model/types.js';
-import {ToolCall} from "../tool/types.js";
+import type { ModelMessage } from 'ai';
 import {SkillSettings} from "./create-agent.js";
 import {resolve} from "node:path";
 import {homedir} from "node:os";
 
 /**
- * 将 ThreadStore Message 数组转换为模型可用的 ModelMessage 数组。
- *
- * @param entries - ThreadStore 中的 Message 列表
- * @returns 模型格式的消息数组
+ * ThreadStore Message → 原生 ModelMessage（content 反序列化）。
+ * 解析失败时按纯文本内容兜底（防御历史脏数据）。
  */
 export function toModelMessages(entries: Message[]): ModelMessage[] {
   return entries.map((e) => {
-    const msg: ModelMessage = { role: e.role as MessageRole, content: e.content };
-    if (e.toolCallId) msg.toolCallId = e.toolCallId;
-    if (e.toolCalls) msg.toolCalls = e.toolCalls as ToolCall[];
-    return msg;
+    let content: unknown;
+    try {
+      content = JSON.parse(e.content);
+    } catch {
+      content = e.content;
+    }
+    return { role: e.role, content } as ModelMessage;
   });
+}
+
+/**
+ * 原生 ModelMessage → ThreadStore 持久化字段（content 序列化）。
+ */
+export function fromModelMessage(msg: ModelMessage): { role: string; content: string } {
+  return { role: msg.role, content: JSON.stringify(msg.content) };
 }
 
 /**

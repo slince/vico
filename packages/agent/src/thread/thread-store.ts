@@ -1,7 +1,5 @@
 // @vico/agent - Thread module type definitions
 
-import {ToolCall} from "../tool/types.js";
-
 /** 线程自定义元数据，包含已知字段并支持任意扩展 */
 export interface ThreadMetadata {
   workspace?: string;
@@ -48,15 +46,14 @@ export interface Turn {
   createdAt: number;
 }
 
-/** 对话记录条目 */
+/** 对话记录条目 — content 存原生 ModelMessage.content 的 JSON 序列化（string 或 parts 数组） */
 export interface Message {
   id: string;
   threadId: string;
   turnId: string;
   role: string;
+  /** JSON.stringify(ModelMessage.content)，读取时 JSON.parse 还原 */
   content: string;
-  toolCallId?: string;
-  toolCalls?: ToolCall[];
   /** 自定义上下文字段（JSON 可序列化） */
   metadata?: Record<string, unknown>;
   createdAt: number;
