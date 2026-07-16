@@ -1,175 +1,166 @@
 /**
- * TurnOutput 流（ModelStreamChunk）→ AI SDK UI 流（UIStreamChunk）转换。
- * ModelStreamChunk 来自 AI SDK provider 层，UIStreamChunk 供 @assistant-ui/react 消费。
+ * TurnOutput（LanguageModelV4StreamPart 流）→ AI SDK UIMessageChunk SSE 响应。
+ * 复用 createUIMessageStream / createUIMessageStreamResponse，供 @assistant-ui/react 原生消费。
  */
-import {createSSEResponse} from './sse.js';
-import type {UIStreamChunk} from './types.js';
-import type {TurnOutput} from '../agent-loop/turn-output.js';
-import type {TurnResult} from "../agent-loop/agent-loop-options.js";
-import type {LanguageModelV3Usage} from '@ai-sdk/provider';
+import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
+import type { UIMessageChunk } from 'ai';
+import { asLanguageModelUsage } from 'ai/internal';
+import type { LanguageModelV4Usage } from '@ai-sdk/provider';
+import type { TurnOutput } from '../agent-loop/turn-output.js';
+import type { TurnResult } from '../agent-loop/agent-loop-options.js';
 
-/**
- * 将 AI SDK 的 LanguageModelV3Usage（嵌套结构）扁平化为
- * @assistant-ui/react-ai-sdk 的 useThreadTokenUsage 可消费的格式。
- */
-function flattenUsage(usage: LanguageModelV3Usage): Record<string, number> {
-  const inputTokens = usage.inputTokens.total ?? 0;
-  const outputTokens = usage.outputTokens.total ?? 0;
-  const cachedInputTokens = usage.inputTokens.cacheRead ?? 0;
-  const reasoningTokens = usage.outputTokens.reasoning ?? 0;
+/** V4 tool-call 的 input 是 JSON 字符串，解析失败时原样透传 */
+function safeParseJson(input: unknown): unknown {
+  if (typeof input !== 'string') return input ?? {};
+  try {
+    return JSON.parse(input || '{}');
+  } catch {
+    return input;
+  }
+}
 
-  return {
-    inputTokens,
-    outputTokens,
-    totalTokens: inputTokens + outputTokens,
-    ...(cachedInputTokens ? { cachedInputTokens } : {}),
-    ...(reasoningTokens ? { reasoningTokens } : {}),
-  };
+/** V4 文件数据（data/url 两种变体）→ 可展示 URL（url 直用，data 转 base64 data URI） */
+function toFileUrl(data: { type: 'data'; data: Uint8Array | string } | { type: 'url'; url: URL }, mediaType: string): string {
+  if (data.type === 'url') return data.url.href;
+  const base64 = typeof data.data === 'string' ? data.data : Buffer.from(data.data).toString('base64');
+  return `data:${mediaType};base64,${base64}`;
 }
 
 /**
- * TurnOutput 流（ModelStreamChunk）→ AI SDK UI 流（UIStreamChunk）转换。
- * 将 ModelStreamChunk 转换为 UIStreamChunk 格式，封装为 SSE Response 供 @assistant-ui/react 消费。
- * @param output - TurnOutput 实例，包含模型流和结果 Promise
- * @param options - 可选配置，包含 onFinish 回调
+ * TurnOutput → SSE Response（AI SDK UI Message Stream 协议）。
+ *
+ * @param output - TurnOutput 实例，包含 V4 流和结果 Promise
+ * @param options - 可选配置，onFinish 可在 finish chunk 发出前修改 messageMetadata
  * @returns SSE 格式的 Response 对象
  */
-export async function turnOutputToSSEResponse(
+export function turnOutputToSSEResponse(
   output: TurnOutput,
-  options?: { onFinish?: (finish: Extract<UIStreamChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },
-): Promise<Response> {
-  let fullText = '';
-  /** 从 model finish chunk 中捕获的 token 用量 */
-  let modelUsage: LanguageModelV3Usage | undefined;
+  options?: { onFinish?: (finish: Extract<UIMessageChunk, { type: 'finish' }>, fullText: string) => void | Promise<void> },
+): Response {
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      let fullText = '';
+      /** 从 model finish part 中捕获的 token 用量 */
+      let modelUsage: LanguageModelV4Usage | undefined;
+      let inStep = false;
 
-  const stream = new ReadableStream<UIStreamChunk>({
-    async start(controller) {
-      const enqueue = (chunk: UIStreamChunk) => controller.enqueue(chunk);
+      writer.write({ type: 'start' });
 
-      enqueue({ type: 'start' });
-
+      const reader = output.stream.getReader();
       try {
-        let inStep = false;
-        const reader = output.stream.getReader();
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-            switch (value.type) {
-              // ── 透传：与 UIStreamChunk 字段一致 ──
-              case 'text-start':
-                if (!inStep) { enqueue({ type: 'start-step' }); inStep = true; }
-                enqueue(value);
-                break;
+          switch (value.type) {
+            // ── 透传：V4 part 与 UIMessageChunk 同名同形 ──
+            case 'text-start':
+              if (!inStep) { writer.write({ type: 'start-step' }); inStep = true; }
+              writer.write(value);
+              break;
 
-              case 'text-delta':
-                fullText += value.delta;
-                enqueue(value);
-                break;
+            case 'text-delta':
+              fullText += value.delta;
+              writer.write(value);
+              break;
 
-              case 'text-end':
-              case 'reasoning-start':
-              case 'reasoning-delta':
-              case 'reasoning-end':
-              case 'tool-output-denied':
-                enqueue(value);
-                break;
+            case 'text-end':
+            case 'reasoning-start':
+            case 'reasoning-delta':
+            case 'reasoning-end':
+            case 'custom':
+              writer.write(value);
+              break;
 
-              // ── 字段映射 ──
-              case 'tool-input-start':
-                enqueue({ type: 'tool-input-start', toolCallId: value.id, toolName: value.toolName });
-                break;
+            // ── 字段映射 ──
+            case 'tool-input-start':
+              writer.write({ type: 'tool-input-start', toolCallId: value.id, toolName: value.toolName });
+              break;
 
-              case 'tool-input-delta':
-                enqueue({ type: 'tool-input-delta', toolCallId: value.id, inputTextDelta: value.delta });
-                break;
+            case 'tool-input-delta':
+              writer.write({ type: 'tool-input-delta', toolCallId: value.id, inputTextDelta: value.delta });
+              break;
 
-              case 'tool-input-end':
-                break;
+            case 'tool-input-end':
+              break;
 
-              case 'tool-call':
-                enqueue({ type: 'tool-input-available', toolCallId: value.toolCallId, toolName: value.toolName, input: value.input });
-                break;
+            case 'tool-call':
+              writer.write({ type: 'tool-input-available', toolCallId: value.toolCallId, toolName: value.toolName, input: safeParseJson(value.input) });
+              break;
 
-              case 'tool-result':
-                if (value.isError) {
-                  enqueue({ type: 'tool-output-error', toolCallId: value.toolCallId, errorText: String(value.result) });
-                } else {
-                  enqueue({ type: 'tool-output-available', toolCallId: value.toolCallId, output: value.result });
-                }
-                break;
+            case 'tool-result':
+              if (value.isError) {
+                writer.write({ type: 'tool-output-error', toolCallId: value.toolCallId, errorText: String(value.result) });
+              } else {
+                writer.write({ type: 'tool-output-available', toolCallId: value.toolCallId, output: value.result });
+              }
+              break;
 
-              case 'tool-approval-request':
-                enqueue({ type: 'tool-approval-request', approvalId: value.approvalId, toolCallId: value.toolCallId });
-                break;
+            case 'tool-approval-request':
+              writer.write({ type: 'tool-approval-request', approvalId: value.approvalId, toolCallId: value.toolCallId });
+              break;
 
-              case 'source':
-                if (value.sourceType === 'url') {
-                  enqueue({ type: 'source-url', sourceId: value.id, url: value.url, title: value.title, providerMetadata: value.providerMetadata });
-                } else {
-                  enqueue({ type: 'source-document', sourceId: value.id, mediaType: value.mediaType, title: value.title, filename: value.filename, providerMetadata: value.providerMetadata });
-                }
-                break;
+            case 'source':
+              if (value.sourceType === 'url') {
+                writer.write({ type: 'source-url', sourceId: value.id, url: value.url, title: value.title, providerMetadata: value.providerMetadata });
+              } else {
+                writer.write({ type: 'source-document', sourceId: value.id, mediaType: value.mediaType, title: value.title, filename: value.filename, providerMetadata: value.providerMetadata });
+              }
+              break;
 
-              case 'file':
-                enqueue({
-                  type: 'file',
-                  url: typeof value.data === 'string' ? value.data : `data:${value.mediaType};base64,${Buffer.from(value.data).toString('base64')}`,
-                  mediaType: value.mediaType,
-                  providerMetadata: value.providerMetadata,
-                });
-                break;
+            case 'file':
+              writer.write({ type: 'file', url: toFileUrl(value.data, value.mediaType), mediaType: value.mediaType, providerMetadata: value.providerMetadata });
+              break;
 
-              case 'response-metadata':
-                enqueue({ type: 'message-metadata', messageMetadata: { modelId: value.modelId, timestamp: value.timestamp } });
-                break;
+            case 'reasoning-file':
+              writer.write({ type: 'reasoning-file', url: toFileUrl(value.data, value.mediaType), mediaType: value.mediaType, providerMetadata: value.providerMetadata });
+              break;
 
-              case 'finish':
-                modelUsage = value.usage;
-                break;
+            case 'response-metadata':
+              writer.write({ type: 'message-metadata', messageMetadata: { modelId: value.modelId, timestamp: value.timestamp } });
+              break;
 
-              case 'error':
-                enqueue({ type: 'error', errorText: value.error instanceof Error ? value.error.message : String(value.error) });
-                break;
+            case 'finish':
+              modelUsage = value.usage;
+              break;
 
-              default:
-                break;
-            }
+            case 'error':
+              writer.write({ type: 'error', errorText: value.error instanceof Error ? value.error.message : String(value.error) });
+              break;
+
+            default:
+              // stream-start / raw：内部使用，不透出
+              break;
           }
-        } finally {
-          reader.releaseLock();
         }
-
-        const result: TurnResult = await output.result;
-
-        if (result.status === 'aborted') {
-          enqueue({ type: 'abort' });
-        }
-        if (result.status === 'paused') {
-          enqueue({ type: 'data-turn-paused', data: { reason: 'tool-approval', turnId: result.turn.id } });
-        }
-        if (inStep) {
-          enqueue({ type: 'finish-step' });
-        }
-        const finish: UIStreamChunk = {
-          type: 'finish',
-          finishReason: result.status === 'completed' ? 'stop' : result.status === 'paused' ? 'stop' : 'error',
-          messageMetadata: modelUsage ? { custom: { usage: flattenUsage(modelUsage) } } : undefined,
-        };
-        await options?.onFinish?.(finish, fullText);
-        enqueue(finish);
       } finally {
-        controller.close();
+        reader.releaseLock();
       }
+
+      const result: TurnResult = await output.result;
+
+      if (result.status === 'aborted') {
+        writer.write({ type: 'abort' });
+      }
+      if (result.status === 'paused') {
+        // Vico 自定义事件走原生 data-* 通道
+        writer.write({ type: 'data-turn-paused', data: { reason: 'tool-approval', turnId: result.turn.id }, transient: true } as UIMessageChunk);
+      }
+      if (inStep) {
+        writer.write({ type: 'finish-step' });
+      }
+
+      const finish: Extract<UIMessageChunk, { type: 'finish' }> = {
+        type: 'finish',
+        finishReason: result.status === 'completed' || result.status === 'paused' ? 'stop' : 'error',
+        // usage 用 ai/internal 的 asLanguageModelUsage 扁平化
+        messageMetadata: modelUsage ? { custom: { usage: asLanguageModelUsage(modelUsage) } } : undefined,
+      };
+      await options?.onFinish?.(finish, fullText);
+      writer.write(finish);
     },
+    onError: (e) => (e instanceof Error ? e.message : String(e)),
   });
 
-  return createSSEResponse(
-    stream,
-    {
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  );
+  return createUIMessageStreamResponse({ stream });
 }
