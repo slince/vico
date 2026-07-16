@@ -1,5 +1,6 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
-import type {ModelMessage} from '../../model/types.js';
+import type { ModelMessage } from 'ai';
+import { getMessageText } from '../../model/message-utils.js';
 import type {Tool} from '../../tool/types.js';
 import type {Thread} from '../../thread/thread-store.js';
 import {Step, TurnSession} from "../agent-loop-options.js";
@@ -79,13 +80,12 @@ export class ModelRequestContext {
   }
 
   /**
-   * 获取最后一条用户消息内容。
-   *
-   * @returns 最后一条用户消息的文本内容，无用户消息时返回空字符串
+   * 获取最后一条用户消息的纯文本内容。
    */
   getLastUserMessage(): string {
     for (let i = this.messages.length - 1; i >= 0; i--) {
-      if (this.messages[i].role === 'user') return this.messages[i].content;
+      const msg = this.messages[i];
+      if (msg.role === 'user') return getMessageText(msg);
     }
     return '';
   }

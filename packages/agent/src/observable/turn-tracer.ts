@@ -2,7 +2,9 @@
 import {randomUUID} from 'node:crypto';
 import type {EventRecorder} from '../events/types.js';
 import type {TurnEvent} from '../agent-loop/types.js';
-import type {ModelMessage, ModelRequest} from '../model/types.js';
+import type { ModelRequest } from '../model/types.js';
+import type { ModelMessage } from 'ai';
+import { getMessageText } from '../model/message-utils.js';
 import type {Thread} from '../thread/thread-store.js';
 import type {ToolResult} from '../tool/types.js';
 import type {Span, SpanState, SpanType} from './types.js';
@@ -44,7 +46,7 @@ export class TurnTrace {
 
   constructor(thread: Thread, userMessage: ModelMessage) {
     this.threadId = thread.id;
-    this.userMessage = userMessage.content;
+    this.userMessage = getMessageText(userMessage);
     this.startTime = Date.now();
   }
 

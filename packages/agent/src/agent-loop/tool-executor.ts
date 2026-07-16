@@ -2,7 +2,7 @@
 import type {Logger} from 'pino';
 import type {Tool, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
 import {StormBreaker} from '../tool/storm-breaker.js';
-import type {ModelMessage} from '../model/types.js';
+import type { ModelMessage } from 'ai';
 import type {CheckpointStore} from './checkpoint.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {TurnContext} from './agent-loop-options.js';

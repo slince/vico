@@ -2,6 +2,7 @@
 import {randomUUID} from 'node:crypto';
 import type {ContextProcessor, ModelRequestContext} from './context-processor.js';
 import {Priority} from './context-processor.js';
+import { getMessageText } from '../../model/message-utils.js';
 import type {MemoryStore} from '../../memory/memory-store.js';
 import type {MemoryRecord} from '../../memory/types.js';
 
@@ -102,10 +103,11 @@ export class MemoryProcessor implements ContextProcessor {
 
     for (const msg of ctx.messages) {
       if (msg.role !== 'assistant') continue;
-      if (!msg.content || msg.content.length < 10) continue;
+      const text = getMessageText(msg);
+      if (!text || text.length < 10) continue;
 
       // 按句号、换行拆分
-      const sentences = msg.content.split(/[.\n]+/).map((s) => s.trim()).filter(Boolean);
+      const sentences = text.split(/[.\n]+/).map((s) => s.trim()).filter(Boolean);
       for (const sentence of sentences) {
         if (sentence.length < 15) continue; // 太短的不算事实
         if (!FACT_PATTERNS.test(sentence)) continue;

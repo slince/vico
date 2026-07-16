@@ -1,6 +1,7 @@
 // src/agent-loop/context-compactor.ts
 import type {ModelClient} from '../model/model-client.js';
-import type {ModelMessage} from '../model/types.js';
+import type { ModelMessage } from 'ai';
+import { getMessageText } from '../model/message-utils.js';
 
 /** 压缩结果 */
 export interface CompactResult {
@@ -21,8 +22,8 @@ export interface CompactResult {
 function estimateTokens(messages: ModelMessage[]): number {
   let chars = 0;
   for (const m of messages) {
-    chars += m.content.length;
-    if (m.toolCalls) chars += JSON.stringify(m.toolCalls).length;
+    // parts 数组按 JSON 长度估算（含 tool-call/tool-result 的结构开销）
+    chars += typeof m.content === 'string' ? m.content.length : JSON.stringify(m.content).length;
   }
   return Math.ceil(chars / 4);
 }
@@ -69,7 +70,7 @@ export class ContextCompactor {
       summaryContent = text;
     } catch {
       // 模型摘要失败时回退到简单截断
-      summaryContent = head.map((m) => `${m.role}: ${m.content.slice(0, 200)}`).join('\n');
+      summaryContent = head.map((m) => `${m.role}: ${getMessageText(m).slice(0, 200)}`).join('\n');
     }
 
     const summaryMessage: ModelMessage = { role: 'system', content: `[对话摘要]\n${summaryContent}` };

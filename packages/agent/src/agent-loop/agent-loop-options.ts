@@ -3,7 +3,8 @@ import {ToolCall, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/context-processor.js";
 import {TurnTrace} from "../observable/turn-tracer.js";
-import {ModelMessage, ModelStreamChunk} from "../model/types.js";
+import type { ModelMessage } from 'ai';
+import type { LanguageModelV4StreamPart } from '@ai-sdk/provider';
 import {Thread, Turn} from "../thread/thread-store.js";
 
 /** executeModelStep 返回值 */
@@ -47,7 +48,7 @@ export interface TurnContext {
   /** turn 级中断信号，贯穿 model 调用和工具执行 */
   signal: AbortSignal;
   /** 流控制器，用于向客户端推送 chunk */
-  controller: ReadableStreamDefaultController<ModelStreamChunk>;
+  controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
 }
 
 

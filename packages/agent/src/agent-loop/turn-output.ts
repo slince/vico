@@ -1,11 +1,11 @@
 // @vico/agent - TurnOutput: runTurn 的返回值，封装流和结果
 import type { TurnResult } from './agent-loop-options.js';
-import type { ModelStreamChunk } from '../model/types.js';
+import type { LanguageModelV4StreamPart } from '@ai-sdk/provider';
 
 /** runTurn 的返回值，包含输出流、结果 Promise 和控制方法 */
 export class TurnOutput {
   /** 模型输出流 */
-  readonly stream: ReadableStream<ModelStreamChunk>;
+  readonly stream: ReadableStream<LanguageModelV4StreamPart>;
 
   /** turn 完成后的最终结果 */
   readonly result: Promise<TurnResult>;
@@ -13,7 +13,7 @@ export class TurnOutput {
   private _abort: () => void;
 
   constructor(
-    stream: ReadableStream<ModelStreamChunk>,
+    stream: ReadableStream<LanguageModelV4StreamPart>,
     result: Promise<TurnResult>,
     abort: () => void,
   ) {

@@ -3,11 +3,13 @@ import type {Logger} from 'pino';
 import type {TurnEvent, UsageMetrics} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolResult} from '../tool/types.js';
 import type {Thread, Turn} from '../thread/thread-store.js';
-import {toToolDescriptor} from '../tool/create-tool.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
-import {ModelMessage, ModelRequest, ModelStreamChunk} from '../model/types.js';
+import type { ModelMessage } from 'ai';
+import type { LanguageModelV4StreamPart } from '@ai-sdk/provider';
+import type { ModelRequest } from '../model/types.js';
+import { getMessageText, buildAssistantMessage, buildToolResultMessage, hasToolResult, getToolResultText } from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import type {TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
@@ -29,7 +31,7 @@ import {
 } from "./agent-loop-options.js";
 import type {Checkpoint, CheckpointStore} from './checkpoint.js';
 import {PauseInfo} from "./checkpoint.js";
-import {toModelMessages} from './utils.js';
+import { toModelMessages, fromModelMessage } from './utils.js';
 
 
 /** AgentLoop 构造选项 */
@@ -87,7 +89,7 @@ export class AgentLoop {
       internalAc.abort();
     };
 
-    const stream = new ReadableStream<ModelStreamChunk>({
+    const stream = new ReadableStream<LanguageModelV4StreamPart>({
       start: async (controller) => {
         try {
           const result = await this.start({userMessage, signal: internalAc.signal, controller, options});
@@ -112,7 +114,7 @@ export class AgentLoop {
   private async start(ctx: {
     userMessage: ModelMessage;
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<ModelStreamChunk>;
+    controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { userMessage, signal, controller, options } = ctx;
@@ -122,7 +124,7 @@ export class AgentLoop {
     // 并发请求可能同时判断无未完成 turn 并各自创建。依赖 threadStore 实现侧的并发控制。
     let thread = await this.agent.thread.getThread(threadId);
     if (!thread) {
-      const title = userMessage.content.slice(0, 50);
+      const title = getMessageText(userMessage).slice(0, 50);
       const workspace = options?.workspace ?? this.agent.workspace;
       const metadata = { ...options?.metadata, workspace };
       thread = await this.agent.thread.createThread(this.agent.id, title, threadId, { ...options, metadata });
@@ -149,7 +151,7 @@ export class AgentLoop {
     thread: Thread;
     userMessage: ModelMessage;
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<ModelStreamChunk>;
+    controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { thread, userMessage, signal, controller, options } = params;
@@ -181,7 +183,7 @@ export class AgentLoop {
     checkpoint: Checkpoint;
     userMessage: ModelMessage;
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<ModelStreamChunk>;
+    controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { thread, turn, checkpoint, userMessage, signal, controller, options } = params;
@@ -209,9 +211,9 @@ export class AgentLoop {
 
     // 还原已完成工具结果到消息链（跳过已有的，并发保护）
     for (const result of checkpoint.completedToolResults) {
-      if (!messages.some(m => m.role === 'tool' && m.toolCallId === result.callId)) {
+      if (!hasToolResult(messages, result.callId)) {
         const content = this.resolveToolResult(result);
-        const msg: ModelMessage = { role: 'tool', content, toolCallId: result.callId };
+        const msg = buildToolResultMessage(result, content);
         messages.push(msg);
         await this.persistMessage(msg, context);
       }
@@ -300,17 +302,13 @@ export class AgentLoop {
     const threadId = context.session.thread.id;
 
     // 检查消息链中是否已有此 toolCall 的 tool_result（并发保护）
-    const alreadyResolved = messages.some(
-      m => m.role === 'tool' && m.toolCallId === pending.id
-    );
-
-    if (alreadyResolved) {
+    if (hasToolResult(messages, pending.id)) {
       // 跳过执行，从消息链提取已有结果并更新 checkpoint
       const existingResult: ToolResult = {
         callId: pending.id,
         name: pending.name,
         status: 'success',
-        output: messages.find(m => m.role === 'tool' && m.toolCallId === pending.id)?.content ?? null,
+        output: getToolResultText(messages, pending.id) ?? null,
       };
       await this.checkpointStore.save(turnId, threadId, {
         completedToolCallIds: [...checkpoint.completedToolCallIds, pending.id],
@@ -473,9 +471,9 @@ export class AgentLoop {
     usage.output += modelResult.usage.output;
     this.tokenEconomy?.track(modelResult.usage.input, modelResult.usage.output);
 
-    // 模型输出后的消息处理
+    // 模型输出后的消息处理（text + tool-call parts 组装为原生 assistant 消息）
     if (modelResult.text || modelResult.toolCalls.length > 0) {
-      const assistantMsg = { role: 'assistant' as const, content: modelResult.text, ...(modelResult.toolCalls.length > 0 && { toolCalls: modelResult.toolCalls }) };
+      const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls);
       context.messages.push(assistantMsg);
 
       await this.persistMessage(assistantMsg, context);
@@ -561,8 +559,6 @@ export class AgentLoop {
           type: 'tool-approval-request',
           approvalId: call.id,
           toolCallId: call.id,
-          toolName: call.name,
-          input: call.args,
         });
         this.emit({
           type: 'tool-approval-request',
@@ -586,16 +582,13 @@ export class AgentLoop {
   }
 
   /**
-   * 持久化单条消息到 threadStore。
+   * 持久化单条消息到 threadStore（原生 content 序列化为 JSON）。
    */
   async persistMessage(message: ModelMessage, context: TurnContext): Promise<void> {
     await this.agent.thread.appendEntry({
       threadId: context.session.thread.id,
       turnId: context.session.turn.id,
-      role: message.role,
-      content: message.content,
-      toolCalls: message.toolCalls,
-      toolCallId: message.toolCallId,
+      ...fromModelMessage(message),
     });
   }
 
@@ -614,11 +607,11 @@ export class AgentLoop {
     return this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
   }
 
-  /** 工具结果 → 消息 + 持久化 */
+  /** 工具结果 → 原生 tool 消息 + 持久化 */
   async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
     for (const r of toolResults) {
       const content = this.resolveToolResult(r);
-      const message: ModelMessage = { role: 'tool', content, toolCallId: r.callId };
+      const message = buildToolResultMessage(r, content);
       context.messages.push(message);
       await this.persistMessage(message, context);
     }
@@ -648,9 +641,10 @@ export class AgentLoop {
     const request: ModelRequest = {
       system: ctx.systemPrompt,
       messages: step.messages,
-      tools: ctx.tools.map(toToolDescriptor),
+      tools: ctx.tools,
       maxOutputTokens: this.agent.maxTokens,
       temperature: this.agent.temperature,
+      reasoning: this.agent.reasoning,
     };
 
     let fullText = '';
@@ -677,6 +671,8 @@ export class AgentLoop {
             case 'tool-result':
             case 'file':
             case 'source':
+            case 'custom':
+            case 'reasoning-file':
               controller.enqueue(chunk);
               break;
 
@@ -696,11 +692,20 @@ export class AgentLoop {
               this.emit({ type: 'reasoning-delta', content: chunk.delta });
               break;
 
-            case 'tool-call':
+            case 'tool-call': {
               controller.enqueue(chunk);
-              toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
-              this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args: (chunk.input ?? {}) as Record<string, unknown> });
+              // V4 tool-call 的 input 为 JSON 字符串，解析失败时兜底空对象并告警
+              let args: Record<string, unknown>;
+              try {
+                args = chunk.input ? JSON.parse(chunk.input) as Record<string, unknown> : {};
+              } catch {
+                this.log.warn({ toolCallId: chunk.toolCallId, input: chunk.input }, 'tool-call input JSON 解析失败');
+                args = {};
+              }
+              toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args });
+              this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args });
               break;
+            }
 
             case 'tool-approval-request':
               controller.enqueue(chunk);
