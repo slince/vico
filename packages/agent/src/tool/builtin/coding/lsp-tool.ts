@@ -172,16 +172,18 @@ const lspOutput = z.object({
 });
 
 async function executeLsp(args: z.infer<typeof lspParams>, ctx: ToolCallContext) {
-  const absPath = resolveWorkspacePath(ctx.session.workspace!, args.filePath);
+  // 编码类工具必须在 workspace 内运行，session.workspace 由 loop 保证注入
+  const workspace = ctx.session.workspace!;
+  const absPath = resolveWorkspacePath(workspace, args.filePath);
   if (!existsSync(absPath)) {
     return { result: '', action: args.action, supported: false, error: `文件不存在` };
   }
 
-  const { session, error } = startLspSession(ctx.session.workspace, absPath);
+  const { session, error } = startLspSession(workspace, absPath);
   if (error) return { result: '', action: args.action, supported: false, error };
 
   try {
-    await initSession(session, ctx.session.workspace, absPath);
+    await initSession(session, workspace, absPath);
   } catch (err: any) {
     return { result: '', action: args.action, supported: true, error: `LSP 初始化失败: ${err.message}` };
   }
