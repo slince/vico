@@ -1,5 +1,8 @@
-import type {LanguageModelV3} from '@ai-sdk/provider';
+import type {LanguageModelV4} from '@ai-sdk/provider';
+import { convertToModelMessages, validateUIMessages } from 'ai';
+import type { ModelMessage } from 'ai';
 import {ModelClient} from '../model/model-client.js';
+import type { ReasoningEffort } from '../model/types.js';
 import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
@@ -9,7 +12,6 @@ import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {AgentLoop} from './agent-loop.js';
 import {buildLoop} from "./utils.js";
 import {TurnOutput} from "./turn-output.js";
-import {ModelMessage} from "../model/types.js";
 import {TurnTracer} from "../observable/turn-tracer.js";
 import {RunOptions, TurnResult} from "./agent-loop-options.js";
 import type {UserMessage} from '../stream/types.js';
@@ -25,8 +27,10 @@ export interface AgentOptions {
   id: string;
   name: string;
   systemPrompt: string;
-  model: LanguageModelV3;
+  model: LanguageModelV4;
   temperature: number;
+  /** 推理力度，不传则 provider 默认 */
+  reasoning?: ReasoningEffort;
   maxTokens: number;
   maxSteps: number;
   skills: Skill[];
@@ -51,9 +55,10 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
   readonly id: string;
   readonly name: string;
   readonly systemPrompt: string;
-  readonly model: LanguageModelV3;
+  readonly model: LanguageModelV4;
   readonly modelClient: ModelClient;
   readonly temperature: number;
+  readonly reasoning?: ReasoningEffort;
   readonly maxTokens: number;
   readonly maxSteps: number;
   readonly skills: Skill[];
@@ -77,6 +82,7 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
     this.model = params.model;
     this.modelClient = new ModelClient(params.model);
     this.temperature = params.temperature;
+    this.reasoning = params.reasoning;
     this.maxTokens = params.maxTokens;
     this.maxSteps = params.maxSteps;
     this.skills = params.skills;
@@ -119,7 +125,7 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
   /**
    * 发起一次对话：发送消息并等待返回最终结果（非流式）。
    *
-   * @param message - 用户消息内容，支持纯文本字符串或 UIMessage 对象
+   * @param message - 用户消息内容，支持纯文本字符串或原生 UIMessage 数组
    * @param options - 调用可选参数
    * @param options.threadId - 指定线程 ID（不传则自动生成）
    * @param options.userId - 用户 ID
@@ -128,36 +134,32 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
    * @returns turn 最终结果
    */
   async invoke(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnResult> {
-    const output = this.run(message, options);
+    const output = await this.run(message, options);
     return output.result;
   }
 
   /**
    * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise。
-   *
-   * @param message - 用户消息内容，支持纯文本字符串或 UIMessage 对象
-   * @param options - 调用可选参数
-   * @param options.threadId - 指定线程 ID（不传则自动生成）
-   * @param options.userId - 用户 ID
-   * @param options.workspace - 工作空间路径
-   * @param options.scopeId - 工作记忆作用域标识
-   * @returns TurnOutput 实例，包含输出流和结果 Promise
+   * UIMessage[] 入参会先校验并转换为原生 ModelMessage。
    */
-  stream(message: UserMessage, options?: RunOptions<TMetadata>): TurnOutput {
+  stream(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnOutput> {
     return this.run(message, options);
   }
 
   /**
    * 构造用户消息并启动 AgentLoop runTurn。
-   * 支持 string（纯文本）、UIMessage（提取 content）、UIMessage[]（逐条转为 ModelMessage）。
-   *
-   * @param message - 用户消息内容
-   * @param options - 调用可选参数
-   * @returns TurnOutput 实例
+   * string → 单条 user 消息；UIMessage[] → validateUIMessages + convertToModelMessages 后取最后一条。
    */
-  private run(message: UserMessage, options?: RunOptions<TMetadata>) {
-    const content = typeof message === 'string' ? message : message.content;
-    const userMessage: ModelMessage = { role: 'user', content };
+  private async run(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnOutput> {
+    let userMessage: ModelMessage;
+    if (typeof message === 'string') {
+      userMessage = { role: 'user', content: message };
+    } else {
+      const validated = await validateUIMessages({ messages: message });
+      const converted = await convertToModelMessages(validated, { ignoreIncompleteToolCalls: true });
+      // 历史由 Memory 注入，此处只取转换结果的最后一条作为本轮用户消息
+      userMessage = converted[converted.length - 1] ?? { role: 'user', content: '' };
+    }
     return this.loop.run(userMessage, {
       ...(options ?? {}),
       workspace: options?.workspace ?? this.workspace,

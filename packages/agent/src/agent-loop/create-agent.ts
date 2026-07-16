@@ -1,7 +1,8 @@
 // @vico/agent — 独立 Agent 构建函数，不依赖 Vico 容器
-import type {LanguageModelV3} from '@ai-sdk/provider';
+import type {LanguageModelV4} from '@ai-sdk/provider';
 import {Agent} from './agent.js';
 import type {ModelRef, TurnEvent} from './types.js';
+import type { ReasoningEffort } from '../model/types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {WorkingMemory} from '../memory/types.js';
@@ -24,7 +25,7 @@ import {collectSkillDirs} from "./utils.js";
 
 
 /** LanguageModel 工厂类型 */
-export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV3;
+export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV4;
 
 type ToolSetting<T extends Tool[] = Tool[]> = {
   tools: T;
@@ -98,10 +99,12 @@ export interface AgentConfig {
   id: string;
   name: string;
   systemPrompt: string;
-  model: ModelRef | LanguageModelV3;
+  model: ModelRef | LanguageModelV4;
   temperature?: number;
   maxTokens?: number;
   maxSteps?: number;
+  /** 推理力度，不传则 provider 默认 */
+  reasoning?: ReasoningEffort;
   /** 额外工具（数组模式）或 { tools, config } 对象模式（可手动关闭工具） */
   tools?: ToolOptions;
   skills?: SkillOptions;
@@ -139,6 +142,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     systemPrompt: config.systemPrompt,
     model: model,
     temperature: config.temperature ?? 0.7,
+    reasoning: config.reasoning,
     maxTokens: config.maxTokens ?? 4096,
     maxSteps: config.maxSteps ?? 10,
     skills: skills || [],
