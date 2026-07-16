@@ -17,6 +17,7 @@
     "@ai-sdk/openai": "^4.0.13",
     "@ai-sdk/provider": "^4.0.3",
     "@ai-sdk/provider-utils": "^5.0.9",
+    "ai": "7.0.26",
     "@vico/rag": "workspace:*",
     "gray-matter": "^4.0.3",
     "mitt": "^3.0.1",
