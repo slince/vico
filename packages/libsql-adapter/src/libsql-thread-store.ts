@@ -1,7 +1,7 @@
 // @vico/libsql-adapter — Drizzle-backed ThreadStore implementation
 import { eq, desc, inArray, and } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import type { ThreadStore, Thread, Turn, Message, ToolCall } from '@vico/agent';
+import type { ThreadStore, Thread, Turn, Message } from '@vico/agent';
 import {
   threads,
   turns,
@@ -124,8 +124,6 @@ export class LibSqlThreadStore implements ThreadStore {
       turn_id: entry.turnId,
       role: entry.role,
       content: entry.content,
-      tool_call_id: entry.toolCallId ?? null,
-      tool_calls: entry.toolCalls ? JSON.stringify(entry.toolCalls) : null,
       metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
       created_at: now,
     });
@@ -217,10 +215,6 @@ export class LibSqlThreadStore implements ThreadStore {
       turnId: r.turn_id,
       role: r.role,
       content: r.content,
-      toolCallId: r.tool_call_id ?? undefined,
-      toolCalls: r.tool_calls
-        ? (JSON.parse(r.tool_calls) as ToolCall[])
-        : undefined,
       metadata: r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : undefined,
       createdAt: r.created_at,
     };

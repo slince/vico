@@ -24,15 +24,13 @@ export const turns = sqliteTable('vico_turns', {
   created_at: integer('created_at').notNull(),
 });
 
-/** 消息 */
+/** 消息 — content 存原生 ModelMessage.content 的 JSON 序列化 */
 export const messages = sqliteTable('vico_messages', {
   id: text('id').primaryKey(),
   thread_id: text('thread_id').notNull(),
   turn_id: text('turn_id').notNull(),
   role: text('role').notNull(),
   content: text('content').notNull(),
-  tool_call_id: text('tool_call_id'),
-  tool_calls: text('tool_calls'),
   metadata: text('metadata'),
   created_at: integer('created_at').notNull(),
 });

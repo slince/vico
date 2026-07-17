@@ -44,7 +44,7 @@ export async function ensureTables(
     )
   `);
 
-  // 消息表
+  // 消息表（content 存原生 ModelMessage.content JSON；不兼容旧库，重建即可）
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_messages (
       id TEXT PRIMARY KEY,
@@ -52,8 +52,6 @@ export async function ensureTables(
       turn_id TEXT NOT NULL,
       role TEXT NOT NULL,
       content TEXT NOT NULL,
-      tool_call_id TEXT,
-      tool_calls TEXT,
       metadata TEXT,
       created_at INTEGER NOT NULL
     )
