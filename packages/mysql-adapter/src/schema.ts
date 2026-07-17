@@ -23,15 +23,13 @@ export const turns = mysqlTable('vico_turns', {
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
 
-/** messages */
+/** messages — content 存原生 ModelMessage.content 的 JSON 序列化 */
 export const messages = mysqlTable('vico_messages', {
   id: varchar('id', { length: 36 }).primaryKey(),
   thread_id: varchar('thread_id', { length: 36 }).notNull(),
   turn_id: varchar('turn_id', { length: 36 }).notNull(),
   role: varchar('role', { length: 36 }).notNull(),
   content: text('content').notNull(),
-  tool_call_id: varchar('tool_call_id', { length: 255 }),
-  tool_calls: json('tool_calls'),
   metadata: json('metadata'),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });

@@ -42,7 +42,7 @@ export async function ensureTables(
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
-  // Messages table
+  // Messages table（content 存原生 ModelMessage.content JSON）
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS vico_messages (
       id VARCHAR(36) PRIMARY KEY,
@@ -50,8 +50,7 @@ export async function ensureTables(
       turn_id VARCHAR(36) NOT NULL,
       role VARCHAR(36) NOT NULL,
       content TEXT NOT NULL,
-      tool_call_id VARCHAR(255),
-      tool_calls JSON,
+      metadata JSON,
       created_at BIGINT NOT NULL,
       KEY idx_msg_thread (thread_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
