@@ -1,45 +1,34 @@
 import { Hono } from 'hono';
+import type { UIMessage } from 'ai';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { executeAgentChat } from '../chat/chat.js';
 import { turnOutputToSSEResponse, type ToolApproval } from '@vico/agent';
 import logger from '../lib/logger.js';
 
-/** AI SDK transport message part 类型 */
-interface AISDKMessagePart {
-  type: string;
-  text?: string;
-  approvalId?: string;
-  approved?: boolean;
-}
-
-/** AI SDK transport message 类型 */
-interface AISDKMessage {
-  role: string;
-  parts: AISDKMessagePart[];
-}
-
-function extractMessage(body: Record<string, unknown>): string | undefined {
-  if (typeof body.message === 'string' && body.message.trim()) return body.message;
-  const messages = body.messages as AISDKMessage[] | undefined;
+/** 从请求体提取最后一条 user UIMessage */
+function extractLastUserMessage(body: Record<string, unknown>): UIMessage | undefined {
+  const messages = body.messages as UIMessage[] | undefined;
   if (!messages?.length) return undefined;
-  const lastUserMsg = messages.filter(m => m.role === 'user').pop();
-  return lastUserMsg?.parts?.find(p => p.type === 'text')?.text;
+  return messages.filter((m) => m.role === 'user').pop();
 }
 
-/** 从消息 parts 中提取审批决策 */
-function extractApprovalDecisions(
-  body: Record<string, unknown>,
-): ToolApproval[] | undefined {
-  const messages = body.messages as AISDKMessage[] | undefined;
-  if (!messages?.length) return undefined;
-  const lastUserMsg = messages.filter(m => m.role === 'user').pop();
-  if (!lastUserMsg) return undefined;
-  const approvalParts = lastUserMsg.parts?.filter(p => p.type === 'tool-approval-response');
-  if (!approvalParts?.length) return undefined;
-  return approvalParts
-    .filter(p => p.approvalId)
-    .map(p => ({ toolCallId: p.approvalId!, approved: p.approved ?? false }));
+/** 提取消息文本（判断本次请求是否携带用户输入） */
+function extractText(msg: UIMessage | undefined): string {
+  if (!msg) return '';
+  return msg.parts
+    .filter((p): p is Extract<UIMessage['parts'][number], { type: 'text' }> => p.type === 'text')
+    .map((p) => p.text)
+    .join('');
+}
+
+/** 从消息 parts 中提取审批决策（tool-approval-response 为客户端扩展 part） */
+function extractApprovalDecisions(msg: UIMessage | undefined): ToolApproval[] | undefined {
+  if (!msg) return undefined;
+  const approvalParts = (msg.parts as Array<{ type: string; approvalId?: string; approved?: boolean }>)
+    .filter((p) => p.type === 'tool-approval-response' && p.approvalId);
+  if (!approvalParts.length) return undefined;
+  return approvalParts.map((p) => ({ toolCallId: p.approvalId!, approved: p.approved ?? false }));
 }
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
@@ -50,7 +39,8 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 
     const body = await c.req.json();
     const agentId: string | undefined = body.agentId;
-    const message = extractMessage(body);
+    const lastUserMessage = extractLastUserMessage(body);
+    const messageText = extractText(lastUserMessage);
     const requestedThreadId: string | undefined = body.threadId as string;
 
     // 前端本地临时 ID（如 __LOCALID_xxx）替换为真实 UUID
@@ -58,16 +48,17 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const threadId = isLocalThreadId ? crypto.randomUUID() : requestedThreadId;
 
     // 提取审批决策（若消息中仅含 tool-approval-response 无文本，agent loop 自动恢复 paused turn）
-    const approvalDecisions = message ? undefined : extractApprovalDecisions(body);
+    const approvalDecisions = messageText ? undefined : extractApprovalDecisions(lastUserMessage);
 
-    if (!agentId || (!message && !approvalDecisions?.length) || !requestedThreadId) {
+    if (!agentId || (!messageText && !approvalDecisions?.length) || !requestedThreadId) {
       return c.json({ error: 'agentId, message and threadId are required' }, 400);
     }
 
     try {
       const stream = await executeAgentChat({
         agentId,
-        message: message ?? '',
+        // 原生 UIMessage[] 直接下传（agent 内部 convertToModelMessages）
+        message: lastUserMessage && messageText ? [lastUserMessage] : '',
         threadId,
         tenantId: auth.tenantId,
         userId: auth.userId,
@@ -76,7 +67,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 
       return turnOutputToSSEResponse(stream, {
         onFinish: (finish) => {
-          finish.messageMetadata = { ...(finish.messageMetadata as any), threadId };
+          finish.messageMetadata = { ...(finish.messageMetadata as object), threadId };
         },
       });
     } catch (error: unknown) {

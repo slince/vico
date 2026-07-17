@@ -18,7 +18,6 @@ export interface MessageItem {
   thread_id: string;
   role: string;
   content: string;
-  tool_calls?: string;
   token_usage: number;
   created_at: number;
 }

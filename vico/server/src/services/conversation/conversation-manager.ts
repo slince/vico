@@ -2,28 +2,18 @@ import {eq} from 'drizzle-orm';
 import {getDb, schema} from '../../db/db.js';
 import {vico} from '../../vico.js';
 import type {ConversationDetail, ConversationItem, MessageItem, RecentConversation} from './types.js';
-import {Message, ThreadStore} from "@vico/agent";
+import {getMessageText, type Message, type ModelMessage, type ThreadStore} from "@vico/agent";
 
 const { agents } = schema;
 
 /**
- * 从消息中提取纯文本内容。
+ * 从持久化消息中提取纯文本（content 为原生 ModelMessage.content 的 JSON）。
  */
-function extractMessageText(msg: any): string {
+function extractMessageText(msg: Message): string {
   try {
-    if (typeof msg.content === 'string') return msg.content;
-    const c = msg.content;
-    if (c?.content && typeof c.content === 'string') return c.content;
-    if (c?.parts && Array.isArray(c.parts)) {
-      const texts = c.parts
-        .filter((p: any) => p.type === 'text')
-        .map((p: any) => p.text)
-        .join('');
-      if (texts) return texts;
-    }
-    return JSON.stringify(c);
+    return getMessageText({ role: msg.role, content: JSON.parse(msg.content) } as ModelMessage);
   } catch {
-    return '';
+    return msg.content;
   }
 }
 
@@ -107,7 +97,6 @@ class ConversationManager {
       thread_id: msg.threadId ?? id,
       role: ['user', 'assistant', 'system'].includes(msg.role) ? msg.role : 'system',
       content: extractMessageText(msg),
-      tool_calls: msg.toolCalls ? JSON.stringify(msg.toolCalls) : undefined,
       token_usage: 0,
       created_at: msg.createdAt ?? Date.now(),
     }));
