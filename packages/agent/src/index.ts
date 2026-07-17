@@ -12,25 +12,21 @@ export {
 export { type MemoryRecord } from './memory/types.js';
 export { type SpanType } from './observable/types.js';
 
-// Ports — Model
-export {
-  type ModelMessage,
-  type MessageRole,
-} from './model/types.js';
+// Ports — Model（消息/流类型全部 re-export AI SDK 原生类型）
+export type { ModelMessage, UIMessage, UIMessageChunk, ToolSet } from 'ai';
+export { convertToModelMessages, validateUIMessages } from 'ai';
 export { createLanguageModel } from './model/factory.js';
 
 // ModelClient and types
 export { ModelClient } from './model/model-client.js';
-export type {
-  ModelStreamChunk,
-  ModelRequest,
-  ModelStreamResult,
-  ToolDescriptor,
-} from './model/types.js';
+export type { ModelRequest, ModelStreamResult, ReasoningEffort } from './model/types.js';
+export {
+  getMessageText, getToolCalls, hasToolResult, getToolResultText,
+  buildAssistantMessage, buildToolResultMessage, modelMessageToUIMessage, toToolSet,
+} from './model/message-utils.js';
 
 // Stream
-export type { UIStreamChunk, UIMessage, UIMessagePart, UserMessage } from './stream/types.js';
-export { createSSEResponse } from './stream/sse.js';
+export type { UserMessage } from './stream/types.js';
 
 // Context processors (onion model)
 export {
@@ -63,7 +59,7 @@ export {
 } from './memory/types.js';
 
 // Tool system
-export { createTool, toToolDescriptor, type ToolOptions } from './tool/create-tool.js';
+export { createTool, type ToolOptions } from './tool/create-tool.js';
 export { ToolExecutor } from './agent-loop/tool-executor.js';
 export {
   type ToolCallContext,

@@ -1,6 +1,6 @@
 // agent-loop-checkpoint.test.ts — AgentLoop checkpoint integration tests
 import { describe, expect, it, vi } from 'vitest';
-import type { LanguageModelV3, LanguageModelV3StreamResult } from '@ai-sdk/provider';
+import type { LanguageModelV4, LanguageModelV4StreamResult } from '@ai-sdk/provider';
 import { AgentLoop } from '../src/agent-loop/agent-loop.js';
 import { Agent } from '../src/agent-loop/agent.js';
 import type { TurnEvent } from '../src/agent-loop/types.js';
@@ -15,10 +15,10 @@ import type { CheckpointStore } from '../src/agent-loop/checkpoint.js';
 import type { Tool } from '../src/tool/types.js';
 import { z } from 'zod';
 
-/** Create a mock LanguageModelV3 whose doStream yields given stream parts */
-function createMockModel(chunks: any[]): LanguageModelV3 {
+/** Create a mock LanguageModelV4 whose doStream yields given stream parts */
+function createMockModel(chunks: any[]): LanguageModelV4 {
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     provider: 'mock',
     modelId: 'mock-model',
     supportedUrls: {},
@@ -32,7 +32,7 @@ function createMockModel(chunks: any[]): LanguageModelV3 {
           controller.close();
         },
       }),
-    } satisfies LanguageModelV3StreamResult),
+    } satisfies LanguageModelV4StreamResult),
   };
 }
 
@@ -74,8 +74,8 @@ describe('AgentLoop with checkpoint', () => {
     // Mock model: first call returns a tool-call, second call throws to prevent
     // normal completion (which would clean up the checkpoint).
     let callCount = 0;
-    const mockModel: LanguageModelV3 = {
-      specificationVersion: 'v3',
+    const mockModel: LanguageModelV4 = {
+      specificationVersion: 'v4',
       provider: 'mock',
       modelId: 'mock-model',
       supportedUrls: {},
@@ -91,7 +91,7 @@ describe('AgentLoop with checkpoint', () => {
                 controller.close();
               },
             }),
-          } satisfies LanguageModelV3StreamResult;
+          } satisfies LanguageModelV4StreamResult;
         }
         throw new Error('model error');
       }),

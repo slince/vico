@@ -1,6 +1,6 @@
 // agent-runtime.test.ts — tests for AgentRuntime: register, destroy, LRU eviction
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { LanguageModelV3 } from '@ai-sdk/provider';
+import type { LanguageModelV4 } from '@ai-sdk/provider';
 import { AgentRuntime } from '../src/agent-loop/agent-runtime.js';
 import { Agent } from '../src/agent-loop/agent.js';
 import type { TurnEvent } from '../src/agent-loop/types.js';
@@ -9,7 +9,7 @@ import { TurnTracer } from '../src/observable/turn-tracer.js';
 import { MemoryStore } from '../src/memory/memory-store.js';
 import { InMemoryThreadStore } from '../src/thread/memory-thread-store.js';
 
-const mockLM: LanguageModelV3 = 'mock-model' as unknown as LanguageModelV3;
+const mockLM: LanguageModelV4 = 'mock-model' as unknown as LanguageModelV4;
 
 function makeAgent(id: string): Agent {
   const events = new MittEventRecorder<TurnEvent>();

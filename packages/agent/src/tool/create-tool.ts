@@ -1,7 +1,6 @@
 // @vico/agent - createTool: factory for building Tool objects with Zod validation
-import {z} from 'zod';
+import type {z} from 'zod';
 import type {Tool, ToolCallContext, ToolKind, ToolPolicy} from './types.js';
-import type {ToolDescriptor} from '../model/types.js';
 
 /** createTool 的配置选项 */
 export interface ToolOptions<TInput = any, TOutput = any> {
@@ -26,8 +25,8 @@ export interface ToolOptions<TInput = any, TOutput = any> {
 /**
  * 创建一个 Tool 对象。
  *
- * 使用 Zod schema 定义参数，自动在 execute 前校验 call.args，
- * 并可通过 toToolDescriptor() 将 Zod schema 转为 JSON Schema 供模型调用。
+ * 使用 Zod schema 定义参数，自动在 execute 前校验 call.args；
+ * 模型侧经 message-utils 的 toToolSet() 转为 AI SDK 原生 ToolSet。
  *
  * @example
  * ```ts
@@ -58,19 +57,5 @@ export function createTool<TInput = any, TOutput = any>(options: ToolOptions<TIn
       }
       return result;
     },
-  };
-}
-
-/**
- * 将 Tool 的 Zod inputSchema 转为 ToolDescriptor（含 JSON Schema）供模型调用。
- *
- * @param tool - 工具对象，包含 name、description 和 Zod inputSchema
- * @returns ToolDescriptor 对象，包含 JSON Schema 格式的 inputSchema
- */
-export function toToolDescriptor(tool: Tool): ToolDescriptor {
-  return {
-    name: tool.name,
-    description: tool.description,
-    inputSchema: z.toJSONSchema(tool.inputSchema) as Record<string, unknown>,
   };
 }

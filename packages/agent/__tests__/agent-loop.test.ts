@@ -1,6 +1,6 @@
 // agent-loop.test.ts — integration tests for AgentLoop: text-only, tool calls, interrupt
 import {describe, expect, it, vi} from 'vitest';
-import type {LanguageModelV3, LanguageModelV3StreamResult} from '@ai-sdk/provider';
+import type {LanguageModelV4, LanguageModelV4StreamResult} from '@ai-sdk/provider';
 
 import {AgentLoop} from '../src/agent-loop/agent-loop.js';
 import {Agent} from '../src/agent-loop/agent.js';
@@ -12,10 +12,10 @@ import {MemoryStore} from '../src/memory/memory-store.js';
 import {InMemoryThreadStore} from '../src/thread/memory-thread-store.js';
 import {collectTurnResult} from '../src/agent-loop/utils.js';
 
-/** Create a mock LanguageModelV3 whose doStream yields given stream parts */
-function createMockModel(chunks: any[]): LanguageModelV3 {
+/** Create a mock LanguageModelV4 whose doStream yields given stream parts */
+function createMockModel(chunks: any[]): LanguageModelV4 {
   return {
-    specificationVersion: 'v3',
+    specificationVersion: 'v4',
     provider: 'mock',
     modelId: 'mock-model',
     supportedUrls: {},
@@ -29,7 +29,7 @@ function createMockModel(chunks: any[]): LanguageModelV3 {
           controller.close();
         },
       }),
-    } satisfies LanguageModelV3StreamResult),
+    } satisfies LanguageModelV4StreamResult),
   };
 }
 
@@ -105,15 +105,15 @@ describe('AgentLoop', () => {
       },
     });
 
-    const mockModel: LanguageModelV3 = {
-      specificationVersion: 'v3',
+    const mockModel: LanguageModelV4 = {
+      specificationVersion: 'v4',
       provider: 'mock',
       modelId: 'mock-model',
       supportedUrls: {},
       doGenerate: vi.fn().mockRejectedValue(new Error('not implemented')),
       doStream: vi.fn().mockImplementation(() => Promise.resolve({
         stream: makeStream(),
-      } satisfies LanguageModelV3StreamResult)),
+      } satisfies LanguageModelV4StreamResult)),
     };
 
     const events = new MittEventRecorder<TurnEvent>();
@@ -151,8 +151,8 @@ describe('AgentLoop', () => {
   });
 
   it('interrupts mid-turn', async () => {
-    const mockModel: LanguageModelV3 = {
-      specificationVersion: 'v3',
+    const mockModel: LanguageModelV4 = {
+      specificationVersion: 'v4',
       provider: 'mock',
       modelId: 'mock-model',
       supportedUrls: {},
@@ -171,7 +171,7 @@ describe('AgentLoop', () => {
             controller.close();
           },
         }),
-      } satisfies LanguageModelV3StreamResult)),
+      } satisfies LanguageModelV4StreamResult)),
     };
 
     const events = new MittEventRecorder<TurnEvent>();
