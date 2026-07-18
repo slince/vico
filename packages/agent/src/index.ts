@@ -23,6 +23,7 @@ export type { ModelRequest, ModelStreamResult, ReasoningEffort } from './model/t
 export {
   getMessageText, getToolCalls, hasToolResult, getToolResultText,
   buildAssistantMessage, buildToolResultMessage, modelMessageToUIMessage, toToolSet,
+  buildApprovalResponseMessage, extractApprovalResponses, pickPrimaryUserMessage,
 } from './model/message-utils.js';
 
 // Stream
@@ -162,7 +163,7 @@ export { createAgent } from './agent-loop/create-agent.js';
 // AgentLoop
 export { AgentLoop } from './agent-loop/agent-loop.js';
 export { type AgentLoopOptions } from './agent-loop/agent-loop.js';
-export { collectTurnResult } from './agent-loop/utils.js';
+export { collectTurnResult, normalizeUserMessage, extractApprovalDecisions } from './agent-loop/utils.js';
 export { TurnOutput } from './agent-loop/turn-output.js';
 export { type TurnEvent } from './agent-loop/types.js';
 export { type TurnResult, type RunOptions, type ToolApproval } from './agent-loop/agent-loop-options.js';

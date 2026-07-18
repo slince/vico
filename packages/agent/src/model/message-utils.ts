@@ -2,9 +2,10 @@
 import { tool } from 'ai';
 import type { ModelMessage, UIMessage, ToolSet } from 'ai';
 import type {
-  AssistantModelMessage, ToolModelMessage, ToolResultPart, TextPart, ToolCallPart,
+  AssistantModelMessage, ToolModelMessage, ToolResultPart, TextPart, ToolCallPart, ToolApprovalResponse,
 } from '@ai-sdk/provider-utils';
 import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
+import type { ToolApproval } from '../agent-loop/agent-loop-options.js';
 
 /**
  * 提取消息的纯文本内容（string content 直接返回，parts 拼接全部 text part）。
@@ -97,6 +98,57 @@ export function buildToolResultMessage(result: ToolResult, content: string): Too
         ? { type: 'text', value: content }
         : { type: 'error-text', value: content },
     }],
+  };
+}
+
+/**
+ * 审批决策 → 原生 tool 消息（tool-approval-response parts）。
+ * approvalId 复用 toolCallId（与引擎审批请求的约定一致），审批决策以 in-band 消息随对话下传。
+ */
+export function buildApprovalResponseMessage(decisions: ToolApproval[]): ToolModelMessage {
+  return {
+    role: 'tool',
+    content: decisions.map((d): ToolApprovalResponse => ({
+      type: 'tool-approval-response',
+      approvalId: d.toolCallId,
+      approved: d.approved,
+    })),
+  };
+}
+
+/**
+ * 从消息组解析原生 tool-approval-response part 为审批决策，并剔除审批 part。
+ * 审批语义由引擎消费（checkpoint resume），不进入发给模型的消息链；
+ * 同一 toolCallId 后出现的决策覆盖先前的；parts 清空的 tool 消息整条移除。
+ *
+ * @param messages - 本轮输入消息组
+ * @returns decisions（解析出的决策）+ rest（剔除审批 part 后的其余消息）
+ */
+export function extractApprovalResponses(messages: ModelMessage[]): { decisions: ToolApproval[]; rest: ModelMessage[] } {
+  const decisionMap = new Map<string, boolean>();
+  const rest: ModelMessage[] = [];
+
+  for (const msg of messages) {
+    if (msg.role !== 'tool') {
+      rest.push(msg);
+      continue;
+    }
+    const remaining: ToolResultPart[] = [];
+    for (const part of msg.content) {
+      if (part.type === 'tool-approval-response') {
+        decisionMap.set(part.approvalId, part.approved);
+      } else {
+        remaining.push(part);
+      }
+    }
+    if (remaining.length > 0) {
+      rest.push({ ...msg, content: remaining });
+    }
+  }
+
+  return {
+    decisions: [...decisionMap].map(([toolCallId, approved]) => ({ toolCallId, approved })),
+    rest,
   };
 }
 

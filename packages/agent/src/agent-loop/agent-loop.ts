@@ -24,6 +24,7 @@ import {
 import {
   buildAssistantMessage,
   buildToolResultMessage,
+  extractApprovalResponses,
   getMessageText,
   getToolResultText,
   hasToolResult,
@@ -205,7 +206,7 @@ export class AgentLoop {
     return this.startTurnLoop( 0, context, turnSpan, usage);
   }
 
-  /** 从未完结的 turn 恢复执行，携带新的用户消息 */
+  /** 从未完结的 turn 恢复执行，携带新的用户消息（审批决策从消息组中的原生 tool-approval-response part 解析） */
   private async resumeTurn(params: {
     thread: Thread;
     turn: Turn;
@@ -219,19 +220,22 @@ export class AgentLoop {
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
-    const { scopeId, workspace: optWorkspace, approvalDecisions } = options || {};
+    const { scopeId, workspace: optWorkspace } = options || {};
     const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
+
+    // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
+    const { decisions, rest } = extractApprovalResponses(userMessages);
 
     // 重建 session 和 context
     const session: TurnSession = { workspace, scopeId, thread, turn };
-    const trace = this.tracer.create(thread, userMessages, turn.id);
+    const trace = this.tracer.create(thread, rest, turn.id);
     const turnSpan = trace.startSpan('agent_resume');
 
     // 加载历史消息
     const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
     const messages = toModelMessages(entries);
 
-    const requestContext = new ModelRequestContext({agent: this.agent, userMessage: userMessages, messages, tools: [...this.agent.tools], session});
+    const requestContext = new ModelRequestContext({agent: this.agent, userMessage: rest, messages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
 
     // ——— checkpoint 恢复逻辑 ———
@@ -251,7 +255,7 @@ export class AgentLoop {
     if (checkpoint.pauseInfo) {
       // 路径 A：审批恢复
       this.log.info({ turnId: turn.id }, 'resume path A: approval recovery');
-      await this.applyPauseInfoRecovery(checkpoint.pauseInfo, approvalDecisions || [], context);
+      await this.applyPauseInfoRecovery(checkpoint.pauseInfo, decisions, context);
       // 清除 pauseInfo
       await this.checkpointStore.save(turn.id, thread.id, { pauseInfo: null });
     } else if (checkpoint.pendingToolCall) {
@@ -263,8 +267,8 @@ export class AgentLoop {
       this.log.info({ turnId: turn.id }, 'resume path C: direct continue');
     }
 
-    messages.push(...userMessages);
-    for (const m of userMessages) {
+    messages.push(...rest);
+    for (const m of rest) {
       await this.persistMessage(m, context);
     }
     await this.agent.thread.updateTurn(turn.id, { status: 'running' });

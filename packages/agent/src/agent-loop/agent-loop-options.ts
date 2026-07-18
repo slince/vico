@@ -112,6 +112,4 @@ export interface RunOptions<TMetadata extends Record<string, unknown> = Record<s
   workspace?: string;
   /** 自定义元数据（JSON 可序列化），写入 thread.metadata */
   metadata?: TMetadata;
-  /** 审批决策。若 thread 中存在 paused turn，runTurn 自动恢复执行 */
-  approvalDecisions?: ToolApproval[];
 }

@@ -3,8 +3,7 @@ import {createUIMessageStreamResponse, toUIMessageStream, UIMessage} from 'ai';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
-import {type ToolApproval, turnOutputToSSEResponse} from '@vico/agent';
-import logger from '../lib/logger.js';
+import {extractApprovalDecisions} from '@vico/agent';
 
 /** 从请求体提取最后一条 user UIMessage */
 function extractLastUserMessage(body: Record<string, unknown>): UIMessage | undefined {
@@ -20,15 +19,6 @@ function extractText(msg: UIMessage | undefined): string {
     .filter((p): p is Extract<UIMessage['parts'][number], { type: 'text' }> => p.type === 'text')
     .map((p) => p.text)
     .join('');
-}
-
-/** 从消息 parts 中提取审批决策（tool-approval-response 为客户端扩展 part） */
-function extractApprovalDecisions(msg: UIMessage | undefined): ToolApproval[] | undefined {
-  if (!msg) return undefined;
-  const approvalParts = (msg.parts as Array<{ type: string; approvalId?: string; approved?: boolean }>)
-    .filter((p) => p.type === 'tool-approval-response' && p.approvalId);
-  if (!approvalParts.length) return undefined;
-  return approvalParts.map((p) => ({ toolCallId: p.approvalId!, approved: p.approved ?? false }));
 }
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
@@ -47,21 +37,20 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;
     const threadId = isLocalThreadId ? crypto.randomUUID() : requestedThreadId;
 
-    // 提取审批决策（若消息中仅含 tool-approval-response 无文本，agent loop 自动恢复 paused turn）
-    const approvalDecisions = messageText ? undefined : extractApprovalDecisions(lastUserMessage);
+    // 仅用于入参校验：有文本或有审批响应才是有效请求（提取/恢复由 agent 内部完成）
+    const hasApproval = !!(lastUserMessage && extractApprovalDecisions([lastUserMessage])?.length);
 
-    if (!agentId || (!messageText && !approvalDecisions?.length) || !requestedThreadId) {
+    if (!agentId || (!messageText && !hasApproval) || !requestedThreadId) {
       return c.json({ error: 'agentId, message and threadId are required' }, 400);
     }
 
     const output = await executeAgentChat({
       agentId,
-      // 原生 UIMessage[] 直接下传（agent 内部 convertToModelMessages）
-      message: lastUserMessage && messageText ? [lastUserMessage] : '',
+      // 原生 UIMessage[] 直接下传：审批 part 由 agent 内部提取剥离，paused turn 自动恢复
+      message: [lastUserMessage!],
       threadId,
       tenantId: auth.tenantId,
       userId: auth.userId,
-      approvalDecisions,
     });
 
     return createUIMessageStreamResponse({
@@ -70,41 +59,5 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
         threadId: threadId
       }
     });
-  });
-
-  /** 恢复已暂停的 turn（委托给 executeAgentChat，agent loop 自动检测 paused turn） */
-  app.post('/api/v1/chat/resume', async (c) => {
-    const auth = await getAuthContext(c);
-    if (auth instanceof Response) return auth;
-
-    const body = await c.req.json();
-    const agentId: string | undefined = body.agentId;
-    const threadId: string | undefined = body.threadId;
-    const approvalDecisions: ToolApproval[] = body.approvalDecisions ?? [];
-
-    if (!agentId || !threadId) {
-      return c.json({ error: 'agentId and threadId are required' }, 400);
-    }
-
-    try {
-      const stream = await executeAgentChat({
-        agentId,
-        message: '',
-        threadId,
-        tenantId: auth.tenantId,
-        userId: auth.userId,
-        approvalDecisions,
-      });
-
-      return turnOutputToSSEResponse(stream, {
-        onFinish: (finish) => {
-          finish.messageMetadata = { ...(finish.messageMetadata as any), threadId };
-        },
-      });
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'An internal error occurred';
-      logger.error({ err: error, agentId, tenantId: auth.tenantId }, 'Chat resume stream error');
-      return c.json({ error: msg }, 500);
-    }
   });
 }

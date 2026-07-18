@@ -145,7 +145,9 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
   }
 
   /**
-   * 归一化用户消息并启动 AgentLoop runTurn（见 normalizeUserMessage）。
+   * 归一化用户消息并启动 AgentLoop runTurn。
+   * UIMessage[] 中的审批响应会合成为原生 tool-approval-response 消息随消息组 in-band 下传，
+   * 由 AgentLoop.resumeTurn 解析消费（见 normalizeUserMessage / extractApprovalResponses）。
    */
   private async run(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnOutput> {
     return this.loop.run(await normalizeUserMessage(message), options);
