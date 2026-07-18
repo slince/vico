@@ -44,9 +44,10 @@ export class TurnTrace {
   /** 活跃 span 栈，栈顶为当前未结束的 span，自动作为子 span 的父级 */
   private activeSpans = new Stack<SpanState>();
 
-  constructor(thread: Thread, userMessage: ModelMessage) {
+  constructor(thread: Thread, userMessage: ModelMessage | ModelMessage[]) {
     this.threadId = thread.id;
-    this.userMessage = getMessageText(userMessage);
+    // 消息组时记录全部输入文本（换行拼接），保持字段为 string 供适配器直接导出
+    this.userMessage = [userMessage].flat().map(getMessageText).join('\n');
     this.startTime = Date.now();
   }
 
@@ -167,11 +168,11 @@ export class TurnTracer {
    * 为当前 turn 获取或创建追踪数据。
    * 若该 turnId 已有暂停的 trace 则复用（保证 trace 不分裂），否则创建新 trace 并订阅事件。
    * @param thread - 当前 Thread 对象
-   * @param userMessage - 用户消息
+   * @param userMessage - 用户消息（单条或本轮消息组）
    * @param turnId - 当前 turn ID
    * @returns TurnTrace 实例
    */
-  create(thread: Thread, userMessage: ModelMessage, turnId: string): TurnTrace {
+  create(thread: Thread, userMessage: ModelMessage | ModelMessage[], turnId: string): TurnTrace {
     const existing = this.sessions.get(turnId);
     if (existing) return existing.trace;
 

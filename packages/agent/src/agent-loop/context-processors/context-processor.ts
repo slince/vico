@@ -1,6 +1,6 @@
 // @vico/agent - ContextProcessor onion model: ordered pipeline of prompt modifiers
-import type { ModelMessage } from 'ai';
-import { getMessageText } from '../../model/message-utils.js';
+import type {ModelMessage} from 'ai';
+import {getMessageText, pickPrimaryUserMessage} from '../../model/message-utils.js';
 import type {Tool} from '../../tool/types.js';
 import type {Thread} from '../../thread/thread-store.js';
 import {Step, TurnSession} from "../agent-loop-options.js";
@@ -31,8 +31,8 @@ export class ModelRequestContext {
   readonly agent: AgentRef;
   /** 系统提示词 — 处理器追加内容 */
   systemPrompt: string;
-  /** 当前用户消息 */
-  readonly userMessage: ModelMessage;
+  /** 本轮输入消息组（单条入参归一化为单元素数组） */
+  readonly userMessages: ModelMessage[];
   /** 消息列表 — 处理器可追加 history（unshift）和 system/memory 消息（push） */
   messages: ModelMessage[];
   /** 暴露给 LLM 的工具 */
@@ -44,7 +44,8 @@ export class ModelRequestContext {
 
   constructor(init: {
     agent: AgentRef;
-    userMessage?: ModelMessage;
+    /** 本轮用户消息：单条或消息组 */
+    userMessage?: ModelMessage | ModelMessage[];
     messages?: ModelMessage[];
     systemPrompt?: string;
     tools?: Tool[];
@@ -52,12 +53,17 @@ export class ModelRequestContext {
     step?: Step;
   }) {
     this.agent = init.agent;
-    this.userMessage = init.userMessage ?? init.messages?.find(m => m.role === 'user')!;
-    this.messages = init.userMessage ? [init.userMessage] : (init.messages ?? []);
+    this.userMessages = init.userMessage === undefined ? [] : [init.userMessage].flat();
+    this.messages = this.userMessages.length > 0 ? [...this.userMessages] : (init.messages ?? []);
     this.systemPrompt = init.systemPrompt ?? '';
     this.tools = init.tools ?? [];
     this.session = init.session;
     this.step = init.step;
+  }
+
+  /** 主用户消息（本轮消息组中末条 user 角色；未提供消息组时从 messages 兜底查找） */
+  get userMessage(): ModelMessage {
+    return pickPrimaryUserMessage(this.userMessages) ?? this.messages.find(m => m.role === 'user')!;
   }
 
   /** 便捷获取当前线程 */
@@ -113,7 +119,7 @@ export class ProcessorPipeline {
   /** 降序排列（leave 用） */
   private readonly desc: ContextProcessor[];
 
-  constructor(private readonly processors: ContextProcessor[]) {
+  constructor(readonly processors: ContextProcessor[]) {
     const sorted = [...processors].sort((a, b) => a.priority - b.priority);
     this.asc = sorted;
     this.desc = [...sorted].reverse();

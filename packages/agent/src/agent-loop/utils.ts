@@ -8,7 +8,9 @@ import {MemoryProcessor} from "./context-processors/memory-processor.js";
 import {WorkspaceToolProcessor} from "./context-processors/workspace-tool-processor.js";
 import {TurnResult} from "./agent-loop-options.js";
 import type {Message} from '../thread/thread-store.js';
-import type { ModelMessage } from 'ai';
+import type { ModelMessage, UIMessage } from 'ai';
+import {convertToModelMessages, validateUIMessages} from 'ai';
+import type {UserMessage} from '../stream/types.js';
 import {SkillSettings} from "./create-agent.js";
 import {resolve} from "node:path";
 import {homedir} from "node:os";
@@ -34,6 +36,28 @@ export function toModelMessages(entries: Message[]): ModelMessage[] {
  */
 export function fromModelMessage(msg: ModelMessage): { role: string; content: string } {
   return { role: msg.role, content: JSON.stringify(msg.content) };
+}
+
+/**
+ * UserMessage 归一化为本轮输入消息组：
+ * - `string` → 单条 user 消息
+ * - `UIMessage[]`（按首元素 `parts` 字段判别）→ validateUIMessages + convertToModelMessages 后取最后一条
+ *   （历史由 Memory 注入，useChat 全量历史不重复入库）
+ * - `ModelMessage[]` → 原样透传全部（调用方全权控制本轮注入的消息组）
+ *
+ * @param message - 三种形态的用户入参
+ * @returns 本轮输入的 ModelMessage 数组（空入参兜底为单条空 user 消息）
+ */
+export async function normalizeUserMessage(message: UserMessage): Promise<ModelMessage[]> {
+  if (typeof message === 'string') return [{ role: 'user', content: message }];
+  if (message.length === 0) return [{ role: 'user', content: '' }];
+  // UIMessage 必有 parts 字段，ModelMessage 必有 content 字段
+  if ('parts' in message[0]) {
+    const validated = await validateUIMessages({ messages: message as UIMessage[] });
+    const converted = await convertToModelMessages(validated, { ignoreIncompleteToolCalls: true });
+    return [converted[converted.length - 1] ?? { role: 'user', content: '' }];
+  }
+  return message as ModelMessage[];
 }
 
 /**

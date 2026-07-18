@@ -21,7 +21,7 @@ import {
   v4FilePart,
   v4ToolResultPart,
 } from './stream-parts.js';
-import { getMessageText, buildAssistantMessage, buildToolResultMessage, hasToolResult, getToolResultText } from '../model/message-utils.js';
+import { getMessageText, pickPrimaryUserMessage, buildAssistantMessage, buildToolResultMessage, hasToolResult, getToolResultText } from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import type {TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
@@ -83,11 +83,13 @@ export class AgentLoop {
    * 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise）。
    * 历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止。
    *
-   * @param userMessage - 用户消息
+   * @param userMessage - 用户消息（单条或消息组；数组时全部作为本轮输入逐条持久化）
    * @param options - turn 运行可选参数
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  run(userMessage: ModelMessage, options?: RunOptions): TurnOutput {
+  run(userMessage: ModelMessage | ModelMessage[], options?: RunOptions): TurnOutput {
+    // 入口统一归一为消息组，内部一律按数组处理
+    const userMessages = Array.isArray(userMessage) ? userMessage : [userMessage];
     let resolveResult!: (result: TurnResult) => void;
     let rejectResult!: (err: Error|string) => void;
     const resultPromise = new Promise<TurnResult>((resolve, reject) => {
@@ -106,7 +108,7 @@ export class AgentLoop {
         // 引擎生命周期起点：整个 turn 输出流的第一个 part
         controller.enqueue({ type: 'start' });
         try {
-          const result = await this.start({userMessage, signal: internalAc.signal, controller, options});
+          const result = await this.start({userMessages, signal: internalAc.signal, controller, options});
           resolveResult(result);
         } catch (err) {
           const error = err instanceof Error ? err : String(err)
@@ -128,19 +130,21 @@ export class AgentLoop {
    * 自动检测 thread 中是否存在 paused turn，有则恢复执行，无则创建新 turn。
    */
   private async start(ctx: {
-    userMessage: ModelMessage;
+    userMessages: ModelMessage[];
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<AgentStreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
-    const { userMessage, signal, controller, options } = ctx;
+    const { userMessages, signal, controller, options } = ctx;
     const threadId = options?.threadId ?? `${this.agent.id}-${Date.now()}`;
 
     // 注意：getLatestTurn → createTurn 之间存在 check-then-act 窗口，
     // 并发请求可能同时判断无未完成 turn 并各自创建。依赖 threadStore 实现侧的并发控制。
     let thread = await this.agent.thread.getThread(threadId);
     if (!thread) {
-      const title = getMessageText(userMessage).slice(0, 50);
+      // 标题取主用户消息（末条 user 角色）文本
+      const primary = pickPrimaryUserMessage(userMessages);
+      const title = (primary ? getMessageText(primary) : '').slice(0, 50);
       const workspace = options?.workspace ?? this.agent.workspace;
       const metadata = { ...options?.metadata, workspace };
       thread = await this.agent.thread.createThread(this.agent.id, title, threadId, { ...options, metadata });
@@ -153,24 +157,24 @@ export class AgentLoop {
       const checkpoint = await this.checkpointStore.getByTurn(latestTurn.id);
       if (checkpoint) {
         this.log.info({ turnId: latestTurn.id, threadId, status: latestTurn.status }, 'resuming turn');
-        return this.resumeTurn({thread, turn: latestTurn, checkpoint, userMessage, signal, controller, options});
+        return this.resumeTurn({thread, turn: latestTurn, checkpoint, userMessages, signal, controller, options});
       }
       this.log.info({ turnId: latestTurn.id, threadId, status: latestTurn.status }, 'uncompleted turn has no checkpoint, starting new turn');
     }
 
     // ── 正常新 turn ──
-    return this.startTurn({ thread, userMessage, signal, controller, options });
+    return this.startTurn({ thread, userMessages, signal, controller, options });
   }
 
   /** 创建新的 turn 并开始执行 */
   private async startTurn(params: {
     thread: Thread;
-    userMessage: ModelMessage;
+    userMessages: ModelMessage[];
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<AgentStreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
-    const { thread, userMessage, signal, controller, options } = params;
+    const { thread, userMessages, signal, controller, options } = params;
     const turn = await this.agent.thread.createTurn(thread.id);
     this.log.info({ turnId: turn.id, threadId: thread.id }, 'turn started');
     const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.agent.workspace;
@@ -178,16 +182,18 @@ export class AgentLoop {
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
-    const trace = this.tracer.create(thread, userMessage, turn.id);
+    const trace = this.tracer.create(thread, userMessages, turn.id);
     const turnSpan = trace.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
-    const requestContext = new ModelRequestContext({agent: this.agent, userMessage, tools: [...this.agent.tools], session});
+    const requestContext = new ModelRequestContext({agent: this.agent, userMessage: userMessages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
 
     const context: TurnContext = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
 
-    await this.persistMessage(userMessage, context);
+    for (const m of userMessages) {
+      await this.persistMessage(m, context);
+    }
 
     return this.startTurnLoop( 0, context, turnSpan, usage);
   }
@@ -197,12 +203,12 @@ export class AgentLoop {
     thread: Thread;
     turn: Turn;
     checkpoint: Checkpoint;
-    userMessage: ModelMessage;
+    userMessages: ModelMessage[];
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<AgentStreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
-    const { thread, turn, checkpoint, userMessage, signal, controller, options } = params;
+    const { thread, turn, checkpoint, userMessages, signal, controller, options } = params;
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
@@ -211,14 +217,14 @@ export class AgentLoop {
 
     // 重建 session 和 context
     const session: TurnSession = { workspace, scopeId, thread, turn };
-    const trace = this.tracer.create(thread, userMessage, turn.id);
+    const trace = this.tracer.create(thread, userMessages, turn.id);
     const turnSpan = trace.startSpan('agent_resume');
 
     // 加载历史消息
     const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
     const messages = toModelMessages(entries);
 
-    const requestContext = new ModelRequestContext({agent: this.agent, userMessage, messages, tools: [...this.agent.tools], session});
+    const requestContext = new ModelRequestContext({agent: this.agent, userMessage: userMessages, messages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
     
     // ——— checkpoint 恢复逻辑 ———
@@ -250,8 +256,10 @@ export class AgentLoop {
       this.log.info({ turnId: turn.id }, 'resume path C: direct continue');
     }
 
-    messages.push(userMessage);
-    await this.persistMessage(userMessage, context);
+    messages.push(...userMessages);
+    for (const m of userMessages) {
+      await this.persistMessage(m, context);
+    }
     await this.agent.thread.updateTurn(turn.id, { status: 'running' });
     return this.startTurnLoop(checkpoint.stepIndex, context, turnSpan, usage);
   }
