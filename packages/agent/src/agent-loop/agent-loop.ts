@@ -7,8 +7,20 @@ import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type { ModelMessage } from 'ai';
-import type { LanguageModelV4StreamPart } from '@ai-sdk/provider';
 import type { ModelRequest } from '../model/types.js';
+import {
+  type AgentStreamPart,
+  dynamicToolCall,
+  finishPart,
+  finishStepPart,
+  startStepPart,
+  toolApprovalRequestPart,
+  toolApprovalResponsePart,
+  toolCallPart,
+  toolOutputDeniedPart,
+  v4FilePart,
+  v4ToolResultPart,
+} from './stream-parts.js';
 import { getMessageText, buildAssistantMessage, buildToolResultMessage, hasToolResult, getToolResultText } from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import type {TurnTracer} from '../observable/turn-tracer.js';
@@ -89,13 +101,17 @@ export class AgentLoop {
       internalAc.abort();
     };
 
-    const stream = new ReadableStream<LanguageModelV4StreamPart>({
+    const stream = new ReadableStream<AgentStreamPart>({
       start: async (controller) => {
+        // 引擎生命周期起点：整个 turn 输出流的第一个 part
+        controller.enqueue({ type: 'start' });
         try {
           const result = await this.start({userMessage, signal: internalAc.signal, controller, options});
           resolveResult(result);
         } catch (err) {
           const error = err instanceof Error ? err : String(err)
+          // 向流内透出错误 part（controller 可能已关闭，静默兜底）
+          try { controller.enqueue({ type: 'error', error }); } catch { /* already closed */ }
           this.emit({ type: 'error', error});
           rejectResult(error);
         } finally {
@@ -114,7 +130,7 @@ export class AgentLoop {
   private async start(ctx: {
     userMessage: ModelMessage;
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
+    controller: ReadableStreamDefaultController<AgentStreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { userMessage, signal, controller, options } = ctx;
@@ -151,7 +167,7 @@ export class AgentLoop {
     thread: Thread;
     userMessage: ModelMessage;
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
+    controller: ReadableStreamDefaultController<AgentStreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { thread, userMessage, signal, controller, options } = params;
@@ -183,7 +199,7 @@ export class AgentLoop {
     checkpoint: Checkpoint;
     userMessage: ModelMessage;
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
+    controller: ReadableStreamDefaultController<AgentStreamPart>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { thread, turn, checkpoint, userMessage, signal, controller, options } = params;
@@ -265,11 +281,14 @@ export class AgentLoop {
 
     for (const pendingCall of pauseInfo.pendingToolCalls) {
       const approved = decisionMap.get(pendingCall.id) ?? false;
+      // 回放审批决策到输出流（恢复后的新流可见完整审批链路）
+      context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved));
       if (approved) {
         approvedCalls.push(pendingCall);
         // 追踪到 toolApprovalState，确保同一 turn 后续 step 中该工具自动放行
         context.toolApprovalState.set(pendingCall.name, true);
       } else {
+        context.controller.enqueue(toolOutputDeniedPart(pendingCall));
         deniedResults.push({
           callId: pendingCall.id, name: pendingCall.name,
           status: 'error', output: null,
@@ -336,6 +355,8 @@ export class AgentLoop {
     if (loopResult.finalStatus === 'paused') {
       this.log.info({ turnId: turn.id, steps: loopResult.steps }, 'turn paused');
       turnSpan.end({ status: 'paused', steps: loopResult.steps });
+      // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
+      context.controller.enqueue(finishPart('stop', usage));
       return {
         status: 'paused', steps: loopResult.steps, usage, messages: context.messages, thread, turn,
       };
@@ -350,6 +371,7 @@ export class AgentLoop {
       await this.agent.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
       turnSpan.error(err instanceof Error ? err : String(err));
       this.emit({ type: 'error', error: err });
+      context.controller.enqueue(finishPart('error', usage));
 
       const failResult: TurnResult = {
         status: 'failed', steps: loopResult.steps, usage, messages: context.messages,
@@ -369,6 +391,11 @@ export class AgentLoop {
     }
 
     turnSpan.end({ status: 'completed', steps: loopResult.steps });
+    // 终态生命周期 part：中断先发 abort，再统一发 finish
+    if (loopResult.finalStatus === 'aborted') {
+      context.controller.enqueue({ type: 'abort' });
+    }
+    context.controller.enqueue(finishPart(loopResult.finalStatus === 'aborted' ? 'other' : 'stop', usage));
     this.emit({ type: 'done', usage });
 
     const finalResult: TurnResult = {
@@ -538,6 +565,7 @@ export class AgentLoop {
           status: 'error', output: null,
           error: `Tool "${call.name}" 未找到`,
         });
+        context.controller.enqueue(toolOutputDeniedPart(call));
         continue;
       }
 
@@ -554,12 +582,8 @@ export class AgentLoop {
 
       // on-request 工具首次使用 → 暂停等待外部审批，不直接拒绝
       if (policy === 'on-request' && isFirstUse && !wasApproved) {
-        // use toolCallId as approvalId so the client’s tool-approval-response maps directly
-        context.controller.enqueue({
-          type: 'tool-approval-request',
-          approvalId: call.id,
-          toolCallId: call.id,
-        });
+        // approvalId 复用 toolCallId，客户端的 tool-approval-response 可直接映射
+        context.controller.enqueue(toolApprovalRequestPart(call));
         this.emit({
           type: 'tool-approval-request',
           approvalId: call.id,
@@ -576,6 +600,7 @@ export class AgentLoop {
         status: 'error', output: null,
         error: decision.reason ?? '被策略阻止',
       });
+      context.controller.enqueue(toolOutputDeniedPart(call));
     }
 
     return { approvedCalls, deniedResults, pausedCalls };
@@ -651,6 +676,23 @@ export class AgentLoop {
     const toolCalls: ToolCall[] = [];
     const modelSpan = trace.startSpan('model_step', { step: step.index + 1 });
 
+    // ── V4 → TextStreamPart 转换所需的 step 级状态 ──
+    const stepStartTime = Date.now();
+    /** 首个输出 chunk 到达时间（性能指标 timeToFirstOutputMs） */
+    let firstChunkTime: number | undefined;
+    /** start-step 是否已发出（stream-start 携带 warnings；未收到时由首个内容 part 兜底触发） */
+    let stepStarted = false;
+    /** 从 V4 response-metadata 捕获，进 finish-step.response */
+    let responseMeta: { id?: string; modelId?: string; timestamp?: Date } = {};
+    /** toolCallId → ToolCall，供 provider 端 tool-result / tool-approval-request 关联 input */
+    const callsById = new Map<string, ToolCall>();
+
+    const ensureStepStarted = (warnings: Parameters<typeof startStepPart>[1] = []) => {
+      if (stepStarted) return;
+      stepStarted = true;
+      controller.enqueue(startStepPart(step.messages, warnings));
+    };
+
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
     trace.recordModelRequest(step.index, request);
 
@@ -662,57 +704,113 @@ export class AgentLoop {
       const { stream } = await this.agent.modelClient.stream(request, context.signal);
 
       for await (const chunk of stream) {
+        // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
+        if (chunk.type === 'stream-start') {
+          ensureStepStarted(chunk.warnings);
+          continue;
+        }
+        ensureStepStarted();
+
         switch (chunk.type) {
+            // ── 同形透传（重建对象以对齐引擎层类型）──
             case 'text-start':
             case 'text-end':
-            case 'tool-input-start':
-            case 'tool-input-delta':
-            case 'tool-input-end':
-            case 'tool-result':
-            case 'file':
-            case 'source':
-            case 'custom':
-            case 'reasoning-file':
-              controller.enqueue(chunk);
+            case 'reasoning-start':
+            case 'reasoning-end':
+              controller.enqueue({ type: chunk.type, id: chunk.id, providerMetadata: chunk.providerMetadata });
               break;
 
+            // ── 文本/推理 delta：V4 的 delta 字段 → TextStreamPart 的 text 字段 ──
             case 'text-delta':
-              controller.enqueue(chunk);
+              firstChunkTime ??= Date.now();
+              controller.enqueue({ type: 'text-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
               fullText += chunk.delta;
               this.emit({ type: 'text-delta', content: chunk.delta });
               break;
 
-            case 'reasoning-start':
-            case 'reasoning-end':
-              controller.enqueue(chunk);
-              break;
-
             case 'reasoning-delta':
-              controller.enqueue(chunk);
+              firstChunkTime ??= Date.now();
+              controller.enqueue({ type: 'reasoning-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
               this.emit({ type: 'reasoning-delta', content: chunk.delta });
               break;
 
+            // ── 工具输入流式（同形透传）──
+            case 'tool-input-start':
+              controller.enqueue({ type: 'tool-input-start', id: chunk.id, toolName: chunk.toolName, providerExecuted: chunk.providerExecuted, dynamic: chunk.dynamic, title: chunk.title, providerMetadata: chunk.providerMetadata });
+              break;
+
+            case 'tool-input-delta':
+              controller.enqueue({ type: 'tool-input-delta', id: chunk.id, delta: chunk.delta, providerMetadata: chunk.providerMetadata });
+              break;
+
+            case 'tool-input-end':
+              controller.enqueue({ type: 'tool-input-end', id: chunk.id, providerMetadata: chunk.providerMetadata });
+              break;
+
             case 'tool-call': {
-              controller.enqueue(chunk);
-              // V4 tool-call 的 input 为 JSON 字符串，解析失败时兜底空对象并告警
+              // V4 tool-call 的 input 为 JSON 字符串，解析失败时兜底空对象并以 invalid 标记
               let args: Record<string, unknown>;
+              let invalid = false;
+              let parseError: unknown;
               try {
                 args = chunk.input ? JSON.parse(chunk.input) as Record<string, unknown> : {};
-              } catch {
+              } catch (e) {
                 this.log.warn({ toolCallId: chunk.toolCallId, input: chunk.input }, 'tool-call input JSON 解析失败');
                 args = {};
+                invalid = true;
+                parseError = e;
               }
-              toolCalls.push({ id: chunk.toolCallId, name: chunk.toolName, args });
+              const call: ToolCall = { id: chunk.toolCallId, name: chunk.toolName, args };
+              callsById.set(call.id, call);
+              controller.enqueue(toolCallPart(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }));
+              // provider 已执行的调用不进本地执行队列（结果随流到达）
+              if (!chunk.providerExecuted) {
+                toolCalls.push(call);
+              }
               this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args });
               break;
             }
 
-            case 'tool-approval-request':
+            // ── provider 端执行的工具结果：isError 分流 tool-result / tool-error ──
+            case 'tool-result':
+              controller.enqueue(v4ToolResultPart(chunk, callsById.get(chunk.toolCallId)?.args));
+              break;
+
+            // ── provider 端审批请求：关联已记录的 toolCall（查不到则合成占位调用）──
+            case 'tool-approval-request': {
+              const call = callsById.get(chunk.toolCallId) ?? { id: chunk.toolCallId, name: 'unknown', args: {} };
+              controller.enqueue({ type: 'tool-approval-request', approvalId: chunk.approvalId, toolCall: dynamicToolCall(call, { providerExecuted: true }) });
+              break;
+            }
+
+            // ── 文件：V4 data/url 变体 → GeneratedFile ──
+            case 'file':
+            case 'reasoning-file':
+              controller.enqueue(v4FilePart(chunk));
+              break;
+
+            // ── 同形透传：Source = LanguageModelV4Source ──
+            case 'source':
+            case 'custom':
+            case 'raw':
               controller.enqueue(chunk);
               break;
 
+            // ── 响应元数据：捕获进 finish-step.response ──
+            case 'response-metadata':
+              responseMeta = { id: chunk.id, modelId: chunk.modelId, timestamp: chunk.timestamp };
+              break;
+
+            // ── V4 finish（单次调用级）→ finish-step（携带 response/usage/performance）──
             case 'finish':
-              controller.enqueue(chunk);
+              controller.enqueue(finishStepPart({
+                usage: chunk.usage,
+                finishReason: chunk.finishReason,
+                providerMetadata: chunk.providerMetadata,
+                response: responseMeta,
+                startTime: stepStartTime,
+                firstChunkTime,
+              }));
               if (chunk.usage) {
                 modelUsage.input = chunk.usage.inputTokens.total ?? 0;
                 modelUsage.output = chunk.usage.outputTokens.total ?? 0;
@@ -720,13 +818,12 @@ export class AgentLoop {
               break;
 
             case 'error':
-              controller.enqueue(chunk);
+              controller.enqueue({ type: 'error', error: chunk.error });
               const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
               modelSpan.error(err);
               this.emit({ type: 'error', error: err });
               trace.recordModelResponse(step.index, { text: fullText, toolCalls, usage: modelUsage, error: err });
               return { text: fullText, toolCalls, usage: modelUsage, error: err };
-            // stream-start/response-metadata/raw：内部使用
           }
       }
 

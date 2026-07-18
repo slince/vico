@@ -146,32 +146,26 @@ TextStreamPart 偏向"开放穿透"`raw`，适合中间件获取 provider 特定
 
 ## 五、Vico 项目中的应用
 
-Vico 的 `AgentLoop.callModel()`（`agent-loop.ts:254`）消费 `result.fullStream`，即 `TextStreamPart` 协议，对以下事件类型做模式匹配：
+Vico 的流式链路与 AI SDK 的三层协议一一对齐（2026-07 协议升级后）：
 
-```typescript
-for await (const chunk of result.fullStream) {
-  switch (chunk.type) {
-    case 'text-delta':     // chunk.text → fullText 累积 + SSE 广播
-    case 'reasoning-delta': // chunk.text → SSE 广播
-    case 'tool-call':       // chunk.toolCallId, chunk.toolName, chunk.input → 工具调用队列
-    case 'finish':          // chunk.totalUsage → token 统计
-    case 'error':           // chunk.error → 错误广播
-  }
-}
+```
+ModelClient.stream()          → LanguageModelV4StreamPart   （provider 合同，model/model-client.ts）
+        │  AgentLoop.callModel 转换（agent-loop/stream-parts.ts）
+        ▼
+TurnOutput.stream             → TextStreamPart<ToolSet>     （引擎合同，别名 AgentStreamPart）
+        │  turnOutputToSSEResponse 转换（stream/turn-stream.ts）
+        ▼
+SSE Response                  → UIMessageChunk              （UI 合同，@assistant-ui/react 原生消费）
 ```
 
-注意这里访问 `chunk.text`（TextStreamPart 的字段名），而非 `chunk.delta`（UIMessageChunk 的命名）。这是两条协议在 Vico 内部的分工边界：
+`AgentLoop`（`agent-loop.ts`）在引擎层承担与 `streamText` 相同的职责：
 
-- **Agent 引擎内部**：始终使用 `TextStreamPart` 协议（`fullStream`），获得类型安全的 tool-call/tool-result 和完整 usage 追踪。
-- **SSE 广播到前端**：Vico 自定义了 SSE 事件格式（`EventRecorder`，见 `observable/types.ts`），不走 AI SDK 原生的 `UIMessageChunk` 协议，而是将 `TextStreamPart` 映射到自有事件（`text_delta` / `tool_call_start` / `tool_result`），再做 SSE 推送。
+- **V4 → TextStreamPart 逐 part 映射**：`text-delta` 的 `delta` 字段改名 `text`；`tool-call` 的 JSON 字符串 input 解析为对象（失败时标记 `invalid: true`）；`file`/`reasoning-file` 的 data/url 变体包装为 `GeneratedFile`；`stream-start` 的 warnings 并入 `start-step`；`response-metadata` + V4 `finish` 合成 `finish-step`（含 response/usage/performance）。
+- **引擎合成生命周期事件**：流首 `start`，每步 `start-step`/`finish-step`，终态 `abort`（中断时）+ `finish`（携带 totalUsage）。
+- **工具执行结果上流**：ToolExecutor 执行完成后 enqueue `tool-result`/`tool-error`（dynamic 变体）；策略/审批拒绝 enqueue `tool-output-denied`；审批请求/恢复决策 enqueue `tool-approval-request`/`tool-approval-response`。
+- **dynamic 工具形态**：Vico 工具为运行时定义（非静态 ToolSet），所有工具类 part 使用 `dynamic: true` 变体。
 
-### 为什么不直接用 UIMessageChunk？
-
-Vico 选择了自定义 SSE 事件通道而非原生的 `toUIMessageStreamResponse()`，可能的原因：
-
-1. **App 层协议控制**：自定义事件格式可以在 SSE 中加入业务级元数据（如 `turnId`、`spanId`）。
-2. **多 Agent / 多 Turn 支持**：UIMessageChunk 基于单个消息模型设计；Vico 需要在一次 SSE 连接中推送多个 turn 的事件。
-3. **避免双重协议转换**：如果先在 Agent 循环中用 TextStreamPart，再转 UIMessageChunk，再 SSE，会增加一层序列化开销。
+part 构造逻辑集中在 `agent-loop/stream-parts.ts`；`turn-stream.ts` 只做纯字段映射（`text` ↔ `delta`、`id` ↔ `toolCallId` 等），不再用 `inStep` 启发式推断 step 边界。
 
 ## 六、迁移注意事项（TextStreamPart → UIMessageChunk）
 

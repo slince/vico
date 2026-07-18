@@ -7,6 +7,7 @@ import type {CheckpointStore} from './checkpoint.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {TurnContext} from './agent-loop-options.js';
 import type {TurnEvent} from './types.js';
+import {toolResultPart} from './stream-parts.js';
 
 /** AgentLoop 暴露给 ToolExecutor 的方法和属性 */
 export interface ToolExecutorHost {
@@ -116,6 +117,8 @@ export class ToolExecutor {
       });
 
       await this.host.appendToolResults([result], context);
+      // 工具执行结果上流：success → tool-result part，error → tool-error part
+      context.controller.enqueue(toolResultPart(result, call.args));
       this.host.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
       return result;
     };
