@@ -6,8 +6,8 @@ import type {Thread, Turn} from '../thread/thread-store.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
-import type { ModelMessage } from 'ai';
-import type { ModelRequest } from '../model/types.js';
+import type {ModelMessage} from 'ai';
+import type {ModelRequest} from '../model/types.js';
 import {
   type AgentStreamPart,
   dynamicToolCall,
@@ -21,7 +21,14 @@ import {
   v4FilePart,
   v4ToolResultPart,
 } from './stream-parts.js';
-import { getMessageText, pickPrimaryUserMessage, buildAssistantMessage, buildToolResultMessage, hasToolResult, getToolResultText } from '../model/message-utils.js';
+import {
+  buildAssistantMessage,
+  buildToolResultMessage,
+  getMessageText,
+  getToolResultText,
+  hasToolResult,
+  pickPrimaryUserMessage
+} from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import type {TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
@@ -43,7 +50,7 @@ import {
 } from "./agent-loop-options.js";
 import type {Checkpoint, CheckpointStore} from './checkpoint.js';
 import {PauseInfo} from "./checkpoint.js";
-import { toModelMessages, fromModelMessage } from './utils.js';
+import {fromModelMessage, toModelMessages} from './utils.js';
 
 
 /** AgentLoop 构造选项 */
@@ -226,7 +233,7 @@ export class AgentLoop {
 
     const requestContext = new ModelRequestContext({agent: this.agent, userMessage: userMessages, messages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
-    
+
     // ——— checkpoint 恢复逻辑 ———
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
     const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
@@ -704,155 +711,142 @@ export class AgentLoop {
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
     trace.recordModelRequest(step.index, request);
 
-    try {
-      this.log.debug({ step: step.index, turnId: context.session.turn.id, messages: step.messages.length, tools: request.tools?.length }, 'model request')
 
-      console.log("model request", request)
+    this.log.debug({ step: step.index, turnId: context.session.turn.id, messages: step.messages.length, tools: request.tools?.length }, 'model request')
 
-      const { stream } = await this.agent.modelClient.stream(request, context.signal);
+    console.log("model request", request)
 
-      for await (const chunk of stream) {
-        // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
-        if (chunk.type === 'stream-start') {
-          ensureStepStarted(chunk.warnings);
-          continue;
-        }
-        ensureStepStarted();
+    const { stream } = await this.agent.modelClient.stream(request, context.signal);
 
-        switch (chunk.type) {
-            // ── 同形透传（重建对象以对齐引擎层类型）──
-            case 'text-start':
-            case 'text-end':
-            case 'reasoning-start':
-            case 'reasoning-end':
-              controller.enqueue({ type: chunk.type, id: chunk.id, providerMetadata: chunk.providerMetadata });
-              break;
-
-            // ── 文本/推理 delta：V4 的 delta 字段 → TextStreamPart 的 text 字段 ──
-            case 'text-delta':
-              firstChunkTime ??= Date.now();
-              controller.enqueue({ type: 'text-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
-              fullText += chunk.delta;
-              this.emit({ type: 'text-delta', content: chunk.delta });
-              break;
-
-            case 'reasoning-delta':
-              firstChunkTime ??= Date.now();
-              controller.enqueue({ type: 'reasoning-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
-              this.emit({ type: 'reasoning-delta', content: chunk.delta });
-              break;
-
-            // ── 工具输入流式（同形透传）──
-            case 'tool-input-start':
-              controller.enqueue({ type: 'tool-input-start', id: chunk.id, toolName: chunk.toolName, providerExecuted: chunk.providerExecuted, dynamic: chunk.dynamic, title: chunk.title, providerMetadata: chunk.providerMetadata });
-              break;
-
-            case 'tool-input-delta':
-              controller.enqueue({ type: 'tool-input-delta', id: chunk.id, delta: chunk.delta, providerMetadata: chunk.providerMetadata });
-              break;
-
-            case 'tool-input-end':
-              controller.enqueue({ type: 'tool-input-end', id: chunk.id, providerMetadata: chunk.providerMetadata });
-              break;
-
-            case 'tool-call': {
-              // V4 tool-call 的 input 为 JSON 字符串，解析失败时兜底空对象并以 invalid 标记
-              let args: Record<string, unknown>;
-              let invalid = false;
-              let parseError: unknown;
-              try {
-                args = chunk.input ? JSON.parse(chunk.input) as Record<string, unknown> : {};
-              } catch (e) {
-                this.log.warn({ toolCallId: chunk.toolCallId, input: chunk.input }, 'tool-call input JSON 解析失败');
-                args = {};
-                invalid = true;
-                parseError = e;
-              }
-              const call: ToolCall = { id: chunk.toolCallId, name: chunk.toolName, args };
-              callsById.set(call.id, call);
-              controller.enqueue(toolCallPart(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }));
-              // provider 已执行的调用不进本地执行队列（结果随流到达）
-              if (!chunk.providerExecuted) {
-                toolCalls.push(call);
-              }
-              this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args });
-              break;
-            }
-
-            // ── provider 端执行的工具结果：isError 分流 tool-result / tool-error ──
-            case 'tool-result':
-              controller.enqueue(v4ToolResultPart(chunk, callsById.get(chunk.toolCallId)?.args));
-              break;
-
-            // ── provider 端审批请求：关联已记录的 toolCall（查不到则合成占位调用）──
-            case 'tool-approval-request': {
-              const call = callsById.get(chunk.toolCallId) ?? { id: chunk.toolCallId, name: 'unknown', args: {} };
-              controller.enqueue({ type: 'tool-approval-request', approvalId: chunk.approvalId, toolCall: dynamicToolCall(call, { providerExecuted: true }) });
-              break;
-            }
-
-            // ── 文件：V4 data/url 变体 → GeneratedFile ──
-            case 'file':
-            case 'reasoning-file':
-              controller.enqueue(v4FilePart(chunk));
-              break;
-
-            // ── 同形透传：Source = LanguageModelV4Source ──
-            case 'source':
-            case 'custom':
-            case 'raw':
-              controller.enqueue(chunk);
-              break;
-
-            // ── 响应元数据：捕获进 finish-step.response ──
-            case 'response-metadata':
-              responseMeta = { id: chunk.id, modelId: chunk.modelId, timestamp: chunk.timestamp };
-              break;
-
-            // ── V4 finish（单次调用级）→ finish-step（携带 response/usage/performance）──
-            case 'finish':
-              controller.enqueue(finishStepPart({
-                usage: chunk.usage,
-                finishReason: chunk.finishReason,
-                providerMetadata: chunk.providerMetadata,
-                response: responseMeta,
-                startTime: stepStartTime,
-                firstChunkTime,
-              }));
-              if (chunk.usage) {
-                modelUsage.input = chunk.usage.inputTokens.total ?? 0;
-                modelUsage.output = chunk.usage.outputTokens.total ?? 0;
-              }
-              break;
-
-            case 'error':
-              controller.enqueue({ type: 'error', error: chunk.error });
-              const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-              modelSpan.error(err);
-              this.emit({ type: 'error', error: err });
-              trace.recordModelResponse(step.index, { text: fullText, toolCalls, usage: modelUsage, error: err });
-              return { text: fullText, toolCalls, usage: modelUsage, error: err };
-          }
+    for await (const chunk of stream) {
+      // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
+      if (chunk.type === 'stream-start') {
+        ensureStepStarted(chunk.warnings);
+        continue;
       }
+      ensureStepStarted();
 
-      modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
+      switch (chunk.type) {
+          // ── 同形透传（重建对象以对齐引擎层类型）──
+          case 'text-start':
+          case 'text-end':
+          case 'reasoning-start':
+          case 'reasoning-end':
+            controller.enqueue({ type: chunk.type, id: chunk.id, providerMetadata: chunk.providerMetadata });
+            break;
 
-      const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
-      trace.recordModelResponse(step.index, result);
-      return result;
-    } catch (err) {
-      const error = err instanceof Error ? err : String(err);
+          // ── 文本/推理 delta：V4 的 delta 字段 → TextStreamPart 的 text 字段 ──
+          case 'text-delta':
+            firstChunkTime ??= Date.now();
+            controller.enqueue({ type: 'text-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
+            fullText += chunk.delta;
+            this.emit({ type: 'text-delta', content: chunk.delta });
+            break;
 
-      console.log("error", error);
+          case 'reasoning-delta':
+            firstChunkTime ??= Date.now();
+            controller.enqueue({ type: 'reasoning-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
+            this.emit({ type: 'reasoning-delta', content: chunk.delta });
+            break;
 
-      this.log.error({ step: step.index, turnId: context.session.turn.id, error: error instanceof Error ? error.message : String(error) }, 'model stream error');
-      controller.enqueue({type: 'error', error: error});
-      modelSpan.error(error);
-      this.emit({ type: 'error', error: error });
-      const errorResult: CallModelResult = { text: fullText, toolCalls, usage: modelUsage, error: error };
-      trace.recordModelResponse(step.index, errorResult);
-      return errorResult;
+          // ── 工具输入流式（同形透传）──
+          case 'tool-input-start':
+            controller.enqueue({ type: 'tool-input-start', id: chunk.id, toolName: chunk.toolName, providerExecuted: chunk.providerExecuted, dynamic: chunk.dynamic, title: chunk.title, providerMetadata: chunk.providerMetadata });
+            break;
+
+          case 'tool-input-delta':
+            controller.enqueue({ type: 'tool-input-delta', id: chunk.id, delta: chunk.delta, providerMetadata: chunk.providerMetadata });
+            break;
+
+          case 'tool-input-end':
+            controller.enqueue({ type: 'tool-input-end', id: chunk.id, providerMetadata: chunk.providerMetadata });
+            break;
+
+          case 'tool-call': {
+            // V4 tool-call 的 input 为 JSON 字符串，解析失败时兜底空对象并以 invalid 标记
+            let args: Record<string, unknown>;
+            let invalid = false;
+            let parseError: unknown;
+            try {
+              args = chunk.input ? JSON.parse(chunk.input) as Record<string, unknown> : {};
+            } catch (e) {
+              this.log.warn({ toolCallId: chunk.toolCallId, input: chunk.input }, 'tool-call input JSON 解析失败');
+              args = {};
+              invalid = true;
+              parseError = e;
+            }
+            const call: ToolCall = { id: chunk.toolCallId, name: chunk.toolName, args };
+            callsById.set(call.id, call);
+            controller.enqueue(toolCallPart(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }));
+            // provider 已执行的调用不进本地执行队列（结果随流到达）
+            if (!chunk.providerExecuted) {
+              toolCalls.push(call);
+            }
+            this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args });
+            break;
+          }
+
+          // ── provider 端执行的工具结果：isError 分流 tool-result / tool-error ──
+          case 'tool-result':
+            controller.enqueue(v4ToolResultPart(chunk, callsById.get(chunk.toolCallId)?.args));
+            break;
+
+          // ── provider 端审批请求：关联已记录的 toolCall（查不到则合成占位调用）──
+          case 'tool-approval-request': {
+            const call = callsById.get(chunk.toolCallId) ?? { id: chunk.toolCallId, name: 'unknown', args: {} };
+            controller.enqueue({ type: 'tool-approval-request', approvalId: chunk.approvalId, toolCall: dynamicToolCall(call, { providerExecuted: true }) });
+            break;
+          }
+
+          // ── 文件：V4 data/url 变体 → GeneratedFile ──
+          case 'file':
+          case 'reasoning-file':
+            controller.enqueue(v4FilePart(chunk));
+            break;
+
+          // ── 同形透传：Source = LanguageModelV4Source ──
+          case 'source':
+          case 'custom':
+          case 'raw':
+            controller.enqueue(chunk);
+            break;
+
+          // ── 响应元数据：捕获进 finish-step.response ──
+          case 'response-metadata':
+            responseMeta = { id: chunk.id, modelId: chunk.modelId, timestamp: chunk.timestamp };
+            break;
+
+          // ── V4 finish（单次调用级）→ finish-step（携带 response/usage/performance）──
+          case 'finish':
+            controller.enqueue(finishStepPart({
+              usage: chunk.usage,
+              finishReason: chunk.finishReason,
+              providerMetadata: chunk.providerMetadata,
+              response: responseMeta,
+              startTime: stepStartTime,
+              firstChunkTime,
+            }));
+            if (chunk.usage) {
+              modelUsage.input = chunk.usage.inputTokens.total ?? 0;
+              modelUsage.output = chunk.usage.outputTokens.total ?? 0;
+            }
+            break;
+
+          case 'error':
+            controller.enqueue({ type: 'error', error: chunk.error });
+            const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
+            modelSpan.error(err);
+            this.emit({ type: 'error', error: err });
+            trace.recordModelResponse(step.index, { text: fullText, toolCalls, usage: modelUsage, error: err });
+            return { text: fullText, toolCalls, usage: modelUsage, error: err };
+        }
     }
+
+    modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
+
+    const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
+    trace.recordModelResponse(step.index, result);
+    return result;
   }
 
 }
