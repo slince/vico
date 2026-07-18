@@ -1,8 +1,8 @@
 import type {LanguageModelV4} from '@ai-sdk/provider';
-import { convertToModelMessages, validateUIMessages } from 'ai';
-import type { ModelMessage } from 'ai';
+import type {ModelMessage} from 'ai';
+import {convertToModelMessages, validateUIMessages} from 'ai';
 import {ModelClient} from '../model/model-client.js';
-import type { ReasoningEffort } from '../model/types.js';
+import type {ReasoningEffort} from '../model/types.js';
 import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
@@ -43,7 +43,6 @@ export interface AgentOptions {
   approvalResolver: ApprovalResolver;
   events: EventRecorder<TurnEvent>;
   tracer: TurnTracer;
-  loopFactory?: LoopFactory;
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
   checkpointStore: CheckpointStore;
@@ -98,8 +97,7 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
     this.checkpointStore = params.checkpointStore;
     this.logger = params.logger ?? pino();
 
-    const loopFactory = params.loopFactory || buildLoop;
-    this.loop = loopFactory(this as unknown as Agent)
+    this.loop = buildLoop(this)
   }
 
   /**
@@ -160,10 +158,7 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
       // 历史由 Memory 注入，此处只取转换结果的最后一条作为本轮用户消息
       userMessage = converted[converted.length - 1] ?? { role: 'user', content: '' };
     }
-    return this.loop.run(userMessage, {
-      ...(options ?? {}),
-      workspace: options?.workspace ?? this.workspace,
-    });
+    return this.loop.run(userMessage, options);
   }
 
 }
