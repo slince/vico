@@ -12,11 +12,27 @@ export interface ToolCall {
   result?: unknown;
 }
 
+/** AI SDK 原生的 content part 类型（reasoning / text） */
+export interface ReasoningPart {
+  type: 'reasoning';
+  text: string;
+  providerOptions?: Record<string, unknown>;
+}
+
+export interface TextPart {
+  type: 'text';
+  text: string;
+  providerOptions?: Record<string, unknown>;
+}
+
+/** Message content 可能是旧格式（纯文本字符串）或新格式（native parts 数组） */
+export type MessageContent = string | Array<ReasoningPart | TextPart | { type: string; [key: string]: unknown }>;
+
 /** Shape of a message returned inside the conversation detail payload */
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  content: string;
+  content: MessageContent;
   tool_calls?: string; // JSON-serialised ToolCall[]
   created_at: string;
 }

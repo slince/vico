@@ -17,7 +17,8 @@ export interface MessageItem {
   id: string;
   thread_id: string;
   role: string;
-  content: string;
+  /** 原生 ModelMessage.content（parts 数组），含 reasoning/text/tool-call 等全量 parts */
+  content: unknown;
   token_usage: number;
   created_at: number;
 }

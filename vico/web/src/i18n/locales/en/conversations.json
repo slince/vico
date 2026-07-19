@@ -50,5 +50,6 @@
   "chatEmptyButton": "Select Agent",
   "knowledgeSearch": "Knowledge Search",
   "knowledgeResultCount": "{{count}} result(s)",
-  "knowledgeNoResults": "No relevant knowledge found"
+  "knowledgeNoResults": "No relevant knowledge found",
+  "reasoningProcess": "Thinking process"
 }
