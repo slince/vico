@@ -43,32 +43,7 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
         credentials: 'include',
         body: () => ({ agentId, threadId: remoteId }),
         prepareSendMessagesRequest: ({ messages, body, id }) => {
-          const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
-          const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant');
-
-          // 检测 approval 自动发送：将 assistant 消息中的 approval-responded 状态
-          // 转换为服务端可识别的 tool-approval-response 消息格式
-          const approvalResponses = lastAssistantMsg?.parts
-            ?.filter(
-              (p: any) =>
-                p.state === 'approval-responded' &&
-                p.approval?.id != null,
-            )
-            .map((p: any) => ({
-              type: 'tool-approval-response',
-              approvalId: p.approval.id,
-              approved: p.approval.approved ?? false,
-            })) ?? [];
-
-          if (approvalResponses.length > 0) {
-            return {
-              body: {
-                ...body,
-                id: remoteId,
-                messages: [{ role: 'user', parts: approvalResponses }],
-              },
-            };
-          }
+          const lastUserMsg = messages[messages.length - 1];
 
           return {
             body: {

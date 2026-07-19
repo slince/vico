@@ -128,6 +128,9 @@ export class AgentLoop {
           try { controller.close(); } catch { /* already closed */ }
         }
       },
+      cancel() {
+        internalAc.abort();
+      },
     });
 
     return new TurnOutput(stream, resultPromise, abort);
@@ -701,15 +704,21 @@ export class AgentLoop {
     let firstChunkTime: number | undefined;
     /** start-step 是否已发出（stream-start 携带 warnings；未收到时由首个内容 part 兜底触发） */
     let stepStarted = false;
+    /** controller 是否已关闭（客户端断开）→ 终止当前 step 的流式输出 */
+    let controllerClosed = false;
     /** 从 V4 response-metadata 捕获，进 finish-step.response */
     let responseMeta: { id?: string; modelId?: string; timestamp?: Date } = {};
     /** toolCallId → ToolCall，供 provider 端 tool-result / tool-approval-request 关联 input */
     const callsById = new Map<string, ToolCall>();
 
     const ensureStepStarted = (warnings: Parameters<typeof startStepPart>[1] = []) => {
-      if (stepStarted) return;
+      if (stepStarted || controllerClosed) return;
       stepStarted = true;
-      controller.enqueue(startStepPart(step.messages, warnings));
+      try {
+        controller.enqueue(startStepPart(step.messages, warnings));
+      } catch {
+        controllerClosed = true;
+      }
     };
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
@@ -726,9 +735,11 @@ export class AgentLoop {
       // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
       if (chunk.type === 'stream-start') {
         ensureStepStarted(chunk.warnings);
+        if (controllerClosed) break;
         continue;
       }
       ensureStepStarted();
+      if (controllerClosed) break;
 
       switch (chunk.type) {
           // ── 同形透传（重建对象以对齐引擎层类型）──
