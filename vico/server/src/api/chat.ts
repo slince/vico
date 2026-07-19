@@ -3,7 +3,6 @@ import {createUIMessageStreamResponse, toUIMessageStream, UIMessage} from 'ai';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
-import {extractApprovalDecisions} from '@vico/agent';
 
 /** 从请求体提取最后一条 user UIMessage */
 function extractLastUserMessage(body: Record<string, unknown>): UIMessage | undefined {
@@ -30,7 +29,6 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     const agentId: string | undefined = body.agentId;
     const lastUserMessage = extractLastUserMessage(body);
-    const messageText = extractText(lastUserMessage);
     const requestedThreadId: string | undefined = body.threadId as string;
 
     // 前端本地临时 ID（如 __LOCALID_xxx）替换为真实 UUID
@@ -38,9 +36,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const threadId = isLocalThreadId ? crypto.randomUUID() : requestedThreadId;
 
     // 仅用于入参校验：有文本或有审批响应才是有效请求（提取/恢复由 agent 内部完成）
-    const hasApproval = !!(lastUserMessage && extractApprovalDecisions([lastUserMessage])?.length);
-
-    if (!agentId || (!messageText && !hasApproval) || !requestedThreadId) {
+    if (!agentId || !requestedThreadId) {
       return c.json({ error: 'agentId, message and threadId are required' }, 400);
     }
 
