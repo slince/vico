@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Brain } from 'lucide-react';
+import type { ContentPart } from '@vico/agent';
 import type { MessageContent } from './types';
 
 interface ContentRendererProps {

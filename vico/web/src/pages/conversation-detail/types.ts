@@ -1,6 +1,7 @@
 /**
  * Shared types for the conversation-detail page and its sub-components.
  */
+import type { ContentPart } from '@vico/agent';
 
 /**
  * Shape of a single tool-call entry stored as a JSON string on the message.
@@ -12,21 +13,8 @@ export interface ToolCall {
   result?: unknown;
 }
 
-/** AI SDK 原生的 content part 类型（reasoning / text） */
-export interface ReasoningPart {
-  type: 'reasoning';
-  text: string;
-  providerOptions?: Record<string, unknown>;
-}
-
-export interface TextPart {
-  type: 'text';
-  text: string;
-  providerOptions?: Record<string, unknown>;
-}
-
 /** Message content 可能是旧格式（纯文本字符串）或新格式（native parts 数组） */
-export type MessageContent = string | Array<ReasoningPart | TextPart | { type: string; [key: string]: unknown }>;
+export type MessageContent = string | ContentPart[];
 
 /** Shape of a message returned inside the conversation detail payload */
 export interface Message {

@@ -10,7 +10,20 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage
 } from '@assistant-ui/react';
+import type {ContentPart} from '@vico/agent';
 import {api} from '@/api/client';
+
+/**
+ * 将 API 返回的 content 归一化为 assistant-ui 的 parts 数组。
+ *
+ * - 新格式（原生 parts 数组）→ 直接使用，保留 reasoning / text 等全量 parts
+ * - 旧格式（纯文本字符串）→ 包裹为单 text part
+ */
+function normalizeContentParts(content: string | ContentPart[]): ContentPart[] {
+  if (Array.isArray(content)) return content;
+  if (typeof content === 'string') return [{ type: 'text', text: content }];
+  return [{ type: 'text', text: String(content ?? '') }];
+}
 
 interface ConversationItem {
   id: string;
@@ -91,7 +104,7 @@ export function createConversationThreadAdapter(agentId: string): RemoteThreadLi
 interface MessageItem {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  content: string;
+  content: string | ContentPart[];
 }
 
 interface ConversationDetail {
@@ -123,7 +136,7 @@ export function createThreadHistoryAdapter(remoteId: string | undefined): Thread
               message: {
                 id: msg.id || crypto.randomUUID(),
                 role: msg.role as 'user' | 'assistant',
-                parts: [{ type: 'text' as const, text: msg.content }],
+                parts: normalizeContentParts(msg.content),
               },
             })),
           };

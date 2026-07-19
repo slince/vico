@@ -9,6 +9,12 @@ import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
 import type { ToolApproval } from '../agent-loop/agent-loop-options.js';
 
 /**
+ * 消息 content 的原生 part 联合类型，覆盖 AI SDK 生成/历史场景中的主要 part。
+ * 复用 @ai-sdk/provider-utils 的 TextPart / ReasoningPart，其余 part 以索引签名兜底。
+ */
+export type ContentPart = TextPart | ReasoningPart | ({ type: string; [key: string]: unknown } & Record<string, unknown>);
+
+/**
  * 提取消息的纯文本内容（string content 直接返回，parts 拼接全部 text part）。
  */
 export function getMessageText(msg: ModelMessage): string {

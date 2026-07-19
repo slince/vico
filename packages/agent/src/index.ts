@@ -24,6 +24,7 @@ export {
   getMessageText, getToolCalls, hasToolResult, getToolResultText,
   buildAssistantMessage, buildToolResultMessage, modelMessageToUIMessage, toToolSet,
   buildApprovalResponseMessage, extractApprovalResponses, pickPrimaryUserMessage,
+  type ContentPart,
 } from './model/message-utils.js';
 
 // Stream

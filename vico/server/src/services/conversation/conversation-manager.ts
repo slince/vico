@@ -2,16 +2,16 @@ import {eq} from 'drizzle-orm';
 import {getDb, schema} from '../../db/db.js';
 import {vico} from '../../vico.js';
 import type {ConversationDetail, ConversationItem, MessageItem, RecentConversation} from './types.js';
-import {type Message, type ThreadStore} from "@vico/agent";
+import {type ContentPart, type Message, type ThreadStore} from "@vico/agent";
 
 const { agents } = schema;
 
 /**
  * 解析消息 content 为原生 parts 数组，解析失败时按纯文本兜底。
  */
-function parseMessageContent(msg: Message): unknown {
+function parseMessageContent(msg: Message): string | ContentPart[] {
   try {
-    return JSON.parse(msg.content);
+    return JSON.parse(msg.content) as ContentPart[];
   } catch {
     return msg.content;
   }
