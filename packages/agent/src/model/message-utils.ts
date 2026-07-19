@@ -119,7 +119,7 @@ export function buildApprovalResponseMessage(decisions: ToolApproval[]): ToolMod
 /**
  * 从消息组解析原生 tool-approval-response part 为审批决策，并剔除审批 part。
  * 审批语义由引擎消费（checkpoint resume），不进入发给模型的消息链；
- * 同一 toolCallId 后出现的决策覆盖先前的；parts 清空的 tool 消息整条移除。
+ * 同一 toolCallId 后出现的决策覆盖先前的；parts 清空的消息整条移除。
  *
  * @param messages - 本轮输入消息组
  * @returns decisions（解析出的决策）+ rest（剔除审批 part 后的其余消息）
@@ -129,21 +129,21 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
   const rest: ModelMessage[] = [];
 
   for (const msg of messages) {
-    if (msg.role !== 'tool') {
+    if (typeof msg.content === 'string') {
       rest.push(msg);
       continue;
     }
-    const remaining: ToolResultPart[] = [];
-    for (const part of msg.content) {
+    let hasApproval = false;
+    const remaining = msg.content.filter((part) => {
       if (part.type === 'tool-approval-response') {
         decisionMap.set(part.approvalId, part.approved);
-      } else {
-        remaining.push(part);
+        hasApproval = true;
+        return false;
       }
-    }
-    if (remaining.length > 0) {
-      rest.push({ ...msg, content: remaining });
-    }
+      return true;
+    });
+    if (hasApproval && remaining.length === 0) continue; // 纯审批消息剔除
+    rest.push(hasApproval ? ({ role: msg.role, content: remaining } as ModelMessage) : msg);
   }
 
   return {

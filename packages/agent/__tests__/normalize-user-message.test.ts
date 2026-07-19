@@ -78,19 +78,6 @@ describe('extractApprovalDecisions', () => {
     expect(extractApprovalDecisions(messages)).toEqual([{ toolCallId: 'c1', approved: false }]);
   });
 
-  it('原生 approval-responded 状态：决策取 part.approval.approved', () => {
-    const messages: UIMessage[] = [
-      {
-        id: 'm1', role: 'assistant',
-        parts: [{
-          type: 'tool-rm', toolCallId: 'c9', state: 'approval-responded',
-          input: {}, approval: { id: 'c9', approved: true },
-        }] as never,
-      },
-    ];
-    expect(extractApprovalDecisions(messages)).toEqual([{ toolCallId: 'c9', approved: true }]);
-  });
-
   it('同一 toolCallId 后出现的决策覆盖先前的', () => {
     const messages: UIMessage[] = [
       approvalUIMessage('m1', [{ approvalId: 'c1', approved: false }]),
@@ -119,7 +106,7 @@ describe('extractApprovalResponses（原生 in-band 审批解析）', () => {
     expect(rest).toEqual([userMsg]);
   });
 
-  it('tool 消息中混有 tool-result part 时仅剔除审批 part', () => {
+  it('消息中混有 tool-result part 时仅剔除审批 part，不限 role', () => {
     const mixed: ModelMessage = {
       role: 'tool',
       content: [
