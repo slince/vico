@@ -30,6 +30,8 @@ export interface ApprovalClassification {
 export interface CallModelResult {
   /** 模型生成的完整文本 */
   text: string;
+  /** 模型推理/思考内容（reasoning tokens，如 o1/DeepSeek-R1 的内部推理链） */
+  reasoning?: string;
   /** 模型请求的工具调用 */
   toolCalls: ToolCall[];
   /** 本次调用的 token 用量 */

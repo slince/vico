@@ -522,7 +522,7 @@ export class AgentLoop {
 
     // 模型输出后的消息处理（text + tool-call parts 组装为原生 assistant 消息）
     if (modelResult.text || modelResult.toolCalls.length > 0) {
-      const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls);
+      const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning);
       context.messages.push(assistantMsg);
 
       await this.persistMessage(assistantMsg, context);
@@ -695,6 +695,7 @@ export class AgentLoop {
     };
 
     let fullText = '';
+    let fullReasoning = '';
     const toolCalls: ToolCall[] = [];
     const modelSpan = trace.startSpan('model_step', { step: step.index + 1 });
 
@@ -760,6 +761,7 @@ export class AgentLoop {
 
           case 'reasoning-delta':
             firstChunkTime ??= Date.now();
+            fullReasoning += chunk.delta;
             controller.enqueue({ type: 'reasoning-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
             this.emit({ type: 'reasoning-delta', content: chunk.delta });
             break;
@@ -852,14 +854,14 @@ export class AgentLoop {
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
             modelSpan.error(err);
             this.emit({ type: 'error', error: err });
-            trace.recordModelResponse(step.index, { text: fullText, toolCalls, usage: modelUsage, error: err });
-            return { text: fullText, toolCalls, usage: modelUsage, error: err };
+            trace.recordModelResponse(step.index, { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage, error: err });
+            return { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage, error: err };
         }
     }
 
     modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
 
-    const result: CallModelResult = { text: fullText, toolCalls, usage: modelUsage };
+    const result: CallModelResult = { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage };
     trace.recordModelResponse(step.index, result);
     return result;
   }

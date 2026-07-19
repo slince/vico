@@ -3,6 +3,7 @@ import { tool } from 'ai';
 import type { ModelMessage, UIMessage, ToolSet } from 'ai';
 import type {
   AssistantModelMessage, ToolModelMessage, ToolResultPart, TextPart, ToolCallPart, ToolApprovalResponse,
+  ReasoningPart,
 } from '@ai-sdk/provider-utils';
 import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
 import type { ToolApproval } from '../agent-loop/agent-loop-options.js';
@@ -69,10 +70,15 @@ export function getToolResultText(messages: ModelMessage[], toolCallId: string):
 }
 
 /**
- * 构造原生 assistant 消息：文本 + 工具调用 parts。content 数组不能为空，兜底空文本。
+ * 构造原生 assistant 消息：推理 + 文本 + 工具调用 parts。content 数组不能为空，兜底空文本。
+ *
+ * @param text - 模型生成的文本内容
+ * @param toolCalls - 模型请求的工具调用
+ * @param reasoning - 模型推理/思考内容（如 o1/DeepSeek-R1 的内部推理链）
  */
-export function buildAssistantMessage(text: string, toolCalls: ToolCall[]): AssistantModelMessage {
-  const parts: Array<TextPart | ToolCallPart> = [];
+export function buildAssistantMessage(text: string, toolCalls: ToolCall[], reasoning?: string): AssistantModelMessage {
+  const parts: Array<ReasoningPart | TextPart | ToolCallPart> = [];
+  if (reasoning) parts.push({ type: 'reasoning', text: reasoning });
   if (text) parts.push({ type: 'text', text });
   for (const tc of toolCalls) {
     parts.push({ type: 'tool-call', toolCallId: tc.id, toolName: tc.name, input: tc.args });
