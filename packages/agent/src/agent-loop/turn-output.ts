@@ -28,26 +28,4 @@ export class TurnOutput {
   abort(): void {
     this._abort();
   }
-
-  /**
-   * 等待 turn 完成并返回全部文本（忽略 reasoning、tool 等输出）。
-   *
-   * @returns 拼接后的完整文本内容
-   */
-  async collectText(): Promise<string> {
-    const reader = this.stream.getReader();
-    let text = '';
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value.type === 'text-delta') {
-          text += value.text;
-        }
-      }
-    } finally {
-      reader.releaseLock();
-    }
-    return text;
-  }
 }
