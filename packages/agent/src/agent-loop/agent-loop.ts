@@ -97,11 +97,7 @@ export class AgentLoop {
    */
   run(userMessage: ModelMessage | ModelMessage[], options?: RunOptions): TurnOutput {
     // 入口统一归一为消息组，内部一律按数组处理
-    const userMessages = Array.isArray(userMessage) ? userMessage : [userMessage];
-    let resolveResult!: (result: TurnResult) => void;
-    const promise = new Promise<TurnResult>((resolve) => {
-      resolveResult = resolve;
-    });
+    const { promise, resolve } = Promise.withResolvers<TurnResult>();
 
     const internalAc = new AbortController();
 
@@ -109,19 +105,20 @@ export class AgentLoop {
       internalAc.abort();
     };
 
+    const userMessages = Array.isArray(userMessage) ? userMessage : [userMessage];
     const stream = new ReadableStream<AgentStreamPart>({
       start: async (controller) => {
         controller.enqueue({ type: 'start' });
         try {
           const result = await this.start({userMessages, signal: internalAc.signal, controller, options});
-          resolveResult(result);
+          resolve(result);
         } catch (err) {
           const error = err instanceof Error ? err : String(err);
           // 向流内透出错误 part（controller 可能已关闭，静默兜底）
           try { controller.enqueue({ type: 'error', error }); } catch { /* already closed */ }
           this.emit({ type: 'error', error });
           // 始终 resolve：错误已通过流透出，消费者无需 try-catch
-          resolveResult({ status: 'failed', steps: 0, usage: { input: 0, output: 0 }, messages: [], error });
+          resolve({ status: 'failed', steps: 0, usage: { input: 0, output: 0 }, messages: [], error });
         } finally {
           try { controller.close(); } catch { /* already closed */ }
         }
