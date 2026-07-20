@@ -11,15 +11,6 @@ function extractLastUserMessage(body: Record<string, unknown>): UIMessage | unde
   return messages.filter((m) => m.role === 'user').pop();
 }
 
-/** 提取消息文本（判断本次请求是否携带用户输入） */
-function extractText(msg: UIMessage | undefined): string {
-  if (!msg) return '';
-  return msg.parts
-    .filter((p): p is Extract<UIMessage['parts'][number], { type: 'text' }> => p.type === 'text')
-    .map((p) => p.text)
-    .join('');
-}
-
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
   /** 单 Agent 对话（含审批响应自动恢复） */
   app.post('/api/v1/chat', async (c) => {
@@ -48,6 +39,9 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       tenantId: auth.tenantId,
       userId: auth.userId,
     });
+
+    // 桥接 HTTP 请求生命周期到 agent 执行：客户端断开时自动终止 LLM 调用
+    c.req.raw.signal.addEventListener('abort', () => output.abort(), { once: true });
 
     return createUIMessageStreamResponse({
       stream: toUIMessageStream({ stream: output.stream }),
