@@ -100,7 +100,7 @@ export class AgentLoop {
     const userMessages = Array.isArray(userMessage) ? userMessage : [userMessage];
     let resolveResult!: (result: TurnResult) => void;
     let rejectResult!: (err: Error|string) => void;
-    const resultPromise = new Promise<TurnResult>((resolve, reject) => {
+    const promise = new Promise<TurnResult>((resolve, reject) => {
       resolveResult = resolve;
       rejectResult = reject;
     });
@@ -133,7 +133,11 @@ export class AgentLoop {
       },
     });
 
-    return new TurnOutput(stream, resultPromise, abort);
+    // 兜底 catch：SSE 等仅消费 stream 的调用方不会 await promise，
+    // 客户端断开等预期 abort 场景下，避免 unhandled rejection 崩溃进程。
+    promise.catch(() => {});
+
+    return new TurnOutput(stream, promise, abort);
   }
 
   /**
