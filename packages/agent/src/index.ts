@@ -172,7 +172,6 @@ export { type PauseInfo, type Checkpoint, type CheckpointStore, CHECKPOINT_CURRE
 export { TokenEconomy } from './agent-loop/token-economy.js';
 
 // Stream
-export { turnOutputToSSEResponse } from './stream/turn-stream.js';
 export { type AgentStreamPart } from './agent-loop/stream-parts.js';
 
 // Container

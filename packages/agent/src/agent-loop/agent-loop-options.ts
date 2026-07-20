@@ -68,10 +68,10 @@ export interface TurnResult {
   steps: number;
   usage: UsageMetrics;
   messages: ModelMessage[];
-  /** 所属 thread */
-  thread: Thread;
-  /** 所属 turn */
-  turn: Turn;
+  /** 所属 thread（status 为 failed 且发生在 thread 创建前时为 undefined） */
+  thread?: Thread;
+  /** 所属 turn（status 为 failed 且发生在 turn 创建前时为 undefined） */
+  turn?: Turn;
   /** 错误信息（status 为 failed 时） */
   error?: Error | string;
 }
