@@ -10,7 +10,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage
 } from '@assistant-ui/react';
-import type {ContentPart} from '@vico/agent';
+import type {ContentPart} from '@vico/core';
 import {api} from '@/api/client';
 
 /**

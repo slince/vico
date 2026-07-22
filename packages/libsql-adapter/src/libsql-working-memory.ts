@@ -1,7 +1,7 @@
 // @vico/libsql-adapter — Drizzle-backed WorkingMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import type { WorkingMemory } from '@vico/agent';
+import type { WorkingMemory } from '@vico/core';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
 

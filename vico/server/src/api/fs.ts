@@ -13,7 +13,7 @@ import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { resolveWorkspacePath } from '@vico/agent';
+import { resolveWorkspacePath } from '@vico/core';
 import { vico } from '../vico.js';
 import { getAgent } from '../agent/get-agent.js';
 

@@ -9,7 +9,7 @@
  * - AgentRuntime（LRU 缓存）
  * - defaultModelFactory（自动匹配 OpenAI/Anthropic/DeepSeek 等 provider）
  */
-import {Vico} from '@vico/agent';
+import {Vico} from '@vico/core';
 import {ensureTables} from '@vico/libsql-adapter';
 import {getDb} from './db/db.js';
 import {getCheckpointStore, getMemory, getThreadStore} from './agent/memory-setup.js';

@@ -7,7 +7,7 @@
     "start": "tsx index.ts"
   },
   "dependencies": {
-    "@vico/agent": "workspace:*"
+    "@vico/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,7 +1,7 @@
 // @vico/mysql-adapter — MySQL/Drizzle-backed WorkingMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import type { WorkingMemory } from '@vico/agent';
+import type { WorkingMemory } from '@vico/core';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
 

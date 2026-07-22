@@ -1,7 +1,7 @@
 /**
  * Shared types for the conversation-detail page and its sub-components.
  */
-import type { ContentPart } from '@vico/agent';
+import type { ContentPart } from '@vico/core';
 
 /**
  * Shape of a single tool-call entry stored as a JSON string on the message.

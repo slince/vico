@@ -2,7 +2,7 @@ import {eq} from 'drizzle-orm';
 import {getDb, schema} from '../../db/db.js';
 import {vico} from '../../vico.js';
 import type {ConversationDetail, ConversationItem, MessageItem, RecentConversation} from './types.js';
-import {type ContentPart, type Message, type ThreadStore} from "@vico/agent";
+import {type ContentPart, type Message, type ThreadStore} from "@vico/core";
 
 const { agents } = schema;
 

@@ -16,7 +16,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.84",
     "@ai-sdk/openai": "^3.0.0",
-    "@vico/agent": "workspace:*",
+    "@vico/core": "workspace:*",
     "@vico/libsql-adapter": "workspace:*",
     "@vico/rag": "workspace:*",
     "@aws-sdk/client-s3": "^3.1072.0",

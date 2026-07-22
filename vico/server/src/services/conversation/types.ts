@@ -12,7 +12,7 @@ export interface ConversationItem {
   updated_at: number;
 }
 
-import type { ContentPart } from '@vico/agent';
+import type { ContentPart } from '@vico/core';
 
 /** 消息项 */
 export interface MessageItem {

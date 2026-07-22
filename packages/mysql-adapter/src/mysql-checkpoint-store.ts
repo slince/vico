@@ -1,8 +1,8 @@
 // @vico/mysql-adapter — MySQL CheckpointStore implementation
 import { eq, lt } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import type { Checkpoint, CheckpointStore } from '@vico/agent';
-import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations } from '@vico/agent';
+import type { Checkpoint, CheckpointStore } from '@vico/core';
+import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations } from '@vico/core';
 import { checkpoints } from './schema.js';
 
 /**

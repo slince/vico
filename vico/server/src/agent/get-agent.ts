@@ -3,7 +3,7 @@
  *
  * 服务端各处可通过 getAgent(id) 直接拿到可交互的 agent 对象。
  */
-import type {AgentConfig} from '@vico/agent';
+import type {AgentConfig} from '@vico/core';
 import {agentManager} from '../services/agent/agent-manager.js';
 import {vico} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";

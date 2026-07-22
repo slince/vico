@@ -1,7 +1,7 @@
 // @vico/mysql-adapter — MySQL/Drizzle-backed ThreadStore implementation
 import { eq, desc, inArray, and } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import type { ThreadStore, Thread, Turn, Message } from '@vico/agent';
+import type { ThreadStore, Thread, Turn, Message } from '@vico/core';
 import {
   threads,
   turns,

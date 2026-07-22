@@ -1,7 +1,7 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：getAgent 拿到实例，stream 执行。
  */
-import type {TurnOutput, UserMessage} from '@vico/agent';
+import type {TurnOutput, UserMessage} from '@vico/core';
 import {getAgent} from '../agent/get-agent.js';
 
 export interface ExecuteChatParams {
