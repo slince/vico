@@ -63,13 +63,13 @@ export interface AgentLoopOptions {
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
 export class AgentLoop {
-  private agent: Agent;
-  toolExecutor: ToolExecutor;
-  private compactor?: ContextCompactor;
+  private readonly agent: Agent;
+  private readonly toolExecutor: ToolExecutor;
+  private readonly compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
-  private approvalResolver: ApprovalResolver;
-  private tracer: TurnTracer;
-  private pipeline: ProcessorPipeline;
+  private readonly approvalResolver: ApprovalResolver;
+  private readonly tracer: TurnTracer;
+  private readonly pipeline: ProcessorPipeline;
   checkpointStore: CheckpointStore;
 
   constructor(options: AgentLoopOptions) {
