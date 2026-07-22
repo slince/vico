@@ -1,7 +1,7 @@
 // src/index.ts — @vico/core public API
 
-export { type ModelRef } from './agent-loop/types.js';
-export { type LanguageModelFactory, type AgentConfig } from './agent-loop/create-agent.js';
+export { type ModelRef } from './agent/types.js';
+export { type LanguageModelFactory, type AgentConfig } from './agent/create-agent.js';
 export {
   type Tool,
   type ToolCall,
@@ -38,13 +38,13 @@ export {
   ProcessorPipeline,
   buildModelRequest,
   Priority,
-} from './agent-loop/context-processors/context-processor.js';
+} from './agent/context-processors/context-processor.js';
 
-export { SystemPromptProcessor } from './agent-loop/context-processors/system-prompt-processor.js';
-export { SkillProcessor } from './agent-loop/context-processors/skill-processor.js';
-export { MemoryProcessor } from './agent-loop/context-processors/memory-processor.js';
-export { RagProcessor } from './agent-loop/context-processors/rag-processor.js';
-export { WorkspaceToolProcessor } from './agent-loop/context-processors/workspace-tool-processor.js';
+export { SystemPromptProcessor } from './agent/context-processors/system-prompt-processor.js';
+export { SkillProcessor } from './agent/context-processors/skill-processor.js';
+export { MemoryProcessor } from './agent/context-processors/memory-processor.js';
+export { RagProcessor } from './agent/context-processors/rag-processor.js';
+export { WorkspaceToolProcessor } from './agent/context-processors/workspace-tool-processor.js';
 
 export {
   type RagChunk,
@@ -62,12 +62,12 @@ export {
 
 // Tool system
 export { createTool, type ToolOptions } from './tool/create-tool.js';
-export { ToolExecutor } from './agent-loop/tool-executor.js';
+export { ToolExecutor } from './agent/tool-executor.js';
 export {
   type ToolCallContext,
   type ApprovalDecision,
 } from './tool/types.js';
-export { type TurnSession, type CallModelResult } from './agent-loop/agent-loop-options.js';
+export { type TurnSession, type CallModelResult } from './agent/agent-loop-options.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/utils.js';
 export { type PolicyContext, type ApprovalResolver } from './tool/types.js';
@@ -133,7 +133,7 @@ export { InMemoryThreadStore } from './thread/memory-thread-store.js';
 export { FileThreadStore, type FileThreadStoreOptions } from './thread/file-thread-store.js';
 
 // ContextCompactor
-export { ContextCompactor } from './agent-loop/context-compactor.js';
+export { ContextCompactor } from './agent/context-compactor.js';
 
 // Observable (Span + Trace)
 export { type Span, type SpanState } from './observable/types.js';
@@ -155,24 +155,24 @@ export { MittEventRecorder } from './events/event-recorder.js';
 export { type EventRecorder, type EventPayload, type TypedEvent } from './events/types.js';
 
 // AgentRuntime
-export { AgentRuntime } from './agent-loop/agent-runtime.js';
+export { AgentRuntime } from './agent/agent-runtime.js';
 
 // Agent
-export { Agent, type AgentOptions } from './agent-loop/agent.js';
-export { createAgent } from './agent-loop/create-agent.js';
+export { Agent, type AgentOptions } from './agent/agent.js';
+export { createAgent } from './agent/create-agent.js';
 
 // AgentLoop
-export { AgentLoop } from './agent-loop/agent-loop.js';
-export { type AgentLoopOptions } from './agent-loop/agent-loop.js';
-export { collectTurnResult, normalizeUserMessage, extractApprovalDecisions } from './agent-loop/utils.js';
-export { TurnOutput } from './agent-loop/turn-output.js';
-export { type TurnEvent } from './agent-loop/types.js';
-export { type TurnResult, type RunOptions, type ToolApproval } from './agent-loop/agent-loop-options.js';
-export { type PauseInfo, type Checkpoint, type CheckpointStore, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, DEFAULT_CHECKPOINT_TTL } from './agent-loop/checkpoint.js';
-export { TokenEconomy } from './agent-loop/token-economy.js';
+export { AgentLoop } from './agent/agent-loop.js';
+export { type AgentLoopOptions } from './agent/agent-loop.js';
+export { collectTurnResult, normalizeUserMessage, extractApprovalDecisions } from './agent/utils.js';
+export { TurnOutput } from './agent/turn-output.js';
+export { type TurnEvent } from './agent/types.js';
+export { type TurnResult, type RunOptions, type ToolApproval } from './agent/agent-loop-options.js';
+export { type PauseInfo, type Checkpoint, type CheckpointStore, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, DEFAULT_CHECKPOINT_TTL } from './agent/checkpoint.js';
+export { TokenEconomy } from './agent/token-economy.js';
 
 // Stream
-export { type AgentStreamPart } from './agent-loop/stream-parts.js';
+export { type AgentStreamPart } from './agent/stream-parts.js';
 
 // Container
 export {

@@ -1,17 +1,17 @@
 // agent-loop-checkpoint.test.ts — AgentLoop checkpoint integration tests
 import { describe, expect, it, vi } from 'vitest';
 import type { LanguageModelV4, LanguageModelV4StreamResult } from '@ai-sdk/provider';
-import { AgentLoop } from '../src/agent-loop/agent-loop.js';
-import { Agent } from '../src/agent-loop/agent.js';
-import type { TurnEvent } from '../src/agent-loop/types.js';
+import { AgentLoop } from '../src/agent/agent-loop.js';
+import { Agent } from '../src/agent/agent.js';
+import type { TurnEvent } from '../src/agent/types.js';
 import { MittEventRecorder } from '../src/events/event-recorder.js';
 import { TurnTracer } from '../src/observable/turn-tracer.js';
-import { SystemPromptProcessor } from '../src/agent-loop/context-processors/system-prompt-processor.js';
+import { SystemPromptProcessor } from '../src/agent/context-processors/system-prompt-processor.js';
 import { MemoryStore } from '../src/memory/memory-store.js';
 import { InMemoryThreadStore } from '../src/thread/memory-thread-store.js';
-import { collectTurnResult } from '../src/agent-loop/utils.js';
-import { InMemoryCheckpointStore } from '../src/agent-loop/checkpoint-store.js';
-import type { CheckpointStore } from '../src/agent-loop/checkpoint.js';
+import { collectTurnResult } from '../src/agent/utils.js';
+import { InMemoryCheckpointStore } from '../src/agent/checkpoint-store.js';
+import type { CheckpointStore } from '../src/agent/checkpoint.js';
 import type { Tool } from '../src/tool/types.js';
 import { z } from 'zod';
 

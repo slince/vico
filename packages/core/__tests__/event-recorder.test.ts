@@ -1,7 +1,7 @@
 // event-recorder.test.ts — tests for MittEventRecorder: emit, on, off, wildcard
 import { describe, it, expect, vi } from 'vitest';
 import { MittEventRecorder } from '../src/events/event-recorder.js';
-import type { TurnEvent } from '../src/agent-loop/types.js';
+import type { TurnEvent } from '../src/agent/types.js';
 
 describe('MittEventRecorder', () => {
   it('emits and receives events', () => {

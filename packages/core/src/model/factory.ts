@@ -2,7 +2,7 @@
 import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
 import type {LanguageModelV4} from '@ai-sdk/provider';
-import type {ModelRef} from '../agent-loop/types.js';
+import type {ModelRef} from '../agent/types.js';
 
 /**
  * 从 ModelRef 创建 LanguageModel 实例。

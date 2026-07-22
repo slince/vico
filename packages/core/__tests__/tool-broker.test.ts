@@ -1,10 +1,10 @@
 // src/__tests__/tool-broker.test.ts
 import {describe, expect, it, vi} from 'vitest';
 import {z} from 'zod';
-import {ToolExecutor, type ToolExecutorHost} from '../src/agent-loop/tool-executor.js';
+import {ToolExecutor, type ToolExecutorHost} from '../src/agent/tool-executor.js';
 import {createTool} from '../src/tool/create-tool.js';
 import {coreBuiltinTools} from '../src/tool/builtin/index.js';
-import {InMemoryCheckpointStore} from '../src/agent-loop/checkpoint-store.js';
+import {InMemoryCheckpointStore} from '../src/agent/checkpoint-store.js';
 
 function makeCtx(overrides?: Record<string, unknown>): any {
   return {

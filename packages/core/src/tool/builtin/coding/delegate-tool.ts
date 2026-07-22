@@ -1,7 +1,7 @@
 // src/tool/builtin/delegate-tool.ts
 import {z} from 'zod';
 import {createTool} from '../../create-tool.js';
-import {type AgentConfig, createAgent} from '../../../agent-loop/create-agent.js';
+import {type AgentConfig, createAgent} from '../../../agent/create-agent.js';
 import type {ToolCallContext} from '../../types.js';
 
 const delegateParams = z.object({

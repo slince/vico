@@ -6,7 +6,7 @@ import type {
   ReasoningPart,
 } from '@ai-sdk/provider-utils';
 import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
-import type { ToolApproval } from '../agent-loop/agent-loop-options.js';
+import type { ToolApproval } from '../agent/agent-loop-options.js';
 
 /**
  * 消息 content 的原生 part 联合类型，覆盖 AI SDK 生成/历史场景中的主要 part。

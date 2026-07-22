@@ -1,9 +1,9 @@
 // agent-runtime.test.ts — tests for AgentRuntime: register, destroy, LRU eviction
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { LanguageModelV4 } from '@ai-sdk/provider';
-import { AgentRuntime } from '../src/agent-loop/agent-runtime.js';
-import { Agent } from '../src/agent-loop/agent.js';
-import type { TurnEvent } from '../src/agent-loop/types.js';
+import { AgentRuntime } from '../src/agent/agent-runtime.js';
+import { Agent } from '../src/agent/agent.js';
+import type { TurnEvent } from '../src/agent/types.js';
 import { MittEventRecorder } from '../src/events/event-recorder.js';
 import { TurnTracer } from '../src/observable/turn-tracer.js';
 import { MemoryStore } from '../src/memory/memory-store.js';

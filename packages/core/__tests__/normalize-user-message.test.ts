@@ -1,7 +1,7 @@
 // packages/core/__tests__/normalize-user-message.test.ts
 import { describe, it, expect } from 'vitest';
 import type { ModelMessage, UIMessage } from 'ai';
-import { normalizeUserMessage, extractApprovalDecisions } from '../src/agent-loop/utils.js';
+import { normalizeUserMessage, extractApprovalDecisions } from '../src/agent/utils.js';
 import { pickPrimaryUserMessage, extractApprovalResponses, buildApprovalResponseMessage } from '../src/model/message-utils.js';
 
 /** 构造携带 Vico 扩展审批 part 的 user 消息（模拟客户端审批响应） */

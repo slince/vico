@@ -1,6 +1,6 @@
 // checkpoint.test.ts — CheckpointStore unit tests
 import { describe, expect, it } from 'vitest';
-import { InMemoryCheckpointStore } from '../src/agent-loop/checkpoint-store.js';
+import { InMemoryCheckpointStore } from '../src/agent/checkpoint-store.js';
 
 describe('InMemoryCheckpointStore', () => {
   it('saves and retrieves a checkpoint', async () => {
