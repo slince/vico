@@ -20,7 +20,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     const agentId: string | undefined = body.agentId;
     const lastUserMessage = extractLastUserMessage(body);
-    const requestedThreadId: string | undefined = body.threadId as string;
+    const requestedThreadId: string = body.id as string;
 
     // 前端本地临时 ID（如 __LOCALID_xxx）替换为真实 UUID
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;

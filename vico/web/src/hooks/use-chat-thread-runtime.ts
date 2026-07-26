@@ -37,11 +37,10 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
   );
 
   // 为此线程创建 transport — remoteId 为对话 ID（新线程则为本地 ID）
-  const transport = useMemo(
-    () => new DefaultChatTransport({
+  const transport = useMemo(() => new DefaultChatTransport({
         api: '/api/v1/chat',
         credentials: 'include',
-        body: () => ({ agentId, threadId: remoteId }),
+        body: () => ({ agentId }),
         prepareSendMessagesRequest: ({ messages, body, id }) => {
           const lastUserMsg = messages[messages.length - 1];
 
