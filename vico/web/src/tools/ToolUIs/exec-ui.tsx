@@ -10,7 +10,7 @@ import { Terminal, Check, X } from 'lucide-react';
 import { ToolApprovalCard } from '@/components/assistant-ui/tool-approval-card';
 import type { BashArgs } from '../bash.tool';
 
-export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> = ({ status, args, addResult, respondToApproval, approval, result }) => {
+export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> = ({ status, args, respondToApproval, approval, result }) => {
   const command =
     typeof args.command === 'string'
       ? args.command
@@ -44,7 +44,6 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> =
         title="Exec Approval Required"
         icon={Terminal}
         respondToApproval={respondToApproval}
-        addResult={addResult}
       >
         <pre className="text-xs bg-background p-2 rounded border overflow-x-auto whitespace-pre-wrap break-all max-h-32">
           {command}

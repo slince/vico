@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import {type ReactNode, useState} from "react";
+import {ShieldAlert} from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {cn} from "@/lib/utils";
+import {ToolApprovalResponse} from "@assistant-ui/react";
 
-/** 审批响应函数签名（兼容 assistant-ui 的 respondToApproval 和旧版 addResult） */
-type ApproveFn = (response: { approved: boolean }) => void;
-type FallbackFn = (result: any) => void;
+/** 审批响应函数签名 */
+type ApproveFn = (response: ToolApprovalResponse) => void;
 
 export interface ToolApprovalCardProps {
   /** 工具名称（展示用） */
@@ -22,8 +22,6 @@ export interface ToolApprovalCardProps {
   icon?: React.ElementType;
   /** assistant-ui approve 回调 */
   respondToApproval?: ApproveFn;
-  /** 旧版 addResult 回调 */
-  addResult?: FallbackFn;
   className?: string;
 }
 
@@ -40,18 +38,13 @@ export function ToolApprovalCard({
   children,
   icon: Icon = ShieldAlert,
   respondToApproval,
-  addResult,
   className,
 }: ToolApprovalCardProps) {
   const [submitted, setSubmitted] = useState(false);
 
   const respond = (approved: boolean) => {
     if (submitted) return;
-    if (respondToApproval) {
-      respondToApproval({ approved });
-    } else {
-      addResult?.(approved ? "Approved by user" : "User denied tool execution");
-    }
+    respondToApproval?.({ approved });
     setSubmitted(true);
   };
 
