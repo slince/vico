@@ -4,11 +4,11 @@ import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
 
-/** 从请求体提取最后一条 user UIMessage */
-function extractLastUserMessage(body: Record<string, unknown>): UIMessage | undefined {
+/** 从请求体提取最后一条 UIMessage */
+function extractLastMessage(body: Record<string, unknown>): UIMessage | undefined {
   const messages = body.messages as UIMessage[] | undefined;
   if (!messages?.length) return undefined;
-  return messages.filter((m) => m.role === 'user').pop();
+  return messages[messages.length - 1];
 }
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
@@ -19,7 +19,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
 
     const body = await c.req.json();
     const agentId: string | undefined = body.agentId;
-    const lastUserMessage = extractLastUserMessage(body);
+    const lastMessage = extractLastMessage(body);
     const requestedThreadId: string = body.id as string;
 
     // 前端本地临时 ID（如 __LOCALID_xxx）替换为真实 UUID
@@ -34,7 +34,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const output = await executeAgentChat({
       agentId,
       // 原生 UIMessage[] 直接下传：审批 part 由 agent 内部提取剥离，paused turn 自动恢复
-      message: [lastUserMessage!],
+      message: lastMessage ? [lastMessage] : [],
       threadId,
       tenantId: auth.tenantId,
       userId: auth.userId,
