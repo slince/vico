@@ -9,13 +9,12 @@ import type {Agent} from './agent.js';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import type {ModelRequest} from '../model/types.js';
 import {
-  dynamicToolCall,
+  createToolCall,
   finishPart,
   finishStepPart,
   startStepPart,
   toolApprovalRequestPart,
   toolApprovalResponsePart,
-  toolCallPart,
   toolOutputDeniedPart,
   v4FilePart,
   v4ToolResultPart,
@@ -782,7 +781,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
             }
             const call: ToolCall = { id: chunk.toolCallId, name: chunk.toolName, args };
             callsById.set(call.id, call);
-            controller.enqueue(toolCallPart(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }));
+            controller.enqueue(createToolCall(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }));
             // provider 已执行的调用不进本地执行队列（结果随流到达）
             if (!chunk.providerExecuted) {
               toolCalls.push(call);
@@ -799,7 +798,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
           // ── provider 端审批请求：关联已记录的 toolCall（查不到则合成占位调用）──
           case 'tool-approval-request': {
             const call = callsById.get(chunk.toolCallId) ?? { id: chunk.toolCallId, name: 'unknown', args: {} };
-            controller.enqueue({ type: 'tool-approval-request', approvalId: chunk.approvalId, toolCall: dynamicToolCall(call, { providerExecuted: true }) });
+            controller.enqueue({ type: 'tool-approval-request', approvalId: chunk.approvalId, toolCall: createToolCall(call, { providerExecuted: true }) });
             break;
           }
 

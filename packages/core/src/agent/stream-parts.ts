@@ -25,7 +25,7 @@ import type {
 import type {ToolCall, ToolResult} from '../tool/types.js';
 import type {UsageMetrics} from './types.js';
 
-/** toolCallPart / dynamicToolCall 的可选属性 */
+/** createToolCall 的可选属性 */
 interface ToolCallPartOptions {
   /** 是否由 provider 执行（provider 端工具） */
   providerExecuted?: boolean;
@@ -41,7 +41,7 @@ interface ToolCallPartOptions {
  *
  * Vico 工具由 Agent 构造时确定，运行时固定，因此标记 `dynamic: false`。
  */
-export function dynamicToolCall<TToolSet extends ToolSet = ToolSet>(call: ToolCall, opts?: ToolCallPartOptions): TypedToolCall<TToolSet> {
+export function createToolCall<TToolSet extends ToolSet = ToolSet>(call: ToolCall, opts?: ToolCallPartOptions): TypedToolCall<TToolSet> {
   return {
     type: 'tool-call',
     toolCallId: call.id,
@@ -52,11 +52,6 @@ export function dynamicToolCall<TToolSet extends ToolSet = ToolSet>(call: ToolCa
     invalid: opts?.invalid,
     error: opts?.error,
   } as TypedToolCall<TToolSet>;
-}
-
-/** 工具调用 part */
-export function toolCallPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall, opts?: ToolCallPartOptions): TextStreamPart<TToolSet> {
-  return dynamicToolCall<TToolSet>(call, opts);
 }
 
 /**
@@ -120,17 +115,17 @@ export function v4ToolResultPart<TToolSet extends ToolSet = ToolSet>(chunk: Lang
 
 /** 工具被拒绝（策略/用户审批拒绝）part */
 export function toolOutputDeniedPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall): TextStreamPart<TToolSet> {
-  return { type: 'tool-output-denied', toolCallId: call.id, toolName: call.name };
+  return { type: 'tool-output-denied', toolCallId: call.id, toolName: call.name } as TextStreamPart<TToolSet>;
 }
 
 /** 引擎审批请求 part（approvalId 复用 toolCallId，客户端审批响应可直接映射） */
 export function toolApprovalRequestPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall): TextStreamPart<TToolSet> {
-  return { type: 'tool-approval-request', approvalId: call.id, toolCall: dynamicToolCall<TToolSet>(call) };
+  return { type: 'tool-approval-request', approvalId: call.id, toolCall: createToolCall<TToolSet>(call) } as TextStreamPart<TToolSet>;
 }
 
 /** 审批决策结果 part（恢复执行时回放决策） */
 export function toolApprovalResponsePart<TToolSet extends ToolSet = ToolSet>(call: ToolCall, approved: boolean, reason?: string): TextStreamPart<TToolSet> {
-  return { type: 'tool-approval-response', approvalId: call.id, toolCall: dynamicToolCall<TToolSet>(call), approved, reason };
+  return { type: 'tool-approval-response', approvalId: call.id, toolCall: createToolCall<TToolSet>(call), approved, reason } as TextStreamPart<TToolSet>;
 }
 
 /**
@@ -144,12 +139,12 @@ export function v4FilePart<TToolSet extends ToolSet = ToolSet>(chunk: LanguageMo
     type: chunk.type,
     file: new DefaultGeneratedFile({ data, mediaType: chunk.mediaType }),
     providerMetadata: chunk.providerMetadata,
-  };
+  } as TextStreamPart<TToolSet>;
 }
 
 /** step 开始 part（request 携带本步输入消息，warnings 来自 V4 stream-start） */
 export function startStepPart<TToolSet extends ToolSet = ToolSet>(messages: ModelMessage[], warnings: CallWarning[] = []): TextStreamPart<TToolSet> {
-  return { type: 'start-step', request: { messages }, warnings };
+  return { type: 'start-step', request: { messages }, warnings } as TextStreamPart<TToolSet>;
 }
 
 /** finishStepPart 参数 */
@@ -199,7 +194,7 @@ export function finishStepPart<TToolSet extends ToolSet = ToolSet>(params: Finis
     finishReason: params.finishReason.unified,
     rawFinishReason: params.finishReason.raw,
     providerMetadata: params.providerMetadata,
-  };
+  } as TextStreamPart<TToolSet>;
 }
 
 /**
@@ -217,5 +212,5 @@ export function finishPart<TToolSet extends ToolSet = ToolSet>(finishReason: Fin
       outputTokens: usage.output,
       totalTokens: usage.input + usage.output,
     },
-  };
+  } as TextStreamPart<TToolSet>;
 }
