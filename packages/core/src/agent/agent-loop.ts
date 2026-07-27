@@ -6,10 +6,9 @@ import type {Thread, Turn} from '../thread/thread-store.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
-import type {ModelMessage, ToolSet} from 'ai';
+import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import type {ModelRequest} from '../model/types.js';
 import {
-  type AgentStreamPart,
   dynamicToolCall,
   finishPart,
   finishStepPart,
@@ -106,7 +105,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     };
 
     const userMessages = Array.isArray(userMessage) ? userMessage : [userMessage];
-    const stream = new ReadableStream<AgentStreamPart<TToolSet>>({
+    const stream = new ReadableStream<TextStreamPart<TToolSet>>({
       start: async (controller) => {
         controller.enqueue({ type: 'start' });
         try {
@@ -138,7 +137,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
   private async start(ctx: {
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<AgentStreamPart<TToolSet>>;
+    controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { userMessages, signal, controller, options } = ctx;
@@ -177,7 +176,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     thread: Thread;
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<AgentStreamPart<TToolSet>>;
+    controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { thread, userMessages, signal, controller, options } = params;
@@ -211,7 +210,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     checkpoint: Checkpoint;
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<AgentStreamPart<TToolSet>>;
+    controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { thread, turn, checkpoint, userMessages, signal, controller, options } = params;

@@ -171,9 +171,6 @@ export { type TurnResult, type RunOptions, type ToolApproval } from './agent/age
 export { type PauseInfo, type Checkpoint, type CheckpointStore, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, DEFAULT_CHECKPOINT_TTL } from './agent/checkpoint.js';
 export { TokenEconomy } from './agent/token-economy.js';
 
-// Stream
-export { type AgentStreamPart } from './agent/stream-parts.js';
-
 // Container
 export {
   Vico,

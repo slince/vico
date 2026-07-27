@@ -1,11 +1,19 @@
 // @vico/core - AgentLoop 输出流协议（TextStreamPart）的 part 构造与 V4 映射辅助
+import type {
+  CallWarning,
+  FinishReason,
+  ModelMessage,
+  StepResultPerformance,
+  TextStreamPart,
+  ToolSet,
+  TypedToolCall
+} from 'ai';
 //
 // 分层约定：ModelClient 输出 provider 层协议（LanguageModelV4StreamPart），
 // AgentLoop 将其转换为引擎层协议（TextStreamPart<TToolSet>）后对外输出，
 // turn-stream 再转换为 UI 层协议（UIMessageChunk）。本模块承载引擎层 part 的构造逻辑。
-import { DefaultGeneratedFile } from 'ai';
-import type { CallWarning, FinishReason, ModelMessage, StepResultPerformance, TextStreamPart, ToolSet, TypedToolCall } from 'ai';
-import { asLanguageModelUsage, createNullLanguageModelUsage } from 'ai/internal';
+import {DefaultGeneratedFile} from 'ai';
+import {asLanguageModelUsage, createNullLanguageModelUsage} from 'ai/internal';
 import type {
   LanguageModelV4File,
   LanguageModelV4FinishReason,
@@ -14,14 +22,8 @@ import type {
   LanguageModelV4Usage,
   SharedV4ProviderMetadata,
 } from '@ai-sdk/provider';
-import type { ToolCall, ToolResult } from '../tool/types.js';
-import type { UsageMetrics } from './types.js';
-
-/**
- * AgentLoop 输出流的统一 part 类型（AI SDK 引擎层协议）。
- * 默认为泛化的 ToolSet；调用方可传入具体 ToolSet 类型实现 toolName/input 窄化。
- */
-export type AgentStreamPart<TToolSet extends ToolSet = ToolSet> = TextStreamPart<TToolSet>;
+import type {ToolCall, ToolResult} from '../tool/types.js';
+import type {UsageMetrics} from './types.js';
 
 /** toolCallPart / dynamicToolCall 的可选属性 */
 interface ToolCallPartOptions {
@@ -53,7 +55,7 @@ export function dynamicToolCall<TToolSet extends ToolSet = ToolSet>(call: ToolCa
 }
 
 /** 工具调用 part */
-export function toolCallPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall, opts?: ToolCallPartOptions): AgentStreamPart<TToolSet> {
+export function toolCallPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall, opts?: ToolCallPartOptions): TextStreamPart<TToolSet> {
   return dynamicToolCall<TToolSet>(call, opts);
 }
 
@@ -63,7 +65,7 @@ export function toolCallPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall,
  * @param result - ToolExecutor 的执行结果
  * @param input - 对应工具调用的入参（tool-result/tool-error part 要求携带）
  */
-export function toolResultPart<TToolSet extends ToolSet = ToolSet>(result: ToolResult, input: unknown): AgentStreamPart<TToolSet> {
+export function toolResultPart<TToolSet extends ToolSet = ToolSet>(result: ToolResult, input: unknown): TextStreamPart<TToolSet> {
   if (result.status === 'success') {
     return {
       type: 'tool-result',
@@ -72,7 +74,7 @@ export function toolResultPart<TToolSet extends ToolSet = ToolSet>(result: ToolR
       input,
       output: result.output,
       dynamic: false,
-    } as AgentStreamPart<TToolSet>;
+    } as TextStreamPart<TToolSet>;
   }
   return {
     type: 'tool-error',
@@ -81,7 +83,7 @@ export function toolResultPart<TToolSet extends ToolSet = ToolSet>(result: ToolR
     input,
     error: result.error,
     dynamic: false,
-  } as AgentStreamPart<TToolSet>;
+  } as TextStreamPart<TToolSet>;
 }
 
 /**
@@ -90,7 +92,7 @@ export function toolResultPart<TToolSet extends ToolSet = ToolSet>(result: ToolR
  * @param chunk - V4 tool-result chunk
  * @param input - 由先前 tool-call 记录的入参（V4 tool-result 不携带 input）
  */
-export function v4ToolResultPart<TToolSet extends ToolSet = ToolSet>(chunk: LanguageModelV4ToolResult, input: unknown): AgentStreamPart<TToolSet> {
+export function v4ToolResultPart<TToolSet extends ToolSet = ToolSet>(chunk: LanguageModelV4ToolResult, input: unknown): TextStreamPart<TToolSet> {
   if (chunk.isError) {
     return {
       type: 'tool-error',
@@ -101,7 +103,7 @@ export function v4ToolResultPart<TToolSet extends ToolSet = ToolSet>(chunk: Lang
       providerExecuted: true,
       dynamic: false,
       providerMetadata: chunk.providerMetadata,
-    } as AgentStreamPart<TToolSet>;
+    } as TextStreamPart<TToolSet>;
   }
   return {
     type: 'tool-result',
@@ -113,21 +115,21 @@ export function v4ToolResultPart<TToolSet extends ToolSet = ToolSet>(chunk: Lang
     dynamic: false,
     preliminary: chunk.preliminary,
     providerMetadata: chunk.providerMetadata,
-  } as AgentStreamPart<TToolSet>;
+  } as TextStreamPart<TToolSet>;
 }
 
 /** 工具被拒绝（策略/用户审批拒绝）part */
-export function toolOutputDeniedPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall): AgentStreamPart<TToolSet> {
+export function toolOutputDeniedPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall): TextStreamPart<TToolSet> {
   return { type: 'tool-output-denied', toolCallId: call.id, toolName: call.name };
 }
 
 /** 引擎审批请求 part（approvalId 复用 toolCallId，客户端审批响应可直接映射） */
-export function toolApprovalRequestPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall): AgentStreamPart<TToolSet> {
+export function toolApprovalRequestPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall): TextStreamPart<TToolSet> {
   return { type: 'tool-approval-request', approvalId: call.id, toolCall: dynamicToolCall<TToolSet>(call) };
 }
 
 /** 审批决策结果 part（恢复执行时回放决策） */
-export function toolApprovalResponsePart<TToolSet extends ToolSet = ToolSet>(call: ToolCall, approved: boolean, reason?: string): AgentStreamPart<TToolSet> {
+export function toolApprovalResponsePart<TToolSet extends ToolSet = ToolSet>(call: ToolCall, approved: boolean, reason?: string): TextStreamPart<TToolSet> {
   return { type: 'tool-approval-response', approvalId: call.id, toolCall: dynamicToolCall<TToolSet>(call), approved, reason };
 }
 
@@ -136,7 +138,7 @@ export function toolApprovalResponsePart<TToolSet extends ToolSet = ToolSet>(cal
  * data 变体直接携带字节/base64；url 变体与 ai core 行为一致——将 URL 字符串存入 data 字段
  * （下游按 `https?://` 前缀识别为外链）。
  */
-export function v4FilePart<TToolSet extends ToolSet = ToolSet>(chunk: LanguageModelV4File | LanguageModelV4ReasoningFile): AgentStreamPart<TToolSet> {
+export function v4FilePart<TToolSet extends ToolSet = ToolSet>(chunk: LanguageModelV4File | LanguageModelV4ReasoningFile): TextStreamPart<TToolSet> {
   const data = chunk.data.type === 'data' ? chunk.data.data : chunk.data.url.toString();
   return {
     type: chunk.type,
@@ -146,7 +148,7 @@ export function v4FilePart<TToolSet extends ToolSet = ToolSet>(chunk: LanguageMo
 }
 
 /** step 开始 part（request 携带本步输入消息，warnings 来自 V4 stream-start） */
-export function startStepPart<TToolSet extends ToolSet = ToolSet>(messages: ModelMessage[], warnings: CallWarning[] = []): AgentStreamPart<TToolSet> {
+export function startStepPart<TToolSet extends ToolSet = ToolSet>(messages: ModelMessage[], warnings: CallWarning[] = []): TextStreamPart<TToolSet> {
   return { type: 'start-step', request: { messages }, warnings };
 }
 
@@ -166,7 +168,7 @@ export interface FinishStepParams {
 }
 
 /** step 结束 part：V4 finish + response-metadata → finish-step（usage 转扁平结构，性能指标按时间戳计算） */
-export function finishStepPart<TToolSet extends ToolSet = ToolSet>(params: FinishStepParams): AgentStreamPart<TToolSet> {
+export function finishStepPart<TToolSet extends ToolSet = ToolSet>(params: FinishStepParams): TextStreamPart<TToolSet> {
   const usage = asLanguageModelUsage(params.usage);
   const now = Date.now();
   const stepTimeMs = now - params.startTime;
@@ -204,7 +206,7 @@ export function finishStepPart<TToolSet extends ToolSet = ToolSet>(params: Finis
  * turn 终态 finish part。totalUsage 由 UsageMetrics 派生（仅填充总量），
  * 精确的分步 usage 已由各 finish-step part 携带。
  */
-export function finishPart<TToolSet extends ToolSet = ToolSet>(finishReason: FinishReason, usage: UsageMetrics): AgentStreamPart<TToolSet> {
+export function finishPart<TToolSet extends ToolSet = ToolSet>(finishReason: FinishReason, usage: UsageMetrics): TextStreamPart<TToolSet> {
   return {
     type: 'finish',
     finishReason,
