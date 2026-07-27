@@ -44,7 +44,12 @@ export function ToolApprovalCard({
 
   const respond = (approved: boolean) => {
     if (submitted) return;
-    respondToApproval?.({ approved });
+    console.log('[ToolApprovalCard] respond called, approved:', approved, 'respondToApproval:', typeof respondToApproval);
+    try {
+      respondToApproval?.({ approved });
+    } catch (e) {
+      console.error('[ToolApprovalCard] respondToApproval error:', e);
+    }
     setSubmitted(true);
   };
 

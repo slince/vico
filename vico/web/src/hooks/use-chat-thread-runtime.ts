@@ -42,13 +42,14 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
         credentials: 'include',
         body: () => ({ agentId }),
         prepareSendMessagesRequest: ({ messages, body, id }) => {
-          const lastUserMsg = messages[messages.length - 1];
+          const lastMsg = messages[messages.length - 1];
+          console.log('[useChatThreadRuntime] prepareSendMessagesRequest called, messages:', messages.length, 'lastMsg role:', lastMsg?.role);
 
           return {
             body: {
               ...body,
               id: remoteId,
-              messages: lastUserMsg ? [lastUserMsg] : [],
+              messages: lastMsg ? [lastMsg] : [],
             },
           };
         },
