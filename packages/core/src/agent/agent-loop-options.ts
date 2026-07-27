@@ -3,7 +3,7 @@ import {ToolCall, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/context-processor.js";
 import {TurnTrace} from "../observable/turn-tracer.js";
-import type { ModelMessage } from 'ai';
+import type { ModelMessage, ToolSet } from 'ai';
 import type { AgentStreamPart } from './stream-parts.js';
 import {Thread, Turn} from "../thread/thread-store.js";
 
@@ -41,7 +41,7 @@ export interface CallModelResult {
 }
 
 /** executeModelStep / callModel 共享上下文 */
-export interface TurnContext {
+export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   ctx: ModelRequestContext
   messages: ModelMessage[]
   session: TurnSession;
@@ -50,7 +50,7 @@ export interface TurnContext {
   /** turn 级中断信号，贯穿 model 调用和工具执行 */
   signal: AbortSignal;
   /** 流控制器，用于向客户端推送 chunk（引擎层协议 TextStreamPart） */
-  controller: ReadableStreamDefaultController<AgentStreamPart>;
+  controller: ReadableStreamDefaultController<AgentStreamPart<TToolSet>>;
 }
 
 

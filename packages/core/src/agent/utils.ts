@@ -1,3 +1,4 @@
+import type {ToolSet} from 'ai';
 import {TurnOutput} from "./turn-output.js";
 import {Agent} from "./agent.js";
 import {AgentLoop} from "./agent-loop.js";
@@ -107,7 +108,7 @@ export async function collectTurnResult(
  * @param agent - Agent 实例
  * @returns 配置好的 AgentLoop 实例
  */
-export function buildLoop(agent: Agent): AgentLoop {
+export function buildLoop<TToolSet extends ToolSet = ToolSet>(agent: Agent<TToolSet>): AgentLoop<TToolSet> {
   // prompt context processor
   const processors: ContextProcessor[] = [
     new SystemPromptProcessor(),

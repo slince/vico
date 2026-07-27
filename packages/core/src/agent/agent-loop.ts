@@ -6,7 +6,7 @@ import type {Thread, Turn} from '../thread/thread-store.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
-import type {ModelMessage} from 'ai';
+import type {ModelMessage, ToolSet} from 'ai';
 import type {ModelRequest} from '../model/types.js';
 import {
   type AgentStreamPart,
@@ -55,16 +55,16 @@ import {fromModelMessage, toModelMessages} from './utils.js';
 
 
 /** AgentLoop 构造选项 */
-export interface AgentLoopOptions {
-  agent: Agent;
+export interface AgentLoopOptions<TToolSet extends ToolSet = ToolSet> {
+  agent: Agent<TToolSet>;
   processors?: ContextProcessor[];
 }
 
 
 /** AgentLoop — 编排 model→tool→repeat 循环 */
-export class AgentLoop {
-  private readonly agent: Agent;
-  private readonly toolExecutor: ToolExecutor;
+export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecutorHost<TToolSet> {
+  readonly agent: Agent<TToolSet>;
+  private readonly toolExecutor: ToolExecutor<TToolSet>;
   private readonly compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
   private readonly approvalResolver: ApprovalResolver;
@@ -72,7 +72,7 @@ export class AgentLoop {
   private readonly pipeline: ProcessorPipeline;
   checkpointStore: CheckpointStore;
 
-  constructor(options: AgentLoopOptions) {
+  constructor(options: AgentLoopOptions<TToolSet>) {
     this.agent = options.agent;
     this.compactor = this.agent.compactor;
     this.tokenEconomy = this.agent.tokenEconomy;
@@ -106,7 +106,7 @@ export class AgentLoop {
     };
 
     const userMessages = Array.isArray(userMessage) ? userMessage : [userMessage];
-    const stream = new ReadableStream<AgentStreamPart>({
+    const stream = new ReadableStream<AgentStreamPart<TToolSet>>({
       start: async (controller) => {
         controller.enqueue({ type: 'start' });
         try {
@@ -138,7 +138,7 @@ export class AgentLoop {
   private async start(ctx: {
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<AgentStreamPart>;
+    controller: ReadableStreamDefaultController<AgentStreamPart<TToolSet>>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { userMessages, signal, controller, options } = ctx;
@@ -177,7 +177,7 @@ export class AgentLoop {
     thread: Thread;
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<AgentStreamPart>;
+    controller: ReadableStreamDefaultController<AgentStreamPart<TToolSet>>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { thread, userMessages, signal, controller, options } = params;
@@ -195,7 +195,7 @@ export class AgentLoop {
     const requestContext = new ModelRequestContext({agent: this.agent, userMessage: userMessages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
 
-    const context: TurnContext = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
 
     for (const m of userMessages) {
       await this.persistMessage(m, context);
@@ -211,7 +211,7 @@ export class AgentLoop {
     checkpoint: Checkpoint;
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<AgentStreamPart>;
+    controller: ReadableStreamDefaultController<AgentStreamPart<TToolSet>>;
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { thread, turn, checkpoint, userMessages, signal, controller, options } = params;
@@ -238,7 +238,7 @@ export class AgentLoop {
 
     // ——— checkpoint 恢复逻辑 ———
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
-    const context: TurnContext = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
 
     // 还原已完成工具结果到消息链（跳过已有的，并发保护）
     for (const result of checkpoint.completedToolResults) {
@@ -277,7 +277,7 @@ export class AgentLoop {
    * 从 pauseInfo 恢复工具调用：执行自动批准的调用、追加自动拒绝的结果、
    * 处理等待审批的调用（根据 approvalDecisions 决定执行或拒绝）。
    */
-  private async applyPauseInfoRecovery(pauseInfo: PauseInfo, decisions: ToolApproval[], context: TurnContext): Promise<void> {
+  private async applyPauseInfoRecovery(pauseInfo: PauseInfo, decisions: ToolApproval[], context: TurnContext<TToolSet>): Promise<void> {
     if (pauseInfo.reason !== 'tool-approval') return;
 
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
@@ -332,7 +332,7 @@ export class AgentLoop {
     pending: { id: string; name: string; args: Record<string, unknown> },
     checkpoint: Checkpoint,
     messages: ModelMessage[],
-    context: TurnContext,
+    context: TurnContext<TToolSet>,
   ): Promise<void> {
     const turnId = context.session.turn.id;
     const threadId = context.session.thread.id;
@@ -361,7 +361,7 @@ export class AgentLoop {
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
    */
-  private async startTurnLoop(startStep: number, context: TurnContext, turnSpan: Span, usage: UsageMetrics): Promise<TurnResult> {
+  private async startTurnLoop(startStep: number, context: TurnContext<TToolSet>, turnSpan: Span, usage: UsageMetrics): Promise<TurnResult> {
 
     const {session: {thread, turn}, trace} = context
     const loopResult: StepLoopResult  = await this.runTurnLoop(startStep, context);
@@ -432,7 +432,7 @@ export class AgentLoop {
   /**
    * 执行 step loop，被 startLoop（新 turn）和 startResume（恢复）共用。
    */
-  private async runTurnLoop(startStep: number, context: TurnContext,): Promise<StepLoopResult> {
+  private async runTurnLoop(startStep: number, context: TurnContext<TToolSet>,): Promise<StepLoopResult> {
     const usage = { input: 0, output: 0 };
     let steps = startStep;
 
@@ -471,7 +471,7 @@ export class AgentLoop {
   /**
    * 执行一个 model step：压缩 → model 调用 → 审批 → 工具执行 → 持久化。
    */
-  private async executeModelStep(step: Step, context: TurnContext): Promise<ModelStepResult> {
+  private async executeModelStep(step: Step, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
     this.log.debug({ turnId: context.session.turn.id, step: step.index, messageCount: context.messages.length }, 'step start');
 
@@ -563,7 +563,7 @@ export class AgentLoop {
   /**
    * 解析工具审批：遍历 toolCalls，按策略分类为 approvedCalls / deniedResults / pausedCalls。
    */
-  private async resolveToolApprovals(toolCalls: ToolCall[], context: TurnContext): Promise<ApprovalClassification> {
+  private async resolveToolApprovals(toolCalls: ToolCall[], context: TurnContext<TToolSet>): Promise<ApprovalClassification> {
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
     const pausedCalls: ToolCall[] = [];
@@ -626,7 +626,7 @@ export class AgentLoop {
   /**
    * 持久化单条消息到 threadStore（原生 content 序列化为 JSON）。
    */
-  async persistMessage(message: ModelMessage, context: TurnContext): Promise<void> {
+  async persistMessage(message: ModelMessage, context: TurnContext<TToolSet>): Promise<void> {
     await this.agent.thread.appendEntry({
       threadId: context.session.thread.id,
       turnId: context.session.turn.id,
@@ -650,7 +650,7 @@ export class AgentLoop {
   }
 
   /** 工具结果 → 原生 tool 消息 + 持久化 */
-  async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
+  async appendToolResults(toolResults: ToolResult[], context: TurnContext<TToolSet>): Promise<void> {
     for (const r of toolResults) {
       const content = this.resolveToolResult(r);
       const message = buildToolResultMessage(r, content);
@@ -676,7 +676,7 @@ export class AgentLoop {
    * 单次模型调用。messages 已由调用方预处理（含 ctx.before/after），
    * 不修改入参，结果通过 CallModelResult 返回。
    */
-  private async callModel(step: Step, context: TurnContext): Promise<CallModelResult> {
+  private async callModel(step: Step, context: TurnContext<TToolSet>): Promise<CallModelResult> {
     const { ctx, trace, controller } = context;
     const modelUsage = { input: 0, output: 0 };
 

@@ -1,4 +1,5 @@
 // @vico/core - Vico: one-shot wiring for all Agent services
+import type {ToolSet} from 'ai';
 import type {TurnEvent} from '../agent/types.js';
 import type {AgentConfig, LanguageModelFactory} from '../agent/create-agent.js';
 import {createAgent} from '../agent/create-agent.js';
@@ -82,7 +83,7 @@ export class Vico {
    * @param factory - 创建 Agent 配置的工厂函数（仅在 Agent 不存在时调用）
    * @returns 已存在的或新创建的 Agent 实例
    */
-  async createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
+  async createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent<ToolSet>> {
     const existing = this.runtime.getAgent(agentId);
     if (existing) return existing;
     return this.createAgent(await factory());
@@ -93,7 +94,7 @@ export class Vico {
    * @param config - Agent 创建配置
    * @returns 已注册的 Agent 实例
    */
-  async createAgent(config: AgentConfig): Promise<Agent> {
+  async createAgent(config: AgentConfig): Promise<Agent<ToolSet>> {
     const agent = await this.buildAgent(config);
     this.runtime.register(agent);
     return agent;
@@ -102,7 +103,7 @@ export class Vico {
   /**
    * 创建单个 Agent（无缓存），委托到独立 buildAgent。
    */
-  private async buildAgent(config: AgentConfig): Promise<Agent> {
+  private async buildAgent(config: AgentConfig): Promise<Agent<ToolSet>> {
     return createAgent({
       ...config,
       tools: config.tools ?? this.options.tools,

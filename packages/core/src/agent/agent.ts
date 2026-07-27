@@ -1,4 +1,5 @@
 import type {LanguageModelV4} from '@ai-sdk/provider';
+import type {ToolSet} from 'ai';
 import {ModelClient} from '../model/model-client.js';
 import type {ReasoningEffort} from '../model/types.js';
 import type {TurnEvent} from './types.js';
@@ -18,7 +19,7 @@ import type {TokenEconomy} from './token-economy.js';
 import type {CheckpointStore} from './checkpoint.js';
 import pino, {Logger} from 'pino';
 
-export type LoopFactory = (agent: Agent) => AgentLoop
+export type LoopFactory<TToolSet extends ToolSet = ToolSet> = (agent: Agent<TToolSet>) => AgentLoop<TToolSet>
 
 /** Agent 构造参数 */
 export interface AgentOptions {
@@ -48,7 +49,7 @@ export interface AgentOptions {
 }
 
 /** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
-export class Agent<TMetadata extends Record<string, unknown> = Record<string, unknown>> {
+export class Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Record<string, unknown> = Record<string, unknown>> {
   readonly id: string;
   readonly name: string;
   readonly systemPrompt: string;
@@ -65,7 +66,7 @@ export class Agent<TMetadata extends Record<string, unknown> = Record<string, un
   readonly approvalResolver: ApprovalResolver;
   readonly events: EventRecorder<TurnEvent>;
   readonly tracer: TurnTracer;
-  readonly loop: AgentLoop;
+  readonly loop: AgentLoop<TToolSet>;
   readonly workspace?: string;
   readonly compactor?: ContextCompactor;
   readonly tokenEconomy?: TokenEconomy;
