@@ -743,7 +743,7 @@ export class AgentLoop {
           case 'text-end':
           case 'reasoning-start':
           case 'reasoning-end':
-            controller.enqueue({ type: chunk.type, id: chunk.id, providerMetadata: chunk.providerMetadata });
+            controller.enqueue(chunk);
             break;
 
           // ── 文本/推理 delta：V4 的 delta 字段 → TextStreamPart 的 text 字段 ──
@@ -763,15 +763,9 @@ export class AgentLoop {
 
           // ── 工具输入流式（同形透传）──
           case 'tool-input-start':
-            controller.enqueue({ type: 'tool-input-start', id: chunk.id, toolName: chunk.toolName, providerExecuted: chunk.providerExecuted, dynamic: chunk.dynamic, title: chunk.title, providerMetadata: chunk.providerMetadata });
-            break;
-
           case 'tool-input-delta':
-            controller.enqueue({ type: 'tool-input-delta', id: chunk.id, delta: chunk.delta, providerMetadata: chunk.providerMetadata });
-            break;
-
           case 'tool-input-end':
-            controller.enqueue({ type: 'tool-input-end', id: chunk.id, providerMetadata: chunk.providerMetadata });
+            controller.enqueue(chunk);
             break;
 
           case 'tool-call': {
