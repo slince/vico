@@ -14,8 +14,6 @@
     "eval:ci": "tsx src/agent/evals/ci-smoke.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.84",
-    "@ai-sdk/openai": "^3.0.0",
     "@vico/core": "workspace:*",
     "@vico/libsql-adapter": "workspace:*",
     "@vico/rag": "workspace:*",

@@ -28,7 +28,7 @@ import {
   hasToolResult,
   pickPrimaryUserMessage
 } from '../model/message-utils.js';
-import {ToolExecutor} from './tool-executor.js';
+import {ToolExecutor, ToolExecutorHost} from './tool-executor.js';
 import type {TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';

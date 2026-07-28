@@ -154,12 +154,6 @@ importers:
 
   vico/server:
     dependencies:
-      '@ai-sdk/anthropic':
-        specifier: ^3.0.84
-        version: 3.0.84(zod@4.4.3)
-      '@ai-sdk/openai':
-        specifier: ^3.0.0
-        version: 3.0.71(zod@4.4.3)
       '@aws-sdk/client-s3':
         specifier: ^3.1072.0
         version: 3.1072.0
@@ -497,12 +491,6 @@ packages:
         optional: true
       express:
         optional: true
-
-  '@ai-sdk/anthropic@3.0.84':
-    resolution: {integrity: sha512-BIDaHmCHs6Sr5VUsEkTbbVlAN4GWjg97X9x/IfXyviLtzsXvffui9XIcZugkAi1Ri6FnvI5T5qDGh5YLnSuzRg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/anthropic@4.0.14':
     resolution: {integrity: sha512-2YQzgABM3StIEIByaWNiEqTHnvK8eRvXPSVeHjseVrN1Zud7xX7YExjGkFpt9brse3OZrUhg9kaDO7aXPEzq0Q==}
@@ -7931,12 +7919,6 @@ snapshots:
     optionalDependencies:
       express: 5.2.1
 
-  '@ai-sdk/anthropic@3.0.84(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.10
-      '@ai-sdk/provider-utils': 4.0.29(zod@4.4.3)
-      zod: 4.4.3
-
   '@ai-sdk/anthropic@4.0.14(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.3
@@ -7984,12 +7966,6 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.29(zod@3.25.76)
       zod: 3.25.76
 
-  '@ai-sdk/openai@3.0.71(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.10
-      '@ai-sdk/provider-utils': 4.0.29(zod@4.4.3)
-      zod: 4.4.3
-
   '@ai-sdk/openai@4.0.13(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.3
@@ -8023,13 +7999,6 @@ snapshots:
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.1.0
       zod: 3.25.76
-
-  '@ai-sdk/provider-utils@4.0.29(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.10
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.1.0
-      zod: 4.4.3
 
   '@ai-sdk/provider-utils@5.0.11(zod@3.25.76)':
     dependencies:
