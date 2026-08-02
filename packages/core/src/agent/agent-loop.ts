@@ -7,7 +7,6 @@ import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
-import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type {ModelRequest} from '../model/types.js';
 import {
   createToolCall,
@@ -714,15 +713,12 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
     trace.recordModelRequest(step.index, request);
-
-
-    this.log.debug({ step: step.index, turnId: context.session.turn.id, messages: step.messages.length, tools: request.tools?.length }, 'model request')
-
+    
     console.log("model request", request)
 
     const { stream } = await this.agent.modelClient.stream(request, context.signal);
 
-    for await (const chunk of stream as unknown as AsyncIterable<LanguageModelV4StreamPart>) {
+    for await (const chunk of stream) {
       // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
       if (chunk.type === 'stream-start') {
         ensureStepStarted(chunk.warnings);
