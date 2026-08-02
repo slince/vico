@@ -82,7 +82,7 @@ export class ModelRequestContext {
 
   /** 便捷获取工作记忆作用域标识 */
   get scopeId(): string {
-    return this.session?.scopeId ?? '';
+    return this.session?.thread.id ?? '';
   }
 
   /**

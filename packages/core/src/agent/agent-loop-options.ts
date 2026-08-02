@@ -94,7 +94,6 @@ export interface TurnSession {
   workspace?: string;
   thread: Thread;
   turn: Turn;
-  scopeId?: string;
 }
 
 
@@ -108,7 +107,6 @@ export interface ToolApproval {
 export interface RunOptions<TMetadata extends Record<string, unknown> = Record<string, unknown>> {
   /** 会话线程 ID，不传则自动生成 */
   threadId?: string;
-  scopeId?: string;
   userId?: string;
   workspace?: string;
   /** 自定义元数据（JSON 可序列化），写入 thread.metadata */

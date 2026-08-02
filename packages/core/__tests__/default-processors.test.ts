@@ -34,7 +34,6 @@ function makeCtx(overrides?: Partial<ModelRequestContext> & { threadId?: string 
     session: {
       thread: threadId ? { ...defaultThread, id: threadId } : defaultThread,
       turn: { id: 'turn1', threadId: threadId ?? 't1', status: 'running' as const, steps: 0, createdAt: 0 },
-      scopeId: 'u1',
     },
     ...rest,
   });
@@ -185,17 +184,7 @@ describe('MemoryProcessor', () => {
     await p.process(ctx);
     const wmMsg = ctx.messages.find((m) => m.role === 'system' && m.content.includes('updateWorkingMemory'));
     expect(wmMsg!.content).toContain('Alice');
-    expect(memoryStore.working.get).toHaveBeenCalledWith('u1');
-  });
-
-  it('skips working memory injection when scopeId is empty', async () => {
-    const memoryStore = makeMemoryStore();
-    const p = new MemoryProcessor(memoryStore);
-    const ctx = makeCtx({ scopeId: '' });
-    ctx.messages = [{ role: 'user', content: 'hello' }];
-    await p.process(ctx);
-    const wmMsg = ctx.messages.find((m) => m.content.includes('updateWorkingMemory'));
-    expect(wmMsg).toBeUndefined();
+    expect(memoryStore.working.get).toHaveBeenCalledWith('t1');
   });
 
   it('resolve() extracts facts from assistant messages into semantic memory', async () => {

@@ -217,14 +217,14 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
-    const { scopeId, workspace: optWorkspace } = options || {};
+    const { workspace: optWorkspace } = options || {};
     const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
 
     // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
     const { decisions, rest } = extractApprovalResponses(userMessages);
 
     // 重建 session 和 context
-    const session: TurnSession = { workspace, scopeId, thread, turn };
+    const session: TurnSession = { workspace, thread, turn };
     const trace = this.tracer.create(thread, rest, turn.id);
     const turnSpan = trace.startSpan('agent_resume');
 

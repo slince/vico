@@ -24,6 +24,5 @@ export async function executeAgentChat(
   return agent.stream(message, {
     threadId,
     userId,
-    scopeId: tenantId,
   });
 }

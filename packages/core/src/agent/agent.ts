@@ -127,7 +127,6 @@ export class Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Record<
    * @param options.threadId - 指定线程 ID（不传则自动生成）
    * @param options.userId - 用户 ID
    * @param options.workspace - 工作空间路径
-   * @param options.scopeId - 工作记忆作用域标识
    * @returns turn 最终结果
    */
   async invoke(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnResult> {
