@@ -364,7 +364,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     usage.output += loopResult.usage.output;
 
     // 暂停时不 finalize trace session，保留会话供恢复时复用
-    if (loopResult.finalStatus === 'paused') {
+    if (loopResult.status === 'paused') {
       this.log.info({ turnId: turn.id, steps: loopResult.steps }, 'turn paused');
       turnSpan.end({ status: 'paused', steps: loopResult.steps });
       // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
@@ -377,7 +377,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     await this.pipeline.leave(context.ctx);
 
     // 模型错误导致的失败
-    if (loopResult.finalStatus === 'failed') {
+    if (loopResult.status === 'failed') {
       const err = loopResult.error!;
       this.log.error({ turnId: turn.id, error: err instanceof Error ? err.message : String(err) }, 'turn failed');
       await this.agent.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
@@ -393,25 +393,25 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       return failResult;
     }
 
-    const finalStatus = loopResult.finalStatus === 'aborted' ? 'aborted' : 'completed';
-    await this.agent.thread.updateTurn(turn.id, { status: finalStatus, steps: loopResult.steps });
+    const status = loopResult.status === 'aborted' ? 'aborted' : 'completed';
+    await this.agent.thread.updateTurn(turn.id, { status, steps: loopResult.steps });
 
     // completed 终态：清理 checkpoint
-    if (finalStatus === 'completed') {
+    if (status === 'completed') {
       this.log.info({ turnId: turn.id, steps: loopResult.steps }, 'turn completed, cleaning checkpoint');
       await this.checkpointStore.deleteByTurn(turn.id);
     }
 
     turnSpan.end({ status: 'completed', steps: loopResult.steps });
     // 终态生命周期 part：中断先发 abort，再统一发 finish
-    if (loopResult.finalStatus === 'aborted') {
+    if (status === 'aborted') {
       context.controller.enqueue({ type: 'abort' });
     }
-    context.controller.enqueue(finishPart(loopResult.finalStatus === 'aborted' ? 'other' : 'stop', usage));
+    context.controller.enqueue(finishPart(status === 'aborted' ? 'other' : 'stop', usage));
     this.emit({ type: 'done', usage });
 
     const finalResult: TurnResult = {
-      status: loopResult.finalStatus === 'aborted'
+      status: loopResult.status === 'aborted'
         ? (context.signal.aborted ? 'interrupted' : 'aborted')
         : 'completed',
       steps: loopResult.steps,
@@ -447,20 +447,20 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
           stepIndex: steps,
         });
         await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps });
-        return { finalStatus: 'paused', steps, usage };
+        return { status: 'paused', steps, usage };
       }
 
       if (action === 'break') {
         // 如果是因为模型错误 直接短路
         if (error) {
-          return { finalStatus: 'failed', steps, usage, error };
+          return { status: 'failed', steps, usage, error };
         }
         break
       }
       steps++;
     }
 
-    return { finalStatus: signal.aborted ? 'aborted' : 'completed', steps, usage };
+    return { status: signal.aborted ? 'aborted' : 'completed', steps, usage };
   }
 
   /**

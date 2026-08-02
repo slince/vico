@@ -3,7 +3,7 @@ import {ToolCall, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/context-processor.js";
 import {TurnTrace} from "../observable/turn-tracer.js";
-import type { ModelMessage, TextStreamPart, ToolSet } from 'ai';
+import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from "../thread/thread-store.js";
 
 /** executeModelStep 返回值 */
@@ -55,7 +55,7 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
 
 /** runStepLoop 返回的 loop 执行结果 */
 export interface StepLoopResult {
-  finalStatus: 'completed' | 'aborted' | 'paused' | 'failed';
+  status: 'completed' | 'aborted' | 'paused' | 'failed';
   steps: number;
   usage: UsageMetrics;
   error?: Error | string;
