@@ -2,7 +2,7 @@
 import type {Logger} from 'pino';
 import type {TurnEvent, UsageMetrics} from './types.js';
 import type {ApprovalResolver, ToolCall, ToolResult} from '../tool/types.js';
-import type {Thread, Turn} from '../thread/thread-store.js';
+
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
@@ -156,34 +156,36 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       this.log.info({ threadId, agentId: this.agent.id }, 'thread created');
     }
 
+    const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.agent.workspace;
+
     // 自动恢复所有未完成的 turn（paused/running/failed），前提是存在 checkpoint
     const latestTurn = await this.agent.thread.getLatestTurn(threadId);
     if (latestTurn && latestTurn.status !== 'completed') {
       const checkpoint = await this.checkpointStore.getByTurn(latestTurn.id);
       if (checkpoint) {
         this.log.info({ turnId: latestTurn.id, threadId, status: latestTurn.status }, 'resuming turn');
-        return this.resumeTurn({thread, turn: latestTurn, checkpoint, userMessages, signal, controller, options});
+        const session: TurnSession = { workspace, thread, turn: latestTurn };
+        return this.resumeTurn({ session, checkpoint, userMessages, signal, controller });
       }
       this.log.info({ turnId: latestTurn.id, threadId, status: latestTurn.status }, 'uncompleted turn has no checkpoint, starting new turn');
     }
 
     // ── 正常新 turn ──
-    return this.startTurn({ thread, userMessages, signal, controller, options });
+    const turn = await this.agent.thread.createTurn(thread.id);
+    this.log.info({ turnId: turn.id, threadId: thread.id }, 'turn started');
+    const session: TurnSession = { workspace, thread, turn };
+    return this.startTurn({ session, userMessages, signal, controller });
   }
 
   /** 创建新的 turn 并开始执行 */
   private async startTurn(params: {
-    thread: Thread;
+    session: TurnSession;
     userMessages: ModelMessage[];
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
-    options?: RunOptions;
   }): Promise<TurnResult> {
-    const { thread, userMessages, signal, controller, options } = params;
-    const turn = await this.agent.thread.createTurn(thread.id);
-    this.log.info({ turnId: turn.id, threadId: thread.id }, 'turn started');
-    const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.agent.workspace;
-    const session: TurnSession = { ...options, workspace, thread, turn };
+    const { session, userMessages, signal, controller } = params;
+    const { thread, turn } = session;
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
@@ -205,26 +207,20 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
   /** 从未完结的 turn 恢复执行，携带新的用户消息（审批决策从消息组中的原生 tool-approval-response part 解析） */
   private async resumeTurn(params: {
-    thread: Thread;
-    turn: Turn;
+    session: TurnSession;
     checkpoint: Checkpoint;
     userMessages: ModelMessage[];
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
-    options?: RunOptions;
   }): Promise<TurnResult> {
-    const { thread, turn, checkpoint, userMessages, signal, controller, options } = params;
+    const { session, checkpoint, userMessages, signal, controller } = params;
+    const { thread, turn } = session;
 
     const usage: UsageMetrics = { input: 0, output: 0 };
-
-    const { workspace: optWorkspace } = options || {};
-    const workspace = optWorkspace ?? thread.metadata?.workspace ?? this.agent.workspace;
 
     // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
     const { decisions, rest } = extractApprovalResponses(userMessages);
 
-    // 重建 session 和 context
-    const session: TurnSession = { workspace, thread, turn };
     const trace = this.tracer.create(thread, rest, turn.id);
     const turnSpan = trace.startSpan('agent_resume');
 
