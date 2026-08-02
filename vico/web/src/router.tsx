@@ -6,8 +6,6 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Agents from '@/pages/Agents';
 import AgentDetail from '@/pages/AgentDetail';
-import Teams from '@/pages/Teams';
-import TeamDetail from '@/pages/TeamDetail';
 import Conversations from '@/pages/Conversations';
 import ConversationDetail from '@/pages/ConversationDetail';
 import KnowledgeBases from '@/pages/KnowledgeBases';
@@ -47,8 +45,6 @@ export const router = createBrowserRouter([
           { path: 'chat/:threadId', element: <Chat /> },
           { path: 'agents', element: <Agents /> },
           { path: 'agents/:id', element: <AgentDetail /> },
-          { path: 'teams', element: <Teams /> },
-          { path: 'teams/:id', element: <TeamDetail /> },
           { path: 'skills', element: <Skills /> },
           { path: 'knowledge', element: <KnowledgeBases /> },
           { path: 'knowledge/:id', element: <KnowledgeDetail /> },

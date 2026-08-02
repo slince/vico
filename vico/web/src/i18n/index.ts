@@ -7,7 +7,6 @@ import sidebarZhCN from './locales/zh-CN/sidebar.json';
 import authZhCN from './locales/zh-CN/auth.json';
 import dashboardZhCN from './locales/zh-CN/dashboard.json';
 import agentsZhCN from './locales/zh-CN/agents.json';
-import teamsZhCN from './locales/zh-CN/teams.json';
 import skillsZhCN from './locales/zh-CN/skills.json';
 import conversationsZhCN from './locales/zh-CN/conversations.json';
 import knowledgeZhCN from './locales/zh-CN/knowledge.json';
@@ -19,7 +18,6 @@ import sidebarZhTW from './locales/zh-TW/sidebar.json';
 import authZhTW from './locales/zh-TW/auth.json';
 import dashboardZhTW from './locales/zh-TW/dashboard.json';
 import agentsZhTW from './locales/zh-TW/agents.json';
-import teamsZhTW from './locales/zh-TW/teams.json';
 import skillsZhTW from './locales/zh-TW/skills.json';
 import conversationsZhTW from './locales/zh-TW/conversations.json';
 import knowledgeZhTW from './locales/zh-TW/knowledge.json';
@@ -31,7 +29,6 @@ import sidebarEn from './locales/en/sidebar.json';
 import authEn from './locales/en/auth.json';
 import dashboardEn from './locales/en/dashboard.json';
 import agentsEn from './locales/en/agents.json';
-import teamsEn from './locales/en/teams.json';
 import skillsEn from './locales/en/skills.json';
 import conversationsEn from './locales/en/conversations.json';
 import knowledgeEn from './locales/en/knowledge.json';
@@ -48,7 +45,6 @@ i18n
         auth: authZhCN,
         dashboard: dashboardZhCN,
         agents: agentsZhCN,
-        teams: teamsZhCN,
         skills: skillsZhCN,
         conversations: conversationsZhCN,
         knowledge: knowledgeZhCN,
@@ -61,7 +57,6 @@ i18n
         auth: authZhTW,
         dashboard: dashboardZhTW,
         agents: agentsZhTW,
-        teams: teamsZhTW,
         skills: skillsZhTW,
         conversations: conversationsZhTW,
         knowledge: knowledgeZhTW,
@@ -74,7 +69,6 @@ i18n
         auth: authEn,
         dashboard: dashboardEn,
         agents: agentsEn,
-        teams: teamsEn,
         skills: skillsEn,
         conversations: conversationsEn,
         knowledge: knowledgeEn,

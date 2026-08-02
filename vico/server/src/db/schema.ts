@@ -126,29 +126,6 @@ export const memory_entries = sqliteTable('memory_entries', {
   typeTenantIdx: index('idx_me_tenant_type_imp').on(table.tenant_id, table.type, table.importance),
 }));
 
-/** Agent 团队定义表 */
-export const agentTeams = sqliteTable('agent_teams', {
-  id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
-  name: text('name').notNull(),
-  description: text('description').notNull().default(''),
-  routing_strategy: text('routing_strategy').notNull().default('supervisor'),
-  supervisor_agent_id: text('supervisor_agent_id').references(() => agents.id),
-  created_at: integer('created_at').notNull(),
-  updated_at: integer('updated_at').notNull(),
-});
-
-/** 团队成员关联表 */
-export const agentTeamMembers = sqliteTable('agent_team_members', {
-  id: text('id').primaryKey(),
-  team_id: text('team_id').notNull().references(() => agentTeams.id, { onDelete: 'cascade' }),
-  agent_id: text('agent_id').notNull().references(() => agents.id),
-  role: text('role').notNull().default('member'),
-  created_at: integer('created_at').notNull(),
-}, (table) => ({
-  unq: unique().on(table.team_id, table.agent_id),
-}));
-
 /** 命令执行审批表 */
 export const exec_approvals = sqliteTable('exec_approvals', {
   id: text('id').primaryKey(),
