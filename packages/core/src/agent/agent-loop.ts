@@ -6,6 +6,7 @@ import type {ApprovalResolver, ToolCall, ToolResult} from '../tool/types.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
+import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import type {ModelRequest} from '../model/types.js';
 import {
@@ -29,7 +30,7 @@ import {
   pickPrimaryUserMessage
 } from '../model/message-utils.js';
 import {ToolExecutor, ToolExecutorHost} from './tool-executor.js';
-import type {TurnTracer} from '../observable/turn-tracer.js';
+import {TurnTrace, TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
@@ -713,10 +714,18 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
     trace.recordModelRequest(step.index, request);
-    
+
     console.log("model request", request)
 
-    const { stream } = await this.agent.modelClient.stream(request, context.signal);
+    let stream: ReadableStream<LanguageModelV4StreamPart>;
+    try {
+      ({ stream } = await this.agent.modelClient.stream(request, context.signal));
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      this.log.error({ err }, 'modelClient.stream 调用失败');
+      controller.enqueue({ type: 'error', error: err.message });
+      return this.recordModelError(step.index, modelSpan, trace, err, { text: '', toolCalls: [], usage: { input: 0, output: 0 } });
+    }
 
     for await (const chunk of stream) {
       // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
@@ -832,10 +841,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
           case 'error':
             controller.enqueue({ type: 'error', error: chunk.error });
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            modelSpan.error(err);
-            this.emit({ type: 'error', error: err });
-            trace.recordModelResponse(step.index, { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage, error: err });
-            return { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage, error: err };
+            return this.recordModelError(step.index, modelSpan, trace, err, { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage });
         }
     }
 
@@ -844,6 +850,24 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const result: CallModelResult = { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage };
     trace.recordModelResponse(step.index, result);
     return result;
+  }
+
+  /**
+   * 统一处理模型调用错误：标记 span、emit 事件、记录 trace 并返回错误结果。
+   * 调用方负责日志记录和 controller.enqueue。
+   */
+  private recordModelError(
+    stepIndex: number,
+    modelSpan: Span,
+    trace: TurnTrace,
+    error: Error | string,
+    result: CallModelResult,
+  ): CallModelResult {
+    modelSpan.error(error);
+    this.emit({ type: 'error', error });
+    const final: CallModelResult = { ...result, error };
+    trace.recordModelResponse(stepIndex, final);
+    return final;
   }
 
 }
