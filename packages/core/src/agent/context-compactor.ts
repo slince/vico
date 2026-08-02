@@ -1,5 +1,6 @@
 // src/agent-loop/context-compactor.ts
 import type {ModelClient} from '../model/model-client.js';
+import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type { ModelMessage } from 'ai';
 import { getMessageText } from '../model/message-utils.js';
 
@@ -64,7 +65,7 @@ export class ContextCompactor {
         abortSignal: signal,
       });
       let text = '';
-      for await (const chunk of stream) {
+      for await (const chunk of stream as unknown as AsyncIterable<LanguageModelV4StreamPart>) {
         if (chunk.type === 'text-delta') text += chunk.delta;
       }
       summaryContent = text;

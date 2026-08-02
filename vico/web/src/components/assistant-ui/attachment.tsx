@@ -172,6 +172,7 @@ const AttachmentUI: FC = () => {
 };
 
 const AttachmentRemove: FC = () => {
+  const { t } = useTranslation("assistant");
   return (
     <AttachmentPrimitive.Remove asChild>
       <TooltipIconButton

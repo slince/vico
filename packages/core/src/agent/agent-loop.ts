@@ -7,6 +7,7 @@ import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
 import type {Agent} from './agent.js';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
+import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type {ModelRequest} from '../model/types.js';
 import {
   createToolCall,
@@ -725,7 +726,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     const { stream } = await this.agent.modelClient.stream(request, context.signal);
 
-    for await (const chunk of stream) {
+    for await (const chunk of stream as unknown as AsyncIterable<LanguageModelV4StreamPart>) {
       // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
       if (chunk.type === 'stream-start') {
         ensureStepStarted(chunk.warnings);
