@@ -230,16 +230,9 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
 
-    // 还原已完成工具结果到消息链（跳过已有的，并发保护）
-    const newToolMessages: ModelMessage[] = [];
-    for (const result of checkpoint.completedToolResults) {
-      if (!hasToolResult(messages, result.callId)) {
-        const content = this.resolveToolResult(result);
-        const msg = buildToolResultMessage(result, content);
-        messages.push(msg);
-        newToolMessages.push(msg);
-      }
-    }
+    // 还原已完成工具结果到消息链
+    const newToolMessages = this.restoreCompletedToolResults(checkpoint.completedToolResults);
+    messages.push(...newToolMessages);
     if (newToolMessages.length > 0) {
       await this.persistMessages(context, newToolMessages);
     }
@@ -624,6 +617,16 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     await this.agent.thread.appendEntries(
       messages.map(message => ({ threadId, turnId, ...fromModelMessage(message) })),
     );
+  }
+
+  /**
+   * 将 checkpoint 中已完成的工具结果还原为原生 tool 消息列表。
+   */
+  private restoreCompletedToolResults(results: ToolResult[]): ModelMessage[] {
+    return results.map(result => {
+      const content = this.resolveToolResult(result);
+      return buildToolResultMessage(result, content);
+    });
   }
 
   /**
