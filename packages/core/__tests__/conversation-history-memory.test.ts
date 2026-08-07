@@ -1,7 +1,7 @@
 // src/__tests__/conversation-history-memory.test.ts
-import { describe, it, beforeEach, expect } from 'vitest';
-import { ConversationHistoryMemory } from '../src/memory/conversation-history-memory.js';
-import { InMemoryThreadStore } from '../src/thread/memory-thread-store.js';
+import {beforeEach, describe, expect, it} from 'vitest';
+import {ConversationHistoryMemory} from '../src/memory/conversation-history-memory.js';
+import {InMemoryThreadStore} from '../src/thread/memory-thread-store.js';
 
 describe('ConversationHistoryMemory', () => {
   let threadStore: InMemoryThreadStore;
@@ -9,18 +9,17 @@ describe('ConversationHistoryMemory', () => {
 
   beforeEach(() => {
     threadStore = new InMemoryThreadStore();
-    historyStore = new ConversationHistoryMemory(threadStore);
+    historyStore = new ConversationHistoryMemory(threadStore, 10);
   });
 
   async function seedMessages(threadId: string, count: number) {
-    for (let i = 0; i < count; i++) {
-      await threadStore.appendEntry({
-        threadId,
-        turnId: 't1',
-        role: 'user',
-        content: `msg${i}`,
-      });
-    }
+    const entries = Array.from({ length: count }, (_, i) => ({
+      threadId,
+      turnId: 't1',
+      role: 'user',
+      content: `msg${i}`,
+    }));
+    await threadStore.appendEntries(entries);
   }
 
   it('reads messages via thread store', async () => {

@@ -198,9 +198,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
 
-    for (const m of userMessages) {
-      await this.persistMessage(m, context);
-    }
+    await this.persistMessages(context, userMessages);
 
     return this.startTurnLoop( 0, context, turnSpan, usage);
   }
@@ -229,20 +227,23 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const messages = toModelMessages(entries);
 
     const requestContext = new ModelRequestContext({agent: this.agent, userMessage: rest, messages, tools: [...this.agent.tools], session});
-    await this.pipeline.enter(requestContext);
 
     // ——— checkpoint 恢复逻辑 ———
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
 
     // 还原已完成工具结果到消息链（跳过已有的，并发保护）
+    const newToolMessages: ModelMessage[] = [];
     for (const result of checkpoint.completedToolResults) {
       if (!hasToolResult(messages, result.callId)) {
         const content = this.resolveToolResult(result);
         const msg = buildToolResultMessage(result, content);
         messages.push(msg);
-        await this.persistMessage(msg, context);
+        newToolMessages.push(msg);
       }
+    }
+    if (newToolMessages.length > 0) {
+      await this.persistMessages(context, newToolMessages);
     }
 
     if (checkpoint.pauseInfo) {
@@ -261,9 +262,8 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     }
 
     messages.push(...rest);
-    for (const m of rest) {
-      await this.persistMessage(m, context);
-    }
+    await this.persistMessages(context, rest);
+    await this.pipeline.enter(requestContext);
     await this.agent.thread.updateTurn(turn.id, { status: 'running' });
     return this.startTurnLoop(checkpoint.stepIndex, context, turnSpan, usage);
   }
@@ -515,7 +515,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning);
       context.messages.push(assistantMsg);
 
-      await this.persistMessage(assistantMsg, context);
+      await this.persistMessages(context, [assistantMsg]);
     }
 
     if (modelResult.toolCalls.length === 0) {
@@ -619,14 +619,14 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
   }
 
   /**
-   * 持久化单条消息到 threadStore（原生 content 序列化为 JSON）。
+   * 批量持久化消息到 threadStore。
    */
-  async persistMessage(message: ModelMessage, context: TurnContext<TToolSet>): Promise<void> {
-    await this.agent.thread.appendEntry({
-      threadId: context.session.thread.id,
-      turnId: context.session.turn.id,
-      ...fromModelMessage(message),
-    });
+  async persistMessages(context: TurnContext<TToolSet>, messages: ModelMessage[]): Promise<void> {
+    const threadId = context.session.thread.id;
+    const turnId = context.session.turn.id;
+    await this.agent.thread.appendEntries(
+      messages.map(message => ({ threadId, turnId, ...fromModelMessage(message) })),
+    );
   }
 
   /**
@@ -644,13 +644,17 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     return this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
   }
 
-  /** 工具结果 → 原生 tool 消息 + 持久化 */
+  /** 工具结果 → 原生 tool 消息 + 批量持久化 */
   async appendToolResults(toolResults: ToolResult[], context: TurnContext<TToolSet>): Promise<void> {
+    const messages: ModelMessage[] = [];
     for (const r of toolResults) {
       const content = this.resolveToolResult(r);
       const message = buildToolResultMessage(r, content);
       context.messages.push(message);
-      await this.persistMessage(message, context);
+      messages.push(message);
+    }
+    if (messages.length > 0) {
+      await this.persistMessages(context, messages);
     }
   }
 

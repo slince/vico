@@ -150,16 +150,20 @@ export class FileThreadStore implements ThreadStore {
 
   // Message 操作
 
-  async appendEntry(entry: Omit<Message, 'id' | 'createdAt'>): Promise<Message> {
+  async appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]> {
     await this.ensureDirs();
-    const msg: Message = {
-      ...entry,
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
-    };
-    const msgFile = join(this.messagesDir, `${msg.id}.json`);
-    await this.writeJSON(msgFile, msg);
-    return msg;
+    const results: Message[] = [];
+    for (const entry of entries) {
+      const msg: Message = {
+        ...entry,
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+      };
+      const msgFile = join(this.messagesDir, `${msg.id}.json`);
+      await this.writeJSON(msgFile, msg);
+      results.push(msg);
+    }
+    return results;
   }
 
   async getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[] }): Promise<Message[]> {

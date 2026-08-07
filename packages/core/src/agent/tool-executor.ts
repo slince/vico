@@ -12,7 +12,7 @@ import {toolResultPart} from './stream-parts.js';
 /** AgentLoop 暴露给 ToolExecutor 的方法和属性 */
 export interface ToolExecutorHost<TToolSet extends ToolSet = ToolSet> {
   emit(event: TurnEvent): void;
-  persistMessage(message: ModelMessage, context: TurnContext<TToolSet>): Promise<void>;
+  persistMessages(context: TurnContext<TToolSet>, messages: ModelMessage[]): Promise<void>;
   resolveToolResult(r: ToolResult): string;
   appendToolResults(toolResults: ToolResult[], context: TurnContext<TToolSet>): Promise<void>;
   checkpointStore: CheckpointStore;

@@ -69,16 +69,18 @@ export class InMemoryThreadStore implements ThreadStore {
 
   // Message 操作
 
-  async appendEntry(entry: Omit<Message, 'id' | 'createdAt'>): Promise<Message> {
-    const msg: Message = {
-      ...entry,
-      id: crypto.randomUUID(),
-      createdAt: Date.now(),
-    };
-    const list = this.messages.get(entry.threadId) ?? [];
-    list.push(msg);
-    this.messages.set(entry.threadId, list);
-    return msg;
+  async appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]> {
+    return entries.map(entry => {
+      const msg: Message = {
+        ...entry,
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+      };
+      const list = this.messages.get(entry.threadId) ?? [];
+      list.push(msg);
+      this.messages.set(entry.threadId, list);
+      return msg;
+    });
   }
 
   async getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[] }): Promise<Message[]> {

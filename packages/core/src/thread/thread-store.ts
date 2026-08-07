@@ -83,8 +83,8 @@ export interface ThreadStore {
 
   /** 消息操作 */
 
-  /** 追加对话记录 */
-  appendEntry(entry: Omit<Message, 'id' | 'createdAt'>): Promise<Message>;
+  /** 批量追加对话记录 */
+  appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]>;
   /** 获取线程的对话记录列表（支持分页和角色筛选） */
   getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[] }): Promise<Message[]>;
   /** 批量获取多个 turn 的对话记录 */
