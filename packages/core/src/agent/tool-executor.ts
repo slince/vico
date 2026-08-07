@@ -107,11 +107,9 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
 
       const result = await this.execute(call, toolCallContext);
 
-      const prevIds = latestCheckpoint?.completedToolCallIds ?? [];
       const prevResults = latestCheckpoint?.completedToolResults ?? [];
       latestCheckpoint = await this.host.checkpointStore.save(turnId, threadId, {
         stepIndex: latestCheckpoint?.stepIndex ?? 0,
-        completedToolCallIds: [...prevIds, call.id],
         completedToolResults: [...prevResults, result],
         pendingToolCall: null,
       });

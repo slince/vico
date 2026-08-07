@@ -28,7 +28,6 @@ export class InMemoryCheckpointStore implements CheckpointStore {
         ...patch,
         version: CHECKPOINT_CURRENT_VERSION,
         updatedAt: now,
-        completedToolCallIds: patch.completedToolCallIds ?? existing.completedToolCallIds,
         completedToolResults: patch.completedToolResults ?? existing.completedToolResults,
       };
       this.store.set(turnId, merged);
@@ -45,7 +44,6 @@ export class InMemoryCheckpointStore implements CheckpointStore {
       toolApprovalState: {},
       pauseInfo: null,
 
-      completedToolCallIds: [],
       completedToolResults: [],
       pendingToolCall: null,
       createdAt: now,

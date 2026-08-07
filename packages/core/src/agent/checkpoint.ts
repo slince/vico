@@ -38,8 +38,6 @@ export interface Checkpoint {
   /** 非空表示 turn 被暂停（等待审批或出错），包含暂停原因和待审批的工具调用 */
   pauseInfo: PauseInfo | null;
 
-  /** 已完成（已持久化结果）的工具调用 ID 列表，恢复时跳过以幂等重放 */
-  completedToolCallIds: string[];
   /** 已完成工具调用的结果，恢复时直接追加到上下文消息中 */
   completedToolResults: ToolResult[];
   /** 正在执行中尚未持久化的工具调用，恢复时走 retry 路径重新执行 */

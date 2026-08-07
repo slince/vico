@@ -34,7 +34,6 @@ export class LibSqlCheckpointStore implements CheckpointStore {
         ...patch,
         version: CHECKPOINT_CURRENT_VERSION,
         updatedAt: now,
-        completedToolCallIds: patch.completedToolCallIds ?? existing.completedToolCallIds,
         completedToolResults: patch.completedToolResults ?? existing.completedToolResults,
       };
 
@@ -56,7 +55,6 @@ export class LibSqlCheckpointStore implements CheckpointStore {
       toolApprovalState: {},
       pauseInfo: null,
 
-      completedToolCallIds: [],
       completedToolResults: [],
       pendingToolCall: null,
       createdAt: now,

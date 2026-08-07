@@ -134,8 +134,7 @@ describe('AgentLoop with checkpoint', () => {
       (await agent.thread.getLatestTurn('thread-1'))!.id,
     );
     expect(ckpt).toBeDefined();
-    // tool-done checkpoint: completedToolCallIds should contain call-1
-    expect(ckpt!.completedToolCallIds).toContain('call-1');
+    expect(ckpt!.completedToolResults).not.toHaveLength(0);
     expect(ckpt!.pendingToolCall).toBeNull();
   });
 

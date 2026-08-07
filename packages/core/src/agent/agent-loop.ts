@@ -340,7 +340,6 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
         output: getToolResultText(messages, pending.id) ?? null,
       };
       await this.checkpointStore.save(turnId, threadId, {
-        completedToolCallIds: [...checkpoint.completedToolCallIds, pending.id],
         completedToolResults: [...checkpoint.completedToolResults, existingResult],
         pendingToolCall: null,
       });

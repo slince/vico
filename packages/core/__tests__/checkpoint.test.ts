@@ -44,21 +44,18 @@ describe('InMemoryCheckpointStore', () => {
     expect(await store.getByTurn('turn-1')).toBeUndefined();
   });
 
-  it('preserves completedToolCallIds across updates', async () => {
+  it('accumulates completedToolResults across updates', async () => {
     const store = new InMemoryCheckpointStore();
     await store.save('turn-1', 'thread-1', {
-      completedToolCallIds: ['call-1'],
       completedToolResults: [{ callId: 'call-1', name: 't1', status: 'success', output: 'ok' }],
     });
     await store.save('turn-1', 'thread-1', {
-      completedToolCallIds: ['call-1', 'call-2'],
       completedToolResults: [
         { callId: 'call-1', name: 't1', status: 'success', output: 'ok' },
         { callId: 'call-2', name: 't2', status: 'success', output: 'ok2' },
       ],
     });
     const ckpt = await store.getByTurn('turn-1');
-    expect(ckpt!.completedToolCallIds).toEqual(['call-1', 'call-2']);
     expect(ckpt!.completedToolResults).toHaveLength(2);
   });
 });
