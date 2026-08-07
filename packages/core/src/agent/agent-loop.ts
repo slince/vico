@@ -315,7 +315,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
    * 执行前检查消息链，若已有 tool_result 则跳过（并发恢复保护）。
    */
   private async resolvePendingTool(
-    pending: { id: string; name: string; args: Record<string, unknown> },
+    pending: ToolCall,
     checkpoint: Checkpoint,
     messages: ModelMessage[],
     context: TurnContext<TToolSet>,
