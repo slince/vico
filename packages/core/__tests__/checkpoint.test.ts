@@ -1,10 +1,10 @@
 // checkpoint.test.ts — CheckpointStore unit tests
 import { describe, expect, it } from 'vitest';
-import { InMemoryCheckpointStore } from '../src/agent/checkpoint-store.js';
+import { MemoryCheckpointStore } from '../src/agent/memory-checkpoint-store.js';
 
-describe('InMemoryCheckpointStore', () => {
+describe('MemoryCheckpointStore', () => {
   it('saves and retrieves a checkpoint', async () => {
-    const store = new InMemoryCheckpointStore();
+    const store = new MemoryCheckpointStore();
     const ckpt = await store.save('turn-1', 'thread-1', {
       stepIndex: 3,
       toolApprovalState: { 'read_file': true },
@@ -16,7 +16,7 @@ describe('InMemoryCheckpointStore', () => {
   });
 
   it('upserts on same turnId', async () => {
-    const store = new InMemoryCheckpointStore();
+    const store = new MemoryCheckpointStore();
     await store.save('turn-1', 'thread-1', { stepIndex: 1 });
     const ckpt = await store.save('turn-1', 'thread-1', { stepIndex: 5 });
 
@@ -27,14 +27,14 @@ describe('InMemoryCheckpointStore', () => {
   });
 
   it('deletes checkpoint by turn', async () => {
-    const store = new InMemoryCheckpointStore();
+    const store = new MemoryCheckpointStore();
     await store.save('turn-1', 'thread-1', { stepIndex: 1 });
     await store.deleteByTurn('turn-1');
     expect(await store.getByTurn('turn-1')).toBeUndefined();
   });
 
   it('purges expired checkpoints', async () => {
-    const store = new InMemoryCheckpointStore();
+    const store = new MemoryCheckpointStore();
     // Create an "expired" checkpoint (directly manipulate internal store to set old timestamp)
     const ckpt = await store.save('turn-1', 'thread-1', { pauseInfo: { reason: 'tool-approval', pendingToolCalls: [], pausedAtStep: 0 } });
     // Use very short TTL (1ms) to trigger expiry
@@ -45,7 +45,7 @@ describe('InMemoryCheckpointStore', () => {
   });
 
   it('accumulates completedToolResults across updates', async () => {
-    const store = new InMemoryCheckpointStore();
+    const store = new MemoryCheckpointStore();
     await store.save('turn-1', 'thread-1', {
       completedToolResults: [{ callId: 'call-1', name: 't1', status: 'success', output: 'ok' }],
     });

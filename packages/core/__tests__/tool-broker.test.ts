@@ -4,7 +4,7 @@ import {z} from 'zod';
 import {ToolExecutor, type ToolExecutorHost} from '../src/agent/tool-executor.js';
 import {createTool} from '../src/tool/create-tool.js';
 import {coreBuiltinTools} from '../src/tool/builtin/index.js';
-import {InMemoryCheckpointStore} from '../src/agent/checkpoint-store.js';
+import {MemoryCheckpointStore} from '../src/agent/memory-checkpoint-store.js';
 
 function makeCtx(overrides?: Record<string, unknown>): any {
   return {
@@ -17,7 +17,7 @@ function makeCtx(overrides?: Record<string, unknown>): any {
 
 function makeHost(tools = coreBuiltinTools): ToolExecutor {
   const host: ToolExecutorHost = {
-    checkpointStore: new InMemoryCheckpointStore(),
+    checkpointStore: new MemoryCheckpointStore(),
     emit: vi.fn(),
     persistMessage: vi.fn(),
     resolveToolResult: vi.fn((r) => typeof r.output === 'string' ? r.output : JSON.stringify(r.output)),

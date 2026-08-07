@@ -20,7 +20,7 @@ import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
 import {resolvePolicy} from "../tool/utils.js";
 import type {CheckpointStore} from "./checkpoint.js";
-import {InMemoryCheckpointStore} from "./checkpoint-store.js";
+import {MemoryCheckpointStore} from "./memory-checkpoint-store.js";
 import {createFSSkillLoader} from "../skill/fs-skill-loader.js";
 import {collectSkillDirs} from "./utils.js";
 
@@ -154,6 +154,6 @@ export async function createAgent(config: AgentConfig): Promise<Agent<ToolSet>> 
     tracer: config.tracer || new TurnTracer(events, []),
     events: events,
     approvalResolver: config.approvalResolver || resolvePolicy,
-    checkpointStore: config.checkpointStore || new InMemoryCheckpointStore()
+    checkpointStore: config.checkpointStore || new MemoryCheckpointStore()
   });
 }

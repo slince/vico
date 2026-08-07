@@ -7,7 +7,7 @@ import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations } from './checkpoint.j
  * Stores checkpoints in a Map keyed by turnId.
  * Supports lazy version migration on read.
  */
-export class InMemoryCheckpointStore implements CheckpointStore {
+export class MemoryCheckpointStore implements CheckpointStore {
   private store = new Map<string, Checkpoint>();
 
   /**
