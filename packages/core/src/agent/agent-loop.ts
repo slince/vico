@@ -143,8 +143,6 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const { userMessages, signal, controller, options } = ctx;
     const threadId = options?.threadId ?? `${this.agent.id}-${Date.now()}`;
 
-    // 注意：getLatestTurn → createTurn 之间存在 check-then-act 窗口，
-    // 并发请求可能同时判断无未完成 turn 并各自创建。依赖 threadStore 实现侧的并发控制。
     let thread = await this.agent.thread.getThread(threadId);
     if (!thread) {
       // 标题取主用户消息（末条 user 角色）文本
