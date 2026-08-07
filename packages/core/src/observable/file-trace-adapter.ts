@@ -34,7 +34,6 @@ export class FileTraceAdapter implements TraceAdapter {
 
       const payload = {
         threadId: trace.threadId,
-        userMessage: trace.userMessage,
         duration: trace.endTime ? trace.endTime - trace.startTime : 0,
         startTime: new Date(trace.startTime).toISOString(),
         endTime: trace.endTime ? new Date(trace.endTime).toISOString() : undefined,

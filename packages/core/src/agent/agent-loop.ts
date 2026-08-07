@@ -187,7 +187,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
-    const trace = this.tracer.create(thread, userMessages, turn.id);
+    const trace = this.tracer.create(session);
     const turnSpan = trace.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
@@ -217,7 +217,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
     const { decisions, rest } = extractApprovalResponses(userMessages);
 
-    const trace = this.tracer.create(thread, rest, turn.id);
+    const trace = this.tracer.create(session);
     const turnSpan = trace.startSpan('agent_resume');
 
     // 加载历史消息

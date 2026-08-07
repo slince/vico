@@ -19,9 +19,6 @@ export class ConsoleTraceAdapter implements TraceAdapter {
 
     console.log(`\n${sep}`);
     console.log(`  Turn  thread   : ${trace.threadId}`);
-    console.log(
-      `  User message   : ${trace.userMessage.slice(0, 80)}${trace.userMessage.length > 80 ? '…' : ''}`,
-    );
     console.log(`${sep}`);
 
     for (const step of trace.steps) {

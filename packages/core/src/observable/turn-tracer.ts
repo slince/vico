@@ -3,9 +3,7 @@ import {randomUUID} from 'node:crypto';
 import type {EventRecorder} from '../events/types.js';
 import type {TurnEvent} from '../agent/types.js';
 import type { ModelRequest } from '../model/types.js';
-import type { ModelMessage } from 'ai';
-import { getMessageText } from '../model/message-utils.js';
-import type {Thread} from '../thread/thread-store.js';
+import type {TurnSession} from '../agent/agent-loop-options.js';
 import type {ToolResult} from '../tool/types.js';
 import type {Span, SpanState, SpanType} from './types.js';
 import type {TraceAdapter} from './trace-adapter.js';
@@ -32,7 +30,6 @@ interface StepTrace {
  */
 export class TurnTrace {
   readonly threadId: string;
-  readonly userMessage: string;
   readonly startTime: number;
   endTime?: number;
   steps: StepTrace[] = [];
@@ -44,10 +41,8 @@ export class TurnTrace {
   /** 活跃 span 栈，栈顶为当前未结束的 span，自动作为子 span 的父级 */
   private activeSpans = new Stack<SpanState>();
 
-  constructor(thread: Thread, userMessage: ModelMessage | ModelMessage[]) {
-    this.threadId = thread.id;
-    // 消息组时记录全部输入文本（换行拼接），保持字段为 string 供适配器直接导出
-    this.userMessage = [userMessage].flat().map(getMessageText).join('\n');
+  constructor(session: TurnSession) {
+    this.threadId = session.thread.id;
     this.startTime = Date.now();
   }
 
@@ -172,14 +167,14 @@ export class TurnTracer {
    * @param turnId - 当前 turn ID
    * @returns TurnTrace 实例
    */
-  create(thread: Thread, userMessage: ModelMessage | ModelMessage[], turnId: string): TurnTrace {
-    const existing = this.sessions.get(turnId);
+  create(session: TurnSession): TurnTrace {
+    const existing = this.sessions.get(session.turn.id);
     if (existing) return existing.trace;
 
-    const trace = new TurnTrace(thread, userMessage);
+    const trace = new TurnTrace(session);
     const handler = (e: TurnEvent) => trace.handleEvent(e);
     this.events.on('*', handler);
-    this.sessions.set(turnId, { trace, unsubscribe: () => this.events.off('*', handler) });
+    this.sessions.set(session.turn.id, { trace, unsubscribe: () => this.events.off('*', handler) });
     return trace;
   }
 
