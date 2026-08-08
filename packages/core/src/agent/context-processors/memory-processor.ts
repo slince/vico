@@ -1,6 +1,7 @@
 // @vico/core - MemoryProcessor: injects conversation history, working memory, and semantic recall
 import {randomUUID} from 'node:crypto';
-import type {ContextProcessor, ModelRequestContext} from './context-processor.js';
+import type {ContextProcessor} from './context-processor.js';
+import type {ModelRequestContext} from './model-request-context.js';
 import {Priority} from './context-processor.js';
 import { getMessageText } from '../../model/message-utils.js';
 import type {MemoryStore} from '../../memory/memory-store.js';

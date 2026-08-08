@@ -1,5 +1,6 @@
 // @vico/core - SystemPromptProcessor: injects agent base system prompt
-import type {ContextProcessor, ModelRequestContext} from './context-processor.js';
+import type {ContextProcessor} from './context-processor.js';
+import type {ModelRequestContext} from './model-request-context.js';
 import {Priority} from './context-processor.js';
 
 /** 注入 agent 基础系统提示词，并强化用户原始目标（HIGH 优先级） */

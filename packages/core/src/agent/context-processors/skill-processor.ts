@@ -1,5 +1,6 @@
 // @vico/core - SkillProcessor: appends skill catalog to system prompt
-import type {ContextProcessor, ModelRequestContext} from './context-processor.js';
+import type {ContextProcessor} from './context-processor.js';
+import type {ModelRequestContext} from './model-request-context.js';
 import {Priority} from './context-processor.js';
 import type {Skill} from '../../skill/types.js';
 

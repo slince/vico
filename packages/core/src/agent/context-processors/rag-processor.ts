@@ -1,5 +1,6 @@
 // @vico/core - RagProcessor: retrieves RAG knowledge and appends as system message
-import type {ContextProcessor, ModelRequestContext} from './context-processor.js';
+import type {ContextProcessor} from './context-processor.js';
+import type {ModelRequestContext} from './model-request-context.js';
 import {Priority} from './context-processor.js';
 import type {RagProvider} from '../../rag/types.js';
 

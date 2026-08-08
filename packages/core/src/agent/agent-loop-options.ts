@@ -1,7 +1,7 @@
 import {UsageMetrics} from "./types.js";
 import {ToolCall, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
-import {ModelRequestContext} from "./context-processors/context-processor.js";
+import {ModelRequestContext} from "./context-processors/model-request-context.js";
 import {TurnTrace} from "../observable/turn-tracer.js";
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from "../thread/thread-store.js";

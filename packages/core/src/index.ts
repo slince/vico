@@ -35,6 +35,8 @@ export {
   type ContextProcessor,
   type ModelRequestContext,
   type AgentRef,
+} from './agent/context-processors/model-request-context.js';
+export {
   ProcessorPipeline,
   buildModelRequest,
   Priority,

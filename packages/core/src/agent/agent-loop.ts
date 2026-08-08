@@ -34,7 +34,8 @@ import {TurnTrace, TurnTracer} from '../observable/turn-tracer.js';
 import {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
-import {ModelRequestContext, ProcessorPipeline} from './context-processors/context-processor.js';
+import {ProcessorPipeline} from './context-processors/context-processor.js';
+import {ModelRequestContext} from './context-processors/model-request-context.js';
 import {Span} from "../observable/types.js";
 import {
   ApprovalClassification,
