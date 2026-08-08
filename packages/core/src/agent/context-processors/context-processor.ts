@@ -42,23 +42,30 @@ export class ModelRequestContext {
   /** 当前 step（一次 LLM 调用 + 可选工具执行） */
   step?: Step;
 
-  constructor(init: {
+  constructor({
+    agent,
+    userMessages,
+    messages,
+    systemPrompt,
+    tools,
+    session,
+    step,
+  }: {
     agent: AgentRef;
-    /** 本轮用户消息：单条或消息组 */
-    userMessage?: ModelMessage | ModelMessage[];
+    userMessages?: ModelMessage[];
     messages?: ModelMessage[];
     systemPrompt?: string;
     tools?: Tool[];
     session?: TurnSession;
     step?: Step;
   }) {
-    this.agent = init.agent;
-    this.userMessages = init.userMessage === undefined ? [] : [init.userMessage].flat();
-    this.messages = this.userMessages.length > 0 ? [...this.userMessages] : (init.messages ?? []);
-    this.systemPrompt = init.systemPrompt ?? '';
-    this.tools = init.tools ?? [];
-    this.session = init.session;
-    this.step = init.step;
+    this.agent = agent;
+    this.userMessages = userMessages ?? [];
+    this.messages = messages ? [...messages, ...this.userMessages] : [...this.userMessages];
+    this.systemPrompt = systemPrompt ?? '';
+    this.tools = tools ?? [];
+    this.session = session;
+    this.step = step;
   }
 
   /** 主用户消息（本轮消息组中末条 user 角色；未提供消息组时从 messages 兜底查找） */

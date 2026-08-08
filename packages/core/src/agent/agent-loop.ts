@@ -188,7 +188,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const turnSpan = trace.startSpan('agent_run');
     const toolApprovalState = new Map<string, boolean>();
 
-    const requestContext = new ModelRequestContext({agent: this.agent, userMessage: userMessages, tools: [...this.agent.tools], session});
+    const requestContext = new ModelRequestContext({agent: this.agent, userMessages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
 
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
@@ -221,7 +221,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
     const messages = toModelMessages(entries);
 
-    const requestContext = new ModelRequestContext({agent: this.agent, userMessage: rest, messages, tools: [...this.agent.tools], session});
+    const requestContext = new ModelRequestContext({agent: this.agent, userMessages: rest, messages, tools: [...this.agent.tools], session});
 
     // ——— checkpoint 恢复逻辑 ———
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
