@@ -216,11 +216,11 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const trace = this.tracer.create(session);
     const turnSpan = trace.startSpan('agent_resume');
 
-    // 加载历史消息
+    // 恢复历史消息
     const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
     const messages = toModelMessages(entries);
 
-    const requestContext = new ModelRequestContext({agent: this.agent, userMessages: rest, messages, tools: [...this.agent.tools], session});
+    const requestContext = new ModelRequestContext({agent: this.agent, messages, tools: this.agent.tools, session});
 
     // ——— checkpoint 恢复逻辑 ———
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
@@ -228,10 +228,10 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     // 还原已完成工具结果到消息链
     const newToolMessages = this.restoreCompletedToolResults(checkpoint.completedToolResults);
-    messages.push(...newToolMessages);
     if (newToolMessages.length > 0) {
       await this.persistMessages(context, newToolMessages);
     }
+    requestContext.messages.push(...newToolMessages);
 
     if (checkpoint.pauseInfo) {
       // 路径 A：审批恢复
@@ -248,7 +248,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       this.log.debug({ turnId: turn.id }, 'resume path C: direct continue');
     }
 
-    messages.push(...rest);
+    requestContext.messages.push(...rest);
     await this.persistMessages(context, rest);
     await this.pipeline.enter(requestContext);
     await this.agent.thread.updateTurn(turn.id, { status: 'running' });
