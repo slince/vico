@@ -90,12 +90,11 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
    * 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise）。
    * 历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止。
    *
-   * @param userMessage - 用户消息（单条或消息组；数组时全部作为本轮输入逐条持久化）
+   * @param userMessages - 本轮输入消息组
    * @param options - turn 运行可选参数
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  run(userMessage: ModelMessage | ModelMessage[], options?: RunOptions): TurnOutput {
-    // 入口统一归一为消息组，内部一律按数组处理
+  run(userMessages: ModelMessage[], options?: RunOptions): TurnOutput {
     const { promise, resolve } = Promise.withResolvers<TurnResult>();
 
     const internalAc = new AbortController();
@@ -104,7 +103,6 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       internalAc.abort();
     };
 
-    const userMessages = Array.isArray(userMessage) ? userMessage : [userMessage];
     const stream = new ReadableStream<TextStreamPart<TToolSet>>({
       start: async (controller) => {
         controller.enqueue({ type: 'start' });
