@@ -8,8 +8,8 @@ export const CHECKPOINT_CURRENT_VERSION = 1;
 export interface PauseInfo {
   reason: 'tool-approval' | 'error';
   pendingToolCalls: ToolCall[];
-  autoApprovedCalls?: ToolCall[];
-  autoDeniedResults?: ToolResult[];
+  approvedCalls?: ToolCall[];
+  deniedResults?: ToolResult[];
   pausedAtStep: number;
 }
 

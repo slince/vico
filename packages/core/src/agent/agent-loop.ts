@@ -269,13 +269,13 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
 
     // 1. 执行暂停前已自动批准的调用（executeToolCalls 内部逐条持久化）
-    if (pauseInfo.autoApprovedCalls && pauseInfo.autoApprovedCalls.length > 0) {
-      await this.toolExecutor.executeToolCalls(pauseInfo.autoApprovedCalls, context);
+    if (pauseInfo.approvedCalls && pauseInfo.approvedCalls.length > 0) {
+      await this.toolExecutor.executeToolCalls(pauseInfo.approvedCalls, context);
     }
 
     // 2. 持久化暂停前已自动拒绝的结果
-    if (pauseInfo.autoDeniedResults && pauseInfo.autoDeniedResults.length > 0) {
-      await this.appendToolResults(pauseInfo.autoDeniedResults, context);
+    if (pauseInfo.deniedResults && pauseInfo.deniedResults.length > 0) {
+      await this.appendToolResults(pauseInfo.deniedResults, context);
     }
 
     // 3. 处理等待审批的调用
@@ -526,8 +526,8 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
         reason: 'tool-approval',
         pendingToolCalls: pausedCalls,
         // 保存已在审批阶段自动决策的调用，恢复时直接使用，避免重复审批
-        autoApprovedCalls: approvedCalls,
-        autoDeniedResults: deniedResults,
+        approvedCalls: approvedCalls,
+        deniedResults: deniedResults,
         pausedAtStep: step.index,
       };
       this.emit({ type: 'step-end', step: step.index + 1 });
