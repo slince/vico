@@ -51,7 +51,8 @@ export class ModelRequestContext {
   }) {
     this.agent = agent;
     this.userMessages = userMessages ?? [];
-    this.messages = messages ? [...messages, ...this.userMessages] : [...this.userMessages];
+    this.messages = messages ? [...messages] : [];
+    this.messages.push(...this.userMessages);
     this.systemPrompt = systemPrompt ?? '';
     this.tools = tools ?? [];
     this.session = session;
