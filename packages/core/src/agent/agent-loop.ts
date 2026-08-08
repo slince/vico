@@ -517,10 +517,8 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(modelResult.toolCalls, context);
 
     // 有待审批的工具 → 暂停 turn
-    // 注意：assistant(toolCalls) 消息已持久化到 DB（用于恢复），但需从内存 messages 中移除，
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pausedCalls.length > 0) {
-      this.log.info({ turnId: context.session.turn.id, step: step.index, pausedCount: pausedCalls.length, toolNames: pausedCalls.map(c => c.name) }, 'tool approval required, pausing turn');
 
       const pauseInfo: PauseInfo = {
         reason: 'tool-approval',
