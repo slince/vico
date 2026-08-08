@@ -183,8 +183,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
   }): Promise<TurnResult> {
     const { session, userMessages, signal, controller } = params;
-    const { thread, turn } = session;
-
+    
     const usage: UsageMetrics = { input: 0, output: 0 };
 
     const trace = this.tracer.create(session);
