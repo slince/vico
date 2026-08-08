@@ -151,7 +151,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       const workspace = options?.workspace ?? this.agent.workspace;
       const metadata = { ...options?.metadata, workspace };
       thread = await this.agent.thread.createThread(this.agent.id, title, threadId, { ...options, metadata });
-      this.log.info({ threadId, agentId: this.agent.id }, 'thread created');
+      this.log.debug({ threadId, agentId: this.agent.id }, 'thread created');
     }
 
     const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.agent.workspace;
@@ -165,12 +165,10 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
         const session: TurnSession = { workspace, thread, turn: latestTurn };
         return this.resumeTurn({ session, checkpoint, userMessages, signal, controller });
       }
-      this.log.info({ turnId: latestTurn.id, threadId, status: latestTurn.status }, 'uncompleted turn has no checkpoint, starting new turn');
     }
 
     // ── 正常新 turn ──
     const turn = await this.agent.thread.createTurn(thread.id);
-    this.log.info({ turnId: turn.id, threadId: thread.id }, 'turn started');
     const session: TurnSession = { workspace, thread, turn };
     return this.startTurn({ session, userMessages, signal, controller });
   }
@@ -183,7 +181,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
   }): Promise<TurnResult> {
     const { session, userMessages, signal, controller } = params;
-    
+
     const usage: UsageMetrics = { input: 0, output: 0 };
 
     const trace = this.tracer.create(session);
@@ -238,17 +236,17 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     if (checkpoint.pauseInfo) {
       // 路径 A：审批恢复
-      this.log.info({ turnId: turn.id }, 'resume path A: approval recovery');
+      this.log.debug({ turnId: turn.id }, 'resume path A: approval recovery');
       await this.applyPauseInfoRecovery(checkpoint.pauseInfo, decisions, context);
       // 清除 pauseInfo
       await this.checkpointStore.save(turn.id, thread.id, { pauseInfo: null });
     } else if (checkpoint.pendingToolCall) {
       // 路径 B：工具重试
-      this.log.info({ turnId: turn.id, toolName: checkpoint.pendingToolCall.name }, 'resume path B: tool retry');
+      this.log.debug({ turnId: turn.id, toolName: checkpoint.pendingToolCall.name }, 'resume path B: tool retry');
       await this.resolvePendingTool(checkpoint.pendingToolCall, checkpoint, messages, context);
     } else {
       // 路径 C：pendingToolCall == null → 直接继续
-      this.log.info({ turnId: turn.id }, 'resume path C: direct continue');
+      this.log.debug({ turnId: turn.id }, 'resume path C: direct continue');
     }
 
     messages.push(...rest);
