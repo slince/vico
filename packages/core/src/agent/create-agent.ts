@@ -3,7 +3,7 @@ import type {ToolSet} from 'ai';
 import type {LanguageModelV4} from '@ai-sdk/provider';
 import {Agent} from './agent.js';
 import type {ModelRef, TurnEvent} from './types.js';
-import type { ReasoningEffort } from '../model/types.js';
+import type {ReasoningEffort} from '../model/types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {WorkingMemory} from '../memory/types.js';
@@ -138,6 +138,16 @@ export async function createAgent(config: AgentConfig): Promise<Agent<ToolSet>> 
   const skills = await buildSkills(config.skills)
   const tools = buildTools(config.tools, memory.working, skills);
 
+  const approvalResolvers: ApprovalResolver[] = [
+    destructiveToolPolicy,
+    workspaceBoundPolicy,
+    resolvePolicy
+  ]
+
+  if (config.approvalResolver) {
+    approvalResolvers.unshift(config.approvalResolver)
+  }
+
   return new Agent({
     id: config.id,
     name: config.name,
@@ -154,7 +164,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent<ToolSet>> 
     workspace: config.workspace,
     tracer: config.tracer || new TurnTracer(events, []),
     events: events,
-    approvalResolver: config.approvalResolver ?? composeResolvers(destructiveToolPolicy, workspaceBoundPolicy, resolvePolicy),
+    approvalResolver: composeResolvers(...approvalResolvers),
     checkpointStore: config.checkpointStore || new MemoryCheckpointStore()
   });
 }
