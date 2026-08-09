@@ -1,4 +1,5 @@
 import {UsageMetrics} from "./types.js";
+import type {ToolMetadata} from "./types.js";
 import {ToolCall, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
@@ -112,7 +113,7 @@ export interface ToolApproval {
 }
 
 /** runTurn 选项 */
-export interface RunOptions<TMetadata extends Record<string, unknown> = Record<string, unknown>> {
+export interface RunOptions<TMetadata extends ToolMetadata = ToolMetadata> {
   /** 会话线程 ID，不传则自动生成 */
   threadId?: string;
   userId?: string;

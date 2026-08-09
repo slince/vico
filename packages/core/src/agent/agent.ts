@@ -2,7 +2,7 @@ import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {ToolSet} from 'ai';
 import {ModelClient} from '../model/model-client.js';
 import type {ReasoningEffort} from '../model/types.js';
-import type {TurnEvent} from './types.js';
+import type {ToolMetadata, TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -47,7 +47,7 @@ export interface AgentOptions {
 }
 
 /** Agent — 配置 + 运行时 loop + 绑定（memory/thread/skills/tools） */
-export class Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Record<string, unknown> = Record<string, unknown>> {
+export class Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends ToolMetadata = ToolMetadata> {
   readonly id: string;
   readonly name: string;
   readonly systemPrompt: string;
