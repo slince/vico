@@ -46,15 +46,24 @@ export interface ToolCallContext {
   signal: AbortSignal;
 }
 
+/** 审批状态：approved 直接执行，denied 拒绝，paused 等待用户审批后恢复 */
+export type ApprovalStatus = 'approved' | 'denied' | 'paused';
+
 export interface ApprovalDecision {
-  approved: boolean;
+  status: ApprovalStatus;
   reason?: string;
+  /** suggest 策略时标记为 true，引擎不阻塞，供 UI 展示提示 */
+  suggested?: boolean;
 }
 
 /** 审批策略上下文 */
-export interface PolicyContext {
+export interface PolicyContext<TInput = any> {
   firstUse: boolean;
   previousApproved: boolean;
+  /** 工具调用参数，供自定义 resolver 做细粒度决策 */
+  toolArgs?: TInput;
+  /** 当前 session 的工作目录 */
+  workspace?: string;
 }
 
 /**
@@ -62,10 +71,10 @@ export interface PolicyContext {
  *
  * 默认实现为 {@link resolvePolicy}，创建 Agent 时可注入自定义实现。
  */
-export type ApprovalResolver = (
-  call: ToolCall,
-  tool: Tool,
+export type ApprovalResolver<TInput = any, TOutput = any> = (
+  call: ToolCall<TInput>,
+  tool: Tool<TInput, TOutput>,
   policy: ToolPolicy,
-  context: PolicyContext,
+  context: PolicyContext<TInput>,
 ) => ApprovalDecision | Promise<ApprovalDecision>;
 

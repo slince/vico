@@ -12,26 +12,26 @@ import type {ApprovalDecision, PolicyContext, Tool, ToolCall, ToolPolicy} from '
  * @param ctx - 策略上下文，包含是否首次使用、之前是否批准等信息
  * @returns 审批决策，包含是否批准及拒绝原因
  */
-export function resolvePolicy(
-  call: ToolCall,
-  tool: Tool,
+export function resolvePolicy<TInput = any, TOutput = any>(
+  call: ToolCall<TInput>,
+  tool: Tool<TInput, TOutput>,
   policy: ToolPolicy,
-  ctx: PolicyContext,
+  ctx: PolicyContext<TInput>,
 ): ApprovalDecision {
   switch (policy) {
     case 'auto':
-      return { approved: true };
-    case 'never':
-      return { approved: false, reason: `工具 ${call.name} 被策略阻止` };
-    case 'on-request':
-      // 同一 turn 内已审批通过的工具，后续调用自动放行，避免每次 step 都重复审批
-      if (!ctx.firstUse && ctx.previousApproved) {
-        return { approved: true };
-      }
-      return { approved: false, reason: `工具 ${call.name} 首次使用需要用户审批` };
+      return { status: 'approved' };
     case 'suggest':
-      return { approved: true };
+      return { status: 'approved', suggested: true };
+    case 'never':
+      return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
+    case 'on-request':
+      // 同一 turn 内已审批通过的工具，后续调用自动放行
+      if (!ctx.firstUse && ctx.previousApproved) {
+        return { status: 'approved' };
+      }
+      return { status: 'paused', reason: `工具 ${call.name} 首次使用需要用户审批` };
     default:
-      return { approved: false, reason: `未知策略: ${policy}` };
+      return { status: 'denied', reason: `未知策略: ${policy}` };
   }
 }

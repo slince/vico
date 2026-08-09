@@ -32,10 +32,10 @@ export type { UserMessage } from './stream/types.js';
 
 // Context processors (onion model)
 export {
-  type ContextProcessor,
   type ModelRequestContext,
   type AgentRef,
 } from './agent/context-processors/model-request-context.js';
+export { type ContextProcessor } from './agent/context-processors/context-processor.js';
 export {
   ProcessorPipeline,
   buildModelRequest,

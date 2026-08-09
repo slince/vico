@@ -6,7 +6,7 @@ import { MemoryCheckpointStore } from '../src/agent/memory-checkpoint-store.js';
 describe('MemoryCheckpointStore', () => {
   it('saves and retrieves a checkpoint', async () => {
     const store = new MemoryCheckpointStore();
-    const approval: ToolApproval = { approved: true, approvedAt: Date.now(), policy: 'auto', toolCallId: 'call-1' };
+    const approval: ToolApproval = { approved: true, approvedAt: Date.now() };
     const ckpt = await store.save('turn-1', 'thread-1', {
       stepIndex: 3,
       approvedTools: { 'read_file': approval },

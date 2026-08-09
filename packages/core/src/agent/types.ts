@@ -25,4 +25,5 @@ export type TurnEvent =
   | { type: 'compacted'; removedTokens: number }
   | { type: 'error'; error: string | Error }
   | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName: string; input: unknown }
+  | { type: 'tool-suggested'; toolCallId: string; toolName: string; input: unknown }
   | { type: 'done'; usage: UsageMetrics };

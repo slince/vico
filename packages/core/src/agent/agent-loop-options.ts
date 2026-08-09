@@ -1,5 +1,5 @@
 import {UsageMetrics} from "./types.js";
-import {ToolCall, ToolPolicy, ToolResult} from "../tool/types.js";
+import {ToolCall, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
 import {TurnTrace} from "../observable/turn-tracer.js";
@@ -103,16 +103,12 @@ export interface ToolCallApproval {
   approved: boolean;
 }
 
-/** 单次工具审批在 turn 内的状态记录，替代 boolean 承载更多上下文 */
+/** 单次工具审批在 turn 内的状态记录 */
 export interface ToolApproval {
   /** 是否已批准 */
   approved: boolean;
   /** 批准/拒绝时间戳（Unix ms） */
   approvedAt: number;
-  /** 审批时走的策略 */
-  policy: ToolPolicy;
-  /** 触发审批的首次调用 ID */
-  toolCallId: string;
 }
 
 /** runTurn 选项 */

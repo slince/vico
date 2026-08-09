@@ -1,7 +1,7 @@
 // @vico/core - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {Logger} from 'pino';
 import type {TurnEvent, UsageMetrics} from './types.js';
-import type {ApprovalResolver, ToolCall, ToolPolicy, ToolResult} from '../tool/types.js';
+import type {ApprovalResolver, ToolCall, ToolResult} from '../tool/types.js';
 
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
@@ -68,7 +68,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
   private readonly toolExecutor: ToolExecutor<TToolSet>;
   private readonly compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
-  private readonly approvalResolver: ApprovalResolver;
+  private readonly approvalResolver: ApprovalResolver<any, any>;
   private readonly tracer: TurnTracer;
   private readonly pipeline: ProcessorPipeline;
   checkpointStore: CheckpointStore;
@@ -289,8 +289,6 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
         context.approvedTools.set(pendingCall.name, {
           approved: true,
           approvedAt: Date.now(),
-          policy: this.toolExecutor.findTool(pendingCall.name)?.policy ?? 'auto',
-          toolCallId: pendingCall.id,
         });
       } else {
         context.controller.enqueue(toolOutputDeniedPart(pendingCall));
@@ -574,40 +572,49 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       const decision = await this.approvalResolver(call, tool, policy, {
         firstUse: isFirstUse,
         previousApproved: wasApproved,
+        toolArgs: call.args,
+        workspace: context.session.workspace,
       });
 
-      if (decision.approved) {
-        context.approvedTools.set(call.name, {
-          approved: true,
-          approvedAt: Date.now(),
-          policy: policy as ToolPolicy,
-          toolCallId: call.id,
-        });
-        approvedCalls.push(call);
-        continue;
+      switch (decision.status) {
+        case 'approved': {
+          context.approvedTools.set(call.name, {
+            approved: true,
+            approvedAt: Date.now(),
+          });
+          if (decision.suggested) {
+            this.emit({
+              type: 'tool-suggested',
+              toolCallId: call.id,
+              toolName: call.name,
+              input: call.args,
+            });
+          }
+          approvedCalls.push(call);
+          break;
+        }
+        case 'paused': {
+          context.controller.enqueue(toolApprovalRequestPart(call));
+          this.emit({
+            type: 'tool-approval-request',
+            approvalId: call.id,
+            toolCallId: call.id,
+            toolName: call.name,
+            input: call.args,
+          });
+          pausedCalls.push(call);
+          break;
+        }
+        case 'denied': {
+          deniedResults.push({
+            callId: call.id, name: call.name,
+            status: 'error', output: null,
+            error: decision.reason ?? '被策略阻止',
+          });
+          context.controller.enqueue(toolOutputDeniedPart(call));
+          break;
+        }
       }
-
-      // on-request 工具首次使用 → 暂停等待外部审批，不直接拒绝
-      if (policy === 'on-request' && isFirstUse && !wasApproved) {
-        // approvalId 复用 toolCallId，客户端的 tool-approval-response 可直接映射
-        context.controller.enqueue(toolApprovalRequestPart(call));
-        this.emit({
-          type: 'tool-approval-request',
-          approvalId: call.id,
-          toolCallId: call.id,
-          toolName: call.name,
-          input: call.args,
-        });
-        pausedCalls.push(call);
-        continue;
-      }
-
-      deniedResults.push({
-        callId: call.id, name: call.name,
-        status: 'error', output: null,
-        error: decision.reason ?? '被策略阻止',
-      });
-      context.controller.enqueue(toolOutputDeniedPart(call));
     }
 
     return { approvedCalls, deniedResults, pausedCalls };

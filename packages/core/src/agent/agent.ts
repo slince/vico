@@ -19,8 +19,6 @@ import type {TokenEconomy} from './token-economy.js';
 import type {CheckpointStore} from './checkpoint.js';
 import pino, {Logger} from 'pino';
 
-export type LoopFactory<TToolSet extends ToolSet = ToolSet> = (agent: Agent<TToolSet>) => AgentLoop<TToolSet>
-
 /** Agent 构造参数 */
 export interface AgentOptions {
   id: string;
@@ -39,7 +37,7 @@ export interface AgentOptions {
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
   /** 审批决策器，未提供则使用默认策略决策 */
-  approvalResolver: ApprovalResolver;
+  approvalResolver: ApprovalResolver<any, any>;
   events: EventRecorder<TurnEvent>;
   tracer: TurnTracer;
   compactor?: ContextCompactor;
@@ -63,7 +61,7 @@ export class Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Record<
   readonly tools: Tool[];
   readonly memory: MemoryStore;
   readonly thread: ThreadStore;
-  readonly approvalResolver: ApprovalResolver;
+  readonly approvalResolver: ApprovalResolver<any, any>;
   readonly events: EventRecorder<TurnEvent>;
   readonly tracer: TurnTracer;
   readonly loop: AgentLoop<TToolSet>;

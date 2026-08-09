@@ -116,7 +116,7 @@ export interface AgentConfig {
   tracer?: TurnTracer;
   events?: EventRecorder<TurnEvent>;
   /** 审批决策器，未提供则按 ToolPolicy 默认决策 */
-  approvalResolver?: ApprovalResolver;
+  approvalResolver?: ApprovalResolver<any, any>;
   checkpointStore?: CheckpointStore;
 }
 
