@@ -15,6 +15,11 @@ export class SystemPromptProcessor implements ContextProcessor {
       ? `\n\n<primary_goal>\n你的首要任务是完成以下用户请求。在整个对话过程中始终牢记此目标，不要因为中间工具执行结果而偏离方向。如果发现自己开始偏离，请立即重新聚焦到此目标。\n\n用户目标：${goal}\n</primary_goal>`
       : '';
 
-    ctx.systemPrompt = ctx.agent.systemPrompt + goalBlock;
+    const workspace = ctx.session?.workspace;
+    const workspaceBlock = workspace
+      ? `\n\n你当前的工作目录是 \`${workspace}\`。所有文件操作和 shell 命令都默认在此目录下执行。`
+      : '';
+
+    ctx.systemPrompt = ctx.agent.systemPrompt + workspaceBlock + goalBlock;
   }
 }
