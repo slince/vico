@@ -632,12 +632,10 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
    * 持久化 session 级工具审批到 thread.metadata。
    */
   private async saveSessionApproval(context: TurnContext<TToolSet>, toolName: string): Promise<void> {
-    const oldMeta = context.session.thread.metadata ?? {};
-    const sessionApprovedTools = { ...oldMeta.sessionApprovedTools };
-    sessionApprovedTools[toolName] = { approvedAt: Date.now() };
-    await this.agent.thread.updateThread(context.session.thread.id, {
-      metadata: { ...oldMeta, sessionApprovedTools },
-    });
+    const meta = context.session.thread.metadata ?? {};
+    meta.sessionApprovedTools ??= {};
+    meta.sessionApprovedTools[toolName] = { approvedAt: Date.now() };
+    await this.agent.thread.updateThread(context.session.thread.id, { metadata: meta });
   }
 
   /**
