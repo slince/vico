@@ -190,6 +190,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const requestContext = new ModelRequestContext({agent: this.agent, userMessages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
 
+    // 本轮次的上下文对象
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
 
     await this.persistMessages(context, userMessages);
@@ -211,7 +212,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const usage: UsageMetrics = { input: 0, output: 0 };
 
     // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
-    const { decisions, rest } = extractApprovalResponses(userMessages);
+    const { decisions } = extractApprovalResponses(userMessages);
 
     const trace = this.tracer.create(session);
     const turnSpan = trace.startSpan('agent_resume');
@@ -220,18 +221,20 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const entries = await this.agent.thread.getEntriesByTurns([turn.id]);
     const messages = toModelMessages(entries);
 
+    // 构建request context, 补全必要信息
     const requestContext = new ModelRequestContext({agent: this.agent, messages, tools: this.agent.tools, session});
+    await this.pipeline.enter(requestContext);
 
     // ——— checkpoint 恢复逻辑 ———
     const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages, session, trace, toolApprovalState, signal, controller };
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
 
     // 还原已完成工具结果到消息链
     const newToolMessages = this.restoreCompletedToolResults(checkpoint.completedToolResults);
     if (newToolMessages.length > 0) {
       await this.persistMessages(context, newToolMessages);
     }
-    requestContext.messages.push(...newToolMessages);
+    context.messages.push(...newToolMessages);
 
     if (checkpoint.pauseInfo) {
       // 路径 A：审批恢复
@@ -248,7 +251,6 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       this.log.debug({ turnId: turn.id }, 'resume path C: direct continue');
     }
 
-    await this.pipeline.enter(requestContext);
     await this.agent.thread.updateTurn(turn.id, { status: 'running' });
     return this.startTurnLoop(checkpoint.stepIndex, context, turnSpan, usage);
   }
