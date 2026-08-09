@@ -19,6 +19,7 @@ import {basicTools, codingTools, filesystemTools} from "../tool/builtin/index.js
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
 import {resolvePolicy} from "../tool/utils.js";
+import {composeResolvers, destructiveToolPolicy, workspaceBoundPolicy} from "../tool/policy-helpers.js";
 import type {CheckpointStore} from "./checkpoint.js";
 import {MemoryCheckpointStore} from "./memory-checkpoint-store.js";
 import {createFSSkillLoader} from "../skill/fs-skill-loader.js";
@@ -153,7 +154,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent<ToolSet>> 
     workspace: config.workspace,
     tracer: config.tracer || new TurnTracer(events, []),
     events: events,
-    approvalResolver: config.approvalResolver || resolvePolicy,
+    approvalResolver: config.approvalResolver ?? composeResolvers(destructiveToolPolicy, workspaceBoundPolicy, resolvePolicy),
     checkpointStore: config.checkpointStore || new MemoryCheckpointStore()
   });
 }
