@@ -1,18 +1,20 @@
 // checkpoint.test.ts — CheckpointStore unit tests
 import { describe, expect, it } from 'vitest';
+import type { ToolApproval } from '../src/agent/agent-loop-options.js';
 import { MemoryCheckpointStore } from '../src/agent/memory-checkpoint-store.js';
 
 describe('MemoryCheckpointStore', () => {
   it('saves and retrieves a checkpoint', async () => {
     const store = new MemoryCheckpointStore();
+    const approval: ToolApproval = { approved: true, approvedAt: Date.now(), policy: 'auto', toolCallId: 'call-1' };
     const ckpt = await store.save('turn-1', 'thread-1', {
       stepIndex: 3,
-      toolApprovalState: { 'read_file': true },
+      approvedTools: { 'read_file': approval },
     });
 
     expect(ckpt.turnId).toBe('turn-1');
     expect(ckpt.stepIndex).toBe(3);
-    expect(ckpt.toolApprovalState).toEqual({ 'read_file': true });
+    expect(ckpt.approvedTools).toEqual({ 'read_file': approval });
   });
 
   it('upserts on same turnId', async () => {

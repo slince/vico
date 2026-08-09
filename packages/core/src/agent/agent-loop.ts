@@ -1,7 +1,7 @@
 // @vico/core - AgentLoop core engine: drives the model→tool→repeat loop for a single turn
 import type {Logger} from 'pino';
 import type {TurnEvent, UsageMetrics} from './types.js';
-import type {ApprovalResolver, ToolCall, ToolResult} from '../tool/types.js';
+import type {ApprovalResolver, ToolCall, ToolPolicy, ToolResult} from '../tool/types.js';
 
 import {resolvePolicy} from '../tool/utils.js';
 import {TurnOutput} from './turn-output.js';
@@ -44,6 +44,7 @@ import {
   RunOptions,
   Step,
   StepLoopResult,
+  ToolApproval,
   ToolCallApproval,
   TurnContext,
   TurnResult,
@@ -185,13 +186,13 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     const trace = this.tracer.create(session);
     const turnSpan = trace.startSpan('agent_run');
-    const toolApprovalState = new Map<string, boolean>();
+    const approvedTools = new Map<string, ToolApproval>();
 
     const requestContext = new ModelRequestContext({agent: this.agent, userMessages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
 
     // 本轮次的上下文对象
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, approvedTools, signal, controller };
 
     await this.persistMessages(context, userMessages);
 
@@ -226,8 +227,8 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     await this.pipeline.enter(requestContext);
 
     // ——— checkpoint 恢复逻辑 ———
-    const toolApprovalState = new Map<string, boolean>(Object.entries(checkpoint.toolApprovalState));
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, toolApprovalState, signal, controller };
+    const approvedTools = new Map<string, ToolApproval>(Object.entries(checkpoint.approvedTools));
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, approvedTools, signal, controller };
 
     // 还原已完成工具结果到消息链
     const newToolMessages = this.restoreCompletedToolResults(checkpoint.completedToolResults);
@@ -284,8 +285,13 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved));
       if (approved) {
         approvedCalls.push(pendingCall);
-        // 追踪到 toolApprovalState，确保同一 turn 后续 step 中该工具自动放行
-        context.toolApprovalState.set(pendingCall.name, true);
+        // 追踪到 approvedTools，确保同一 turn 后续 step 中该工具自动放行
+        context.approvedTools.set(pendingCall.name, {
+          approved: true,
+          approvedAt: Date.now(),
+          policy: this.toolExecutor.findTool(pendingCall.name)?.policy ?? 'auto',
+          toolCallId: pendingCall.id,
+        });
       } else {
         context.controller.enqueue(toolOutputDeniedPart(pendingCall));
         deniedResults.push({
@@ -429,7 +435,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
         // 持久化暂停信息到 checkpoint（替代 turn.metadata）
         await this.checkpointStore.save(turn.id, context.session.thread.id, {
           pauseInfo,
-          toolApprovalState: Object.fromEntries(context.toolApprovalState),
+          approvedTools: Object.fromEntries(context.approvedTools),
           stepIndex: steps,
         });
         await this.agent.thread.updateTurn(turn.id, { status: 'paused', steps });
@@ -460,7 +466,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     await this.checkpointStore.save(context.session.turn.id, context.session.thread.id, {
       stepIndex: step.index,
       pendingToolCall: null,
-      toolApprovalState: Object.fromEntries(context.toolApprovalState),
+      approvedTools: Object.fromEntries(context.approvedTools),
     });
 
     const usage = { input: 0, output: 0 };
@@ -551,8 +557,8 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       const tool = this.toolExecutor.findTool(call.name);
       const policy = tool?.policy ?? 'auto';
 
-      const isFirstUse = !context.toolApprovalState.has(call.name);
-      const wasApproved = context.toolApprovalState.get(call.name) ?? false;
+      const isFirstUse = !context.approvedTools.has(call.name);
+      const wasApproved = context.approvedTools.get(call.name)?.approved ?? false;
 
       // 工具未注册 → 直接拒绝
       if (!tool) {
@@ -571,7 +577,12 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       });
 
       if (decision.approved) {
-        context.toolApprovalState.set(call.name, true);
+        context.approvedTools.set(call.name, {
+          approved: true,
+          approvedAt: Date.now(),
+          policy: policy as ToolPolicy,
+          toolCallId: call.id,
+        });
         approvedCalls.push(call);
         continue;
       }

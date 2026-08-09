@@ -169,7 +169,7 @@ export { type AgentLoopOptions } from './agent/agent-loop.js';
 export { collectTurnResult, normalizeUserMessage, extractApprovalDecisions } from './agent/utils.js';
 export { TurnOutput } from './agent/turn-output.js';
 export { type TurnEvent } from './agent/types.js';
-export { type TurnResult, type RunOptions, type ToolCallApproval } from './agent/agent-loop-options.js';
+export { type TurnResult, type RunOptions, type ToolApproval, type ToolCallApproval } from './agent/agent-loop-options.js';
 export { type PauseInfo, type Checkpoint, type CheckpointStore, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, DEFAULT_CHECKPOINT_TTL } from './agent/checkpoint.js';
 export { TokenEconomy } from './agent/token-economy.js';
 

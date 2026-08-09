@@ -1,5 +1,5 @@
 import {UsageMetrics} from "./types.js";
-import {ToolCall, ToolResult} from "../tool/types.js";
+import {ToolCall, ToolPolicy, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
 import {TurnTrace} from "../observable/turn-tracer.js";
@@ -45,7 +45,7 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   messages: ModelMessage[]
   session: TurnSession;
   trace: TurnTrace;
-  toolApprovalState: Map<string, boolean>;
+  approvedTools: Map<string, ToolApproval>;
   /** turn 级中断信号，贯穿 model 调用和工具执行 */
   signal: AbortSignal;
   /** 流控制器，用于向客户端推送 chunk（引擎层协议 TextStreamPart） */
@@ -101,6 +101,18 @@ export interface TurnSession {
 export interface ToolCallApproval {
   toolCallId: string;
   approved: boolean;
+}
+
+/** 单次工具审批在 turn 内的状态记录，替代 boolean 承载更多上下文 */
+export interface ToolApproval {
+  /** 是否已批准 */
+  approved: boolean;
+  /** 批准/拒绝时间戳（Unix ms） */
+  approvedAt: number;
+  /** 审批时走的策略 */
+  policy: ToolPolicy;
+  /** 触发审批的首次调用 ID */
+  toolCallId: string;
 }
 
 /** runTurn 选项 */

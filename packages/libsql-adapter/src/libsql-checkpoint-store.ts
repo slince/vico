@@ -52,7 +52,7 @@ export class LibSqlCheckpointStore implements CheckpointStore {
       threadId,
       version: CHECKPOINT_CURRENT_VERSION,
       stepIndex: 0,
-      toolApprovalState: {},
+      approvedTools: {},
       pauseInfo: null,
 
       completedToolResults: [],

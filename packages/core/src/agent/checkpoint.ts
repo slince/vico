@@ -1,5 +1,6 @@
 // @vico/core - Checkpoint 类型 + CheckpointStore 接口 + 版本迁移
 import type { ToolCall, ToolResult } from '../tool/types.js';
+import type { ToolApproval } from './agent-loop-options.js';
 
 /** Checkpoint schema 当前版本 */
 export const CHECKPOINT_CURRENT_VERSION = 1;
@@ -31,10 +32,10 @@ export interface Checkpoint {
   /** 当前执行到的 step 索引，崩溃恢复时从此步继续 loop */
   stepIndex: number;
   /**
-   * 本 turn 中已审批通过的工具名 → true。
+   * 本 turn 中已审批通过的工具名 → ToolApproval。
    * 同一 turn 内后续 step 遇到同名工具调用时自动放行，无需重复审批。
    */
-  toolApprovalState: Record<string, boolean>;
+  approvedTools: Record<string, ToolApproval>;
   /** 非空表示 turn 被暂停（等待审批或出错），包含暂停原因和待审批的工具调用 */
   pauseInfo: PauseInfo | null;
 
