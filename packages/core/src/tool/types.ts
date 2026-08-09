@@ -3,7 +3,7 @@ import type {z} from 'zod';
 import {TurnSession} from "../agent/agent-loop-options.js";
 
 /** 工具审批策略 */
-export type ToolPolicy = 'auto' | 'on-request' | 'suggest' | 'never';
+export type ToolPolicy = 'auto' | 'on-request' | 'never';
 
 /** 工具类别 */
 export type ToolKind = 'readonly' | 'command' | 'file_change' | 'delegate' | 'mutation';

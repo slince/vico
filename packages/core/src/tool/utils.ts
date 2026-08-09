@@ -4,7 +4,7 @@ import type {ApprovalDecision, PolicyContext, Tool, ToolCall, ToolPolicy} from '
 /**
  * 根据审批策略判断工具调用是否批准。
  *
- * 支持四种策略：auto（自动批准）、never（拒绝）、on-request（首次需审批）、suggest（建议但自动批准）。
+ * 支持三种策略：auto（自动批准）、on-request（首次需审批）、never（拒绝）。
  *
  * @param call - 工具调用对象，包含工具名称等信息
  * @param tool - 工具定义对象，包含 kind、tags 等元数据
@@ -21,8 +21,6 @@ export function resolvePolicy<TInput = unknown, TOutput = unknown>(
   switch (policy) {
     case 'auto':
       return { status: 'approved' };
-    case 'suggest':
-      return { status: 'approved', suggested: true };
     case 'never':
       return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
     case 'on-request':
