@@ -68,7 +68,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
   private readonly toolExecutor: ToolExecutor<TToolSet>;
   private readonly compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
-  private readonly approvalResolver: ApprovalResolver<any, any>;
+  private readonly approvalResolver: ApprovalResolver;
   private readonly tracer: TurnTracer;
   private readonly pipeline: ProcessorPipeline;
   checkpointStore: CheckpointStore;

@@ -12,7 +12,7 @@ import type {ApprovalDecision, PolicyContext, Tool, ToolCall, ToolPolicy} from '
  * @param ctx - 策略上下文，包含是否首次使用、之前是否批准等信息
  * @returns 审批决策，包含是否批准及拒绝原因
  */
-export function resolvePolicy<TInput = any, TOutput = any>(
+export function resolvePolicy<TInput = unknown, TOutput = unknown>(
   call: ToolCall<TInput>,
   tool: Tool<TInput, TOutput>,
   policy: ToolPolicy,

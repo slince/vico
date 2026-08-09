@@ -37,7 +37,7 @@ export interface AgentOptions {
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
   /** 审批决策器，未提供则使用默认策略决策 */
-  approvalResolver: ApprovalResolver<any, any>;
+  approvalResolver: ApprovalResolver;
   events: EventRecorder<TurnEvent>;
   tracer: TurnTracer;
   compactor?: ContextCompactor;
@@ -61,7 +61,7 @@ export class Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Record<
   readonly tools: Tool[];
   readonly memory: MemoryStore;
   readonly thread: ThreadStore;
-  readonly approvalResolver: ApprovalResolver<any, any>;
+  readonly approvalResolver: ApprovalResolver;
   readonly events: EventRecorder<TurnEvent>;
   readonly tracer: TurnTracer;
   readonly loop: AgentLoop<TToolSet>;

@@ -57,7 +57,7 @@ export interface ApprovalDecision {
 }
 
 /** 审批策略上下文 */
-export interface PolicyContext<TInput = any> {
+export interface PolicyContext<TInput = unknown> {
   firstUse: boolean;
   previousApproved: boolean;
   /** 工具调用参数，供自定义 resolver 做细粒度决策 */
@@ -71,7 +71,7 @@ export interface PolicyContext<TInput = any> {
  *
  * 默认实现为 {@link resolvePolicy}，创建 Agent 时可注入自定义实现。
  */
-export type ApprovalResolver<TInput = any, TOutput = any> = (
+export type ApprovalResolver<TInput = unknown, TOutput = unknown> = (
   call: ToolCall<TInput>,
   tool: Tool<TInput, TOutput>,
   policy: ToolPolicy,

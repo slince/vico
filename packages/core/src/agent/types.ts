@@ -27,3 +27,6 @@ export type TurnEvent =
   | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName: string; input: unknown }
   | { type: 'tool-suggested'; toolCallId: string; toolName: string; input: unknown }
   | { type: 'done'; usage: UsageMetrics };
+
+
+export type ToolMetadata = Record<string, unknown>;
