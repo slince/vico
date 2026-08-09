@@ -124,8 +124,12 @@ export function toolApprovalRequestPart<TToolSet extends ToolSet = ToolSet>(call
 }
 
 /** 审批决策结果 part（恢复执行时回放决策） */
-export function toolApprovalResponsePart<TToolSet extends ToolSet = ToolSet>(call: ToolCall, approved: boolean, reason?: string): TextStreamPart<TToolSet> {
-  return { type: 'tool-approval-response', approvalId: call.id, toolCall: createToolCall<TToolSet>(call), approved, reason } as TextStreamPart<TToolSet>;
+export function toolApprovalResponsePart<TToolSet extends ToolSet = ToolSet>(
+  call: ToolCall,
+  approved: boolean,
+  opts?: { reason?: string; scope?: 'turn' | 'session' },
+): TextStreamPart<TToolSet> {
+  return { type: 'tool-approval-response', approvalId: call.id, toolCall: createToolCall<TToolSet>(call), approved, ...opts } as TextStreamPart<TToolSet>;
 }
 
 /**

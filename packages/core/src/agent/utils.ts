@@ -41,20 +41,24 @@ export function fromModelMessage(msg: ModelMessage): { role: string; content: st
 }
 
 /**
- * 从 UIMessage[] 提取审批决策（Vico 客户端扩展 part：`{type:'tool-approval-response', approvalId, approved}`）。
+ * 从 UIMessage[] 提取审批决策（Vico 客户端扩展 part：`{type:'tool-approval-response', approvalId, approved, scope?}`）。
  * 同一 toolCallId 后出现的决策覆盖先前的；无审批 part 时返回 undefined。
  */
 export function extractApprovalDecisions(messages: UIMessage[]): ToolCallApproval[] | undefined {
-  const decisions = new Map<string, boolean>();
+  const decisions = new Map<string, ToolCallApproval>();
   for (const msg of messages) {
     for (const part of msg.parts as Array<Record<string, unknown>>) {
       if (part.type === 'tool-approval-response' && typeof part.approvalId === 'string') {
-        decisions.set(part.approvalId, part.approved === true);
+        decisions.set(part.approvalId, {
+          toolCallId: part.approvalId,
+          approved: part.approved === true,
+          scope: part.scope as 'turn' | 'session' | undefined,
+        });
       }
     }
   }
   if (decisions.size === 0) return undefined;
-  return [...decisions].map(([toolCallId, approved]) => ({ toolCallId, approved }));
+  return [...decisions.values()];
 }
 
 /**

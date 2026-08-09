@@ -73,6 +73,7 @@ export { type TurnSession, type CallModelResult } from './agent/agent-loop-optio
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/utils.js';
 export { type PolicyContext, type ApprovalResolver } from './tool/types.js';
+export { isPathInWorkspace, workspaceBoundPolicy, destructiveToolPolicy, composeResolvers } from './tool/policy-helpers.js';
 // Builtin tools (individual exports)
 export {
   readTool,
@@ -128,8 +129,10 @@ export { createSkillLoadTool, createSkillSearchTool, createSkillReadTool } from 
 export {
   type ThreadStore,
   type Thread,
+  type ThreadMetadata,
   type Turn,
   type Message,
+  type SessionApprovedTool,
 } from './thread/thread-store.js';
 export { InMemoryThreadStore } from './thread/memory-thread-store.js';
 export { FileThreadStore, type FileThreadStoreOptions } from './thread/file-thread-store.js';

@@ -137,7 +137,7 @@ export function buildApprovalResponseMessage(decisions: ToolCallApproval[]): Too
  * @returns decisions（解析出的决策）+ rest（剔除审批 part 后的其余消息）
  */
 export function extractApprovalResponses(messages: ModelMessage[]): { decisions: ToolCallApproval[]; rest: ModelMessage[] } {
-  const decisionMap = new Map<string, boolean>();
+  const decisionMap = new Map<string, ToolCallApproval>();
   const rest: ModelMessage[] = [];
 
   for (const msg of messages) {
@@ -148,7 +148,12 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
     let hasApproval = false;
     const remaining = msg.content.filter((part) => {
       if (part.type === 'tool-approval-response') {
-        decisionMap.set(part.approvalId, part.approved);
+        const p = part as { approvalId: string; approved: boolean; scope?: 'turn' | 'session' };
+        decisionMap.set(p.approvalId, {
+          toolCallId: p.approvalId,
+          approved: p.approved,
+          scope: p.scope,
+        });
         hasApproval = true;
         return false;
       }
@@ -159,7 +164,7 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
   }
 
   return {
-    decisions: [...decisionMap].map(([toolCallId, approved]) => ({ toolCallId, approved })),
+    decisions: [...decisionMap.values()],
     rest,
   };
 }

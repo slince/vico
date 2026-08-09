@@ -187,6 +187,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const trace = this.tracer.create(session);
     const turnSpan = trace.startSpan('agent_run');
     const approvedTools = new Map<string, ToolApproval>();
+    this.loadSessionApprovals(session, approvedTools);
 
     const requestContext = new ModelRequestContext({agent: this.agent, userMessages, tools: [...this.agent.tools], session});
     await this.pipeline.enter(requestContext);
@@ -228,6 +229,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
 
     // ——— checkpoint 恢复逻辑 ———
     const approvedTools = new Map<string, ToolApproval>(Object.entries(checkpoint.approvedTools));
+    this.loadSessionApprovals(session, approvedTools);
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, approvedTools, signal, controller };
 
     // 还原已完成工具结果到消息链
@@ -263,7 +265,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
   private async applyPauseInfoRecovery(pauseInfo: PauseInfo, decisions: ToolCallApproval[], context: TurnContext<TToolSet>): Promise<void> {
     if (pauseInfo.reason !== 'tool-approval') return;
 
-    const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));
+    const decisionMap = new Map(decisions.map(d => [d.toolCallId, d]));
 
     // 1. 执行暂停前已自动批准的调用（executeToolCalls 内部逐条持久化）
     if (pauseInfo.approvedCalls && pauseInfo.approvedCalls.length > 0) {
@@ -280,9 +282,11 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     const deniedResults: ToolResult[] = [];
 
     for (const pendingCall of pauseInfo.pendingToolCalls) {
-      const approved = decisionMap.get(pendingCall.id) ?? false;
+      const decision = decisionMap.get(pendingCall.id);
+      const approved = decision?.approved ?? false;
+      const scope = decision?.scope ?? 'turn';
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路）
-      context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved));
+      context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope }));
       if (approved) {
         approvedCalls.push(pendingCall);
         // 追踪到 approvedTools，确保同一 turn 后续 step 中该工具自动放行
@@ -290,6 +294,10 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
           approved: true,
           approvedAt: Date.now(),
         });
+        // session 级审批：持久化到 thread.metadata，跨 turn 生效
+        if (scope === 'session') {
+          await this.saveSessionApproval(context, pendingCall.name);
+        }
       } else {
         context.controller.enqueue(toolOutputDeniedPart(pendingCall));
         deniedResults.push({
@@ -618,6 +626,29 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
     }
 
     return { approvedCalls, deniedResults, pausedCalls };
+  }
+
+  /**
+   * 持久化 session 级工具审批到 thread.metadata。
+   */
+  private async saveSessionApproval(context: TurnContext<TToolSet>, toolName: string): Promise<void> {
+    const oldMeta = context.session.thread.metadata ?? {};
+    const sessionApprovedTools = { ...oldMeta.sessionApprovedTools };
+    sessionApprovedTools[toolName] = { approvedAt: Date.now() };
+    await this.agent.thread.updateThread(context.session.thread.id, {
+      metadata: { ...oldMeta, sessionApprovedTools },
+    });
+  }
+
+  /**
+   * 从 thread.metadata 加载 session 级审批，预填入 approvedTools Map。
+   */
+  private loadSessionApprovals(session: TurnSession, approvedTools: Map<string, ToolApproval>): void {
+    const sessionApproved = session.thread.metadata?.sessionApprovedTools;
+    if (!sessionApproved) return;
+    for (const [name, entry] of Object.entries(sessionApproved)) {
+      approvedTools.set(name, { approved: true, approvedAt: entry.approvedAt });
+    }
   }
 
   /**

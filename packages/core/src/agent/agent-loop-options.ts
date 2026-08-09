@@ -102,6 +102,8 @@ export interface TurnSession {
 export interface ToolCallApproval {
   toolCallId: string;
   approved: boolean;
+  /** 审批作用域：turn（本 turn 有效）| session（整个 thread 有效），默认 turn */
+  scope?: 'turn' | 'session';
 }
 
 /** 单次工具审批在 turn 内的状态记录 */

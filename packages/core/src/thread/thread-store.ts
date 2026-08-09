@@ -1,8 +1,16 @@
 // @vico/core - Thread module type definitions
 
+/** Session 级工具审批记录 */
+export interface SessionApprovedTool {
+  /** 批准时间戳 */
+  approvedAt: number;
+}
+
 /** 线程自定义元数据，包含已知字段并支持任意扩展 */
 export interface ThreadMetadata {
   workspace?: string;
+  /** Session 级已审批工具映射，跨 turn 生效 */
+  sessionApprovedTools?: Record<string, SessionApprovedTool>;
   [key: string]: unknown;
 }
 
