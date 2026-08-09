@@ -25,9 +25,20 @@ export interface MessageItem {
   created_at: number;
 }
 
+/** 暂停中的待审批工具调用 */
+export interface PendingToolCall {
+  id: string;
+  name: string;
+  args: unknown;
+}
+
 /** 详情返回的对话（含消息列表） */
 export interface ConversationDetail extends ConversationItem {
   messages: MessageItem[];
+  /** 是否暂停中（等待工具审批） */
+  paused?: boolean;
+  /** 暂停时待审批的工具调用 */
+  pendingToolCalls?: PendingToolCall[];
 }
 
 /** Dashboard 最近的对话项（含最后一条消息预览） */

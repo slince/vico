@@ -25,6 +25,83 @@ function normalizeContentParts(content: string | ContentPart[]): ContentPart[] {
   return [{ type: 'text', text: String(content ?? '') }];
 }
 
+interface ToolResultEntry {
+  toolCallId: string;
+  output: unknown;
+  isError?: boolean;
+}
+
+/** 从消息组中提取 tool-result 映射（toolCallId → 结果详情） */
+function extractToolResultMap(messages: MessageItem[]): Map<string, ToolResultEntry> {
+  const map = new Map<string, ToolResultEntry>();
+  for (const msg of messages) {
+    if (msg.role !== 'tool' || !Array.isArray(msg.content)) continue;
+    for (const part of msg.content as Array<Record<string, unknown>>) {
+      if (part.type === 'tool-result' && typeof part.toolCallId === 'string') {
+        map.set(part.toolCallId, {
+          toolCallId: part.toolCallId,
+          output: part.output,
+          isError: (part as any).isError ?? false,
+        });
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * 处理消息列表：合并 tool-result 到对应 assistant 消息的 tool-call part，并注入审批状态。
+ * 返回助理 UI 可直接渲染的消息数组（仅 user/assistant 角色，工具消息已吸收）。
+ */
+function processHistoryMessages(
+  messages: MessageItem[],
+  paused?: boolean,
+  pendingToolCalls?: Array<{ id: string; name: string; args: unknown }>,
+): Array<{ parentIndex: number; message: { id: string; role: 'user' | 'assistant'; parts: ContentPart[] } }> {
+  const toolResultMap = extractToolResultMap(messages);
+  const pendingIds = new Set(pendingToolCalls?.map(tc => tc.id) ?? []);
+
+  // 过滤掉 tool 消息，保留 user/assistant/system
+  const visible = messages.filter(m => m.role !== 'tool');
+
+  return visible.map((msg, i) => {
+    let parts = normalizeContentParts(msg.content);
+
+    if (msg.role === 'assistant') {
+      parts = parts.map((part): ContentPart => {
+        if (part.type !== 'tool-call') return part;
+        const tc = part as Record<string, unknown>;
+        const result = toolResultMap.get(tc.toolCallId as string);
+        const needsApproval = paused && pendingIds.has(tc.toolCallId as string);
+
+        const enriched: Record<string, unknown> = { ...tc };
+        if (result) {
+          enriched.result = {
+            type: 'tool-result',
+            toolCallId: result.toolCallId,
+            toolName: tc.toolName,
+            output: result.output,
+            isError: result.isError,
+          };
+        }
+        if (needsApproval) {
+          enriched.approval = { approvalId: tc.toolCallId };
+        }
+        return enriched as ContentPart;
+      });
+    }
+
+    return {
+      parentIndex: i > 0 ? i - 1 : -1,
+      message: {
+        id: msg.id || crypto.randomUUID(),
+        role: (msg.role === 'system' ? 'assistant' : msg.role) as 'user' | 'assistant',
+        parts,
+      },
+    };
+  });
+}
+
 interface ConversationItem {
   id: string;
   title: string;
@@ -103,12 +180,14 @@ export function createConversationThreadAdapter(agentId: string): RemoteThreadLi
 
 interface MessageItem {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string | ContentPart[];
 }
 
 interface ConversationDetail {
   messages: MessageItem[];
+  paused?: boolean;
+  pendingToolCalls?: Array<{ id: string; name: string; args: unknown }>;
 }
 
 /**
@@ -129,15 +208,12 @@ export function createThreadHistoryAdapter(remoteId: string | undefined): Thread
 
           const data = await api<ConversationDetail>(`/conversations/${remoteId}`);
           const msgs = data.messages || [];
+
+          const processed = processHistoryMessages(msgs, data.paused, data.pendingToolCalls);
           return {
-            messages: msgs.map((msg, i) => ({
-              // 建立父子链：每条消息的 parentId 指向前一条，首条为 null
-              parentId: (i > 0 ? msgs[i - 1]!.id : null) as string | null,
-              message: {
-                id: msg.id || crypto.randomUUID(),
-                role: msg.role as 'user' | 'assistant',
-                parts: normalizeContentParts(msg.content),
-              },
+            messages: processed.map(({ message, parentIndex }) => ({
+              parentId: parentIndex >= 0 ? processed[parentIndex]!.message.id : null,
+              message,
             })),
           };
         },

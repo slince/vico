@@ -17,8 +17,8 @@ function parseMessageContent(msg: Message): string | ContentPart[] {
   }
 }
 
-/** 前台展示的消息角色（排除内部 tool 消息） */
-const VISIBLE_ROLES = ['user', 'assistant', 'system'];
+/** 前台展示的消息角色 */
+const VISIBLE_ROLES = ['user', 'assistant', 'system', 'tool'];
 
 class ConversationManager {
   /** Vico 容器的共享 ThreadStore */
@@ -95,13 +95,31 @@ class ConversationManager {
     const messages: MessageItem[] = entries.map((msg: Message) => ({
       id: msg.id,
       thread_id: msg.threadId ?? id,
-      role: ['user', 'assistant', 'system'].includes(msg.role) ? msg.role : 'system',
+      role: msg.role,
       content: parseMessageContent(msg),
       token_usage: 0,
       created_at: msg.createdAt ?? Date.now(),
     }));
 
-    return { ...conv, messages };
+    // 检查暂停状态
+    let paused = false;
+    let pendingToolCalls: Array<{ id: string; name: string; args: unknown }> | undefined;
+    try {
+      const latestTurn = await this.store.getLatestTurn(id);
+      if (latestTurn && latestTurn.status === 'paused') {
+        const checkpoint = await vico.checkpointStore?.getByTurn(latestTurn.id);
+        if (checkpoint?.pauseInfo?.pendingToolCalls) {
+          paused = true;
+          pendingToolCalls = checkpoint.pauseInfo.pendingToolCalls.map(tc => ({
+            id: tc.id,
+            name: tc.name,
+            args: tc.args,
+          }));
+        }
+      }
+    } catch { /* 获取暂停状态失败不影响消息返回 */ }
+
+    return { ...conv, messages, paused, pendingToolCalls };
   }
 
   async count(userId: string): Promise<number> {
