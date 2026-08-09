@@ -248,8 +248,6 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
       this.log.debug({ turnId: turn.id }, 'resume path C: direct continue');
     }
 
-    requestContext.messages.push(...rest);
-    await this.persistMessages(context, rest);
     await this.pipeline.enter(requestContext);
     await this.agent.thread.updateTurn(turn.id, { status: 'running' });
     return this.startTurnLoop(checkpoint.stepIndex, context, turnSpan, usage);
