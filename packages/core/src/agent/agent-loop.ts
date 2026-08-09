@@ -44,7 +44,7 @@ import {
   RunOptions,
   Step,
   StepLoopResult,
-  ToolApproval,
+  ToolCallApproval,
   TurnContext,
   TurnResult,
   TurnSession
@@ -259,7 +259,7 @@ export class AgentLoop<TToolSet extends ToolSet = ToolSet> implements ToolExecut
    * 从 pauseInfo 恢复工具调用：执行自动批准的调用、追加自动拒绝的结果、
    * 处理等待审批的调用（根据 approvalDecisions 决定执行或拒绝）。
    */
-  private async applyPauseInfoRecovery(pauseInfo: PauseInfo, decisions: ToolApproval[], context: TurnContext<TToolSet>): Promise<void> {
+  private async applyPauseInfoRecovery(pauseInfo: PauseInfo, decisions: ToolCallApproval[], context: TurnContext<TToolSet>): Promise<void> {
     if (pauseInfo.reason !== 'tool-approval') return;
 
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d.approved]));

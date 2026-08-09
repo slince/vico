@@ -7,7 +7,7 @@ import {SystemPromptProcessor} from "./context-processors/system-prompt-processo
 import {SkillProcessor} from "./context-processors/skill-processor.js";
 import {MemoryProcessor} from "./context-processors/memory-processor.js";
 import {WorkspaceToolProcessor} from "./context-processors/workspace-tool-processor.js";
-import type {ToolApproval} from "./agent-loop-options.js";
+import type {ToolCallApproval} from "./agent-loop-options.js";
 import {TurnResult} from "./agent-loop-options.js";
 import type {Message} from '../thread/thread-store.js';
 import type {ModelMessage, UIMessage} from 'ai';
@@ -44,7 +44,7 @@ export function fromModelMessage(msg: ModelMessage): { role: string; content: st
  * 从 UIMessage[] 提取审批决策（Vico 客户端扩展 part：`{type:'tool-approval-response', approvalId, approved}`）。
  * 同一 toolCallId 后出现的决策覆盖先前的；无审批 part 时返回 undefined。
  */
-export function extractApprovalDecisions(messages: UIMessage[]): ToolApproval[] | undefined {
+export function extractApprovalDecisions(messages: UIMessage[]): ToolCallApproval[] | undefined {
   const decisions = new Map<string, boolean>();
   for (const msg of messages) {
     for (const part of msg.parts as Array<Record<string, unknown>>) {

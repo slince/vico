@@ -6,7 +6,7 @@ import type {
   ReasoningPart,
 } from '@ai-sdk/provider-utils';
 import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
-import type { ToolApproval } from '../agent/agent-loop-options.js';
+import type { ToolCallApproval } from '../agent/agent-loop-options.js';
 
 /**
  * 消息 content 的原生 part 联合类型，覆盖 AI SDK 生成/历史场景中的主要 part。
@@ -117,7 +117,7 @@ export function buildToolResultMessage(result: ToolResult, content: string): Too
  * 审批决策 → 原生 tool 消息（tool-approval-response parts）。
  * approvalId 复用 toolCallId（与引擎审批请求的约定一致），审批决策以 in-band 消息随对话下传。
  */
-export function buildApprovalResponseMessage(decisions: ToolApproval[]): ToolModelMessage {
+export function buildApprovalResponseMessage(decisions: ToolCallApproval[]): ToolModelMessage {
   return {
     role: 'tool',
     content: decisions.map((d): ToolApprovalResponse => ({
@@ -136,7 +136,7 @@ export function buildApprovalResponseMessage(decisions: ToolApproval[]): ToolMod
  * @param messages - 本轮输入消息组
  * @returns decisions（解析出的决策）+ rest（剔除审批 part 后的其余消息）
  */
-export function extractApprovalResponses(messages: ModelMessage[]): { decisions: ToolApproval[]; rest: ModelMessage[] } {
+export function extractApprovalResponses(messages: ModelMessage[]): { decisions: ToolCallApproval[]; rest: ModelMessage[] } {
   const decisionMap = new Map<string, boolean>();
   const rest: ModelMessage[] = [];
 

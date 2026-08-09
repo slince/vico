@@ -98,7 +98,7 @@ export interface TurnSession {
 
 
 /** 客户端工具审批决策（将 toolCallId 与审批结果绑定） */
-export interface ToolApproval {
+export interface ToolCallApproval {
   toolCallId: string;
   approved: boolean;
 }
