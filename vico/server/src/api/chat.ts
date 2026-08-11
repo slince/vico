@@ -18,9 +18,9 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const body = await c.req.json();
-    const agentId: string | undefined = body.agentId;
+    const agentId: string = body.agentId as string;
     const lastMessage = extractLastMessage(body);
-    const requestedThreadId: string = body.id as string;
+    const requestedThreadId: string = body.threadId as string;
 
     // 前端本地临时 ID（如 __LOCALID_xxx）替换为真实 UUID
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;
@@ -46,7 +46,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     return createUIMessageStreamResponse({
       stream: toUIMessageStream({ stream: output.stream }),
       headers: {
-        threadId: threadId
+        'x-thread-id': threadId
       }
     });
   });

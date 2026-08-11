@@ -28,12 +28,12 @@ export interface UseChatThreadRuntimeOptions {
  */
 export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseChatThreadRuntimeOptions) {
 
-  const remoteId = useAuiState(state => state.threadListItem.id);
+  const threadId = useAuiState(state => state.threadListItem.id);
 
   // 历史消息适配器 — 使用 useChatRuntime 的 adapters.history 自动加载
   const history = useMemo(
-    () => createThreadHistoryAdapter(remoteId),
-    [remoteId],
+    () => createThreadHistoryAdapter(threadId),
+    [threadId],
   );
 
   // 用 ref 持有 onThreadCreated，避免 fetch 闭包捕获旧引用
@@ -43,7 +43,7 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
   // 从响应头提取的 threadId，待 onFinish 消费
   const newThreadIdRef = useRef<string | null>(null);
 
-  // 为此线程创建 transport — remoteId 为对话 ID（新线程则为本地 ID）
+  // 为此线程创建 transport — threadId 为对话 ID（新线程则为本地 ID）
   const transport = useMemo(() => new DefaultChatTransport({
         api: '/api/v1/chat',
         credentials: 'include',
@@ -54,7 +54,7 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
           return {
             body: {
               ...body,
-              id: remoteId,
+              threadId,
               messages: lastMsg ? [lastMsg] : [],
             },
           };
@@ -62,25 +62,25 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
         // 拦截响应头，记录服务端返回的真实 threadId，待流结束后在 onFinish 中使用
         fetch: async (url, init) => {
           const response = await fetch(url, init);
-          const threadId = response.headers.get('threadId');
-          if (threadId && threadId !== remoteId) {
-            newThreadIdRef.current = threadId;
+          const newId = response.headers.get('x-thread-id');
+          if (newId && newId !== threadId) {
+            newThreadIdRef.current = newId;
           }
           return response;
         },
       }),
-    [agentId, remoteId],
+    [agentId, threadId],
   );
 
   return useChatRuntime({
     transport,
-    id: remoteId,
+    id: threadId,
     adapters: { history },
     // 当所有审批决议就绪时自动发送（无需用户手动输入消息）
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onFinish: () => {
       const newThreadId = newThreadIdRef.current;
-      if (newThreadId && newThreadId !== remoteId) {
+      if (newThreadId && newThreadId !== threadId) {
         onThreadCreatedRef.current?.(newThreadId);
         newThreadIdRef.current = null;
       }
