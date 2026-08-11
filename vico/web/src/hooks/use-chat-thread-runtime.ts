@@ -4,7 +4,7 @@
  * 封装 transport 创建、历史适配器注入、onFinish threadId 回写和错误处理，
  * useAssistantRuntime 的 runtimeHook 和 useTeamAssistantRuntime 共用此 hook。
  */
-import {useMemo} from 'react';
+import {useMemo, useRef} from 'react';
 import {useChatRuntime} from '@assistant-ui/react-ai-sdk';
 import {DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses} from 'ai';
 
@@ -36,6 +36,13 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
     [remoteId],
   );
 
+  // 用 ref 持有 onThreadCreated，避免 fetch 闭包捕获旧引用
+  const onThreadCreatedRef = useRef(onThreadCreated);
+  onThreadCreatedRef.current = onThreadCreated;
+
+  // 从响应头提取的 threadId，待 onFinish 消费
+  const newThreadIdRef = useRef<string | null>(null);
+
   // 为此线程创建 transport — remoteId 为对话 ID（新线程则为本地 ID）
   const transport = useMemo(() => new DefaultChatTransport({
         api: '/api/v1/chat',
@@ -43,7 +50,6 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
         body: () => ({ agentId }),
         prepareSendMessagesRequest: ({ messages, body, id }) => {
           const lastMsg = messages[messages.length - 1];
-          console.log('[useChatThreadRuntime] prepareSendMessagesRequest called, messages:', messages.length, 'lastMsg role:', lastMsg?.role);
 
           return {
             body: {
@@ -52,6 +58,15 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
               messages: lastMsg ? [lastMsg] : [],
             },
           };
+        },
+        // 拦截响应头，记录服务端返回的真实 threadId，待流结束后在 onFinish 中使用
+        fetch: async (url, init) => {
+          const response = await fetch(url, init);
+          const threadId = response.headers.get('threadId');
+          if (threadId && threadId !== remoteId) {
+            newThreadIdRef.current = threadId;
+          }
+          return response;
         },
       }),
     [agentId, remoteId],
@@ -63,11 +78,11 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
     adapters: { history },
     // 当所有审批决议就绪时自动发送（无需用户手动输入消息）
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-    onFinish: ({ message }) => {
-      const meta = (message as any)?.metadata;
-      // 新线程首次发送后，后端返回真实 threadId
-      if (meta?.threadId && typeof meta.threadId === 'string' && meta.threadId !== remoteId) {
-        onThreadCreated?.(meta.threadId);
+    onFinish: () => {
+      const newThreadId = newThreadIdRef.current;
+      if (newThreadId && newThreadId !== remoteId) {
+        onThreadCreatedRef.current?.(newThreadId);
+        newThreadIdRef.current = null;
       }
     },
     onError: (err: Error) => {
