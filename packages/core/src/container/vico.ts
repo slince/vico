@@ -24,7 +24,7 @@ export interface VicoOptions {
   languageModelFactory?: LanguageModelFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
   maxCached?: number;
-  /** AgentLoop 追踪：TraceLevel 快捷配置 或 自定义适配器（不传等同 0） */
+  /** LoopAgent 追踪：TraceLevel 快捷配置 或 自定义适配器（不传等同 0） */
   trace?: TraceOptions;
   /** 全局 MemoryStore（agent 自身未配置时使用） */
   memory?: MemoryStore;

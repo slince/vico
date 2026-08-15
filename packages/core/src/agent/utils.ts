@@ -1,17 +1,9 @@
-import type {ToolSet} from 'ai';
 import {TurnOutput} from "./turn-output.js";
-import {Agent} from "./agent.js";
-import {AgentLoop} from "./agent-loop.js";
-import type {ContextProcessor} from "./context-processors/context-processor.js";
-import {SystemPromptProcessor} from "./context-processors/system-prompt-processor.js";
-import {SkillProcessor} from "./context-processors/skill-processor.js";
-import {MemoryProcessor} from "./context-processors/memory-processor.js";
-import {WorkspaceToolProcessor} from "./context-processors/workspace-tool-processor.js";
-import type {ToolCallApproval} from "./agent-loop-options.js";
-import {TurnResult} from "./agent-loop-options.js";
+import type {ToolCallApproval, TurnResult} from "./agent-loop-options.js";
 import type {Message} from '../thread/thread-store.js';
 import type {ModelMessage, UIMessage} from 'ai';
 import {convertToModelMessages, validateUIMessages} from 'ai';
+import {buildApprovalResponseMessage} from '../model/message-utils.js';
 import type {UserMessage} from '../stream/types.js';
 import {SkillSettings} from "./create-agent.js";
 import {resolve} from "node:path";
@@ -72,7 +64,7 @@ export function extractApprovalDecisions(messages: UIMessage[]): ToolCallApprova
  * 注：v7 validateUIMessages 已原生接受 tool-approval-response part，但 convertToModelMessages
  * 的 user/tool 分支会丢弃非 providerExecuted 的审批 part，仍需手动剥离+合成。
  *
- * 审批决策由 AgentLoop.resumeTurn 从消息组中解析消费（见 extractApprovalResponses）。
+ * 审批决策由 LoopAgent.resumeTurn 从消息组中解析消费（见 extractApprovalResponses）。
  *
  * @param message - 三种形态的用户入参
  * @returns 本轮输入的 ModelMessage 数组（可为空数组）
@@ -86,8 +78,26 @@ export async function normalizeUserMessage(message: UserMessage): Promise<ModelM
   // UIMessage 必有 parts 字段，ModelMessage 必有 content 字段
   if ('parts' in message[0]) {
     const uiMessages = message as UIMessage[];
-    const validated = await validateUIMessages({ messages: uiMessages });
-    return await convertToModelMessages(validated, { ignoreIncompleteToolCalls: true });
+
+    // 提取审批扩展 part，合成原生审批 tool 消息（in-band 携带）
+    const decisions = extractApprovalDecisions(uiMessages);
+
+    // 剥离审批 part 后校验转换，取最后一条（useChat 全量历史不重复入库）
+    const stripped = uiMessages
+      .map((m) => ({ ...m, parts: m.parts.filter((p) => p.type !== 'tool-approval-response') }))
+      .filter((m) => m.parts.length > 0);
+
+    const result: ModelMessage[] = [];
+    if (decisions && decisions.length > 0) {
+      result.push(buildApprovalResponseMessage(decisions));
+    }
+    if (stripped.length > 0) {
+      const validated = await validateUIMessages({ messages: stripped });
+      const converted = await convertToModelMessages(validated, { ignoreIncompleteToolCalls: true });
+      const last = converted[converted.length - 1];
+      if (last) result.push(last);
+    }
+    return result;
   }
 
   return message as ModelMessage[];
@@ -105,27 +115,6 @@ export async function collectTurnResult(
   return output.result;
 }
 
-
-/**
- * 为 Agent 构建 AgentLoop，组装处理器管道和工具代理。
- *
- * @param agent - Agent 实例
- * @returns 配置好的 AgentLoop 实例
- */
-export function buildLoop<TToolSet extends ToolSet = ToolSet>(agent: Agent<TToolSet>): AgentLoop<TToolSet> {
-  // prompt context processor
-  const processors: ContextProcessor[] = [
-    new SystemPromptProcessor(),
-    new SkillProcessor(agent.skills),
-    new WorkspaceToolProcessor(),
-  ];
-
-  if (agent.memory) {
-    processors.push(new MemoryProcessor(agent.memory));
-  }
-
-  return new AgentLoop({ agent, processors });
-}
 
 /** 各产品全局 Skills 默认目录 */
 export const COMPATIBLE_SKILL_ROOTS = [

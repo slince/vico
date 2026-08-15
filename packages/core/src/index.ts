@@ -32,7 +32,7 @@ export type { UserMessage } from './stream/types.js';
 
 // Context processors (onion model)
 export {
-  type ModelRequestContext,
+  ModelRequestContext,
   type AgentRef,
 } from './agent/context-processors/model-request-context.js';
 export { type ContextProcessor } from './agent/context-processors/context-processor.js';
@@ -163,12 +163,11 @@ export { type EventRecorder, type EventPayload, type TypedEvent } from './events
 export { AgentRuntime } from './agent/agent-runtime.js';
 
 // Agent
-export { Agent, type AgentOptions } from './agent/agent.js';
+export type { Agent, AgentOptions } from './agent/agent.js';
 export { createAgent } from './agent/create-agent.js';
 
-// AgentLoop
-export { AgentLoop } from './agent/agent-loop.js';
-export { type AgentLoopOptions } from './agent/agent-loop.js';
+// LoopAgent（Agent 默认实现）
+export { LoopAgent, type LoopAgentOptions } from './agent/loop-agent.js';
 export { collectTurnResult, normalizeUserMessage, extractApprovalDecisions } from './agent/utils.js';
 export { TurnOutput } from './agent/turn-output.js';
 export { type TurnEvent } from './agent/types.js';

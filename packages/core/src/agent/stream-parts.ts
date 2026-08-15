@@ -1,4 +1,4 @@
-// @vico/core - AgentLoop 输出流协议（TextStreamPart）的 part 构造与 V4 映射辅助
+// @vico/core - LoopAgent 输出流协议（TextStreamPart）的 part 构造与 V4 映射辅助
 import type {
   CallWarning,
   FinishReason,
@@ -10,7 +10,7 @@ import type {
 } from 'ai';
 //
 // 分层约定：ModelClient 输出 provider 层协议（LanguageModelV4StreamPart），
-// AgentLoop 将其转换为引擎层协议（TextStreamPart<TToolSet>）后对外输出，
+// LoopAgent 将其转换为引擎层协议（TextStreamPart<TToolSet>）后对外输出，
 // turn-stream 再转换为 UI 层协议（UIMessageChunk）。本模块承载引擎层 part 的构造逻辑。
 import {DefaultGeneratedFile} from 'ai';
 import {asLanguageModelUsage, createNullLanguageModelUsage} from 'ai/internal';

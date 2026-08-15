@@ -22,7 +22,7 @@ export class ToolBroker {
   }
 
   /**
-   * 按名称查找工具（供 AgentLoop 检查 policy）
+   * 按名称查找工具（供 LoopAgent 检查 policy）
    * @param name - 工具名称
    * @returns 匹配的工具，未找到则返回 undefined
    */

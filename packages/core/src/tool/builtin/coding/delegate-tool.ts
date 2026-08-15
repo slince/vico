@@ -18,7 +18,7 @@ const delegateOutput = z.object({
 /**
  * 创建委托工具。
  *
- * 子 agent 使用独立的 AgentLoop 执行子任务，
+ * 子 agent 使用独立的 LoopAgent 执行子任务，
  * 继承父 agent 的 model 配置但使用受限的工具集。
  */
 export function createDelegateTool(parentConfig: { getConfig(): AgentConfig}) {

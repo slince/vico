@@ -1,7 +1,8 @@
 // @vico/core — 独立 Agent 构建函数，不依赖 Vico 容器
 import type {ToolSet} from 'ai';
 import type {LanguageModelV4} from '@ai-sdk/provider';
-import {Agent} from './agent.js';
+import type {Agent} from './agent.js';
+import {LoopAgent} from './loop-agent.js';
 import type {ModelRef, TurnEvent} from './types.js';
 import type {ReasoningEffort} from '../model/types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
@@ -148,7 +149,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent<ToolSet>> 
     approvalResolvers.unshift(config.approvalResolver)
   }
 
-  return new Agent({
+  return new LoopAgent({
     id: config.id,
     name: config.name,
     systemPrompt: config.systemPrompt,

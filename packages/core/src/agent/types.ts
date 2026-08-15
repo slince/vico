@@ -1,4 +1,4 @@
-// @vico/core - AgentLoop module type definitions
+// @vico/core - LoopAgent module type definitions
 
 /** 模型引用 */
 export interface ModelRef {

@@ -4,7 +4,7 @@
  * 使用环境变量 ENCRYPTION_KEY 作为加密密钥。
  * 若未设置，回退到明文存储（私有部署可接受）。
  */
-import crypto from 'node:crypto';
+import * as crypto from 'node:crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;

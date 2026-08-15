@@ -1,6 +1,6 @@
 // @vico/core - AgentRuntime: manages Agent lifecycle with LRU cache
 import type {ToolSet} from 'ai';
-import {Agent} from './agent.js';
+import type {Agent} from './agent.js';
 
 /** Agent 缓存条目 */
 interface AgentEntry {

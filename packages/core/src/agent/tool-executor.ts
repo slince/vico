@@ -9,7 +9,7 @@ import type {TurnContext} from './agent-loop-options.js';
 import type {TurnEvent} from './types.js';
 import {toolResultPart} from './stream-parts.js';
 
-/** AgentLoop 暴露给 ToolExecutor 的方法和属性 */
+/** LoopAgent 暴露给 ToolExecutor 的方法和属性 */
 export interface ToolExecutorHost<TToolSet extends ToolSet = ToolSet> {
   emit(event: TurnEvent): void;
   persistMessages(context: TurnContext<TToolSet>, messages: ModelMessage[]): Promise<void>;
