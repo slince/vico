@@ -26,7 +26,7 @@
 
 **路径 A — 标准暂停恢复（有 pauseInfo）**
 
-`PauseInfo`（agent-loop-options.ts L78-91）序列化在 `turn.metadata` 中，包含：
+`PauseInfo`（loop-agent-options.ts L78-91）序列化在 `turn.metadata` 中，包含：
 - `pendingToolCalls`：等待用户审批的调用
 - `autoApprovedCalls`：暂停时已自动批准的调用（恢复时直接执行）
 - `autoDeniedResults`：暂停时已自动拒绝的结果（恢复时直接追加）

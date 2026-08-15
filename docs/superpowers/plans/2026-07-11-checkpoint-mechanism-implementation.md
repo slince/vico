@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - 所有新代码需通过 `tsc --noEmit` 类型检查
-- `PauseInfo` 类型从 `agent-loop-options.ts` 迁移到 `checkpoint.ts`，旧引用全部更新
+- `PauseInfo` 类型从 `loop-agent-options.ts` 迁移到 `checkpoint.ts`，旧引用全部更新
 - turn.metadata.pauseInfo 不再写入，读取时忽略
 - 保留 `findUnresolvedToolCalls()` 和现有 heal 逻辑作为 checkpoint 缺失时的降级路径
 - 每次 checkpoint 写入是单行 upsert（on turn_id conflict），不产生历史行
@@ -52,7 +52,7 @@ import type { ToolCall, ToolResult } from '../tool/types.js';
 /** Checkpoint schema 当前版本 */
 export const CHECKPOINT_CURRENT_VERSION = 1;
 
-/** turn 暂停原因及恢复所需信息（从 agent-loop-options.ts 迁移） */
+/** turn 暂停原因及恢复所需信息（从 loop-agent-options.ts 迁移） */
 export interface PauseInfo {
   reason: 'tool-approval' | 'error';
   pendingToolCalls: ToolCall[];
@@ -245,7 +245,7 @@ git commit -m "feat: add InMemoryCheckpointStore implementation"
 
 ---
 
-### Task 3: 从 agent-loop-options.ts 迁移 PauseInfo
+### Task 3: 从 loop-agent-options.ts 迁移 PauseInfo
 
 **Files:**
 - Modify: `packages/agent/src/agent-loop/agent-loop-options.ts` — 删除 PauseInfo，改为从 checkpoint.ts re-export
@@ -255,12 +255,12 @@ git commit -m "feat: add InMemoryCheckpointStore implementation"
 - Consumes: `PauseInfo` from `./checkpoint.js`
 - Produces: (re-export for backward compat)
 
-- [ ] **Step 1: 修改 agent-loop-options.ts**
+- [ ] **Step 1: 修改 loop-agent-options.ts**
 
 删除 L77-91 的 PauseInfo 接口定义，替换为从 checkpoint 的 re-export：
 
 ```typescript
-// 在 agent-loop-options.ts 顶部添加 import
+// 在 loop-agent-options.ts 顶部添加 import
 import { PauseInfo } from './checkpoint.js';
 
 // 删除原来的 export interface PauseInfo { ... }
@@ -280,7 +280,7 @@ Expected: no new errors related to PauseInfo
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agent/src/agent-loop/agent-loop-options.ts packages/agent/src/agent-loop/agent-loop.ts
+git add packages/agent/src/agent-loop/loop-agent-options.ts packages/agent/src/agent-loop/agent-loop.ts
 git commit -m "refactor: migrate PauseInfo from agent-loop-options to checkpoint module"
 ```
 

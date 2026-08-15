@@ -1,12 +1,17 @@
 // @vico/core - 原生 ModelMessage 工具函数：文本提取、消息构造、UIMessage 转换、ToolSet 转换
-import { tool } from 'ai';
-import type { ModelMessage, UIMessage, ToolSet } from 'ai';
+import type {ModelMessage, ToolSet, UIMessage} from 'ai';
+import {tool} from 'ai';
 import type {
-  AssistantModelMessage, ToolModelMessage, ToolResultPart, TextPart, ToolCallPart, ToolApprovalResponse,
+  AssistantModelMessage,
   ReasoningPart,
+  TextPart,
+  ToolApprovalResponse,
+  ToolCallPart,
+  ToolModelMessage,
+  ToolResultPart,
 } from '@ai-sdk/provider-utils';
-import type { Tool, ToolCall, ToolResult } from '../tool/types.js';
-import type { ToolCallApproval } from '../agent/agent-loop-options.js';
+import type {Tool, ToolCall, ToolResult} from '../tool/types.js';
+import type {ToolCallApproval} from '../agent/loop-agent-options.js';
 
 /**
  * 消息 content 的原生 part 联合类型，覆盖 AI SDK 生成/历史场景中的主要 part。

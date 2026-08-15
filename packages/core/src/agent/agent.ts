@@ -11,7 +11,7 @@ import type {ThreadStore} from '../thread/thread-store.js';
 import type {EventPayload, EventRecorder} from '../events/types.js';
 import type {TurnOutput} from './turn-output.js';
 import type {TurnTracer} from '../observable/turn-tracer.js';
-import type {RunOptions, TurnResult} from './agent-loop-options.js';
+import type {RunOptions, TurnResult} from './loop-agent-options.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';

@@ -1,6 +1,6 @@
 // @vico/core - LoopAgent: Agent 默认实现，驱动单个 turn 的 model→tool→repeat 循环
-import pino from 'pino';
 import type {Logger} from 'pino';
+import pino from 'pino';
 import type {LanguageModelV4, LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
@@ -17,6 +17,7 @@ import type {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
 import type {Checkpoint, CheckpointStore, PauseInfo} from './checkpoint.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
+import {ProcessorPipeline} from './context-processors/context-processor.js';
 import type {Span} from '../observable/types.js';
 import type {
   ApprovalClassification,
@@ -30,11 +31,11 @@ import type {
   TurnContext,
   TurnResult,
   TurnSession,
-} from './agent-loop-options.js';
+} from './loop-agent-options.js';
 
 import {ModelClient} from '../model/model-client.js';
 import {resolvePolicy} from '../tool/utils.js';
-import {normalizeUserMessage, fromModelMessage, toModelMessages} from './utils.js';
+import {fromModelMessage, normalizeUserMessage, toModelMessages} from './utils.js';
 import {TurnOutput} from './turn-output.js';
 import {
   createToolCall,
@@ -56,11 +57,10 @@ import {
   hasToolResult,
   pickPrimaryUserMessage,
 } from '../model/message-utils.js';
-import {ToolExecutor} from './tool-executor.js';
 import type {ToolExecutorHost} from './tool-executor.js';
-import {TurnTracer} from '../observable/turn-tracer.js';
+import {ToolExecutor} from './tool-executor.js';
 import type {TurnTrace} from '../observable/turn-tracer.js';
-import {ProcessorPipeline} from './context-processors/context-processor.js';
+import {TurnTracer} from '../observable/turn-tracer.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
 import {SystemPromptProcessor} from './context-processors/system-prompt-processor.js';
 import {SkillProcessor} from './context-processors/skill-processor.js';

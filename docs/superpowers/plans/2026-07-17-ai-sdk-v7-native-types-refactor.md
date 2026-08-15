@@ -686,7 +686,7 @@ git commit -m "refactor: ThreadStore Message 改存原生 content JSON，删除 
   - `TurnContext.controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>`
   - 所有内部 messages 均为原生 `ModelMessage`
 
-- [ ] **Step 1: 类型层替换（agent-loop-options.ts / turn-output.ts / tool-executor.ts / context-processor.ts）**
+- [ ] **Step 1: 类型层替换（loop-agent-options.ts / turn-output.ts / tool-executor.ts / context-processor.ts）**
 
 四个文件统一：`import {ModelMessage, ModelStreamChunk} from '../model/types.js'`（或相对路径变体）替换为：
 
@@ -695,7 +695,7 @@ import type { ModelMessage } from 'ai';
 import type { LanguageModelV4StreamPart } from '@ai-sdk/provider';
 ```
 
-并将所有 `ModelStreamChunk` 类型标注替换为 `LanguageModelV4StreamPart`（agent-loop-options.ts 的 `TurnContext.controller`、turn-output.ts 的 `stream` 字段/构造参数）。turn-output.ts `collectText()` 逻辑不变（V4 `text-delta` 同名同形）。
+并将所有 `ModelStreamChunk` 类型标注替换为 `LanguageModelV4StreamPart`（loop-agent-options.ts 的 `TurnContext.controller`、turn-output.ts 的 `stream` 字段/构造参数）。turn-output.ts `collectText()` 逻辑不变（V4 `text-delta` 同名同形）。
 
 context-processor.ts 另需修改 `getLastUserMessage()`（原 86-91 行），用文本提取：
 

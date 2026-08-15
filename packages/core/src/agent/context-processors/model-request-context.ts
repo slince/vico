@@ -3,7 +3,7 @@ import type {ModelMessage} from 'ai';
 import {getMessageText, pickPrimaryUserMessage} from '../../model/message-utils.js';
 import type {Tool} from '../../tool/types.js';
 import type {Thread} from '../../thread/thread-store.js';
-import {Step, TurnSession} from "../agent-loop-options.js";
+import {Step, TurnSession} from "../loop-agent-options.js";
 
 /** 上下文中的 Agent 引用 — 提供处理器所需的配置字段 */
 export interface AgentRef {

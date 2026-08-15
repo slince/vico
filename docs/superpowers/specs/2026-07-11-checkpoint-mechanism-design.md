@@ -487,12 +487,12 @@ async function purgeExpired(ttlMs: number = DEFAULT_CHECKPOINT_TTL): Promise<str
 
 ### 9.2 PauseInfo 迁移
 
-`PauseInfo` 类型从 `agent-loop-options.ts` 迁移到 `agent-loop/checkpoint.ts`，作为 checkpoint 模块的内部类型。`turn.metadata.pauseInfo` 不再写入。
+`PauseInfo` 类型从 `loop-agent-options.ts` 迁移到 `agent-loop/checkpoint.ts`，作为 checkpoint 模块的内部类型。`turn.metadata.pauseInfo` 不再写入。
 
 **迁移路径**：
 
 ```
-Before: turn.metadata.pauseInfo (agent-loop-options.ts)
+Before: turn.metadata.pauseInfo (loop-agent-options.ts)
 After:  Checkpoint.pauseInfo (agent-loop/checkpoint.ts)
 
 turn.metadata 中旧数据：不主动清理，读取时忽略

@@ -1,5 +1,5 @@
 import {TurnOutput} from "./turn-output.js";
-import type {ToolCallApproval, TurnResult} from "./agent-loop-options.js";
+import type {ToolCallApproval, TurnResult} from "./loop-agent-options.js";
 import type {Message} from '../thread/thread-store.js';
 import type {ModelMessage, UIMessage} from 'ai';
 import {convertToModelMessages, validateUIMessages} from 'ai';

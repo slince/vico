@@ -1,11 +1,11 @@
 // @vico/core - Checkpoint 类型 + CheckpointStore 接口 + 版本迁移
-import type { ToolCall, ToolResult } from '../tool/types.js';
-import type { ToolApproval } from './agent-loop-options.js';
+import type {ToolCall, ToolResult} from '../tool/types.js';
+import type {ToolApproval} from './loop-agent-options.js';
 
 /** Checkpoint schema 当前版本 */
 export const CHECKPOINT_CURRENT_VERSION = 1;
 
-/** turn 暂停原因及恢复所需信息（从 agent-loop-options.ts 迁移） */
+/** turn 暂停原因及恢复所需信息（从 loop-agent-options.ts 迁移） */
 export interface PauseInfo {
   reason: 'tool-approval' | 'error';
   pendingToolCalls: ToolCall[];

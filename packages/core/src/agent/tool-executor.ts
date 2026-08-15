@@ -2,10 +2,10 @@
 import type {Logger} from 'pino';
 import type {Tool, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
 import {StormBreaker} from '../tool/storm-breaker.js';
-import type { ModelMessage, ToolSet } from 'ai';
+import type {ModelMessage, ToolSet} from 'ai';
 import type {CheckpointStore} from './checkpoint.js';
 import type {TokenEconomy} from './token-economy.js';
-import type {TurnContext} from './agent-loop-options.js';
+import type {TurnContext} from './loop-agent-options.js';
 import type {TurnEvent} from './types.js';
 import {toolResultPart} from './stream-parts.js';
 
