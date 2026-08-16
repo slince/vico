@@ -1,13 +1,9 @@
 // @vico/core - 审批策略：support/resolve 两段式 resolver 及内置规则集
 import {resolve} from 'node:path';
-import type {ApprovalDecider, ApprovalResolver, ToolKind} from './types.js';
-import {resolvePolicy} from './utils.js';
+import type {ApprovalDecider, ApprovalResolver} from './types.js';
 
 /** 路径参数常用名称 */
 const PATH_ARG_NAMES = new Set(['path', 'filePath', 'file', 'target', 'directory', 'dir']);
-
-/** 破坏性工具类别：默认需要审批 */
-const DESTRUCTIVE_KINDS = new Set<ToolKind>(['mutation', 'file_change', 'command']);
 
 /**
  * 检查给定路径是否在 workspace 目录内。
@@ -62,20 +58,28 @@ export const workspaceResolver: ApprovalResolver = {
   },
 };
 
-/**
- * 破坏性工具暂停：mutation / file_change / command 类工具默认需要审批。
- */
-export const destructiveResolver: ApprovalResolver = {
-  support: tool => DESTRUCTIVE_KINDS.has(tool.kind),
-  resolve: call => ({status: 'paused', reason: `工具 ${call.name} 为破坏性操作，需要审批`}),
-};
 
 /**
  * 兜底 resolver：恒参与，按工具自身 policy（auto / on-request / never）决策。
  */
 export const defaultResolver: ApprovalResolver = {
   support: () => true,
-  resolve: (call, tool, policy, ctx) => resolvePolicy(call, tool, policy, ctx),
+  resolve: (call, tool, policy, ctx) => {
+    switch (policy) {
+      case 'auto':
+        return { status: 'approved' };
+      case 'never':
+        return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
+      case 'on-request':
+        // 同一 turn 内已审批通过的工具，后续调用自动放行
+        if (!ctx.firstUse && ctx.previousApproved) {
+          return { status: 'approved' };
+        }
+        return { status: 'paused', reason: `工具 ${call.name} 首次使用需要用户审批` };
+      default:
+        return { status: 'denied', reason: `未知策略: ${policy}` };
+    }
+  }
 };
 
 /**
@@ -84,7 +88,6 @@ export const defaultResolver: ApprovalResolver = {
 export const defaultApprovalResolvers: ApprovalResolver[] = [
   neverDenyResolver,
   workspaceResolver,
-  destructiveResolver,
   defaultResolver,
 ];
 
