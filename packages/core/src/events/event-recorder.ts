@@ -1,6 +1,6 @@
 // @vico/core - Mitt-based EventRecorder 实现
 import mitt, { type Emitter } from 'mitt';
-import type { EventPayload, EventRecorder, TypedEvent } from './types.js';
+import type { EventPayload, EventRecorder, EventType, TypedEvent } from './types.js';
 
 /** 将 event 联合类型转为 mitt 的 EventMap（{ type1: payload1, type2: payload2, '*': TEvent }） */
 type MittEventMap<TEvent extends TypedEvent> = {
@@ -23,11 +23,11 @@ export class MittEventRecorder<TEvent extends TypedEvent = TypedEvent>
     this.emitter.emit(event.type as keyof MittEventMap<TEvent> & string, event as any);
   }
 
-  on<K extends string>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void {
+  on<K extends EventType<TEvent>>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void {
     this.emitter.on(event as any, handler as any);
   }
 
-  off<K extends string>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void {
+  off<K extends EventType<TEvent>>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void {
     this.emitter.off(event as any, handler as any);
   }
 }

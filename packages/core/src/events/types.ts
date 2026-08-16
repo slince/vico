@@ -9,12 +9,15 @@ export interface TypedEvent {
 export type EventPayload<TEvent extends TypedEvent, K extends string> =
   [Extract<TEvent, { type: K }>] extends [never] ? TEvent : Extract<TEvent, { type: K }>;
 
+/** 事件订阅名：具体事件 type 字面量或 '*' 通配符（订阅全部事件） */
+export type EventType<TEvent extends TypedEvent> = TEvent['type'] | '*';
+
 /** 事件广播器端口。TEvent 为事件联合类型 */
 export interface EventRecorder<TEvent extends TypedEvent = TypedEvent> {
   /** 发射事件 */
   emit(event: TEvent): void;
-  /** 注册事件监听器。K 为事件 type 字符串或 '*' 通配符 */
-  on<K extends string>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void;
+  /** 注册事件监听器。K 为事件 type 字面量或 '*' 通配符 */
+  on<K extends EventType<TEvent>>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void;
   /** 移除事件监听器 */
-  off<K extends string>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void;
+  off<K extends EventType<TEvent>>(event: K, handler: (data: EventPayload<TEvent, K>) => void): void;
 }

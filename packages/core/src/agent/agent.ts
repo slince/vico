@@ -8,7 +8,7 @@ import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
-import type {EventPayload, EventRecorder} from '../events/types.js';
+import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {TurnOutput} from './turn-output.js';
 import type {TurnTracer} from '../observable/turn-tracer.js';
 import type {RunOptions, TurnResult} from './loop-agent-options.js';
@@ -79,7 +79,7 @@ export interface Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
    * @param event - 事件类型名称
    * @param handler - 事件处理函数
    */
-  on<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void;
+  on<K extends EventType<TurnEvent>>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void;
 
   /**
    * 取消订阅 turn 事件。
@@ -87,7 +87,7 @@ export interface Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
    * @param event - 事件类型名称
    * @param handler - 要移除的事件处理函数
    */
-  off<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void;
+  off<K extends EventType<TurnEvent>>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void;
 
   /**
    * 发起一次对话：发送消息并等待返回最终结果（非流式）。

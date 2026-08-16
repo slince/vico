@@ -10,7 +10,7 @@ import type {ApprovalResolver, Tool, ToolCall, ToolResult} from '../tool/types.j
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
-import type {EventPayload, EventRecorder} from '../events/types.js';
+import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
 import type {ContextCompactor} from './context-compactor.js';
@@ -150,7 +150,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
    * @param event - 事件类型名称
    * @param handler - 事件处理函数
    */
-  on<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
+  on<K extends EventType<TurnEvent>>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
     this.events.on(event, handler);
   }
 
@@ -160,7 +160,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
    * @param event - 事件类型名称
    * @param handler - 要移除的事件处理函数
    */
-  off<K extends string>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
+  off<K extends EventType<TurnEvent>>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void {
     this.events.off(event, handler);
   }
 
