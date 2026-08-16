@@ -55,7 +55,6 @@ import {
   getToolResultText,
   hasToolResult,
 } from '../model/message-utils.js';
-import type {ToolExecutorHost} from './tool-executor.js';
 import {ToolExecutor} from './tool-executor.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
 import {SystemPromptProcessor} from './context-processors/system-prompt-processor.js';
@@ -81,7 +80,7 @@ function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextP
 
 /** LoopAgent — Agent 默认实现，编排 model→tool→repeat 循环 */
 export class LoopAgent<TToolSet extends ToolSet = ToolSet>
-  implements Agent, ToolExecutorHost<TToolSet> {
+  implements Agent {
 
   readonly id: string;
   readonly name: string;
@@ -333,9 +332,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 还原已完成工具结果到消息链
     const newToolMessages = this.restoreCompletedToolResults(checkpoint.completedToolResults);
-    if (newToolMessages.length > 0) {
-      await this.persistMessages(context, newToolMessages);
-    }
+    await this.persistMessages(context, newToolMessages);
+
     context.messages.push(...newToolMessages);
 
     if (checkpoint.pauseInfo) {
@@ -747,6 +745,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 批量持久化消息到 threadStore。
    */
   async persistMessages(context: TurnContext<TToolSet>, messages: ModelMessage[]): Promise<void> {
+    if (messages.length === 0) {
+      return
+    }
+
     const threadId = context.session.thread.id;
     const turnId = context.session.turn.id;
     await this.thread.appendEntries(
@@ -782,15 +784,15 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /** 工具结果 → 原生 tool 消息 + 批量持久化 */
   async appendToolResults(toolResults: ToolResult[], context: TurnContext<TToolSet>): Promise<void> {
     const messages: ModelMessage[] = [];
+
     for (const r of toolResults) {
       const content = this.resolveToolResult(r);
       const message = buildToolResultMessage(r, content);
       context.messages.push(message);
       messages.push(message);
     }
-    if (messages.length > 0) {
-      await this.persistMessages(context, messages);
-    }
+    
+    await this.persistMessages(context, messages);
   }
 
   /**
