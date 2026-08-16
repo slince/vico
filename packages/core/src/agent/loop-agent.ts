@@ -327,18 +327,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     if (checkpoint.pauseInfo) {
       // 路径 A：审批恢复
-      this.log.debug({ turnId: turn.id }, 'resume path A: approval recovery');
       await this.applyPauseInfoRecovery(checkpoint.pauseInfo, decisions, context);
       // 清除 pauseInfo
       checkpoint.pauseInfo = null;
       await this.checkpointStore.update(checkpoint);
     } else if (checkpoint.pendingToolCall) {
       // 路径 B：工具重试
-      this.log.debug({ turnId: turn.id, toolName: checkpoint.pendingToolCall.name }, 'resume path B: tool retry');
       await this.resolvePendingTool(checkpoint.pendingToolCall, messages, context);
-    } else {
-      // 路径 C：pendingToolCall == null → 直接继续
-      this.log.debug({ turnId: turn.id }, 'resume path C: direct continue');
     }
 
     await this.thread.updateTurn(turn.id, { status: 'running' });
