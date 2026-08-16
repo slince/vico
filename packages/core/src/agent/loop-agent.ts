@@ -824,9 +824,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       temperature: this.temperature,
       reasoning: this.reasoning,
     };
-
-
-
+    
     const resolveError = (error: Error|string) => {
       this.emit({ type: 'error', error });
       controller.enqueue({ type: 'error', error });
