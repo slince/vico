@@ -115,6 +115,4 @@ export interface ToolApproval {
 export interface RunOptions {
   /** 会话线程对象（必传，通过 agent.createThread() 创建） */
   thread: Thread;
-  /** 工作空间路径，覆盖 thread 中记录的 workspace */
-  workspace?: string;
 }

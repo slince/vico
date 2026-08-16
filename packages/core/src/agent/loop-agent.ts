@@ -64,7 +64,7 @@ import {MemoryProcessor} from './context-processors/memory-processor.js';
 import {WorkspaceToolProcessor} from './context-processors/workspace-tool-processor.js';
 
 /** LoopAgent 构造选项 */
-export interface LoopAgentOptions<TToolSet extends ToolSet = ToolSet> extends AgentOptions {
+export interface LoopAgentOptions extends AgentOptions {
   /** 上下文处理器，不传则使用默认管道 */
   processors?: ContextProcessor[];
 }
@@ -107,7 +107,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   private readonly toolExecutor: ToolExecutor<TToolSet>;
   private readonly pipeline: ProcessorPipeline;
 
-  constructor(options: LoopAgentOptions<TToolSet>) {
+  constructor(options: LoopAgentOptions) {
     const { processors, ...rest } = options;
     this.id = rest.id;
     this.name = rest.name;
@@ -257,7 +257,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       throw new Error('RunOptions.thread 必填，请先通过 agent.createThread() 创建会话');
     }
 
-    const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.workspace;
+    const workspace = thread.metadata?.workspace ?? this.workspace;
 
     // 自动恢复所有未完成的 turn（paused/running/failed），前提是存在 checkpoint
     const latestTurn = await this.thread.getLatestTurn(thread.id);
