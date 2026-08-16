@@ -791,7 +791,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       context.messages.push(message);
       messages.push(message);
     }
-    
+
     await this.persistMessages(context, messages);
   }
 
@@ -852,14 +852,18 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
     };
 
+    const resolveError = (error: Error|string) => {
+      this.emit({ type: 'error', error });
+      controller.enqueue({ type: 'error', error });
+      return { text: '', toolCalls: [], usage: { input: 0, output: 0 }}
+    };
+
     let stream: ReadableStream<LanguageModelV4StreamPart>;
     try {
       ({ stream } = await this.modelClient.stream(request, context.signal));
     } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      this.log.error({ err }, 'modelClient.stream 调用失败');
-      controller.enqueue({ type: 'error', error: err.message });
-      return this.recordModelError(err, { text: '', toolCalls: [], usage: { input: 0, output: 0 } });
+      const err = e instanceof Error ? e as Error: new Error(String(e));
+      return resolveError(err);
     }
 
     for await (const chunk of stream) {
@@ -976,24 +980,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           case 'error':
             controller.enqueue({ type: 'error', error: chunk.error });
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            return this.recordModelError(err, { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage });
+            return resolveError(err)
         }
     }
 
-    const result: CallModelResult = { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage };
-    return result;
+    return {text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage};
   }
-
-  /**
-   * 统一处理模型调用错误：emit 错误事件并返回带 error 的结果。
-   * 调用方负责日志记录和 controller.enqueue。
-   */
-  private recordModelError(
-    error: Error | string,
-    result: CallModelResult,
-  ): CallModelResult {
-    this.emit({ type: 'error', error });
-    return { ...result, error };
-  }
-
 }

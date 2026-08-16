@@ -24,4 +24,6 @@ export interface ModelRequest {
 /** ModelClient.stream() 返回值 — provider 原生 V4 流 */
 export interface ModelStreamResult {
   stream: ReadableStream<LanguageModelV4StreamPart>;
+  /** 消费 stream 并返回完整文本输出（text-delta 拼接）。调用后 stream 不可再被读取，与 `stream` 二选一消费。 */
+  readText(): Promise<string>;
 }

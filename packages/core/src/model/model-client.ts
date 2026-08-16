@@ -44,6 +44,20 @@ export class ModelClient {
       abortSignal,
     });
 
-    return { stream: result.stream };
+    const stream = result.stream;
+
+    return {
+      stream,
+      /** 消费 stream 收集全部 text-delta，返回完整文本（与 `stream` 二选一消费） */
+      readText: async (): Promise<string> => {
+        let text = '';
+        for await (const part of stream) {
+          if (part.type === 'text-delta') {
+            text += part.delta;
+          }
+        }
+        return text;
+      },
+    };
   }
 }
