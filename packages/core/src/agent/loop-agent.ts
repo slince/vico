@@ -469,11 +469,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       this.emit({ type: 'error', error: err });
       context.controller.enqueue(finishPart('error', usage));
 
-      const failResult: TurnResult = {
+      return {
         status: 'failed', steps: loopResult.steps, usage, messages: context.messages,
         thread, turn, error: loopResult.error,
       };
-      return failResult;
     }
 
     const status = loopResult.status === 'aborted' ? 'aborted' : 'completed';
@@ -492,7 +491,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     context.controller.enqueue(finishPart(status === 'aborted' ? 'other' : 'stop', usage));
     this.emit({ type: 'done', usage });
 
-    const finalResult: TurnResult = {
+    return {
       status: loopResult.status === 'aborted'
         ? (context.signal.aborted ? 'interrupted' : 'aborted')
         : 'completed',
@@ -502,7 +501,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       thread,
       turn,
     };
-    return finalResult;
   }
 
   /**
