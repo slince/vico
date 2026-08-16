@@ -75,7 +75,7 @@ export const webFetchTool = createTool({
     '发起 HTTP 请求获取网页或 API 数据。支持自定义方法、请求头和请求体。响应体超过 100KB 自动截断。用于查阅在线文档、调用 API 等场景。',
   inputSchema: webFetchParams,
   outputSchema: webFetchOutput,
-  policy: 'on-request',
+  policy: 'auto',
   kind: 'command',
   tags: ['builtin', 'network'],
   execute: executeWebFetch,
