@@ -825,6 +825,22 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       reasoning: this.reasoning,
     };
 
+
+
+    const resolveError = (error: Error|string) => {
+      this.emit({ type: 'error', error });
+      controller.enqueue({ type: 'error', error });
+      return { text: '', toolCalls: [], usage: { input: 0, output: 0 }}
+    };
+
+    let stream: ReadableStream<LanguageModelV4StreamPart>;
+    try {
+      ({ stream } = await this.modelClient.stream(request, context.signal));
+    } catch (e) {
+      const err = e instanceof Error ? e as Error: new Error(String(e));
+      return resolveError(err);
+    }
+
     let fullText = '';
     let fullReasoning = '';
     const toolCalls: ToolCall[] = [];
@@ -851,20 +867,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         controllerClosed = true;
       }
     };
-
-    const resolveError = (error: Error|string) => {
-      this.emit({ type: 'error', error });
-      controller.enqueue({ type: 'error', error });
-      return { text: '', toolCalls: [], usage: { input: 0, output: 0 }}
-    };
-
-    let stream: ReadableStream<LanguageModelV4StreamPart>;
-    try {
-      ({ stream } = await this.modelClient.stream(request, context.signal));
-    } catch (e) {
-      const err = e instanceof Error ? e as Error: new Error(String(e));
-      return resolveError(err);
-    }
 
     for await (const chunk of stream) {
       // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
