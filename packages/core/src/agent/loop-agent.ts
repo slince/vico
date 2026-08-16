@@ -167,10 +167,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   async createThread(options: CreateThreadOptions = {}): Promise<Thread> {
     const id = `${this.id}-${randomUUID()}`;
     const workspace = options.workspace ?? this.workspace;
-    const metadata: ThreadMetadata = { ...options.metadata, ...(workspace !== undefined ? { workspace } : {}) };
-    const thread = await this.thread.createThread(this.id, options.title ?? '', id, {
+    const metadata: ThreadMetadata = { ...options.metadata, workspace };
+    const thread = await this.thread.createThread(this.id, options.title ?? 'New thread', id, {
       userId: options.userId,
-      workspace,
       metadata,
     });
     this.log.debug({ threadId: id, agentId: this.id }, 'thread created');

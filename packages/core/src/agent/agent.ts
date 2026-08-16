@@ -6,7 +6,7 @@ import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
-import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.js';
+import type {Thread, ThreadStore} from '../thread/thread-store.js';
 import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {TurnOutput} from './turn-output.js';
 import type {RunOptions, TurnResult} from './loop-agent-options.js';
@@ -50,7 +50,7 @@ export interface CreateThreadOptions {
   /** 工作空间路径，覆盖 agent 默认工作区 */
   workspace?: string;
   /** 自定义元数据（JSON 可序列化） */
-  metadata?: ThreadMetadata;
+  metadata?: {[key: string]: unknown};
 }
 
 /**
@@ -79,7 +79,7 @@ export interface Agent {
   readonly tokenEconomy?: TokenEconomy;
   readonly checkpointStore: CheckpointStore;
   readonly logger: Logger;
-  
+
   /**
    * 订阅 turn 事件。
    *

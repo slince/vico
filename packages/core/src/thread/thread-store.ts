@@ -23,8 +23,6 @@ export interface TurnMetadata {
 /** 线程上下文参数，可携带 userId/scopeId/workspace 及任意自定义字段 */
 export interface ThreadContext {
   userId?: string;
-  scopeId?: string;
-  workspace?: string;
   metadata?: ThreadMetadata;
 }
 
