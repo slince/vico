@@ -18,7 +18,6 @@ import type {TokenEconomy} from './token-economy.js';
 import type {Checkpoint, CheckpointStore, PauseInfo} from './checkpoint.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ProcessorPipeline} from './context-processors/context-processor.js';
-import type {Span} from '../observable/types.js';
 import type {
   ApprovalClassification,
   CallModelResult,
@@ -59,8 +58,6 @@ import {
 } from '../model/message-utils.js';
 import type {ToolExecutorHost} from './tool-executor.js';
 import {ToolExecutor} from './tool-executor.js';
-import type {TurnTrace} from '../observable/turn-tracer.js';
-import {TurnTracer} from '../observable/turn-tracer.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
 import {SystemPromptProcessor} from './context-processors/system-prompt-processor.js';
 import {SkillProcessor} from './context-processors/skill-processor.js';
@@ -102,7 +99,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
   readonly thread: ThreadStore;
   readonly approvalResolver: ApprovalResolver;
   readonly events: EventRecorder<TurnEvent>;
-  readonly tracer: TurnTracer;
   readonly workspace?: string;
   readonly compactor?: ContextCompactor;
   readonly tokenEconomy?: TokenEconomy;
@@ -129,7 +125,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
     this.thread = rest.thread;
     this.approvalResolver = rest.approvalResolver ?? resolvePolicy;
     this.events = rest.events;
-    this.tracer = rest.tracer;
     this.workspace = rest.workspace;
     this.compactor = rest.compactor;
     this.tokenEconomy = rest.tokenEconomy;
@@ -282,8 +277,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
-    const trace = this.tracer.create(session);
-    const turnSpan = trace.startSpan('agent_run');
     const approvedTools = new Map<string, ToolApproval>();
     this.loadSessionApprovals(session, approvedTools);
 
@@ -291,11 +284,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
     await this.pipeline.enter(requestContext);
 
     // 本轮次的上下文对象
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, approvedTools, signal, controller };
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller };
 
     await this.persistMessages(context, userMessages);
 
-    return this.startTurnLoop( 0, context, turnSpan, usage);
+    return this.startTurnLoop( 0, context, usage);
   }
 
   /** 从未完结的 turn 恢复执行，携带新的用户消息（审批决策从消息组中的原生 tool-approval-response part 解析） */
@@ -314,8 +307,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
     // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
     const { decisions } = extractApprovalResponses(userMessages);
 
-    const trace = this.tracer.create(session);
-    const turnSpan = trace.startSpan('agent_resume');
 
     // 恢复历史消息
     const entries = await this.thread.getEntriesByTurns([turn.id]);
@@ -328,7 +319,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
     // ——— checkpoint 恢复逻辑 ———
     const approvedTools = new Map<string, ToolApproval>(Object.entries(checkpoint.approvedTools));
     this.loadSessionApprovals(session, approvedTools);
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, trace, approvedTools, signal, controller };
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller };
 
     // 还原已完成工具结果到消息链
     const newToolMessages = this.restoreCompletedToolResults(checkpoint.completedToolResults);
@@ -353,7 +344,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
     }
 
     await this.thread.updateTurn(turn.id, { status: 'running' });
-    return this.startTurnLoop(checkpoint.stepIndex, context, turnSpan, usage);
+    return this.startTurnLoop(checkpoint.stepIndex, context, usage);
   }
 
   /**
@@ -452,9 +443,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
    */
-  private async startTurnLoop(startStep: number, context: TurnContext<TToolSet>, turnSpan: Span, usage: UsageMetrics): Promise<TurnResult> {
+  private async startTurnLoop(startStep: number, context: TurnContext<TToolSet>, usage: UsageMetrics): Promise<TurnResult> {
 
-    const {session: {thread, turn}, trace} = context
+    const {session: {thread, turn}} = context
     const loopResult: StepLoopResult  = await this.runTurnLoop(startStep, context);
     usage.input += loopResult.usage.input;
     usage.output += loopResult.usage.output;
@@ -462,7 +453,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
     // 暂停时不 finalize trace session，保留会话供恢复时复用
     if (loopResult.status === 'paused') {
       this.log.info({ turnId: turn.id, steps: loopResult.steps }, 'turn paused');
-      turnSpan.end({ status: 'paused', steps: loopResult.steps });
       // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
       context.controller.enqueue(finishPart('stop', usage));
       return {
@@ -477,7 +467,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
       const err = loopResult.error!;
       this.log.error({ turnId: turn.id, error: err instanceof Error ? err.message : String(err) }, 'turn failed');
       await this.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
-      turnSpan.error(err instanceof Error ? err : String(err));
       this.emit({ type: 'error', error: err });
       context.controller.enqueue(finishPart('error', usage));
 
@@ -485,7 +474,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
         status: 'failed', steps: loopResult.steps, usage, messages: context.messages,
         thread, turn, error: loopResult.error,
       };
-      await this.tracer.finish(trace, failResult, turn.id);
       return failResult;
     }
 
@@ -498,7 +486,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
       await this.checkpointStore.deleteByTurn(turn.id);
     }
 
-    turnSpan.end({ status: 'completed', steps: loopResult.steps });
     // 终态生命周期 part：中断先发 abort，再统一发 finish
     if (status === 'aborted') {
       context.controller.enqueue({ type: 'abort' });
@@ -516,7 +503,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
       thread,
       turn,
     };
-    await this.tracer.finish(trace, finalResult, turn.id);
     return finalResult;
   }
 
@@ -815,7 +801,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
    * 不修改入参，结果通过 CallModelResult 返回。
    */
   private async callModel(step: Step, context: TurnContext<TToolSet>): Promise<CallModelResult> {
-    const { ctx, trace, controller } = context;
+    const { ctx, controller } = context;
     const modelUsage = { input: 0, output: 0 };
 
     const request: ModelRequest = {
@@ -830,7 +816,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
     let fullText = '';
     let fullReasoning = '';
     const toolCalls: ToolCall[] = [];
-    const modelSpan = trace.startSpan('model_step', { step: step.index + 1 });
 
     // ── V4 → TextStreamPart 转换所需的 step 级状态 ──
     const stepStartTime = Date.now();
@@ -855,9 +840,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
       }
     };
 
-    // 记录 LLM 请求参数（原始对象直接传入，tracer 内部提取）
-    trace.recordModelRequest(step.index, request);
-
     let stream: ReadableStream<LanguageModelV4StreamPart>;
     try {
       ({ stream } = await this.modelClient.stream(request, context.signal));
@@ -865,7 +847,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
       const err = e instanceof Error ? e : new Error(String(e));
       this.log.error({ err }, 'modelClient.stream 调用失败');
       controller.enqueue({ type: 'error', error: err.message });
-      return this.recordModelError(step.index, modelSpan, trace, err, { text: '', toolCalls: [], usage: { input: 0, output: 0 } });
+      return this.recordModelError(err, { text: '', toolCalls: [], usage: { input: 0, output: 0 } });
     }
 
     for await (const chunk of stream) {
@@ -982,33 +964,24 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
           case 'error':
             controller.enqueue({ type: 'error', error: chunk.error });
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            return this.recordModelError(step.index, modelSpan, trace, err, { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage });
+            return this.recordModelError(err, { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage });
         }
     }
 
-    modelSpan.end({ textLength: fullText.length, toolCalls: toolCalls.length });
-
     const result: CallModelResult = { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage };
-    trace.recordModelResponse(step.index, result);
     return result;
   }
 
   /**
-   * 统一处理模型调用错误：标记 span、emit 事件、记录 trace 并返回错误结果。
+   * 统一处理模型调用错误：emit 错误事件并返回带 error 的结果。
    * 调用方负责日志记录和 controller.enqueue。
    */
   private recordModelError(
-    stepIndex: number,
-    modelSpan: Span,
-    trace: TurnTrace,
     error: Error | string,
     result: CallModelResult,
   ): CallModelResult {
-    modelSpan.error(error);
     this.emit({ type: 'error', error });
-    const final: CallModelResult = { ...result, error };
-    trace.recordModelResponse(stepIndex, final);
-    return final;
+    return { ...result, error };
   }
 
 }

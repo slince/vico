@@ -10,7 +10,6 @@ import type {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
 import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {TurnOutput} from './turn-output.js';
-import type {TurnTracer} from '../observable/turn-tracer.js';
 import type {RunOptions, TurnResult} from './loop-agent-options.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ContextCompactor} from './context-compactor.js';
@@ -38,7 +37,6 @@ export interface AgentOptions {
   /** 审批决策器，未提供则使用默认策略决策 */
   approvalResolver?: ApprovalResolver;
   events: EventRecorder<TurnEvent>;
-  tracer: TurnTracer;
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
   checkpointStore: CheckpointStore;
@@ -66,7 +64,6 @@ export interface Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
   readonly thread: ThreadStore;
   readonly approvalResolver: ApprovalResolver;
   readonly events: EventRecorder<TurnEvent>;
-  readonly tracer: TurnTracer;
   readonly workspace?: string;
   readonly compactor?: ContextCompactor;
   readonly tokenEconomy?: TokenEconomy;

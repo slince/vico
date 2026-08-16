@@ -9,9 +9,7 @@ import {AgentRuntime} from '../agent/agent-runtime.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
-import {TurnTracer} from '../observable/turn-tracer.js';
-import {createAdaptersFromLevel} from '../observable/trace-adapter.js';
-import type {SkillOptions, TraceOptions} from "./options.js";
+import type {SkillOptions} from "./options.js";
 import type {CheckpointStore} from "../agent/checkpoint.js";
 
 /** Vico 配置选项 */
@@ -24,8 +22,6 @@ export interface VicoOptions {
   languageModelFactory?: LanguageModelFactory;
   /** AgentRuntime LRU 缓存上限（默认 50） */
   maxCached?: number;
-  /** LoopAgent 追踪：TraceLevel 快捷配置 或 自定义适配器（不传等同 0） */
-  trace?: TraceOptions;
   /** 全局 MemoryStore（agent 自身未配置时使用） */
   memory?: MemoryStore;
   /** 全局 ThreadStore（agent 自身未配置时使用） */
@@ -51,7 +47,6 @@ export interface VicoOptions {
  */
 export class Vico {
   readonly events = new MittEventRecorder<TurnEvent>();
-  readonly tracer: TurnTracer;
 
   private options: VicoOptions;
   readonly runtime: AgentRuntime;
@@ -61,20 +56,10 @@ export class Vico {
 
   constructor(options: VicoOptions = {}) {
     this.options = options;
-    this.tracer = this.createTracer(options.trace);
     this.runtime = new AgentRuntime(this.options.maxCached);
     this.memory = options.memory;
     this.thread = options.thread;
     this.checkpointStore = options.checkpointStore;
-  }
-
-  /** 根据 TraceOptions 构建 TurnTracer */
-  private createTracer(trace?: TraceOptions): TurnTracer {
-    const resolved = trace ?? 0;
-    const adapters = typeof resolved === 'object'
-      ? [...createAdaptersFromLevel(resolved.level ?? 0), ...(resolved.adapters ?? [])]
-      : createAdaptersFromLevel(resolved);
-    return new TurnTracer(this.events, adapters);
   }
 
   /**
@@ -111,7 +96,6 @@ export class Vico {
       memory: config.memory ?? this.memory,
       thread: config.thread ?? this.thread,
       checkpointStore: config.checkpointStore ?? this.checkpointStore,
-      tracer: config.tracer ?? this.tracer,
       events: config.events ?? this.events,
     });
   }

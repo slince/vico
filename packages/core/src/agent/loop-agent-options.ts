@@ -3,7 +3,6 @@ import type {ToolMetadata} from "./types.js";
 import {ToolCall, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
-import {TurnTrace} from "../observable/turn-tracer.js";
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from "../thread/thread-store.js";
 
@@ -45,7 +44,6 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   ctx: ModelRequestContext
   messages: ModelMessage[]
   session: TurnSession;
-  trace: TurnTrace;
   approvedTools: Map<string, ToolApproval>;
   /** turn 级中断信号，贯穿 model 调用和工具执行 */
   signal: AbortSignal;

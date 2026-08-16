@@ -11,7 +11,6 @@ import type {WorkingMemory} from '../memory/types.js';
 import {createSkillTools} from "../skill/tool/index.js";
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
-import {TurnTracer} from "../observable/turn-tracer.js";
 import type {EventRecorder} from "../events/types.js";
 import {createLanguageModel} from "../model/factory.js";
 import {InMemoryThreadStore} from "../thread/memory-thread-store.js";
@@ -115,7 +114,6 @@ export interface AgentConfig {
   thread?: ThreadStore;
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
-  tracer?: TurnTracer;
   events?: EventRecorder<TurnEvent>;
   /** 审批决策器，未提供则按 ToolPolicy 默认决策 */
   approvalResolver?: ApprovalResolver;
@@ -163,7 +161,6 @@ export async function createAgent(config: AgentConfig): Promise<Agent<ToolSet>> 
     memory: memory,
     thread: config.thread || new InMemoryThreadStore(),
     workspace: config.workspace,
-    tracer: config.tracer || new TurnTracer(events, []),
     events: events,
     approvalResolver: composeResolvers(...approvalResolvers),
     checkpointStore: config.checkpointStore || new MemoryCheckpointStore()

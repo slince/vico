@@ -10,7 +10,6 @@ export {
   type ToolKind,
 } from './tool/types.js';
 export { type MemoryRecord } from './memory/types.js';
-export { type SpanType } from './observable/types.js';
 
 // Ports — Model（消息/流类型全部 re-export AI SDK 原生类型）
 export type { ModelMessage, UIMessage, UIMessageChunk, ToolSet } from 'ai';
@@ -139,21 +138,6 @@ export { FileThreadStore, type FileThreadStoreOptions } from './thread/file-thre
 
 // ContextCompactor
 export { ContextCompactor } from './agent/context-compactor.js';
-
-// Observable (Span + Trace)
-export { type Span, type SpanState } from './observable/types.js';
-export {
-  TurnTracer,
-  TurnTrace,
-  type TraceLevel,
-} from './observable/turn-tracer.js';
-export {
-  createAdaptersFromLevel,
-  type TraceAdapter,
-} from './observable/trace-adapter.js';
-export { ConsoleTraceAdapter } from './observable/console-trace-adapter.js';
-export { FileTraceAdapter, DEFAULT_TRACE_DIR, type FileTraceAdapterOptions } from './observable/file-trace-adapter.js';
-export type { TraceOptions } from './container/options.js';
 
 // Events
 export { MittEventRecorder } from './events/event-recorder.js';

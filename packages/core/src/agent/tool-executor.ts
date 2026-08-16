@@ -84,7 +84,6 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
 
     this.host.log.info({ turnId: context.session.turn.id, count: toolCalls.length, names: toolCalls.map(c => c.name) }, 'executing tool calls');
 
-    const toolSpan = context.trace.startSpan('tool_call', { count: toolCalls.length });
     const toolCallContext: ToolCallContext = { session: context.session, signal: context.signal };
     const turnId = context.session.turn.id;
     const threadId = context.session.thread.id;
@@ -130,7 +129,6 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
       results.push(await executeAndPersist(call));
     }
 
-    toolSpan.end({ results: results.length });
     return results;
   }
 }
