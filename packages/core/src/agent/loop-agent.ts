@@ -2,7 +2,7 @@
 import {randomUUID} from 'node:crypto';
 import type {Logger} from 'pino';
 import pino from 'pino';
-import type {LanguageModelV4, LanguageModelV4StreamPart} from '@ai-sdk/provider';
+import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
@@ -535,7 +535,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    */
   private async executeModelStep(step: Step, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
-    this.log.debug({ turnId: context.session.turn.id, step: step.index, messageCount: context.messages.length }, 'step start');
 
     // step-start checkpoint：记录当前 step 进度
     context.checkpoint.stepIndex = step.index;
@@ -803,20 +802,18 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       return { text: '', toolCalls: [], usage: { input: 0, output: 0 }, error };
     };
 
-    let stream: ReadableStream<LanguageModelV4StreamPart>;
     try {
-      ({ stream } = await this.modelClient.stream(request, context.signal));
+      const {stream} = await this.modelClient.stream(request, context.signal);
+      const reader = new ModelStreamReader<TToolSet>({
+        controller,
+        emit: this.emit,
+        request: request,
+      });
+
+      return reader.read(stream);
     } catch (e) {
       const err = e instanceof Error ? e as Error: new Error(String(e));
       return resolveError(err);
     }
-
-    const reader = new ModelStreamReader<TToolSet>({
-      controller,
-      emit: this.emit,
-      request: request,
-    });
-
-    return reader.read(stream);
   }
 }
