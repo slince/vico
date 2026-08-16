@@ -59,7 +59,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   }
 
   /** 执行单个工具调用 */
-  async execute(call: ToolCall, ctx: ToolCallContext): Promise<ToolResult> {
+  private async execute(call: ToolCall, ctx: ToolCallContext): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
