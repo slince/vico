@@ -194,7 +194,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
    * @param options - turn 运行可选参数
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  run(userMessages: ModelMessage[], options?: RunOptions): TurnOutput {
+  private run(userMessages: ModelMessage[], options?: RunOptions): TurnOutput {
     const { promise, resolve } = Promise.withResolvers<TurnResult>();
 
     const internalAc = new AbortController();
