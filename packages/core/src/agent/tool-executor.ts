@@ -99,9 +99,8 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
 
     const results: ToolResult[] = [];
 
-    // 工具执行结果上流：success → tool-result part，error → tool-error part
-    const persistResult = async (call: ToolCall, result: ToolResult): Promise<void> => {
-      await this.host.appendToolResults([result], context);
+    // 工具执行结果上流：success → tool-result part，error → tool-error part（消息链持久化由调用方 appendToolResults 负责）
+    const emitResult = (call: ToolCall, result: ToolResult): void => {
       context.controller.enqueue(toolResultPart(result, call.args));
       this.host.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
     };
@@ -113,7 +112,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
     for (const { call, result } of executed) {
       checkpoint.completedToolResults.push(result);
       await store.update(checkpoint);
-      await persistResult(call, result);
+      emitResult(call, result);
       results.push(result);
     }
 
@@ -125,7 +124,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
       checkpoint.completedToolResults.push(result);
       checkpoint.pendingToolCall = null;
       await store.update(checkpoint);
-      await persistResult(call, result);
+      emitResult(call, result);
       results.push(result);
     }
 

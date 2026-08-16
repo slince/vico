@@ -349,9 +349,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d]));
 
-    // 1. 执行暂停前已自动批准的调用（executeToolCalls 内部逐条持久化）
+    // 1. 执行暂停前已自动批准的调用，结果统一持久化
     if (pauseInfo.approvedCalls && pauseInfo.approvedCalls.length > 0) {
-      await this.toolExecutor.executeToolCalls(pauseInfo.approvedCalls, context);
+      const results = await this.toolExecutor.executeToolCalls(pauseInfo.approvedCalls, context);
+      await this.appendToolResults(results, context);
     }
 
     // 2. 持久化暂停前已自动拒绝的结果
@@ -390,9 +391,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
     }
 
-    // 3a. 执行用户批准的调用（内部逐条持久化）
+    // 3a. 执行用户批准的调用，结果统一持久化
     if (approvedCalls.length > 0) {
-      await this.toolExecutor.executeToolCalls(approvedCalls, context);
+      const results = await this.toolExecutor.executeToolCalls(approvedCalls, context);
+      await this.appendToolResults(results, context);
     }
     // 3b. 持久化用户拒绝的结果
     if (deniedResults.length > 0) {
@@ -424,8 +426,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       return;
     }
 
-    // 执行工具并持久化（pending 中已存完整 args，直接构造 ToolCall 即可）
-    await this.toolExecutor.executeToolCalls([{ id: pending.id, name: pending.name, args: pending.args }], context);
+    // 执行工具（pending 中已存完整 args，直接构造 ToolCall 即可），结果统一持久化
+    const results = await this.toolExecutor.executeToolCalls([{ id: pending.id, name: pending.name, args: pending.args }], context);
+    await this.appendToolResults(results, context);
   }
 
   /**
@@ -586,7 +589,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 审批 + 执行 + 持久化
     const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(modelResult.toolCalls, context);
-
     // 有待审批的工具 → 暂停 turn
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pausedCalls.length > 0) {
@@ -603,12 +605,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       return { action: 'pause', pauseInfo, usage };
     }
 
-    // 已批准的调用直接执行（executeToolCalls 内部逐条持久化，无需再次 appendToolResults）
-    await this.toolExecutor.executeToolCalls(approvedCalls, context);
-    // 拒绝结果单独持久化
-    if (deniedResults.length > 0) {
-      await this.appendToolResults(deniedResults, context);
-    }
+    // 已批准的调用直接执行，结果统一持久化（含拒绝结果）
+    const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context);
+    await this.appendToolResults([...toolResults, ...deniedResults], context);
 
     this.emit({ type: 'step-end', step: step.index + 1 });
     return { action: 'continue', usage };
@@ -754,6 +753,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
   /** 工具结果 → 原生 tool 消息 + 批量持久化 */
   async appendToolResults(toolResults: ToolResult[], context: TurnContext<TToolSet>): Promise<void> {
+    if (toolResults.length === 0) {
+      return
+    }
     const messages: ModelMessage[] = [];
 
     for (const r of toolResults) {
