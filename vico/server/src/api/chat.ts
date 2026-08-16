@@ -20,23 +20,20 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const body = await c.req.json();
     const agentId: string = body.agentId as string;
     const lastMessage = extractLastMessage(body);
-    const requestedThreadId: string = body.threadId as string;
+    const requestedThreadId = body.threadId as string | undefined;
 
-    // 前端本地临时 ID（如 __LOCALID_xxx）替换为真实 UUID
+    // 前端本地临时 ID（如 __LOCALID_xxx）视为无真实线程，交由服务端新建
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;
-    const threadId = isLocalThreadId ? crypto.randomUUID() : requestedThreadId;
 
-    // 仅用于入参校验：有文本或有审批响应才是有效请求（提取/恢复由 agent 内部完成）
-    if (!agentId || !requestedThreadId) {
-      return c.json({ error: 'agentId, message and threadId are required' }, 400);
+    if (!agentId) {
+      return c.json({ error: 'agentId is required' }, 400);
     }
 
-    const output = await executeAgentChat({
+    // 解析线程：有真实 threadId 则查库复用，无（或本地临时 ID）则新建
+    const { output, thread } = await executeAgentChat({
       agentId,
-      // 原生 UIMessage[] 直接下传：审批 part 由 agent 内部提取剥离，paused turn 自动恢复
-      message: lastMessage ? [lastMessage] : [],
-      threadId,
-      tenantId: auth.tenantId,
+      message: lastMessage,
+      threadId: isLocalThreadId ? undefined : requestedThreadId,
       userId: auth.userId,
     });
 
@@ -46,7 +43,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     return createUIMessageStreamResponse({
       stream: toUIMessageStream({ stream: output.stream }),
       headers: {
-        'x-thread-id': threadId
+        'x-thread-id': thread.id
       }
     });
   });

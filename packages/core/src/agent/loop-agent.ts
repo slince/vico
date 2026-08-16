@@ -170,10 +170,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 发起一次对话：发送消息并等待返回最终结果（非流式）。
    *
    * @param message - 用户消息
-   * @param options - 调用可选参数
+   * @param options - 调用参数
    * @returns turn 最终结果
    */
-  async invoke(message: UserMessage, options?: RunOptions): Promise<TurnResult> {
+  async invoke(message: UserMessage, options: RunOptions): Promise<TurnResult> {
     const output = await this.run(await normalizeUserMessage(message), options);
     return output.result;
   }
@@ -182,9 +182,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise。
    *
    * @param message - 用户消息
-   * @param options - turn 运行可选参数
+   * @param options - turn 运行参数
    */
-  async stream(message: UserMessage, options?: RunOptions): Promise<TurnOutput> {
+  async stream(message: UserMessage, options: RunOptions): Promise<TurnOutput> {
     return this.run(await normalizeUserMessage(message), options);
   }
 
@@ -193,10 +193,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止。
    *
    * @param userMessages - 本轮输入消息组
-   * @param options - turn 运行可选参数
+   * @param options - turn 运行参数
    * @returns TurnOutput 实例，包含输出流和结果 Promise
    */
-  private run(userMessages: ModelMessage[], options?: RunOptions): TurnOutput {
+  private run(userMessages: ModelMessage[], options: RunOptions): TurnOutput {
     const { promise, resolve } = Promise.withResolvers<TurnResult>();
 
     const internalAc = new AbortController();
@@ -209,7 +209,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       start: async (controller) => {
         controller.enqueue({ type: 'start' });
         try {
-          const result = await this.start({userMessages, signal: internalAc.signal, controller, options});
+          const result = await this.start({userMessages, signal: internalAc.signal, controller, thread: options.thread});
           resolve(result);
         } catch (err) {
           const error = err instanceof Error ? err : String(err);
@@ -238,14 +238,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     userMessages: ModelMessage[];
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
-    options?: RunOptions;
+    thread: Thread;
   }): Promise<TurnResult> {
-    const { userMessages, signal, controller, options } = ctx;
-
-    const thread = options?.thread;
-    if (!thread) {
-      throw new Error('RunOptions.thread 必填，请先通过 agent.createThread() 创建会话');
-    }
+    const { userMessages, signal, controller, thread } = ctx;
 
     const workspace = thread.metadata?.workspace ?? this.workspace;
 
