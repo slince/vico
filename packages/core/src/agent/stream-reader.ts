@@ -1,11 +1,12 @@
 // @vico/core - ModelStreamReader: 消费 provider 原生 V4 流，转换为引擎层 TextStreamPart 并累积结果
 import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
-import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
+import type {TextStreamPart, ToolSet} from 'ai';
 
 import type {ToolCall} from '../tool/types.js';
 import type {CallModelResult} from './loop-agent-options.js';
 import type {TurnEvent} from './types.js';
 import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart,} from './stream-parts.js';
+import {ModelRequest} from "../model/types.js";
 
 /** ModelStreamReader 构造选项 */
 export interface ModelStreamReaderOptions<TToolSet extends ToolSet = ToolSet> {
@@ -14,7 +15,7 @@ export interface ModelStreamReaderOptions<TToolSet extends ToolSet = ToolSet> {
   /** 事件发射回调（转发给事件系统） */
   emit: (event: TurnEvent) => void;
   /** 本 step 输入消息（供 start-step part 携带 request） */
-  messages: ModelMessage[];
+  request: ModelRequest;
 }
 
 /**
@@ -27,12 +28,12 @@ export interface ModelStreamReaderOptions<TToolSet extends ToolSet = ToolSet> {
 export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
   private readonly controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
   private readonly emit: (event: TurnEvent) => void;
-  private readonly messages: ModelMessage[];
+  private readonly request: ModelRequest;
 
   constructor(options: ModelStreamReaderOptions<TToolSet>) {
     this.controller = options.controller;
     this.emit = options.emit;
-    this.messages = options.messages;
+    this.request = options.request;
   }
 
   /**
@@ -64,7 +65,7 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
       if (stepStarted || controllerClosed) return;
       stepStarted = true;
       try {
-        this.controller.enqueue(startStepPart(this.messages, warnings));
+        this.controller.enqueue(startStepPart(this.request.messages, warnings));
       } catch {
         controllerClosed = true;
       }

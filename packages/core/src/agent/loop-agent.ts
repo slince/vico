@@ -37,12 +37,7 @@ import {ModelClient} from '../model/model-client.js';
 import {resolvePolicy} from '../tool/utils.js';
 import {fromModelMessage, normalizeUserMessage, toModelMessages} from './utils.js';
 import {TurnOutput} from './turn-output.js';
-import {
-  finishPart,
-  toolApprovalRequestPart,
-  toolApprovalResponsePart,
-  toolOutputDeniedPart,
-} from './stream-parts.js';
+import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
 import {
   buildAssistantMessage,
   buildToolResultMessage,
@@ -819,7 +814,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       temperature: this.temperature,
       reasoning: this.reasoning,
     };
-    
+
     const resolveError = (error: Error | string): CallModelResult => {
       this.emit({ type: 'error', error });
       controller.enqueue({ type: 'error', error });
@@ -837,8 +832,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const reader = new ModelStreamReader<TToolSet>({
       controller,
       emit: this.emit,
-      log: this.log,
-      messages: step.messages,
+      request: request,
     });
 
     return reader.read(stream);
