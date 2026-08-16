@@ -56,8 +56,7 @@ export function createDelegateTool(parentConfig: { getConfig(): AgentConfig}) {
 
     try {
       const result = await childAgent.invoke(message, {
-        threadId: ctx.session.thread.id,
-        userId: 'delegate',
+        thread: ctx.session.thread,
       });
 
       const text = result.messages

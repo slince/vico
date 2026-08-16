@@ -1,5 +1,4 @@
 // @vico/core — 独立 Agent 构建函数，不依赖 Vico 容器
-import type {ToolSet} from 'ai';
 import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {Agent} from './agent.js';
 import {LoopAgent} from './loop-agent.js';
@@ -123,7 +122,7 @@ export interface AgentConfig {
 /**
  * 独立创建 Agent 实例。
  */
-export async function createAgent(config: AgentConfig): Promise<Agent<ToolSet>> {
+export async function createAgent(config: AgentConfig): Promise<Agent> {
   const model = 'provider' in config.model
     ? createLanguageModel(config.model as ModelRef)
     : config.model

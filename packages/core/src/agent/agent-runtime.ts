@@ -1,10 +1,9 @@
 // @vico/core - AgentRuntime: manages Agent lifecycle with LRU cache
-import type {ToolSet} from 'ai';
 import type {Agent} from './agent.js';
 
 /** Agent 缓存条目 */
 interface AgentEntry {
-  agent: Agent<ToolSet>;
+  agent: Agent;
   lastUsedAt: number;
 }
 
@@ -22,7 +21,7 @@ export class AgentRuntime {
    *
    * @param agent - 要注册的 Agent 实例
    */
-  register(agent: Agent<ToolSet>): void {
+  register(agent: Agent): void {
     const key = agent.id;
     const existing = this.cache.get(key);
     if (existing) {
@@ -44,7 +43,7 @@ export class AgentRuntime {
     this.cache.delete(agentId);
   }
 
-  getAgent(agentId: string): Agent<ToolSet> | undefined {
+  getAgent(agentId: string): Agent | undefined {
     const entry = this.cache.get(agentId);
     if (entry) {
       entry.lastUsedAt = Date.now();
@@ -53,8 +52,8 @@ export class AgentRuntime {
     return undefined;
   }
 
-  listAgents(): Agent<ToolSet>[] {
-    const result: Agent<ToolSet>[] = [];
+  listAgents(): Agent[] {
+    const result: Agent[] = [];
     for (const entry of this.cache.values()) {
       result.push(entry.agent);
     }

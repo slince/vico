@@ -1,13 +1,12 @@
 // @vico/core - Agent 对外契约（interface）与构造参数
 import type {LanguageModelV4} from '@ai-sdk/provider';
-import type {ToolSet} from 'ai';
 import type {ModelClient} from '../model/model-client.js';
 import type {ReasoningEffort} from '../model/types.js';
-import type {ToolMetadata, TurnEvent} from './types.js';
+import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
-import type {ThreadStore} from '../thread/thread-store.js';
+import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.js';
 import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {TurnOutput} from './turn-output.js';
 import type {RunOptions, TurnResult} from './loop-agent-options.js';
@@ -43,12 +42,23 @@ export interface AgentOptions {
   logger?: Logger;
 }
 
+/** 创建会话（Thread）的选项 */
+export interface CreateThreadOptions {
+  /** 会话标题，不传则空字符串 */
+  title?: string;
+  userId?: string;
+  /** 工作空间路径，覆盖 agent 默认工作区 */
+  workspace?: string;
+  /** 自定义元数据（JSON 可序列化） */
+  metadata?: ThreadMetadata;
+}
+
 /**
  * Agent — 对外契约。
  * 定义配置字段与对话入口（invoke / stream / on / off）。
  * 默认实现为 {@link LoopAgent}。
  */
-export interface Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends ToolMetadata = ToolMetadata> {
+export interface Agent {
   readonly id: string;
   readonly name: string;
   readonly systemPrompt: string;
@@ -69,7 +79,7 @@ export interface Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
   readonly tokenEconomy?: TokenEconomy;
   readonly checkpointStore: CheckpointStore;
   readonly logger: Logger;
-
+  
   /**
    * 订阅 turn 事件。
    *
@@ -87,13 +97,21 @@ export interface Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
   off<K extends EventType<TurnEvent>>(event: K, handler: (data: EventPayload<TurnEvent, K>) => void): void;
 
   /**
+   * 创建新会话（Thread）。
+   *
+   * @param options - 会话配置（标题、用户、工作区、元数据）
+   * @returns 新创建的 Thread
+   */
+  createThread(options?: CreateThreadOptions): Promise<Thread>;
+
+  /**
    * 发起一次对话：发送消息并等待返回最终结果（非流式）。
    *
    * @param message - 用户消息
    * @param options - 调用可选参数
    * @returns turn 最终结果
    */
-  invoke(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnResult>;
+  invoke(message: UserMessage, options?: RunOptions): Promise<TurnResult>;
 
   /**
    * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise。
@@ -101,5 +119,5 @@ export interface Agent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
    * @param message - 用户消息
    * @param options - turn 运行可选参数
    */
-  stream(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnOutput>;
+  stream(message: UserMessage, options?: RunOptions): Promise<TurnOutput>;
 }

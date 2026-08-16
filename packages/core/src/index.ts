@@ -147,7 +147,7 @@ export { type EventRecorder, type EventPayload, type TypedEvent } from './events
 export { AgentRuntime } from './agent/agent-runtime.js';
 
 // Agent
-export type { Agent, AgentOptions } from './agent/agent.js';
+export type { Agent, AgentOptions, CreateThreadOptions } from './agent/agent.js';
 export { createAgent } from './agent/create-agent.js';
 
 // LoopAgent（Agent 默认实现）

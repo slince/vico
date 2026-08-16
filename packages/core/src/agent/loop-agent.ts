@@ -1,15 +1,16 @@
 // @vico/core - LoopAgent: Agent 默认实现，驱动单个 turn 的 model→tool→repeat 循环
+import {randomUUID} from 'node:crypto';
 import type {Logger} from 'pino';
 import pino from 'pino';
 import type {LanguageModelV4, LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
-import type {Agent, AgentOptions} from './agent.js';
-import type {ToolMetadata, TurnEvent, UsageMetrics} from './types.js';
+import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
+import type {TurnEvent, UsageMetrics} from './types.js';
 import type {ApprovalResolver, Tool, ToolCall, ToolResult} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
-import type {ThreadStore} from '../thread/thread-store.js';
+import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.js';
 import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
@@ -51,10 +52,8 @@ import {
   buildAssistantMessage,
   buildToolResultMessage,
   extractApprovalResponses,
-  getMessageText,
   getToolResultText,
   hasToolResult,
-  pickPrimaryUserMessage,
 } from '../model/message-utils.js';
 import type {ToolExecutorHost} from './tool-executor.js';
 import {ToolExecutor} from './tool-executor.js';
@@ -81,8 +80,8 @@ function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextP
 }
 
 /** LoopAgent — Agent 默认实现，编排 model→tool→repeat 循环 */
-export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends ToolMetadata = ToolMetadata>
-  implements Agent<TToolSet, TMetadata>, ToolExecutorHost<TToolSet> {
+export class LoopAgent<TToolSet extends ToolSet = ToolSet>
+  implements Agent, ToolExecutorHost<TToolSet> {
 
   readonly id: string;
   readonly name: string;
@@ -160,13 +159,32 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
   }
 
   /**
+   * 创建新会话（Thread）。
+   *
+   * @param options - 会话配置（标题、用户、工作区、元数据）
+   * @returns 新创建的 Thread
+   */
+  async createThread(options: CreateThreadOptions = {}): Promise<Thread> {
+    const id = `${this.id}-${randomUUID()}`;
+    const workspace = options.workspace ?? this.workspace;
+    const metadata: ThreadMetadata = { ...options.metadata, ...(workspace !== undefined ? { workspace } : {}) };
+    const thread = await this.thread.createThread(this.id, options.title ?? '', id, {
+      userId: options.userId,
+      workspace,
+      metadata,
+    });
+    this.log.debug({ threadId: id, agentId: this.id }, 'thread created');
+    return thread;
+  }
+
+  /**
    * 发起一次对话：发送消息并等待返回最终结果（非流式）。
    *
    * @param message - 用户消息
    * @param options - 调用可选参数
    * @returns turn 最终结果
    */
-  async invoke(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnResult> {
+  async invoke(message: UserMessage, options?: RunOptions): Promise<TurnResult> {
     const output = await this.run(await normalizeUserMessage(message), options);
     return output.result;
   }
@@ -177,7 +195,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
    * @param message - 用户消息
    * @param options - turn 运行可选参数
    */
-  async stream(message: UserMessage, options?: RunOptions<TMetadata>): Promise<TurnOutput> {
+  async stream(message: UserMessage, options?: RunOptions): Promise<TurnOutput> {
     return this.run(await normalizeUserMessage(message), options);
   }
 
@@ -234,27 +252,20 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet, TMetadata extends Too
     options?: RunOptions;
   }): Promise<TurnResult> {
     const { userMessages, signal, controller, options } = ctx;
-    const threadId = options?.threadId ?? `${this.id}-${Date.now()}`;
 
-    let thread = await this.thread.getThread(threadId);
+    const thread = options?.thread;
     if (!thread) {
-      // 标题取主用户消息（末条 user 角色）文本
-      const primary = pickPrimaryUserMessage(userMessages);
-      const title = (primary ? getMessageText(primary) : '').slice(0, 50);
-      const workspace = options?.workspace ?? this.workspace;
-      const metadata = { ...options?.metadata, workspace };
-      thread = await this.thread.createThread(this.id, title, threadId, { ...options, metadata });
-      this.log.debug({ threadId, agentId: this.id }, 'thread created');
+      throw new Error('RunOptions.thread 必填，请先通过 agent.createThread() 创建会话');
     }
 
     const workspace = options?.workspace ?? thread.metadata?.workspace ?? this.workspace;
 
     // 自动恢复所有未完成的 turn（paused/running/failed），前提是存在 checkpoint
-    const latestTurn = await this.thread.getLatestTurn(threadId);
+    const latestTurn = await this.thread.getLatestTurn(thread.id);
     if (latestTurn && latestTurn.status !== 'completed') {
       const checkpoint = await this.checkpointStore.getByTurn(latestTurn.id);
       if (checkpoint) {
-        this.log.info({ turnId: latestTurn.id, threadId, status: latestTurn.status }, 'resuming turn');
+        this.log.info({ turnId: latestTurn.id, threadId: thread.id, status: latestTurn.status }, 'resuming turn');
         const session: TurnSession = { workspace, thread, turn: latestTurn };
         return this.resumeTurn({ session, checkpoint, userMessages, signal, controller });
       }

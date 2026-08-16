@@ -1,5 +1,4 @@
 import {UsageMetrics} from "./types.js";
-import type {ToolMetadata} from "./types.js";
 import {ToolCall, ToolResult} from "../tool/types.js";
 import {PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
@@ -113,11 +112,9 @@ export interface ToolApproval {
 }
 
 /** runTurn 选项 */
-export interface RunOptions<TMetadata extends ToolMetadata = ToolMetadata> {
-  /** 会话线程 ID，不传则自动生成 */
-  threadId?: string;
-  userId?: string;
+export interface RunOptions {
+  /** 会话线程对象（必传，通过 agent.createThread() 创建） */
+  thread: Thread;
+  /** 工作空间路径，覆盖 thread 中记录的 workspace */
   workspace?: string;
-  /** 自定义元数据（JSON 可序列化），写入 thread.metadata */
-  metadata?: TMetadata;
 }
