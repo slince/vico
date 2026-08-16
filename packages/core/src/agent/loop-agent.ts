@@ -915,7 +915,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
             try {
               args = chunk.input ? JSON.parse(chunk.input) as Record<string, unknown> : {};
             } catch (e) {
-              this.log.warn({ toolCallId: chunk.toolCallId, input: chunk.input }, 'tool-call input JSON 解析失败');
               args = {};
               invalid = true;
               parseError = e;
