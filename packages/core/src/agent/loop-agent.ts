@@ -38,13 +38,7 @@ import {resolvePolicy} from '../tool/utils.js';
 import {fromModelMessage, normalizeUserMessage, toModelMessages} from './utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
-import {
-  buildAssistantMessage,
-  buildToolResultMessage,
-  extractApprovalResponses,
-  getToolResultText,
-  hasToolResult,
-} from '../model/message-utils.js';
+import {buildAssistantMessage, buildToolResultMessage, extractApprovalResponses,} from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
@@ -319,12 +313,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.loadSessionApprovals(session, approvedTools);
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller, checkpoint };
 
-    // 还原已完成工具结果到消息链
-    const newToolMessages = this.restoreCompletedToolResults(checkpoint.completedToolResults);
-    await this.persistMessages(context, newToolMessages);
-
-    context.messages.push(...newToolMessages);
-
     if (checkpoint.pauseInfo) {
       // 路径 A：审批恢复
       await this.applyPauseInfoRecovery(checkpoint.pauseInfo, decisions, context);
@@ -333,7 +321,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       await this.checkpointStore.update(checkpoint);
     } else if (checkpoint.pendingToolCall) {
       // 路径 B：工具重试
-      await this.resolvePendingTool(checkpoint.pendingToolCall, messages, context);
+      await this.resolvePendingTool(checkpoint.completedToolResults, checkpoint.pendingToolCall, context);
     }
 
     await this.thread.updateTurn(turn.id, { status: 'running' });
@@ -406,29 +394,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 路径 B：重试 pending 工具。
    * 执行前检查消息链，若已有 tool_result 则跳过（并发恢复保护）。
    */
-  private async resolvePendingTool(
-    pending: ToolCall,
-    messages: ModelMessage[],
-    context: TurnContext<TToolSet>,
-  ): Promise<void> {
-    // 检查消息链中是否已有此 toolCall 的 tool_result（并发保护）
-    if (hasToolResult(messages, pending.id)) {
-      // 跳过执行，从消息链提取已有结果并更新 checkpoint
-      const existingResult: ToolResult = {
-        callId: pending.id,
-        name: pending.name,
-        status: 'success',
-        output: getToolResultText(messages, pending.id) ?? null,
-      };
-      context.checkpoint.completedToolResults.push(existingResult);
-      context.checkpoint.pendingToolCall = null;
-      await this.checkpointStore.update(context.checkpoint);
-      return;
-    }
-
+  private async resolvePendingTool(completedToolResults: ToolResult[], pending: ToolCall, context: TurnContext<TToolSet>,): Promise<void> {
     // 执行工具（pending 中已存完整 args，直接构造 ToolCall 即可），结果统一持久化
-    const results = await this.toolExecutor.executeToolCalls([{ id: pending.id, name: pending.name, args: pending.args }], context);
-    await this.appendToolResults(results, context);
+    const pendingToolResults = await this.toolExecutor.executeToolCalls([{ id: pending.id, name: pending.name, args: pending.args }], context);
+    await this.appendToolResults([...completedToolResults, ...pendingToolResults], context);
   }
 
   /**
@@ -723,16 +692,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     await this.thread.appendEntries(
       messages.map(message => ({ threadId, turnId, ...fromModelMessage(message) })),
     );
-  }
-
-  /**
-   * 将 checkpoint 中已完成的工具结果还原为原生 tool 消息列表。
-   */
-  private restoreCompletedToolResults(results: ToolResult[]): ModelMessage[] {
-    return results.map(result => {
-      const content = this.resolveToolResult(result);
-      return buildToolResultMessage(result, content);
-    });
   }
 
   /**
