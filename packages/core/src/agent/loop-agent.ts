@@ -556,13 +556,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     await this.tryCompact(step, context.signal);
 
     if (this.tokenEconomy?.isInputExhausted()) {
-      this.log.warn({ turnId: context.session.turn.id, step: step.index }, 'input token budget exhausted');
       this.emit({ type: 'error', error: '输入 token 预算已耗尽' });
       return { action: 'break', usage };
     }
 
     if (this.tokenEconomy?.isOutputExhausted()) {
-      this.log.warn({ turnId: context.session.turn.id, step: step.index }, 'output token budget exhausted');
       this.emit({ type: 'error', error: '输出 token 预算已耗尽' });
       return { action: 'break', usage };
     }
@@ -571,7 +569,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 如果模型调用出错，提前结束
     if (modelResult.error) {
-      this.log.error({ turnId: context.session.turn.id, step: step.index, error: modelResult.error instanceof Error ? modelResult.error.message : String(modelResult.error) }, 'model call failed');
       return { action: 'break', usage, error: modelResult.error };
     }
 
