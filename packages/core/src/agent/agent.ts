@@ -3,7 +3,7 @@ import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {ModelClient} from '../model/model-client.js';
 import type {ReasoningEffort} from '../model/types.js';
 import type {TurnEvent} from './types.js';
-import type {ApprovalResolver, Tool} from '../tool/types.js';
+import type {ApprovalDecider, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {Thread, ThreadStore} from '../thread/thread-store.js';
@@ -33,8 +33,8 @@ export interface AgentOptions {
   thread: ThreadStore;
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
-  /** 审批决策器，未提供则使用默认策略决策 */
-  approvalResolver?: ApprovalResolver;
+  /** 审批判定函数（组合后的），未提供则使用默认策略决策 */
+  approvalResolver?: ApprovalDecider;
   events: EventRecorder<TurnEvent>;
   compactor?: ContextCompactor;
   tokenEconomy?: TokenEconomy;
@@ -72,7 +72,7 @@ export interface Agent {
   readonly tools: Tool[];
   readonly memory: MemoryStore;
   readonly thread: ThreadStore;
-  readonly approvalResolver: ApprovalResolver;
+  readonly approvalResolver: ApprovalDecider;
   readonly events: EventRecorder<TurnEvent>;
   readonly workspace?: string;
   readonly compactor?: ContextCompactor;

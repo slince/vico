@@ -67,11 +67,25 @@ export interface PolicyContext<TInput = unknown> {
 }
 
 /**
- * 审批决策器 — 根据工具策略和上下文决定是否批准工具调用。
+ * 审批 resolver — 用 support 声明参与范围，用 resolve 给出决策。
  *
- * 默认实现为 {@link resolvePolicy}，创建 Agent 时可注入自定义实现。
+ * 组合时按数组顺序，首个 support 返回 true 的 resolver 的 resolve 即为终态。
+ * 内置集见 {@link defaultApprovalResolvers}，创建 Agent 时可注入自定义实现。
  */
-export type ApprovalResolver<TInput = unknown, TOutput = unknown> = (
+export interface ApprovalResolver<TInput = unknown, TOutput = unknown> {
+  /** 是否参与该工具的审批判断；返回 false 则跳过该 resolver */
+  support(tool: Tool<TInput, TOutput>): boolean;
+  /** 决策逻辑，仅当 support 返回 true 时被调用 */
+  resolve(
+    call: ToolCall<TInput>,
+    tool: Tool<TInput, TOutput>,
+    policy: ToolPolicy,
+    context: PolicyContext<TInput>,
+  ): ApprovalDecision | Promise<ApprovalDecision>;
+}
+
+/** 组合后的判定函数，供引擎直接调用 */
+export type ApprovalDecider<TInput = unknown, TOutput = unknown> = (
   call: ToolCall<TInput>,
   tool: Tool<TInput, TOutput>,
   policy: ToolPolicy,

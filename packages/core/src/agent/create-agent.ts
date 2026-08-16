@@ -17,8 +17,7 @@ import {MittEventRecorder} from "../events/event-recorder.js";
 import {basicTools, codingTools, filesystemTools} from "../tool/builtin/index.js";
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
-import {resolvePolicy} from "../tool/utils.js";
-import {composeResolvers, destructiveToolPolicy, workspaceBoundPolicy} from "../tool/policy-helpers.js";
+import {composeResolvers, defaultApprovalResolvers} from "../tool/policy-helpers.js";
 import type {CheckpointStore} from "./checkpoint.js";
 import {MemoryCheckpointStore} from "./memory-checkpoint-store.js";
 import {createFSSkillLoader} from "../skill/fs-skill-loader.js";
@@ -114,7 +113,7 @@ export interface AgentConfig {
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
   events?: EventRecorder<TurnEvent>;
-  /** 审批决策器，未提供则按 ToolPolicy 默认决策 */
+  /** 自定义审批 resolver（support/resolve 两段式），插在 never 保护之后、workspace 之前 */
   approvalResolver?: ApprovalResolver;
   checkpointStore?: CheckpointStore;
 }
@@ -136,11 +135,8 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
   const skills = await buildSkills(config.skills)
   const tools = buildTools(config.tools, memory.working, skills);
 
-  const approvalResolvers: ApprovalResolver[] = [
-    destructiveToolPolicy,
-    workspaceBoundPolicy,
-    resolvePolicy
-  ]
+  // 顺序即优先级：never 保护 → 自定义 → workspace 放行 → 破坏性暂停 → 兜底
+  const approvalResolvers: ApprovalResolver[] = [...defaultApprovalResolvers]
 
   if (config.approvalResolver) {
     approvalResolvers.unshift(config.approvalResolver)

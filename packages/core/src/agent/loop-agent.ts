@@ -7,7 +7,7 @@ import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
 import type {TurnEvent, UsageMetrics} from './types.js';
-import type {ApprovalResolver, Tool, ToolCall, ToolResult} from '../tool/types.js';
+import type {ApprovalDecider, Tool, ToolCall, ToolResult} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.js';
@@ -34,7 +34,7 @@ import type {
 } from './loop-agent-options.js';
 
 import {ModelClient} from '../model/model-client.js';
-import {resolvePolicy} from '../tool/utils.js';
+import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
 import {fromModelMessage, normalizeUserMessage, toModelMessages} from './utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
@@ -80,7 +80,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly tools: Tool[];
   readonly memory: MemoryStore;
   readonly thread: ThreadStore;
-  readonly approvalResolver: ApprovalResolver;
+  readonly approvalResolver: ApprovalDecider;
   readonly events: EventRecorder<TurnEvent>;
   readonly workspace?: string;
   readonly compactor?: ContextCompactor;
@@ -106,7 +106,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.tools = rest.tools;
     this.memory = rest.memory;
     this.thread = rest.thread;
-    this.approvalResolver = rest.approvalResolver ?? resolvePolicy;
+    this.approvalResolver = rest.approvalResolver ?? composeResolvers(...defaultApprovalResolvers);
     this.events = rest.events;
     this.workspace = rest.workspace;
     this.compactor = rest.compactor;

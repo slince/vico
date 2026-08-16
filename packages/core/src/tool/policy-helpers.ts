@@ -1,9 +1,13 @@
-// @vico/core - Policy helper functions for composing custom ApprovalResolver logic
+// @vico/core - 审批策略：support/resolve 两段式 resolver 及内置规则集
 import {resolve} from 'node:path';
-import type {ApprovalDecision, ApprovalResolver, PolicyContext, Tool, ToolCall, ToolPolicy} from './types.js';
+import type {ApprovalDecider, ApprovalResolver, ToolKind} from './types.js';
+import {resolvePolicy} from './utils.js';
 
 /** 路径参数常用名称 */
 const PATH_ARG_NAMES = new Set(['path', 'filePath', 'file', 'target', 'directory', 'dir']);
+
+/** 破坏性工具类别：默认需要审批 */
+const DESTRUCTIVE_KINDS = new Set<ToolKind>(['mutation', 'file_change', 'command']);
 
 /**
  * 检查给定路径是否在 workspace 目录内。
@@ -29,66 +33,74 @@ function extractPaths(toolArgs: Record<string, unknown> | undefined): string[] {
 }
 
 /**
- * workspace 绑定策略：所有路径参数在 workspace 内则自动放行，否则需要审批（on-request 行为）。
- *
- * 通过工具的 policy 字段判断是否还有更严格的限制（如 never），不覆盖更强限制。
+ * never 拒绝：`policy: 'never'` 的工具一律拒绝，优先级最高、不可被覆盖。
  */
-export function workspaceBoundPolicy<TInput = unknown, TOutput = unknown>(
-  call: ToolCall<TInput>,
-  tool: Tool<TInput, TOutput>,
-  _policy: ToolPolicy,
-  ctx: PolicyContext<TInput>,
-): ApprovalDecision {
-  // 不处理非 requires-workspace 工具
-  if (!tool.tags.includes('requires-workspace')) return { status: 'approved' };
-
-  const workspace = ctx.workspace;
-  if (!workspace) return { status: 'approved' };
-
-  const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
-  const paths = extractPaths(args);
-
-  // 无路径参数的工具（如 bash）直接放行
-  if (paths.length === 0) return { status: 'approved' };
-
-  // 所有路径参数都在 workspace 内 → 自动放行
-  const allInWorkspace = paths.every(p => isPathInWorkspace(p, workspace));
-  if (allInWorkspace) return { status: 'approved' };
-
-  // 有路径在 workspace 外 → 需要审批
-  return { status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径` };
-}
+export const neverDenyResolver: ApprovalResolver = {
+  support: tool => tool.policy === 'never',
+  resolve: call => ({status: 'denied', reason: `工具 ${call.name} 被策略阻止`}),
+};
 
 /**
- * 破坏性工具策略：mutation/file_change 类工具默认需要审批（首次暂停）。
+ * workspace 放行：requires-workspace 工具只要路径都在 workspace 内（或无路径）即放行；
+ * 路径越界则暂停。排在 destructive 之前，从而覆盖破坏性工具的默认暂停。
  */
-export function destructiveToolPolicy<TInput = unknown, TOutput = unknown>(
-  call: ToolCall<TInput>,
-  tool: Tool<TInput, TOutput>,
-  _policy: ToolPolicy,
-  _ctx: PolicyContext<TInput>,
-): ApprovalDecision {
-  const destructiveKinds = new Set(['mutation', 'file_change', 'command']);
-  if (destructiveKinds.has(tool.kind)) {
-    return { status: 'paused', reason: `工具 ${call.name} 为破坏性操作，需要审批` };
-  }
-  return { status: 'approved' };
-}
+export const workspaceResolver: ApprovalResolver = {
+  support: tool => tool.tags.includes('requires-workspace'),
+  resolve: (call, _tool, _policy, ctx) => {
+    const workspace = ctx.workspace;
+    // WorkspaceToolProcessor 已保证 requires-workspace 工具必有 workspace，此处防御
+    if (!workspace) {
+      return {status: 'paused', reason: `工具 ${call.name} 需要 workspace 但未配置`};
+    }
+    const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
+    const paths = extractPaths(args);
+    // 无路径参数的工具（如 bash、git-commit）视为在 workspace 内执行
+    if (paths.length === 0) return {status: 'approved'};
+    const allInWorkspace = paths.every(p => isPathInWorkspace(p, workspace));
+    if (allInWorkspace) return {status: 'approved'};
+    return {status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径`};
+  },
+};
 
 /**
- * 组合多个 ApprovalResolver 为链式决策器。
- *
- * 按顺序调用每个 resolver，首个返回 non-approved 结果（denied/paused）的作为最终决策；
- * 全部返回 approved 则放行。
+ * 破坏性工具暂停：mutation / file_change / command 类工具默认需要审批。
  */
-export function composeResolvers(
-  ...resolvers: ApprovalResolver[]
-): ApprovalResolver {
+export const destructiveResolver: ApprovalResolver = {
+  support: tool => DESTRUCTIVE_KINDS.has(tool.kind),
+  resolve: call => ({status: 'paused', reason: `工具 ${call.name} 为破坏性操作，需要审批`}),
+};
+
+/**
+ * 兜底 resolver：恒参与，按工具自身 policy（auto / on-request / never）决策。
+ */
+export const defaultResolver: ApprovalResolver = {
+  support: () => true,
+  resolve: (call, tool, policy, ctx) => resolvePolicy(call, tool, policy, ctx),
+};
+
+/**
+ * 内置审批 resolver 集，数组顺序即优先级（高 → 低）。
+ */
+export const defaultApprovalResolvers: ApprovalResolver[] = [
+  neverDenyResolver,
+  workspaceResolver,
+  destructiveResolver,
+  defaultResolver,
+];
+
+/**
+ * 组合多个 ApprovalResolver 为判定函数。
+ *
+ * 按数组顺序遍历，首个 `support` 返回 true 的 resolver 的 `resolve` 即为最终决策；
+ * 全部不参与则放行。
+ */
+export function composeResolvers(...resolvers: ApprovalResolver[]): ApprovalDecider {
   return async (call, tool, policy, ctx) => {
     for (const resolver of resolvers) {
-      const decision = await resolver(call, tool, policy, ctx);
+      if (!resolver.support(tool)) continue;
+      const decision = await resolver.resolve(call, tool, policy, ctx);
       if (decision.status !== 'approved') return decision;
     }
-    return { status: 'approved' };
+    return {status: 'approved'};
   };
 }

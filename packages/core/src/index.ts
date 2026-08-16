@@ -71,8 +71,8 @@ export {
 export { type TurnSession, type CallModelResult } from './agent/loop-agent-options.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { resolvePolicy } from './tool/utils.js';
-export { type PolicyContext, type ApprovalResolver } from './tool/types.js';
-export { isPathInWorkspace, workspaceBoundPolicy, destructiveToolPolicy, composeResolvers } from './tool/policy-helpers.js';
+export { type PolicyContext, type ApprovalResolver, type ApprovalDecider } from './tool/types.js';
+export { isPathInWorkspace, composeResolvers, defaultApprovalResolvers, neverDenyResolver, workspaceResolver, destructiveResolver, defaultResolver } from './tool/policy-helpers.js';
 // Builtin tools (individual exports)
 export {
   readTool,
