@@ -592,7 +592,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 有待审批的工具 → 暂停 turn
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pausedCalls.length > 0) {
-
       const pauseInfo: PauseInfo = {
         reason: 'tool-approval',
         pendingToolCalls: pausedCalls,
