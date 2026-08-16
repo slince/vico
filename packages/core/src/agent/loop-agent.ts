@@ -278,8 +278,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: [...this.tools], session});
     await this.pipeline.enter(requestContext);
 
+    // turn 开始时显式创建 checkpoint，后续子步骤直接 mutate 该对象并 update 持久化
+    const checkpoint = await this.checkpointStore.create(session.turn.id, session.thread.id);
+
     // 本轮次的上下文对象
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller };
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller, checkpoint };
 
     await this.persistMessages(context, userMessages);
 
@@ -295,7 +298,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
   }): Promise<TurnResult> {
     const { session, checkpoint, userMessages, signal, controller } = params;
-    const { thread, turn } = session;
+    const { turn } = session;
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
@@ -314,7 +317,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // ——— checkpoint 恢复逻辑 ———
     const approvedTools = new Map<string, ToolApproval>(Object.entries(checkpoint.approvedTools));
     this.loadSessionApprovals(session, approvedTools);
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller };
+    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller, checkpoint };
 
     // 还原已完成工具结果到消息链
     const newToolMessages = this.restoreCompletedToolResults(checkpoint.completedToolResults);
@@ -327,11 +330,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       this.log.debug({ turnId: turn.id }, 'resume path A: approval recovery');
       await this.applyPauseInfoRecovery(checkpoint.pauseInfo, decisions, context);
       // 清除 pauseInfo
-      await this.checkpointStore.save(turn.id, thread.id, { pauseInfo: null });
+      checkpoint.pauseInfo = null;
+      await this.checkpointStore.update(checkpoint);
     } else if (checkpoint.pendingToolCall) {
       // 路径 B：工具重试
       this.log.debug({ turnId: turn.id, toolName: checkpoint.pendingToolCall.name }, 'resume path B: tool retry');
-      await this.resolvePendingTool(checkpoint.pendingToolCall, checkpoint, messages, context);
+      await this.resolvePendingTool(checkpoint.pendingToolCall, messages, context);
     } else {
       // 路径 C：pendingToolCall == null → 直接继续
       this.log.debug({ turnId: turn.id }, 'resume path C: direct continue');
@@ -407,13 +411,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    */
   private async resolvePendingTool(
     pending: ToolCall,
-    checkpoint: Checkpoint,
     messages: ModelMessage[],
     context: TurnContext<TToolSet>,
   ): Promise<void> {
-    const turnId = context.session.turn.id;
-    const threadId = context.session.thread.id;
-
     // 检查消息链中是否已有此 toolCall 的 tool_result（并发保护）
     if (hasToolResult(messages, pending.id)) {
       // 跳过执行，从消息链提取已有结果并更新 checkpoint
@@ -423,10 +423,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         status: 'success',
         output: getToolResultText(messages, pending.id) ?? null,
       };
-      await this.checkpointStore.save(turnId, threadId, {
-        completedToolResults: [...checkpoint.completedToolResults, existingResult],
-        pendingToolCall: null,
-      });
+      context.checkpoint.completedToolResults.push(existingResult);
+      context.checkpoint.pendingToolCall = null;
+      await this.checkpointStore.update(context.checkpoint);
       return;
     }
 
@@ -514,12 +513,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       usage.output += stepUsage.output;
 
       if (action === 'pause') {
-        // 持久化暂停信息到 checkpoint（替代 turn.metadata）
-        await this.checkpointStore.save(turn.id, context.session.thread.id, {
-          pauseInfo,
-          approvedTools: Object.fromEntries(context.approvedTools),
-          stepIndex: steps,
-        });
+        // 持久化暂停信息到 checkpoint
+        context.checkpoint.pauseInfo = pauseInfo ?? null;
+        context.checkpoint.approvedTools = Object.fromEntries(context.approvedTools);
+        context.checkpoint.stepIndex = steps;
+        await this.checkpointStore.update(context.checkpoint);
         await this.thread.updateTurn(turn.id, { status: 'paused', steps });
         return { status: 'paused', steps, usage };
       }
@@ -545,11 +543,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.log.debug({ turnId: context.session.turn.id, step: step.index, messageCount: context.messages.length }, 'step start');
 
     // step-start checkpoint：记录当前 step 进度
-    await this.checkpointStore.save(context.session.turn.id, context.session.thread.id, {
-      stepIndex: step.index,
-      pendingToolCall: null,
-      approvedTools: Object.fromEntries(context.approvedTools),
-    });
+    context.checkpoint.stepIndex = step.index;
+    context.checkpoint.pendingToolCall = null;
+    context.checkpoint.approvedTools = Object.fromEntries(context.approvedTools);
+    await this.checkpointStore.update(context.checkpoint);
 
     const usage = { input: 0, output: 0 };
 

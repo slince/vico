@@ -1,6 +1,6 @@
 // @vico/core — In-memory CheckpointStore implementation
 import type { Checkpoint, CheckpointStore } from './checkpoint.js';
-import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations } from './checkpoint.js';
+import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint } from './checkpoint.js';
 
 /**
  * In-memory implementation of {@link CheckpointStore}.
@@ -10,48 +10,21 @@ import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations } from './checkpoint.j
 export class MemoryCheckpointStore implements CheckpointStore {
   private store = new Map<string, Checkpoint>();
 
+  /** 创建新 checkpoint（turn 开始时调用，返回内存对象） */
+  async create(turnId: string, threadId: string): Promise<Checkpoint> {
+    const checkpoint = createCheckpoint(turnId, threadId);
+    this.store.set(turnId, checkpoint);
+    return checkpoint;
+  }
+
   /**
-   * Save a checkpoint for a turn.
-   * On first save, creates a full default Checkpoint and applies the patch.
-   * On subsequent saves, merges the patch into the existing checkpoint,
-   * preserving array fields unless the patch provides new values.
-   * Always updates version to {@link CHECKPOINT_CURRENT_VERSION} and updatedAt to now.
+   * 持久化 checkpoint 对象（全量覆盖）。
+   * 内部统一维护 version 与 updatedAt，调用方只需 mutate 业务字段。
    */
-  async save(turnId: string, threadId: string, patch: Partial<Checkpoint>): Promise<Checkpoint> {
-    const existing = this.store.get(turnId);
-    const now = Date.now();
-
-    if (existing) {
-      // Merge patch into existing, preserving arrays unless explicitly replaced
-      const merged: Checkpoint = {
-        ...existing,
-        ...patch,
-        version: CHECKPOINT_CURRENT_VERSION,
-        updatedAt: now,
-        completedToolResults: patch.completedToolResults ?? existing.completedToolResults,
-      };
-      this.store.set(turnId, merged);
-      return merged;
-    }
-
-    // First save: create a default checkpoint then apply the patch on top
-    const created: Checkpoint = {
-      id: `ckpt-${turnId}`,
-      turnId,
-      threadId,
-      version: CHECKPOINT_CURRENT_VERSION,
-      stepIndex: 0,
-      approvedTools: {},
-      pauseInfo: null,
-
-      completedToolResults: [],
-      pendingToolCall: null,
-      createdAt: now,
-      updatedAt: now,
-      ...patch,
-    };
-    this.store.set(turnId, created);
-    return created;
+  async update(checkpoint: Checkpoint): Promise<void> {
+    checkpoint.version = CHECKPOINT_CURRENT_VERSION;
+    checkpoint.updatedAt = Date.now();
+    this.store.set(checkpoint.turnId, checkpoint);
   }
 
   /** Retrieve a single checkpoint by turnId, with lazy migration. */

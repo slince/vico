@@ -52,11 +52,38 @@ export interface Checkpoint {
 
 /** CheckpointStore 接口 */
 export interface CheckpointStore {
-  save(turnId: string, threadId: string, patch: Partial<Checkpoint>): Promise<Checkpoint>;
+  /** 创建新 checkpoint（turn 开始时调用，返回内存对象） */
+  create(turnId: string, threadId: string): Promise<Checkpoint>;
+  /** 持久化 checkpoint 对象（全量覆盖，内部统一维护 version/updatedAt，不读库） */
+  update(checkpoint: Checkpoint): Promise<void>;
   getByTurn(turnId: string): Promise<Checkpoint | undefined>;
   listByThread(threadId: string): Promise<Checkpoint[]>;
   deleteByTurn(turnId: string): Promise<void>;
   purgeExpired(ttlMs: number): Promise<string[]>;
+}
+
+/**
+ * 构造一个默认的 Checkpoint 对象（turn 开始时由 store 的 create 调用）。
+ *
+ * @param turnId - 所属 turn
+ * @param threadId - 所属 thread
+ * @returns 含默认值的完整 Checkpoint
+ */
+export function createCheckpoint(turnId: string, threadId: string): Checkpoint {
+  const now = Date.now();
+  return {
+    id: `ckpt-${turnId}`,
+    turnId,
+    threadId,
+    version: CHECKPOINT_CURRENT_VERSION,
+    stepIndex: 0,
+    approvedTools: {},
+    pauseInfo: null,
+    completedToolResults: [],
+    pendingToolCall: null,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 /**

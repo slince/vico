@@ -1,6 +1,6 @@
 import {UsageMetrics} from "./types.js";
 import {ToolCall, ToolResult} from "../tool/types.js";
-import {PauseInfo} from "./checkpoint.js";
+import type {Checkpoint, PauseInfo} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from "../thread/thread-store.js";
@@ -48,6 +48,8 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   signal: AbortSignal;
   /** 流控制器，用于向客户端推送 chunk（引擎层协议 TextStreamPart） */
   controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
+  /** 本 turn 的 checkpoint 对象（startTurn/resumeTurn 创建，子步骤 mutate 后 update 持久化） */
+  checkpoint: Checkpoint;
 }
 
 
