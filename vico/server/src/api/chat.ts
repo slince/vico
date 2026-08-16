@@ -25,6 +25,10 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     // 前端本地临时 ID（如 __LOCALID_xxx）视为无真实线程，交由服务端新建
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;
 
+    if (!lastMessage) {
+      return c.json({ error: 'user messahe is required' }, 400);
+    }
+
     if (!agentId) {
       return c.json({ error: 'agentId is required' }, 400);
     }

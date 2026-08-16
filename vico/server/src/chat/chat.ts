@@ -8,7 +8,7 @@ import type {UIMessage} from 'ai';
 export interface ExecuteChatParams {
   agentId: string;
   /** 用户消息：原生 UIMessage（审批响应随 parts 下传，agent 内部自动提取） */
-  message?: UIMessage;
+  message: UIMessage;
   /** 客户端传入的真实线程 ID；为空时新建线程 */
   threadId?: string;
   userId?: string;
@@ -46,14 +46,14 @@ function deriveTitle(message: UIMessage | undefined): string | undefined {
  * @param agent - 已解析的 Agent 实例
  * @param threadId - 客户端传入的线程 ID（可能为空）
  * @param userId - 当前用户 ID，用于校验线程归属
- * @param title - 新建线程时的标题（由首条用户消息派生）
+ * @param message
  * @returns 待执行的 Thread
  */
 async function resolveThread(
   agent: Agent,
   threadId: string | undefined,
   userId: string | undefined,
-  title: string | undefined,
+  message: UIMessage,
 ): Promise<Thread> {
   if (threadId) {
     const existing = await agent.thread.getThread(threadId);
@@ -62,7 +62,7 @@ async function resolveThread(
       return existing;
     }
   }
-  return agent.createThread({ userId, title });
+  return agent.createThread({ userId, title: deriveTitle(message) });
 }
 
 /** 执行 Agent 对话 — 通过 vico.stream，自动处理新对话和暂停恢复 */
@@ -72,7 +72,7 @@ export async function executeAgentChat(
   const { agentId, message, threadId, userId } = params;
 
   const agent = await getAgent(agentId);
-  const thread = await resolveThread(agent, threadId, userId, deriveTitle(message));
+  const thread = await resolveThread(agent, threadId, userId, message);
 
   const output = await agent.stream(message ? [message] : [], { thread });
 
