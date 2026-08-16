@@ -453,10 +453,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 模型错误导致的失败
     if (loopResult.status === 'failed') {
       const err = loopResult.error!;
-      this.log.error({ turnId: turn.id, error: err instanceof Error ? err.message : String(err) }, 'turn failed');
       await this.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
-      this.emit({ type: 'error', error: err });
       context.controller.enqueue(finishPart('error', usage));
+      this.emit({ type: 'error', error: err });
 
       return {
         status: 'failed', steps: loopResult.steps, usage, messages: context.messages,
