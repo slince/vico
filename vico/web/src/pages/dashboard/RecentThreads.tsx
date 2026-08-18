@@ -7,19 +7,19 @@ import { formatDateOnly } from '@/lib/date-format';
 import type { DashboardStats } from './types';
 
 /**
- * 最近对话列表子组件
+ * 最近线程列表子组件
  *
- * 展示最近的对话记录，包含 Agent 名称、用户名、
+ * 展示最近的线程记录，包含 Agent 名称、用户名、
  * 消息数量和最后更新时间。空数据时展示友好引导提示。
  *
  * @param props - 组件属性
- * @param props.conversations - 最近对话数组
- * @returns 最近对话列表 JSX 元素
+ * @param props.threads - 最近线程数组
+ * @returns 最近线程列表 JSX 元素
  */
-export function RecentConversations({
-  conversations,
+export function RecentThreads({
+  threads,
 }: {
-  conversations: DashboardStats['recentConversations'];
+  threads: DashboardStats['recentThreads'];
 }) {
   const { t } = useTranslation('dashboard');
   const navigate = useNavigate();
@@ -27,12 +27,12 @@ export function RecentConversations({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t('recentConversations')}</CardTitle>
+        <CardTitle className="text-base">{t('recentThreads')}</CardTitle>
       </CardHeader>
       <CardContent>
-        {conversations.length > 0 ? (
+        {threads.length > 0 ? (
           <div className="space-y-2">
-            {conversations.map((c) => (
+            {threads.map((c) => (
               <div
                 key={c.id}
                 role="button"
@@ -57,7 +57,7 @@ export function RecentConversations({
           </div>
         ) : (
           <p className="text-sm text-muted-foreground py-6 text-center">
-            {t('noConversations')}
+            {t('noThreads')}
           </p>
         )}
       </CardContent>

@@ -7,8 +7,8 @@ import type { Thread } from '@/types/models';
  */
 export function useThread(threadId?: string) {
   return useQuery({
-    queryKey: ['conversation', threadId],
-    queryFn: () => api<Thread>(`/conversations/${threadId}`),
+    queryKey: ['thread', threadId],
+    queryFn: () => api<Thread>(`/threads/${threadId}`),
     enabled: !!threadId,
   });
 }

@@ -19,7 +19,7 @@ import type { Message, MessageBubbleProps } from './types';
  * (when applicable) a collapsible tool-call expander.
  */
 export function MessageBubble({ message }: MessageBubbleProps) {
-  const { t } = useTranslation('conversations');
+  const { t } = useTranslation('threads');
 
   const roleLabelMap: Record<Message['role'], string> = {
     user: t('roleUser'),

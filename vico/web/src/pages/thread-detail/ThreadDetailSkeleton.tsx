@@ -1,12 +1,12 @@
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
- * Renders a skeleton placeholder for the conversation detail page.
+ * Renders a skeleton placeholder for the thread detail page.
  *
  * Mimics the structure of the loaded page: a header bar and a list of message
  * bubble skeletons of varying widths to suggest different message lengths.
  */
-export function ConversationDetailSkeleton() {
+export function ThreadDetailSkeleton() {
   return (
     <div className="space-y-6">
       {/* Header skeleton */}

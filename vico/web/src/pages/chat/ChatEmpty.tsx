@@ -17,7 +17,7 @@ interface AgentChatEmptyProps {
  * Agent 对话空态 — 未选中 Agent 时显示。
  */
 export function ChatEmpty({ hasAgents, onSelectFirstAgent }: AgentChatEmptyProps) {
-  const { t } = useTranslation("conversations");
+  const { t } = useTranslation("threads");
   return (
     <div className="flex-1 flex items-center justify-center bg-background">
       <Empty>

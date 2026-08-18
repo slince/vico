@@ -54,7 +54,7 @@ export function ChatSidebar({
   onSelectAgent,
   onThreadChange,
 }: ChatSidebarProps) {
-  const { t } = useTranslation('conversations');
+  const { t } = useTranslation('threads');
 
   const handleAgentChange = useCallback(
     (value: string) => {

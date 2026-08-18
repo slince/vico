@@ -29,7 +29,7 @@ const knowledgeSearchToolName = 'search_knowledge_base';
  * JSON pretty-print inside a `<pre>` block.
  */
 export function ToolCallSection({ toolCallsRaw }: ToolCallSectionProps) {
-  const { t } = useTranslation('conversations');
+  const { t } = useTranslation('threads');
   const toolCalls = parseToolCalls(toolCallsRaw);
 
   if (!toolCalls || toolCalls.length === 0) return null;

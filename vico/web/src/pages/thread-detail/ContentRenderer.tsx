@@ -19,7 +19,7 @@ interface ContentRendererProps {
  * - Unknown parts are rendered as JSON for debugging
  */
 export function ContentRenderer({ content, role }: ContentRendererProps) {
-  const { t } = useTranslation('conversations');
+  const { t } = useTranslation('threads');
 
   // Old format: plain string
   if (typeof content === 'string') {

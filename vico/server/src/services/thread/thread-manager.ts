@@ -1,7 +1,7 @@
 import {eq} from 'drizzle-orm';
 import {getDb, schema} from '../../db/db.js';
 import {vico} from '../../vico.js';
-import type {ConversationDetail, ConversationItem, MessageItem, RecentConversation} from './types.js';
+import type {ThreadDetail, ThreadItem, MessageItem, RecentThread} from './types.js';
 import {type ContentPart, type Message, type ThreadStore} from "@vico/core";
 
 const { agents } = schema;
@@ -20,13 +20,13 @@ function parseMessageContent(msg: Message): string | ContentPart[] {
 /** 前台展示的消息角色 */
 const VISIBLE_ROLES = ['user', 'assistant', 'system', 'tool'];
 
-class ConversationManager {
+class ThreadManager {
   /** Vico 容器的共享 ThreadStore */
   private get store(): ThreadStore {
     return vico.thread!;
   }
 
-  private threadToConversation(thread: any): ConversationItem {
+  private toThreadItem(thread: any): ThreadItem {
     const meta = (thread.metadata || {}) as Record<string, unknown>;
 
     return {
@@ -46,50 +46,50 @@ class ConversationManager {
   async list(
     userId: string,
     filters?: { search?: string; agent_id?: string },
-  ): Promise<ConversationItem[]> {
+  ): Promise<ThreadItem[]> {
     const search = filters?.search?.toLowerCase();
     const agentIdFilter = filters?.agent_id;
     const threads = await this.store.listThreads({ userId, agentId: agentIdFilter || undefined });
 
-    let convs: ConversationItem[] = [];
+    let items: ThreadItem[] = [];
     for (const thread of threads) {
-      const conv = this.threadToConversation(thread);
+      const item = this.toThreadItem(thread);
 
       try {
         const entries = await this.store.getEntries(thread.id, { roles: VISIBLE_ROLES });
-        conv.message_count = entries.length;
+        item.message_count = entries.length;
       } catch {
-        conv.message_count = 0;
+        item.message_count = 0;
       }
-      convs.push(conv);
+      items.push(item);
     }
 
     if (search) {
-      convs = convs.filter((c) => c.title.toLowerCase().includes(search));
+      items = items.filter((t) => t.title.toLowerCase().includes(search));
     }
 
-    convs.sort((a, b) => b.updated_at - a.updated_at);
-    return convs;
+    items.sort((a, b) => b.updated_at - a.updated_at);
+    return items;
   }
 
   async getById(
     userId: string,
     id: string,
     pagination?: { limit?: number; start?: number },
-  ): Promise<ConversationDetail | null> {
+  ): Promise<ThreadDetail | null> {
     const thread = await this.store.getThread(id);
     if (!thread) return null;
     if (thread.userId && thread.userId !== userId) return null;
 
-    const conv = this.threadToConversation(thread);
+    const item = this.toThreadItem(thread);
 
     const entries = await this.store.getEntries(id, { ...pagination, roles: VISIBLE_ROLES });
     // message_count 需要总数，分页时单独查询
     if (pagination?.limit != null) {
       const all = await this.store.getEntries(id, { roles: VISIBLE_ROLES });
-      conv.message_count = all.length;
+      item.message_count = all.length;
     } else {
-      conv.message_count = entries.length;
+      item.message_count = entries.length;
     }
 
     const messages: MessageItem[] = entries.map((msg: Message) => ({
@@ -119,7 +119,7 @@ class ConversationManager {
       }
     } catch { /* 获取暂停状态失败不影响消息返回 */ }
 
-    return { ...conv, messages, paused, pendingToolCalls };
+    return { ...item, messages, paused, pendingToolCalls };
   }
 
   async count(userId: string): Promise<number> {
@@ -127,10 +127,10 @@ class ConversationManager {
     return threads.length;
   }
 
-  async recent(userId: string, limit = 5): Promise<RecentConversation[]> {
+  async recent(userId: string, limit = 5): Promise<RecentThread[]> {
     const threads = (await this.store.listThreads({ userId })).slice(0, limit);
 
-    const items: RecentConversation[] = [];
+    const items: RecentThread[] = [];
     for (const thread of threads) {
       let agentName: string | undefined;
       const agentId = thread.agentId;
@@ -194,4 +194,4 @@ class ConversationManager {
   }
 }
 
-export const conversationManager = new ConversationManager();
+export const threadManager = new ThreadManager();

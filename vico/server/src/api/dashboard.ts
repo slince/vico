@@ -3,7 +3,7 @@ import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { agentManager } from '../services/agent/agent-manager.js';
 import { knowledgeManager } from '../services/knowledge/knowledge-manager.js';
-import { conversationManager } from '../services/conversation/conversation-manager.js';
+import { threadManager } from '../services/thread/thread-manager.js';
 
 export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/dashboard/stats', async (c) => {
@@ -16,23 +16,23 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
       activeAgents,
       totalAgents,
       totalKnowledgeBases,
-      totalConversations,
-      recentConversations,
+      totalThreads,
+      recentThreads,
     ] = await Promise.all([
       agentManager.countEnabled(auth.tenantId),
       agentManager.count(auth.tenantId),
       knowledgeManager.count(auth.tenantId),
-      conversationManager.count(auth.userId),
-      conversationManager.recent(auth.userId, 5),
+      threadManager.count(auth.userId),
+      threadManager.recent(auth.userId, 5),
     ]);
 
     return c.json({
-      totalConversations,
+      totalThreads,
       totalTokens: 0,
       activeAgents,
       totalAgents,
       totalKnowledgeBases,
-      recentConversations,
+      recentThreads,
       tokenTrend: [],
     });
   });

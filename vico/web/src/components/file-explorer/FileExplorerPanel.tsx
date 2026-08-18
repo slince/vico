@@ -53,7 +53,7 @@ interface DirNode {
 /**
  * 右侧文件浏览器面板。
  *
- * - 列出当前 conversation workspace 的文件树
+ * - 列出当前 thread workspace 的文件树
  * - 点击文件夹展开 / 收起；点击文件打开为中间 tab
  * - 通过 zustand store 与 FileTabBar/FileTabContent 通信
  */

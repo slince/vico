@@ -21,7 +21,7 @@ import {
  * 在对话数据加载期间渲染占位骨架行，保持与真实表格相同的列布局，
  * 使数据加载完成后的视觉跳变最小化。
  */
-export default function ConversationTableSkeleton() {
+export default function ThreadTableSkeleton() {
   // 生成 5 个骨架行占位索引
   const skeletonRows = Array.from({ length: 5 }, (_, i) => i);
 

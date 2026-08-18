@@ -33,7 +33,7 @@ interface ChatPanelProps {
 
 /** 自定义欢迎组件，显示 Agent 名称 */
 const Welcome: FC<{ agentName: string }> = ({ agentName }) => {
-  const { t } = useTranslation("conversations");
+  const { t } = useTranslation("threads");
   return (
     <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
       <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">

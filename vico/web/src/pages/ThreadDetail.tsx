@@ -21,63 +21,63 @@ import {
 } from '@/components/ui/alert-dialog';
 
 // 5. Sub-components
-import { MessageBubble } from './conversation-detail/MessageBubble';
-import { ConversationDetailSkeleton } from './conversation-detail/ConversationDetailSkeleton';
+import { MessageBubble } from './thread-detail/MessageBubble';
+import { ThreadDetailSkeleton } from './thread-detail/ThreadDetailSkeleton';
 
 // 6. Types
-import type { Message, ConversationDetail } from './conversation-detail/types';
+import type { Message, ThreadDetail as ThreadDetailType } from './thread-detail/types';
 
 /**
- * Conversation detail page.
+ * Thread detail page.
  *
- * Displays the full message history for a single conversation.
+ * Displays the full message history for a single thread.
  */
-export default function ConversationDetail() {
+export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { t } = useTranslation('conversations');
+  const { t } = useTranslation('threads');
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const {
-    data: conversation,
+    data: thread,
     isLoading,
-  } = useQuery<ConversationDetail>({
-    queryKey: ['conversation', id],
-    queryFn: () => api(`/conversations/${id}`),
+  } = useQuery<ThreadDetailType>({
+    queryKey: ['thread', id],
+    queryFn: () => api(`/threads/${id}`),
     enabled: !!id,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => api(`/conversations/${id}`, { method: 'DELETE' }),
+    mutationFn: () => api(`/threads/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      navigate('/conversations');
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
+      navigate('/threads');
     },
   });
 
   const handleBack = useCallback(() => {
-    navigate('/conversations');
+    navigate('/threads');
   }, [navigate]);
 
   if (isLoading) {
-    return <ConversationDetailSkeleton />;
+    return <ThreadDetailSkeleton />;
   }
 
-  if (!conversation) {
+  if (!thread) {
     return (
       <Empty>
         <EmptyMedia variant="icon">
           <MessageSquare size={24} />
         </EmptyMedia>
-        <EmptyTitle>{t('conversationNotFound')}</EmptyTitle>
-        <EmptyDescription>{t('conversationNotFoundDesc')}</EmptyDescription>
+        <EmptyTitle>{t('threadNotFound')}</EmptyTitle>
+        <EmptyDescription>{t('threadNotFoundDesc')}</EmptyDescription>
         <Button variant="outline" onClick={handleBack}>{t('backToList')}</Button>
       </Empty>
     );
   }
 
-  const messages: Message[] = conversation.messages ?? [];
+  const messages: Message[] = thread.messages ?? [];
 
   return (
     <div className="space-y-6">
@@ -86,7 +86,7 @@ export default function ConversationDetail() {
           variant="ghost"
           size="icon"
           onClick={handleBack}
-          aria-label={t('backToConversations')}
+          aria-label={t('backToThreads')}
         >
           <ArrowLeft size={20} />
         </Button>
@@ -95,17 +95,17 @@ export default function ConversationDetail() {
           <h2 className="text-2xl font-bold tracking-tight">{t('detailTitle')}</h2>
 
           <div className="text-sm text-muted-foreground">
-            {t('metadataAgent')}: {conversation.agent_name ?? conversation.agent_id}
+            {t('metadataAgent')}: {thread.agent_name ?? thread.agent_id}
             <Separator
               orientation="vertical"
               className="mx-2 inline-flex h-3 align-middle"
             />
-            {t('metadataModel')}: {conversation.model_name}
+            {t('metadataModel')}: {thread.model_name}
             <Separator
               orientation="vertical"
               className="mx-2 inline-flex h-3 align-middle"
             />
-            {t('totalRecords', { count: conversation.message_count })}
+            {t('totalRecords', { count: thread.message_count })}
           </div>
         </div>
 

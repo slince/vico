@@ -1,5 +1,5 @@
-/** 列表返回的对话项 */
-export interface ConversationItem {
+/** 列表返回的线程项 */
+export interface ThreadItem {
   id: string;
   tenant_id: string;
   agent_id: string;
@@ -32,8 +32,8 @@ export interface PendingToolCall {
   args: unknown;
 }
 
-/** 详情返回的对话（含消息列表） */
-export interface ConversationDetail extends ConversationItem {
+/** 详情返回的线程（含消息列表） */
+export interface ThreadDetail extends ThreadItem {
   messages: MessageItem[];
   /** 是否暂停中（等待工具审批） */
   paused?: boolean;
@@ -41,8 +41,8 @@ export interface ConversationDetail extends ConversationItem {
   pendingToolCalls?: PendingToolCall[];
 }
 
-/** Dashboard 最近的对话项（含最后一条消息预览） */
-export interface RecentConversation {
+/** Dashboard 最近的线程项（含最后一条消息预览） */
+export interface RecentThread {
   id: string;
   title: string;
   agent_name?: string;

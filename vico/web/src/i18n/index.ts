@@ -8,7 +8,7 @@ import authZhCN from './locales/zh-CN/auth.json';
 import dashboardZhCN from './locales/zh-CN/dashboard.json';
 import agentsZhCN from './locales/zh-CN/agents.json';
 import skillsZhCN from './locales/zh-CN/skills.json';
-import conversationsZhCN from './locales/zh-CN/conversations.json';
+import threadsZhCN from './locales/zh-CN/threads.json';
 import knowledgeZhCN from './locales/zh-CN/knowledge.json';
 import settingsZhCN from './locales/zh-CN/settings.json';
 
@@ -19,7 +19,7 @@ import authZhTW from './locales/zh-TW/auth.json';
 import dashboardZhTW from './locales/zh-TW/dashboard.json';
 import agentsZhTW from './locales/zh-TW/agents.json';
 import skillsZhTW from './locales/zh-TW/skills.json';
-import conversationsZhTW from './locales/zh-TW/conversations.json';
+import threadsZhTW from './locales/zh-TW/threads.json';
 import knowledgeZhTW from './locales/zh-TW/knowledge.json';
 import settingsZhTW from './locales/zh-TW/settings.json';
 
@@ -30,7 +30,7 @@ import authEn from './locales/en/auth.json';
 import dashboardEn from './locales/en/dashboard.json';
 import agentsEn from './locales/en/agents.json';
 import skillsEn from './locales/en/skills.json';
-import conversationsEn from './locales/en/conversations.json';
+import threadsEn from './locales/en/threads.json';
 import knowledgeEn from './locales/en/knowledge.json';
 import settingsEn from './locales/en/settings.json';
 
@@ -46,7 +46,7 @@ i18n
         dashboard: dashboardZhCN,
         agents: agentsZhCN,
         skills: skillsZhCN,
-        conversations: conversationsZhCN,
+        threads: threadsZhCN,
         knowledge: knowledgeZhCN,
         settings: settingsZhCN,
         assistant: assistantZhCN,
@@ -58,7 +58,7 @@ i18n
         dashboard: dashboardZhTW,
         agents: agentsZhTW,
         skills: skillsZhTW,
-        conversations: conversationsZhTW,
+        threads: threadsZhTW,
         knowledge: knowledgeZhTW,
         settings: settingsZhTW,
         assistant: assistantZhTW,
@@ -70,7 +70,7 @@ i18n
         dashboard: dashboardEn,
         agents: agentsEn,
         skills: skillsEn,
-        conversations: conversationsEn,
+        threads: threadsEn,
         knowledge: knowledgeEn,
         settings: settingsEn,
         assistant: assistantEn,

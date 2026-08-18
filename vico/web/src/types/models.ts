@@ -14,7 +14,7 @@ export interface Agent {
   is_default: number;
 }
 
-/** 会话 — 对应 `/api/v1/conversations/:id` 返回，数据来自 conversations 表 */
+/** 会话 — 对应 `/api/v1/threads/:id` 返回 */
 export interface Thread {
   /** 主键，UUID 字符串 */
   id: string;

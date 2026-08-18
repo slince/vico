@@ -1,5 +1,5 @@
 /**
- * Shared types for the conversation-detail page and its sub-components.
+ * Shared types for the thread-detail page and its sub-components.
  */
 import type { ContentPart } from '@vico/core';
 
@@ -16,7 +16,7 @@ export interface ToolCall {
 /** Message content 可能是旧格式（纯文本字符串）或新格式（native parts 数组） */
 export type MessageContent = string | ContentPart[];
 
-/** Shape of a message returned inside the conversation detail payload */
+/** Shape of a message returned inside the thread detail payload */
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -25,8 +25,8 @@ export interface Message {
   created_at: string;
 }
 
-/** Shape returned by GET /conversations/:id */
-export interface ConversationDetail {
+/** Shape returned by GET /threads/:id */
+export interface ThreadDetail {
   id: string;
   agent_id: string;
   agent_name?: string;

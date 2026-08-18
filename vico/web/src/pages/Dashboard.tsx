@@ -10,7 +10,7 @@ import { api } from '@/api/client';
 // 3. Sub-components
 import { StatCard } from './dashboard/StatCard';
 import { TokenTrendChart } from './dashboard/TokenTrendChart';
-import { RecentConversations } from './dashboard/RecentConversations';
+import { RecentThreads } from './dashboard/RecentThreads';
 import { DashboardSkeleton } from './dashboard/DashboardSkeleton';
 
 // 4. Types
@@ -40,8 +40,8 @@ export default function Dashboard() {
 
   const statCards: StatCardConfig[] = useMemo(() => [
     {
-      label: t('totalConversations'),
-      getValue: (s) => s.totalConversations.toLocaleString(),
+      label: t('totalThreads'),
+      getValue: (s) => s.totalThreads.toLocaleString(),
       icon: MessageSquare,
       iconColor: 'text-blue-600 bg-blue-50',
     },
@@ -106,7 +106,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <TokenTrendChart data={stats.tokenTrend} />
-        <RecentConversations conversations={stats.recentConversations} />
+        <RecentThreads threads={stats.recentThreads} />
       </div>
     </div>
   );

@@ -41,7 +41,7 @@ export default function Chat() {
     (newThreadId: string) => {
       setActiveThreadId(newThreadId);
       navigate(`/chat/${newThreadId}`, { replace: true });
-      queryClient.invalidateQueries({ queryKey: ['conversations', selectedAgent?.id] });
+      queryClient.invalidateQueries({ queryKey: ['threads', selectedAgent?.id] });
     },
     [navigate, queryClient, selectedAgent?.id],
   );

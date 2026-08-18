@@ -6,8 +6,8 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Agents from '@/pages/Agents';
 import AgentDetail from '@/pages/AgentDetail';
-import Conversations from '@/pages/Conversations';
-import ConversationDetail from '@/pages/ConversationDetail';
+import Threads from '@/pages/Threads';
+import ThreadDetail from '@/pages/ThreadDetail';
 import KnowledgeBases from '@/pages/KnowledgeBases';
 import KnowledgeDetail from '@/pages/KnowledgeDetail';
 import Settings from '@/pages/Settings';
@@ -48,8 +48,8 @@ export const router = createBrowserRouter([
           { path: 'skills', element: <Skills /> },
           { path: 'knowledge', element: <KnowledgeBases /> },
           { path: 'knowledge/:id', element: <KnowledgeDetail /> },
-          { path: 'conversations', element: <Conversations /> },
-          { path: 'conversations/:id', element: <ConversationDetail /> },
+          { path: 'threads', element: <Threads /> },
+          { path: 'threads/:id', element: <ThreadDetail /> },
           { path: 'settings', element: <Settings /> },
         ],
       },

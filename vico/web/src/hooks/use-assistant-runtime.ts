@@ -2,13 +2,13 @@
  * Assistant UI Runtime hook — 使用 useRemoteThreadListRuntime 连接后端对话列表。
  *
  * 与 Chat.tsx 中 AssistantRuntimeProvider 配合使用：
- * - 通过 RemoteThreadListAdapter 从 /api/v1/conversations 加载对话列表
+ * - 通过 RemoteThreadListAdapter 从 /api/v1/threads 加载线程列表
  * - 每个线程通过 runtimeHook 创建独立的 useChatRuntime 实例
  * - 支持历史消息加载和 threadId 回写
  */
 import {useMemo} from 'react';
 import {useRemoteThreadListRuntime} from '@assistant-ui/react';
-import {createConversationThreadAdapter} from '@/lib/conversation-thread-adapter';
+import {createThreadListAdapter} from '@/lib/thread-adapter';
 import {useChatThreadRuntime} from '@/hooks/use-chat-thread-runtime';
 
 export interface UseAssistantRuntimeOptions {
@@ -32,8 +32,8 @@ export interface UseAssistantRuntimeOptions {
  * @returns AssistantRuntime 实例，可直接传给 AssistantRuntimeProvider
  */
 export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError,}: UseAssistantRuntimeOptions) {
-  // 对话列表适配器 — 按 agentId 过滤
-  const adapter = useMemo(() => createConversationThreadAdapter(agentId), [agentId]);
+  // 线程列表适配器 — 按 agentId 过滤
+  const adapter = useMemo(() => createThreadListAdapter(agentId), [agentId]);
 
   const runtime = useRemoteThreadListRuntime({
     runtimeHook:  () => {

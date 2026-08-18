@@ -42,13 +42,13 @@ import {
 import { formatDateTime } from '@/lib/date-format';
 
 // 5. Sub-components
-import ConversationTableSkeleton from './conversations/ConversationTableSkeleton';
+import ThreadTableSkeleton from './threads/ThreadTableSkeleton';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface Conversation {
+interface Thread {
   id: string;
   user_id: string;
   agent_id: string;
@@ -64,11 +64,11 @@ interface Agent {
 }
 
 /**
- * Conversations list page.
+ * Threads list page.
  *
- * Displays a searchable, filterable table of all user-Agent conversations
- * across the current tenant. Each row links through to a conversation detail
- * page (`/conversations/:id`).
+ * Displays a searchable, filterable table of all user-Agent threads
+ * across the current tenant. Each row links through to a thread detail
+ * page (`/threads/:id`).
  *
  * States handled:
  * - loading – skeleton table rows
@@ -76,25 +76,25 @@ interface Agent {
  * - error   – fallback message
  * - data    – fully populated table
  */
-export default function Conversations() {
-  const { t } = useTranslation('conversations');
+export default function Threads() {
+  const { t } = useTranslation('threads');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Thread | null>(null);
 
   const {
-    data: conversations,
-    isLoading: conversationsLoading,
-  } = useQuery<Conversation[]>({
-    queryKey: ['conversations', search, agentFilter],
+    data: threads,
+    isLoading: threadsLoading,
+  } = useQuery<Thread[]>({
+    queryKey: ['threads', search, agentFilter],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (agentFilter) params.set('agent_id', agentFilter);
-      return api(`/conversations?${params.toString()}`);
+      return api(`/threads?${params.toString()}`);
     },
   });
 
@@ -104,14 +104,14 @@ export default function Conversations() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api(`/conversations/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => api(`/threads/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
       setDeleteTarget(null);
     },
   });
 
-  const convs: Conversation[] = conversations ?? [];
+  const threadRows: Thread[] = threads ?? [];
   const agentsList: Agent[] = agents ?? [];
 
   const handleSearchChange = useCallback(
@@ -125,11 +125,11 @@ export default function Conversations() {
     setAgentFilter(value === 'all' ? '' : value);
   }, []);
 
-  if (conversationsLoading) {
-    return <ConversationTableSkeleton />;
+  if (threadsLoading) {
+    return <ThreadTableSkeleton />;
   }
 
-  if (!conversations) {
+  if (!threads) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
         {t('loadError')}
@@ -174,7 +174,7 @@ export default function Conversations() {
         </Select>
       </div>
 
-      {convs.length === 0 ? (
+      {threadRows.length === 0 ? (
         <Empty>
           <EmptyMedia variant="icon">
             <Search size={24} className="text-muted-foreground" />
@@ -191,7 +191,7 @@ export default function Conversations() {
           <CardHeader>
             <CardTitle>{t('tableTitle')}</CardTitle>
             <CardDescription>
-              {t('totalRecords', { count: convs.length })}
+              {t('totalRecords', { count: threadRows.length })}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -207,33 +207,33 @@ export default function Conversations() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {convs.map((conversation) => (
-                  <TableRow key={conversation.id}>
+                {threadRows.map((thread) => (
+                  <TableRow key={thread.id}>
                     <TableCell className="text-sm font-mono">
-                      {conversation.user_id?.slice(0, 8)}
+                      {thread.user_id?.slice(0, 8)}
                     </TableCell>
 
                     <TableCell className="text-sm">
-                      {conversation.agent_name ??
-                        conversation.agent_id?.slice(0, 8)}
+                      {thread.agent_name ??
+                        thread.agent_id?.slice(0, 8)}
                     </TableCell>
 
                     <TableCell className="text-sm">
-                      {conversation.message_count}
+                      {thread.message_count}
                     </TableCell>
 
                     <TableCell className="text-xs text-muted-foreground">
-                      {conversation.model_name}
+                      {thread.model_name}
                     </TableCell>
 
                     <TableCell className="text-xs text-muted-foreground">
-                      {formatDateTime(conversation.updated_at)}
+                      {formatDateTime(thread.updated_at)}
                     </TableCell>
 
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="link" size="sm" asChild>
-                          <Link to={`/conversations/${conversation.id}`}>
+                          <Link to={`/threads/${thread.id}`}>
                             {t('viewButton')}
                           </Link>
                         </Button>
@@ -241,7 +241,7 @@ export default function Conversations() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteTarget(conversation)}
+                          onClick={() => setDeleteTarget(thread)}
                         >
                           <Trash2 size={14} />
                         </Button>

@@ -38,7 +38,7 @@ function parseSourceLine(line: string) {
  * 每条结果展示源文件名和内容片段，比原始 JSON 更易读。
  */
 export function KnowledgeSearchSection({ toolCall }: KnowledgeSearchSectionProps) {
-  const { t } = useTranslation('conversations');
+  const { t } = useTranslation('threads');
   const result = toolCall.result as KnowledgeSearchResult | undefined;
 
   if (!result) return null;

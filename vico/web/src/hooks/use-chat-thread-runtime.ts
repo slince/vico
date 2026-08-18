@@ -8,7 +8,7 @@ import {useMemo, useRef} from 'react';
 import {useChatRuntime} from '@assistant-ui/react-ai-sdk';
 import {DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses} from 'ai';
 
-import {createThreadHistoryAdapter} from '@/lib/conversation-thread-adapter';
+import {createThreadHistoryAdapter} from '@/lib/thread-adapter';
 import {useAuiState} from "@assistant-ui/react";
 
 export interface UseChatThreadRuntimeOptions {

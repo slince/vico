@@ -6,7 +6,7 @@ import { knowledgeRoutes } from './knowledge.js';
 import { modelRoutes } from './models.js';
 import { dashboardRoutes } from './dashboard.js';
 import { chatRoutes } from './chat.js';
-import { conversationRoutes } from './conversations.js';
+import { threadRoutes } from './threads.js';
 import { execApprovalRoutes } from './exec-approvals.js';
 import { observabilityRoutes } from './observability.js';
 import { fsRoutes } from './fs.js';
@@ -17,7 +17,7 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   modelRoutes(app);
   dashboardRoutes(app);
   chatRoutes(app);
-  conversationRoutes(app);
+  threadRoutes(app);
   execApprovalRoutes(app);
   observabilityRoutes(app);
   fsRoutes(app);

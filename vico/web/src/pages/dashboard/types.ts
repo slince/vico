@@ -10,8 +10,8 @@
  * 对应后端 /api/v1/dashboard/stats 接口返回的数据结构。
  */
 export interface DashboardStats {
-  /** 历史总对话数 */
-  totalConversations: number;
+  /** 历史总线程数 */
+  totalThreads: number;
   /** 所有对话累计消耗的 Token 总量 */
   totalTokens: number;
   /** 当前处于活跃状态的 Agent 数量 */
@@ -22,8 +22,8 @@ export interface DashboardStats {
   installedSkills: number;
   /** 已创建的知识库数量 */
   totalKnowledgeBases: number;
-  /** 最近对话列表 */
-  recentConversations: Array<{
+  /** 最近线程列表 */
+  recentThreads: Array<{
     id: string;
     title: string;
     agent_name?: string;

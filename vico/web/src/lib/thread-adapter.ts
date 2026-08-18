@@ -1,7 +1,7 @@
 /**
- * 对话适配器 — 将 assistant-ui 的 ThreadList 和 ThreadHistory 连接到后端 /api/v1/conversations。
+ * 线程适配器 — 将 assistant-ui 的 ThreadList 和 ThreadHistory 连接到后端 /api/v1/threads。
  *
- * - createConversationThreadAdapter: 对话列表适配器（list、delete、initialize）
+ * - createThreadListAdapter: 线程列表适配器（list、delete、initialize）
  * - createThreadHistoryAdapter: 历史消息适配器，通过 useChatRuntime 的 adapters.history 自动加载/持久化
  */
 import type {
@@ -102,46 +102,46 @@ function processHistoryMessages(
   });
 }
 
-interface ConversationItem {
+interface ThreadItem {
   id: string;
   title: string;
   updated_at: number;
 }
 
 /**
- * 创建适配器，连接后端对话列表。
+ * 创建适配器，连接后端线程列表。
  *
- * @param agentId - 当前选中的 Agent ID，用于过滤对话列表
+ * @param agentId - 当前选中的 Agent ID，用于过滤线程列表
  */
-export function createConversationThreadAdapter(agentId: string): RemoteThreadListAdapter {
+export function createThreadListAdapter(agentId: string): RemoteThreadListAdapter {
   return {
     async list() {
       const params = new URLSearchParams();
       if (agentId) params.set('agent_id', agentId);
-      const data = await api<ConversationItem[]>(`/conversations?${params.toString()}`);
-      const conversations = Array.isArray(data) ? data : [];
+      const data = await api<ThreadItem[]>(`/threads?${params.toString()}`);
+      const threads = Array.isArray(data) ? data : [];
       return {
-        threads: conversations.map((c) => ({
+        threads: threads.map((t) => ({
           status: 'regular' as const,
-          remoteId: c.id,
-          title: c.title || 'New Chat',
-          lastMessageAt: new Date(c.updated_at),
+          remoteId: t.id,
+          title: t.title || 'New Chat',
+          lastMessageAt: new Date(t.updated_at),
         })),
       };
     },
 
     async fetch(threadId: string) {
-      const c = await api<ConversationItem>(`/conversations/${threadId}`);
+      const item = await api<ThreadItem>(`/threads/${threadId}`);
       return {
         status: 'regular' as const,
-        remoteId: c.id,
-        title: c.title || 'New Chat',
-        lastMessageAt: new Date(c.updated_at),
+        remoteId: item.id,
+        title: item.title || 'New Chat',
+        lastMessageAt: new Date(item.updated_at),
       };
     },
 
     /**
-     * 新线程初始化 — 对话在 Mastra 首次消息发送时才创建，
+     * 新线程初始化 — 线程在 Mastra 首次消息发送时才创建，
      * 因此直接使用本地 ID 作为 remoteId，后续 onFinish 再回写真实 ID。
      */
     async initialize(threadId: string) {
@@ -149,7 +149,7 @@ export function createConversationThreadAdapter(agentId: string): RemoteThreadLi
     },
 
     async delete(remoteId: string) {
-      await api(`/conversations/${remoteId}`, { method: 'DELETE' });
+      await api(`/threads/${remoteId}`, { method: 'DELETE' });
     },
 
     async rename(_remoteId: string, _newTitle: string) {
@@ -184,7 +184,7 @@ interface MessageItem {
   content: string | ContentPart[];
 }
 
-interface ConversationDetail {
+interface ThreadDetail {
   messages: MessageItem[];
   paused?: boolean;
   pendingToolCalls?: Array<{ id: string; name: string; args: unknown }>;
@@ -196,7 +196,7 @@ interface ConversationDetail {
  * useExternalHistory 通过 withFormat 获取 GenericThreadHistoryAdapter，
  * 自动负责加载历史和持久化新消息。
  *
- * @param remoteId - 对话 ID，为本地 ID（__LOCALID_ 前缀）时跳过加载
+ * @param remoteId - 线程 ID，为本地 ID（__LOCALID_ 前缀）时跳过加载
  */
 export function createThreadHistoryAdapter(remoteId: string | undefined): ThreadHistoryAdapter {
   return {
@@ -206,7 +206,7 @@ export function createThreadHistoryAdapter(remoteId: string | undefined): Thread
         async load() {
           if (!remoteId || remoteId.startsWith('__LOCALID_')) return { messages: [] };
 
-          const data = await api<ConversationDetail>(`/conversations/${remoteId}`);
+          const data = await api<ThreadDetail>(`/threads/${remoteId}`);
           const msgs = data.messages || [];
 
           const processed = processHistoryMessages(msgs, data.paused, data.pendingToolCalls);
