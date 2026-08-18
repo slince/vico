@@ -44,6 +44,14 @@ export class InMemoryThreadStore implements ThreadStore {
     t.updatedAt = Date.now();
   }
 
+  async deleteThread(threadId: string): Promise<void> {
+    this.threads.delete(threadId);
+    this.messages.delete(threadId);
+    for (const [turnId, turn] of this.turns) {
+      if (turn.threadId === threadId) this.turns.delete(turnId);
+    }
+  }
+
   // Turn 操作
 
   async createTurn(threadId: string): Promise<Turn> {

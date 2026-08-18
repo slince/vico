@@ -183,10 +183,7 @@ class ThreadManager {
     if (thread.userId && thread.userId !== userId) return false;
 
     try {
-      const db = getDb();
-      await (db as any).run('DELETE FROM vico_messages WHERE thread_id = ?', [id]);
-      await (db as any).run('DELETE FROM vico_turns WHERE thread_id = ?', [id]);
-      await (db as any).run('DELETE FROM vico_threads WHERE id = ?', [id]);
+      await this.store.deleteThread(id);
       return true;
     } catch {
       return false;

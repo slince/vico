@@ -77,6 +77,8 @@ export interface ThreadStore {
   listThreads(filter?: { agentId?: string; userId?: string }): Promise<Thread[]>;
   /** 更新线程信息（title、metadata 等） */
   updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata'>>): Promise<void>;
+  /** 删除线程及其全部轮次与消息（不存在时静默忽略） */
+  deleteThread(threadId: string): Promise<void>;
 
   /** Turn 操作 */
 

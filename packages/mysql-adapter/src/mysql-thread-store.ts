@@ -76,6 +76,13 @@ export class MysqlThreadStore implements ThreadStore {
     await this.db.update(threads).set(values).where(eq(threads.id, threadId));
   }
 
+  async deleteThread(threadId: string): Promise<void> {
+    // 先删子表（messages/turns），再删主表 threads，避免外键约束冲突
+    await this.db.delete(messages).where(eq(messages.thread_id, threadId));
+    await this.db.delete(turns).where(eq(turns.thread_id, threadId));
+    await this.db.delete(threads).where(eq(threads.id, threadId));
+  }
+
   // --- Turn ---
 
   async createTurn(threadId: string): Promise<Turn> {
