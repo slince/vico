@@ -1,28 +1,19 @@
-/** 列表返回的线程项 */
-export interface ThreadItem {
-  id: string;
-  tenant_id: string;
-  agent_id: string;
-  user_id: string;
-  title: string;
-  model_name: string;
-  message_count: number;
-  total_tokens: number;
-  created_at: number;
-  updated_at: number;
-}
+import type { ContentPart, Thread } from '@vico/core';
 
-import type { ContentPart } from '@vico/core';
+/** 列表返回的线程项 — 在 Thread 基础上附加可见消息计数 */
+export interface ThreadItem extends Thread {
+  /** 可见消息总数（不含 tool 角色） */
+  messageCount: number;
+}
 
 /** 消息项 */
 export interface MessageItem {
   id: string;
-  thread_id: string;
+  threadId: string;
   role: string;
   /** 原生 ModelMessage.content（parts 数组），含 reasoning/text/tool-call 等全量 parts */
   content: string | ContentPart[];
-  token_usage: number;
-  created_at: number;
+  createdAt: number;
 }
 
 /** 暂停中的待审批工具调用 */
@@ -45,8 +36,8 @@ export interface ThreadDetail extends ThreadItem {
 export interface RecentThread {
   id: string;
   title: string;
-  agent_name?: string;
-  message_count: number;
-  last_message?: string;
-  updated_at: number;
+  agentName?: string;
+  messageCount: number;
+  lastMessage?: string;
+  updatedAt: number;
 }

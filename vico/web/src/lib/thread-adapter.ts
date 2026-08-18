@@ -105,7 +105,7 @@ function processHistoryMessages(
 interface ThreadItem {
   id: string;
   title: string;
-  updated_at: number;
+  updatedAt: number;
 }
 
 /**
@@ -125,7 +125,7 @@ export function createThreadListAdapter(agentId: string): RemoteThreadListAdapte
           status: 'regular' as const,
           remoteId: t.id,
           title: t.title || 'New Chat',
-          lastMessageAt: new Date(t.updated_at),
+          lastMessageAt: new Date(t.updatedAt),
         })),
       };
     },
@@ -136,7 +136,7 @@ export function createThreadListAdapter(agentId: string): RemoteThreadListAdapte
         status: 'regular' as const,
         remoteId: item.id,
         title: item.title || 'New Chat',
-        lastMessageAt: new Date(item.updated_at),
+        lastMessageAt: new Date(item.updatedAt),
       };
     },
 

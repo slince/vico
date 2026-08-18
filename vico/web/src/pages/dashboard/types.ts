@@ -26,11 +26,11 @@ export interface DashboardStats {
   recentThreads: Array<{
     id: string;
     title: string;
-    agent_name?: string;
+    agentName?: string;
     /** 最后一条消息预览 */
-    last_message?: string;
-    message_count: number;
-    updated_at: number;
+    lastMessage?: string;
+    messageCount: number;
+    updatedAt: number;
   }>;
   /** Token 消耗每日趋势（近30天） */
   tokenTrend: Array<{

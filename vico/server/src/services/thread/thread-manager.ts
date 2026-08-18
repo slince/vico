@@ -1,10 +1,7 @@
-import {eq} from 'drizzle-orm';
-import {getDb, schema} from '../../db/db.js';
 import {vico} from '../../vico.js';
+import {agentManager} from '../agent/agent-manager.js';
 import type {ThreadDetail, ThreadItem, MessageItem, RecentThread} from './types.js';
 import {type ContentPart, type Message, type ThreadStore} from "@vico/core";
-
-const { agents } = schema;
 
 /**
  * 解析消息 content 为原生 parts 数组，解析失败时按纯文本兜底。
@@ -26,23 +23,6 @@ class ThreadManager {
     return vico.thread!;
   }
 
-  private toThreadItem(thread: any): ThreadItem {
-    const meta = (thread.metadata || {}) as Record<string, unknown>;
-
-    return {
-      id: thread.id,
-      tenant_id: (meta.tenant_id as string) || '',
-      agent_id: thread.agentId || (meta.agent_id as string) || '',
-      user_id: thread.userId || (meta.user_id as string) || '',
-      title: thread.title || '',
-      model_name: (meta.model_name as string) || '',
-      message_count: 0,
-      total_tokens: 0,
-      created_at: thread.createdAt || Date.now(),
-      updated_at: thread.updatedAt || Date.now(),
-    };
-  }
-
   async list(
     userId: string,
     filters?: { search?: string; agent_id?: string },
@@ -53,22 +33,19 @@ class ThreadManager {
 
     let items: ThreadItem[] = [];
     for (const thread of threads) {
-      const item = this.toThreadItem(thread);
-
+      let messageCount = 0;
       try {
         const entries = await this.store.getEntries(thread.id, { roles: VISIBLE_ROLES });
-        item.message_count = entries.length;
-      } catch {
-        item.message_count = 0;
-      }
-      items.push(item);
+        messageCount = entries.length;
+      } catch { /* 消息计数失败不影响列表返回 */ }
+      items.push({ ...thread, messageCount });
     }
 
     if (search) {
-      items = items.filter((t) => t.title.toLowerCase().includes(search));
+      items = items.filter((t) => t.title?.toLowerCase().includes(search));
     }
 
-    items.sort((a, b) => b.updated_at - a.updated_at);
+    items.sort((a, b) => b.updatedAt - a.updatedAt);
     return items;
   }
 
@@ -81,24 +58,20 @@ class ThreadManager {
     if (!thread) return null;
     if (thread.userId && thread.userId !== userId) return null;
 
-    const item = this.toThreadItem(thread);
-
     const entries = await this.store.getEntries(id, { ...pagination, roles: VISIBLE_ROLES });
-    // message_count 需要总数，分页时单独查询
+    // messageCount 需要总数，分页时单独查询
+    let messageCount = entries.length;
     if (pagination?.limit != null) {
       const all = await this.store.getEntries(id, { roles: VISIBLE_ROLES });
-      item.message_count = all.length;
-    } else {
-      item.message_count = entries.length;
+      messageCount = all.length;
     }
 
     const messages: MessageItem[] = entries.map((msg: Message) => ({
       id: msg.id,
-      thread_id: msg.threadId ?? id,
+      threadId: msg.threadId ?? id,
       role: msg.role,
       content: parseMessageContent(msg),
-      token_usage: 0,
-      created_at: msg.createdAt ?? Date.now(),
+      createdAt: msg.createdAt ?? Date.now(),
     }));
 
     // 检查暂停状态
@@ -119,7 +92,7 @@ class ThreadManager {
       }
     } catch { /* 获取暂停状态失败不影响消息返回 */ }
 
-    return { ...item, messages, paused, pendingToolCalls };
+    return { ...thread, messageCount, messages, paused, pendingToolCalls };
   }
 
   async count(userId: string): Promise<number> {
@@ -132,17 +105,9 @@ class ThreadManager {
 
     const items: RecentThread[] = [];
     for (const thread of threads) {
-      let agentName: string | undefined;
-      const agentId = thread.agentId;
-      if (agentId) {
-        const db = getDb();
-        const agent = await db
-          .select({ name: agents.name })
-          .from(agents)
-          .where(eq(agents.id, agentId))
-          .get();
-        agentName = agent?.name;
-      }
+      const agentName = thread.agentId
+        ? await agentManager.getName(thread.agentId)
+        : undefined;
 
       let lastMessage: string | undefined;
       let messageCount = 0;
@@ -167,10 +132,10 @@ class ThreadManager {
       items.push({
         id: thread.id,
         title: thread.title || '',
-        agent_name: agentName,
-        message_count: messageCount,
-        last_message: lastMessage,
-        updated_at: thread.updatedAt || Date.now(),
+        agentName,
+        messageCount,
+        lastMessage,
+        updatedAt: thread.updatedAt || Date.now(),
       });
     }
 

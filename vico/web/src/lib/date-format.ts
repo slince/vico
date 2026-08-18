@@ -30,7 +30,7 @@ export function formatDate(date: Date | string, fmt: string): string {
  * @param date - Date 对象、ISO 字符串或 Unix 毫秒时间戳
  * @returns 格式化后的日期时间文本
  */
-export function formatDateTime(date: Date | string): string {
+export function formatDateTime(date: Date | string | number): string {
   return format(new Date(date), 'yyyy-MM-dd HH:mm:ss', { locale: getDateLocale() });
 }
 
@@ -48,7 +48,7 @@ export function formatDateOnly(date: Date | string | number): string {
  * @param date - Date 对象、ISO 字符串或 Unix 毫秒时间戳
  * @returns 格式化后的时间文本
  */
-export function formatTimeOnly(date: Date | string): string {
+export function formatTimeOnly(date: Date | string | number): string {
   return format(new Date(date), 'HH:mm:ss', { locale: getDateLocale() });
 }
 

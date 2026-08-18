@@ -62,7 +62,7 @@ export default function Chat() {
 
   // 页面刷新时，从 URL threadId 查询对应 Agent 以恢复状态
   const { data: thread } = useThread(threadId);
-  const threadAgentId = thread?.agent_id;
+  const threadAgentId = thread?.agentId;
 
   const agentList: Agent[] = agents ?? [];
 

@@ -58,7 +58,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             {roleLabel}
           </Badge>
           <span className="text-xs opacity-50">
-            {formatTimeOnly(message.created_at)}
+            {formatTimeOnly(message.createdAt)}
           </span>
         </div>
 

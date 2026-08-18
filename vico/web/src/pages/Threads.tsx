@@ -50,12 +50,10 @@ import ThreadTableSkeleton from './threads/ThreadTableSkeleton';
 
 interface Thread {
   id: string;
-  user_id: string;
-  agent_id: string;
-  agent_name?: string;
-  message_count: number;
-  model_name: string;
-  updated_at: string;
+  userId?: string;
+  agentId: string;
+  messageCount: number;
+  updatedAt: number;
 }
 
 interface Agent {
@@ -201,7 +199,6 @@ export default function Threads() {
                   <TableHead>{t('columnUser')}</TableHead>
                   <TableHead>{t('columnAgent')}</TableHead>
                   <TableHead>{t('columnMessages')}</TableHead>
-                  <TableHead>{t('columnModel')}</TableHead>
                   <TableHead>{t('columnTime')}</TableHead>
                   <TableHead>{t('columnActions')}</TableHead>
                 </TableRow>
@@ -210,24 +207,19 @@ export default function Threads() {
                 {threadRows.map((thread) => (
                   <TableRow key={thread.id}>
                     <TableCell className="text-sm font-mono">
-                      {thread.user_id?.slice(0, 8)}
+                      {thread.userId?.slice(0, 8)}
                     </TableCell>
 
                     <TableCell className="text-sm">
-                      {thread.agent_name ??
-                        thread.agent_id?.slice(0, 8)}
+                      {thread.agentId?.slice(0, 8)}
                     </TableCell>
 
                     <TableCell className="text-sm">
-                      {thread.message_count}
+                      {thread.messageCount}
                     </TableCell>
 
                     <TableCell className="text-xs text-muted-foreground">
-                      {thread.model_name}
-                    </TableCell>
-
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatDateTime(thread.updated_at)}
+                      {formatDateTime(thread.updatedAt)}
                     </TableCell>
 
                     <TableCell>

@@ -95,17 +95,12 @@ export default function ThreadDetail() {
           <h2 className="text-2xl font-bold tracking-tight">{t('detailTitle')}</h2>
 
           <div className="text-sm text-muted-foreground">
-            {t('metadataAgent')}: {thread.agent_name ?? thread.agent_id}
+            {t('metadataAgent')}: {thread.agentId}
             <Separator
               orientation="vertical"
               className="mx-2 inline-flex h-3 align-middle"
             />
-            {t('metadataModel')}: {thread.model_name}
-            <Separator
-              orientation="vertical"
-              className="mx-2 inline-flex h-3 align-middle"
-            />
-            {t('totalRecords', { count: thread.message_count })}
+            {t('totalRecords', { count: thread.messageCount })}
           </div>
         </div>
 

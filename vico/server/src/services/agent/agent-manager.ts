@@ -53,6 +53,20 @@ class AgentManager {
     return { ...agent } as AgentDetail;
   }
 
+  /**
+   * 按 id 查询 Agent 名称。
+   * agentId 为全局唯一 UUID，跨租户唯一，故无需 tenant 过滤。
+   */
+  async getName(agentId: string): Promise<string | undefined> {
+    const db = getDb();
+    const agent = await db
+      .select({ name: agents.name })
+      .from(agents)
+      .where(eq(agents.id, agentId))
+      .get();
+    return agent?.name;
+  }
+
   async getAgentRuntimeConfig(agentId: string): Promise<AgentRuntimeConfig | null> {
     const db = getDb();
     const agent = await db.select().from(agents)

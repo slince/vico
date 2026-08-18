@@ -1,7 +1,7 @@
 /**
  * 全局共享数据模型声明。
  *
- * 类型字段与后端 API 返回的 snake_case 字段一一对应。
+ * 类型字段与后端 API 返回结构一一对应。
  */
 
 /** Agent — 对应 `/api/v1/agents` 列表项，数据来自 agents 表 */
@@ -19,11 +19,11 @@ export interface Thread {
   /** 主键，UUID 字符串 */
   id: string;
   /** 所属 Agent ID，对应 agents 表主键 */
-  agent_id: string;
+  agentId: string;
   /** 会话标题，首次对话后由系统自动生成 */
   title: string;
   /** 创建时间，Unix 毫秒时间戳 */
-  created_at: number;
+  createdAt: number;
   /** 最后更新时间，Unix 毫秒时间戳 */
-  updated_at: number;
+  updatedAt: number;
 }

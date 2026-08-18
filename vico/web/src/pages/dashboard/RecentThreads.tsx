@@ -43,14 +43,14 @@ export function RecentThreads({
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">
-                    {c.title || c.agent_name || t('unknownAgent')}
+                    {c.title || c.agentName || t('unknownAgent')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {c.title && c.agent_name ? <><Bot className="size-3 inline-block mr-0.5" />{c.agent_name} · </> : ''}{t('messagesCount', { count: c.message_count })}
+                    {c.title && c.agentName ? <><Bot className="size-3 inline-block mr-0.5" />{c.agentName} · </> : ''}{t('messagesCount', { count: c.messageCount })}
                   </p>
                 </div>
                 <Badge variant="secondary" className="shrink-0 ml-3">
-                  {formatDateOnly(c.updated_at)}
+                  {formatDateOnly(c.updatedAt)}
                 </Badge>
               </div>
             ))}

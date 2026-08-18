@@ -22,16 +22,14 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: MessageContent;
   tool_calls?: string; // JSON-serialised ToolCall[]
-  created_at: string;
+  createdAt: number;
 }
 
 /** Shape returned by GET /threads/:id */
 export interface ThreadDetail {
   id: string;
-  agent_id: string;
-  agent_name?: string;
-  model_name: string;
-  message_count: number;
+  agentId: string;
+  messageCount: number;
   messages: Message[];
 }
 
