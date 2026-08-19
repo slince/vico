@@ -27,7 +27,6 @@ export const vico = new Vico({
   memory: getMemory(),
   thread: getThreadStore(),
   checkpointStore: getCheckpointStore(),
-  trace: 2
 });
 
 /** 创建 Hono app 实例 */

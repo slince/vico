@@ -10,7 +10,7 @@ interface AgentEntry {
 /** AgentRuntime — 负责 Agent 的注册、缓存和 LRU 淘汰 */
 export class AgentRuntime {
   private cache: Map<string, AgentEntry> = new Map();
-  private maxCached: number;
+  private readonly maxCached: number;
 
   constructor(maxCached = 50) {
     this.maxCached = maxCached;
