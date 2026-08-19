@@ -161,4 +161,4 @@ export { TokenEconomy } from './agent/token-economy.js';
 export {
   Vico,
   type VicoOptions,
-} from './container/vico.js';
+} from './agent/vico.js';
