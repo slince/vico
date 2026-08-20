@@ -1,14 +1,13 @@
 // @vico/core - Vico: one-shot wiring for all Agent services
-import type {TurnEvent} from '../agent/types.js';
-import type {AgentConfig, LanguageModelFactory, SkillOptions} from '../agent/create-agent.js';
-import {createAgent} from '../agent/create-agent.js';
+import type {TurnEvent} from './types.js';
+import {createAgent, type AgentConfig, type LanguageModelFactory, type SkillOptions} from './create-agent.js';
 import type {Tool} from '../tool/types.js';
-import type {Agent} from '../agent/agent.js';
-import {AgentRuntime} from '../agent/agent-runtime.js';
+import type {Agent} from './agent.js';
+import {AgentRuntime} from './agent-runtime.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
-import type {CheckpointStore} from "../agent/checkpoint.js";
+import type {CheckpointStore} from './checkpoint.js';
 
 /** Vico 配置选项 */
 export interface VicoOptions {
