@@ -5,17 +5,17 @@ import type { WorkingMemory } from '@vico/core';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
 
-const DEFAULT_TEMPLATE = `# User Facts
-- **Name**:
-- **Location**:
-- **Time Zone**:
-- **Language**:
+const DEFAULT_TEMPLATE = `# 用户信息
+- **姓名**：
+- **位置**：
+- **时区**：
+- **语言**：
 
-## Preferences
-- **Communication Style**:
+## 偏好设置
+- **沟通风格**：
 
-## Session Context
-- **Current Task**:
+## 会话上下文
+- **当前任务**：
 `;
 
 /** LibSqlWorkingMemory 构造选项 */

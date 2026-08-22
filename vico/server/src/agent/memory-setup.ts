@@ -7,8 +7,10 @@
  * - getVector() — 基于 LibSQLVectorStore 的向量存储
  * - getCheckpointStore() — LibSqlCheckpointStore 单例
  */
-import {type CheckpointStore, ConversationHistoryMemory, MemoryStore} from '@vico/core';
-import {LibSqlCheckpointStore, LibSqlThreadStore, LibSQLVectorStore} from '@vico/libsql-adapter';
+import {type CheckpointStore, ConversationHistoryMemory, MemoryStore, VectorSemanticRecall} from '@vico/core';
+import {LibSqlCheckpointStore, LibSqlThreadStore, LibSQLVectorStore, LibSqlWorkingMemory} from '@vico/libsql-adapter';
+import type {BatchEmbedder} from '@vico/rag';
+import {createConfiguredEmbedder} from '../memory/rag.js';
 import {getDb} from '../db/db.js';
 import {getClient} from '../db/init-libsql.js';
 
@@ -20,10 +22,34 @@ let _checkpointStore: LibSqlCheckpointStore;
 export function getMemory(): MemoryStore {
   if (!_memoryStore) {
     _memoryStore = new MemoryStore({
-      conversation: new ConversationHistoryMemory(getThreadStore(), 10)
+      conversation: new ConversationHistoryMemory(getThreadStore(), 10),
+      working: new LibSqlWorkingMemory({ db: getDb() as any }),
+      semantic: new VectorSemanticRecall({
+        embedder: createLazyEmbedder(),
+        vectorStore: getVector(),
+      }),
     });
   }
   return _memoryStore;
+}
+
+/** 懒加载 embedder — createEmbedder 动态 import 依赖，延迟到首次嵌入时创建 */
+function createLazyEmbedder(): BatchEmbedder {
+  let cache: BatchEmbedder | undefined;
+  let loading: Promise<BatchEmbedder | undefined> | undefined;
+  return {
+    async doEmbed(options) {
+      if (!cache) {
+        loading ??= createConfiguredEmbedder();
+        const embedder = await loading;
+        if (!embedder) {
+          throw new Error('Failed to initialize embedder (check server.config.yaml rag.embedder)');
+        }
+        cache = embedder;
+      }
+      return cache.doEmbed(options);
+    },
+  };
 }
 
 export function getThreadStore(): LibSqlThreadStore {

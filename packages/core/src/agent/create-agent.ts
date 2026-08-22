@@ -154,7 +154,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     skills: skills || [],
     tools: tools,
     memory: memory,
-    thread: config.thread || new InMemoryThreadStore(),
+    thread: thread,
     workspace: config.workspace,
     events: events,
     approvalResolver: composeResolvers(...approvalResolvers),

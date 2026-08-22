@@ -78,9 +78,9 @@ export class ModelRequestContext {
     return this.session?.thread.id ?? '';
   }
 
-  /** 便捷获取工作记忆作用域标识 */
+  /** 便捷获取工作/语义记忆的用户级作用域标识（单租户内按 userId 隔离） */
   get scopeId(): string {
-    return this.session?.thread.id ?? '';
+    return this.session?.thread.userId ?? '';
   }
 
   /**

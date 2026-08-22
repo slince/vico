@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { RecursiveChunker, createEmbedder, DefaultParserRegistry } from '@vico/rag';
+import type { BatchEmbedder } from '@vico/rag';
 import { config, DEFAULT_RAG_CONFIG } from '../config.js';
 import { getVector } from '../agent/memory-setup.js';
 import logger from '../lib/logger.js';
@@ -11,6 +12,23 @@ import { kbIndexName } from '../lib/resource.js';
 import { getClient } from '../db/init-libsql.js';
 
 const parserRegistry = new DefaultParserRegistry();
+
+/**
+ * 从 server.config.yaml 的 rag.embedder 配置构建 BatchEmbedder。
+ * RAG 索引与语义记忆共用此工厂，避免重复实现。
+ *
+ * @returns BatchEmbedder 实例，无法解析时返回 undefined
+ */
+export async function createConfiguredEmbedder(): Promise<BatchEmbedder | undefined> {
+  const { embedder: embedderCfg } = config.rag;
+  if (embedderCfg === 'fastembed') {
+    return createEmbedder('fastembed');
+  }
+  if (typeof embedderCfg === 'string') {
+    return createEmbedder({ provider: 'openai', model: embedderCfg });
+  }
+  return createEmbedder(embedderCfg as any);
+}
 
 class RAGManager {
   /**
@@ -76,14 +94,7 @@ class RAGManager {
 
   /** 获取 embedder */
   private async getEmbedder(): Promise<any> {
-    const { embedder: embedderCfg } = config.rag;
-    if (embedderCfg === 'fastembed') {
-      return createEmbedder('fastembed');
-    }
-    if (typeof embedderCfg === 'string') {
-      return createEmbedder({ provider: 'openai', model: embedderCfg });
-    }
-    return createEmbedder(embedderCfg as any);
+    return createConfiguredEmbedder();
   }
 
   async indexFile(kbId: string, filePath: string, documentId?: string): Promise<number> {

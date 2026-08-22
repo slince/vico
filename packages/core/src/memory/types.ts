@@ -3,6 +3,8 @@
 export interface MemoryRecord {
   id: string;
   threadId?: string;
+  /** 记忆归属用户（单租户内按 userId 隔离长期记忆） */
+  scopeId?: string;
   content: string;
   embedding?: number[];
   metadata?: Record<string, unknown>;
@@ -11,8 +13,12 @@ export interface MemoryRecord {
 
 /** 语义召回记忆 — 基于向量检索的长期记忆 */
 export interface SemanticRecallMemory {
-  /** 按语义搜索记忆记录 */
-  search(query: string, limit?: number): Promise<MemoryRecord[]>;
+  /**
+   * 按语义搜索记忆记录。
+   *
+   * @param scopeId - 用户级隔离标识；提供时仅召回该用户的记忆
+   */
+  search(query: string, limit?: number, scopeId?: string): Promise<MemoryRecord[]>;
   /** 创建记忆记录 */
   create(record: MemoryRecord): Promise<void>;
   /** 更新记忆记录 */

@@ -84,7 +84,7 @@ export class MemoryProcessor implements ContextProcessor {
     const query = ctx.getLastUserMessage();
     if (!query) return;
 
-    const items = await this.memoryStore.semantic.search(query, 5);
+    const items = await this.memoryStore.semantic.search(query, 5, ctx.scopeId);
     if (items.length === 0) return;
 
     const memText = items.map((m) => `- ${m.content}`).join('\n');
@@ -100,6 +100,7 @@ export class MemoryProcessor implements ContextProcessor {
   private extractFacts(ctx: ModelRequestContext): MemoryRecord[] {
     const now = Date.now();
     const threadId = ctx.threadId || undefined;
+    const scopeId = ctx.scopeId || undefined;
     const facts: MemoryRecord[] = [];
 
     for (const msg of ctx.messages) {
@@ -116,6 +117,7 @@ export class MemoryProcessor implements ContextProcessor {
         facts.push({
           id: randomUUID(),
           threadId,
+          scopeId,
           content: sentence,
           metadata: { source: 'resolve' },
           createdAt: now,

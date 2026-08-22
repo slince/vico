@@ -54,6 +54,10 @@ export class LibSQLVectorStore implements VectorStore {
     dimension: number;
     metric: DistanceMetric;
   }): Promise<void> {
+    // 索引名会拼入 DDL，限制为安全标识符，防止 SQL 注入
+    if (!/^[A-Za-z0-9_]+$/.test(params.indexName)) {
+      throw new Error(`Invalid index name: ${params.indexName}`);
+    }
     this.metrics.set(params.indexName, params.metric);
 
     // 持久化 metric，防止重启丢失
@@ -93,13 +97,15 @@ export class LibSQLVectorStore implements VectorStore {
       const meta = params.metadata[i] ?? {};
       const vecStr = JSON.stringify(params.vectors[i]);
       const metaStr = JSON.stringify(meta);
+      const scopeId = (meta.scopeId as string) ?? '';
 
       await this.client.execute({
-        sql: `INSERT INTO vico_memory_entries (id, thread_id, scope_type, scope_id, type, content, embedding, metadata, importance, created_at) VALUES (?, ?, ?, '', 'semantic', ?, vector32(?), ?, 0, ?)`,
+        sql: `INSERT INTO vico_memory_entries (id, thread_id, scope_type, scope_id, type, content, embedding, metadata, importance, created_at) VALUES (?, ?, ?, ?, 'semantic', ?, vector32(?), ?, 0, ?)`,
         args: [
           params.ids[i],
           (meta.threadId as string) ?? null,
           params.indexName,
+          scopeId,
           (meta.content as string) ?? '',
           vecStr,
           metaStr,
@@ -122,10 +128,22 @@ export class LibSQLVectorStore implements VectorStore {
       ? 'vector_distance_l2'
       : 'vector_distance_cos';
 
-    const { rows } = await this.client.execute({
-      sql: `SELECT id, content, metadata, thread_id, scope_type, created_at, ${distFn}(embedding, vector32(?)) AS _distance FROM vico_memory_entries WHERE scope_type = ? AND type = 'semantic' AND embedding IS NOT NULL ORDER BY _distance ASC LIMIT ?`,
-      args: [vecStr, params.indexName, params.topK],
-    });
+    // scopeId 单独提取为 WHERE 条件（用户级隔离），其余 filter 走 post-filter
+    const scopeId = params.filter?.scopeId as string | undefined;
+    const restFilter = params.filter
+      ? Object.fromEntries(Object.entries(params.filter).filter(([k]) => k !== 'scopeId'))
+      : undefined;
+
+    let sql = `SELECT id, content, metadata, thread_id, scope_type, created_at, ${distFn}(embedding, vector32(?)) AS _distance FROM vico_memory_entries WHERE scope_type = ? AND type = 'semantic' AND embedding IS NOT NULL`;
+    const args: any[] = [vecStr, params.indexName];
+    if (scopeId !== undefined) {
+      sql += ` AND scope_id = ?`;
+      args.push(scopeId);
+    }
+    sql += ` ORDER BY _distance ASC LIMIT ?`;
+    args.push(params.topK);
+
+    const { rows } = await this.client.execute({ sql, args });
 
     return (rows as unknown as Record<string, unknown>[])
       .map((r) => {
@@ -137,7 +155,7 @@ export class LibSQLVectorStore implements VectorStore {
         } catch { /* keep empty */ }
 
         // 元数据过滤（post-filter）
-        if (params.filter && !matchFilter(meta, params.filter)) return null;
+        if (restFilter && !matchFilter(meta, restFilter)) return null;
 
         // 距离转相似度分数（距离越小 → 分数越高）
         const distance = r._distance as number;
