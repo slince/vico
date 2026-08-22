@@ -23,7 +23,6 @@ CREATE TABLE `session` (
     `expiresAt` integer NOT NULL,
     `ipAddress` text,
     `userAgent` text,
-    `activeOrganizationId` text,
     `createdAt` integer NOT NULL,
     `updatedAt` integer NOT NULL,
     FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
@@ -54,37 +53,4 @@ CREATE TABLE `verification` (
     `expiresAt` integer NOT NULL,
     `createdAt` integer NOT NULL,
     `updatedAt` integer NOT NULL
-);
-
-CREATE TABLE `organization` (
-    `id` text PRIMARY KEY NOT NULL,
-    `name` text NOT NULL,
-    `slug` text,
-    `logo` text,
-    `metadata` text,
-    `createdAt` integer NOT NULL
-);
-CREATE UNIQUE INDEX `organization_slug_unique` ON `organization` (`slug`);
-
-CREATE TABLE `member` (
-    `id` text PRIMARY KEY NOT NULL,
-    `organizationId` text NOT NULL,
-    `userId` text NOT NULL,
-    `role` text DEFAULT 'member' NOT NULL,
-    `createdAt` integer NOT NULL,
-    FOREIGN KEY (`organizationId`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE cascade,
-    FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
-);
-
-CREATE TABLE `invitation` (
-    `id` text PRIMARY KEY NOT NULL,
-    `organizationId` text NOT NULL,
-    `email` text NOT NULL,
-    `role` text,
-    `status` text DEFAULT 'pending' NOT NULL,
-    `expiresAt` integer NOT NULL,
-    `inviterId` text NOT NULL,
-    `createdAt` integer NOT NULL,
-    FOREIGN KEY (`organizationId`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE cascade,
-    FOREIGN KEY (`inviterId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );

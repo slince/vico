@@ -35,7 +35,7 @@
 │ 文件系统发现     │ │ 短期记忆(STM)   │ │ 文本分块         │
 │ manifest+prompt  │ │ 长期记忆(LTM)   │ │ 向量嵌入         │
 │ +tools 加载      │ │ 事实自动提取    │ │ 混合搜索         │
-│ 租户安装/绑定    │ │ 向量相似度检索  │ │ 去重合并         │
+│ 安装/绑定       │ │ 向量相似度检索  │ │ 去重合并         │
 └──────────────────┘ └──────────────────┘ └──────────────────┘
           │                    │                    │
           └────────────────────┼────────────────────┘
@@ -52,7 +52,7 @@
 │  业务表(12张): agents, skills, knowledge_bases, chunks,            │
 │  conversations, messages, memory_entries, tool_call_logs, ...       │
 │                                                                     │
-│  认证表(7张): user, session, account, organization, member, ...    │
+│  认证表(4张): user, session, account, verification                  │
 │              (由 better-auth 管理)                                  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -96,7 +96,7 @@ Agent 基础 system_prompt (来自配置)
 ```
 
 **关键设计：**
-- `PipelineContext` 携带 `tenantId`、`agentId`、`userId`、`conversationId` 作为全链路上下文
+- `PipelineContext` 携带 `agentId`、`userId`、`conversationId` 作为全链路上下文
 - SSE 响应头携带 `X-Conversation-Id`，前端可据此关联后续对话
 - 错误通过 `{ type: 'error', message }` SSE 事件返回，不中断流
 
@@ -110,23 +110,23 @@ Agent 基础 system_prompt (来自配置)
 |------|------|
 | 工具缓存 | 按 agentId 缓存 `SkillTool[]` 映射，避免重复加载 |
 | 参数解析 | AI SDK 可能传 JSON 字符串，自动 parse 为对象 |
-| 执行调用 | `tool.handler(parsedArgs, context)`，context 包含 tenantId/agentId/userId/skillConfig |
+| 执行调用 | `tool.handler(parsedArgs, context)`，context 包含 agentId/userId/skillConfig |
 | 审计日志 | 每次执行写入 `tool_call_logs` 表：工具名、参数、结果、状态(success/error)、耗时(ms) |
 
 ### 1.3 模型注册中心 (`model-registry.ts`)
 
-**职责：** 管理租户级别的 LLM 模型配置。每个租户可配置多个模型，指定一个为默认。
+**职责：** 管理 LLM 模型配置。可配置多个模型，指定一个为默认。
 
 **核心函数：**
 
 | 函数 | 说明 |
 |------|------|
-| `listModels(tenantId)` | 列出租户所有模型 |
-| `getDefaultModel(tenantId)` | 获取默认模型（`is_default=1`），无默认则取第一个 |
-| `getModelById(tenantId, id)` | 按 ID 获取单个模型 |
-| `addModel(tenantId, data)` | 新增模型配置 |
-| `updateModel(tenantId, id, data)` | 更新模型配置 |
-| `deleteModel(tenantId, id)` | 删除模型 |
+| `listModels()` | 列出所有模型 |
+| `getDefaultModel()` | 获取默认模型（`is_default=1`），无默认则取第一个 |
+| `getModelById(id)` | 按 ID 获取单个模型 |
+| `addModel(data)` | 新增模型配置 |
+| `updateModel(id, data)` | 更新模型配置 |
+| `deleteModel(id)` | 删除模型 |
 
 **支持的 Provider：** OpenAI、Anthropic、DeepSeek、通义千问（Qwen）、自定义
 
@@ -181,10 +181,10 @@ skills/<skill-name>/
 |------|------|
 | `init()` | 启动时调用，扫描所有 Skill 目录，加载到内存注册表 `Map<name, SkillRegistryEntry>` |
 | `getAllManifests()` | 获取所有已发现 Skill 的清单 |
-| `installSkill(tenantId, name, config?)` | 为租户安装 Skill，写入 `installed_skills` 表。安装时自动将 `resources/` 目录内容索引为知识库 |
-| `uninstallSkill(tenantId, name)` | 卸载 Skill，级联删除所有 `agent_skills` 绑定 |
-| `toggleSkill(tenantId, name, enabled)` | 启用/禁用已安装的 Skill |
-| `updateSkillConfig(tenantId, name, config)` | 更新 Skill 的配置 JSON |
+| `installSkill(name, config?)` | 安装 Skill，写入 `installed_skills` 表。安装时自动将 `resources/` 目录内容索引为知识库 |
+| `uninstallSkill(name)` | 卸载 Skill，级联删除所有 `agent_skills` 绑定 |
+| `toggleSkill(name, enabled)` | 启用/禁用已安装的 Skill |
+| `updateSkillConfig(name, config)` | 更新 Skill 的配置 JSON |
 | `getToolsForAgent(agentId)` | 获取 Agent 绑定的所有 Skill 工具（含 handler） |
 | `getToolDefsForAgent(agentId)` | 获取工具定义（仅 definition，用于传给 LLM） |
 | `getPromptForAgent(agentId)` | 拼接 Agent 绑定的所有 Skill 的 prompt.md |
@@ -209,7 +209,6 @@ SkillTool {
 }
 
 ToolContext {
-  tenantId: string;
   agentId: string;
   skillConfig: Record<string, any>;  // 安装时的配置
   userId: string;
@@ -252,9 +251,9 @@ ToolContext {
 
 | 方法 | 说明 |
 |------|------|
-| `store(tenantId, userId, content, type?, importance?)` | 嵌入文本后存储 |
-| `retrieve(tenantId, userId, query, topK=5)` | 余弦相似度搜索最近 500 条，返回 topK |
-| `extractAndStore(tenantId, userId, messages)` | 正则匹配用户陈述事实（我喜欢/偏好/习惯/想要/希望/我是...），自动提取并存储 |
+| `store(userId, content, type?, importance?)` | 嵌入文本后存储 |
+| `retrieve(userId, query, topK=5)` | 余弦相似度搜索最近 500 条，返回 topK |
+| `extractAndStore(userId, messages)` | 正则匹配用户陈述事实（我喜欢/偏好/习惯/想要/希望/我是...），自动提取并存储 |
 
 **事实提取规则（正则模式）：**
 - `我(喜欢|偏好|习惯|想要|希望)...` → type: `preference`
@@ -317,14 +316,13 @@ ToolContext {
   → better-auth handler (/api/auth/*): 注册、登录、登出、Session 管理
   → Session 中间件: 每次请求调用 auth.api.getSession() 解析 Cookie
   → 注入 user + session 到 Hono 上下文
-  → Auth Guard (/api/v1/*): 校验 session 存在且 activeOrganizationId 有效
-  → getAuthContext(c): 提取 { tenantId, userId }
+  → Auth Guard (/api/v1/*): 校验 session 存在
+  → getAuthContext(c): 提取 { userId }
 ```
 
-**多租户隔离：**
-- 通过 `organization` 插件实现
-- `session.activeOrganizationId` 作为 `tenantId`
-- 所有业务查询按 `tenant_id` 过滤
+**单租户模式：**
+- 无组织隔离，所有数据属于单一实例
+- 仅启用 `username` 插件，不使用 `organization` 插件
 
 **默认账户：** `admin` / `admin123`（首次运行时通过 `seed.ts` 自动创建）
 
@@ -342,7 +340,7 @@ Hono App
 ├── Session 中间件 (跳过 /health 和 /api/auth/*)
 ├── /api/auth/* → auth.handler() (better-auth 原生路由)
 └── /api/v1/*
-    ├── Auth Guard (校验 session + activeOrganizationId)
+    ├── Auth Guard (校验 session)
     └── 业务路由注册
         ├── auth.ts        → GET /api/v1/auth/me
         ├── agents.ts      → CRUD + 绑定管理
@@ -371,9 +369,9 @@ Hono App
 
 | 表名 | 核心字段 | 职责 |
 |------|---------|------|
-| `model_configs` | provider, model_name, api_key_encrypted, base_url, is_default | 租户级 LLM 模型配置 |
+| `model_configs` | provider, model_name, api_key_encrypted, base_url, is_default | LLM 模型配置 |
 | `agents` | name, system_prompt, model_id, temperature, max_tokens, rag_mode, enabled | Agent 定义 |
-| `installed_skills` | skill_name, display_name, version, config(JSON), enabled | 租户级 Skill 安装记录。UNIQUE(tenant_id, skill_name) |
+| `installed_skills` | skill_name, display_name, version, config(JSON), enabled | Skill 安装记录。UNIQUE(skill_name) |
 | `agent_skills` | agent_id, skill_name, config(JSON) | M:N Agent-Skill 绑定。复合主键 |
 | `knowledge_bases` | name, description, source, skill_name, chunk_count | 知识库容器 |
 | `chunks` | kb_id, content, embedding(Blob), metadata(JSON) | 向量文档块。FK 级联删除 |
@@ -384,17 +382,14 @@ Hono App
 | `tool_call_logs` | agent_id, conversation_id, message_id, tool_name, args, result, status, duration_ms | 工具调用审计日志 |
 | `token_usage_logs` | agent_id, model_name, prompt_tokens, completion_tokens | Token 用量记录 |
 
-### 认证表（7 张，由 better-auth 管理）
+### 认证表（4 张，由 better-auth 管理）
 
 | 表名 | 职责 |
 |------|------|
 | `user` | 用户身份（email, username） |
-| `session` | Session 管理（token, expiresAt, activeOrganizationId） |
+| `session` | Session 管理（token, expiresAt） |
 | `account` | OAuth + 密码凭证 |
 | `verification` | 邮箱验证 token |
-| `organization` | 多租户组织 |
-| `member` | 组织成员关系 + 角色 |
-| `invitation` | 组织邀请 |
 
 ---
 
@@ -424,7 +419,7 @@ React Query (TanStack Query 5)
   └─ streamChat: SSE ReadableStream 手动解析
 
 Auth (better-auth React Client)
-  ├─ useAuth() hook: user, session, login(), logout(), isAuthenticated, tenantId
+  ├─ useAuth() hook: user, session, login(), logout(), isAuthenticated
   └─ credentials: 'include' Cookie 自动携带
 ```
 
@@ -491,5 +486,4 @@ llm:
 
 | 模式 | 说明 |
 |------|------|
-| `private` | 单租户模式，所有数据属于唯一组织 |
-| `saas` | 多租户模式，通过 `organization` 插件 + `tenant_id` 隔离 |
+| `private` | 单租户模式，所有数据属于单一实例（当前唯一支持的部署方式） |

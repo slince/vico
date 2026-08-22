@@ -17,7 +17,7 @@ export interface LibSqlThreadStoreOptions {
 
 /**
  * LibSQL 版 ThreadStore。
- * 无租户过滤，适合单租户场景；多租户请外层包装 WHERE tenant_id。
+ * 无租户过滤，适合单租户场景。
  */
 export class LibSqlThreadStore implements ThreadStore {
   private db: LibSQLDatabase<typeof schema>;

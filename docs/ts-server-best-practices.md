@@ -29,7 +29,7 @@ packages/server/src/
 │   └── embedder.ts       # 嵌入器
 ├── auth/                 # 认证
 │   ├── index.ts          # better-auth 配置
-│   └── seed.ts           # 默认租户/用户 seed
+│   └── seed.ts           # 默认用户 seed
 └── data/                 # 数据层
     ├── db.ts             # 数据库连接（单例）
     ├── schema.ts         # 业务表 Drizzle Schema
@@ -51,7 +51,7 @@ packages/server/src/
 ```
 请求 → 中间件链(CORS/限流/Session/Auth Guard)
      → 路由(api/)
-       → getAuthContext(c) → 提取 { tenantId, userId }
+       → getAuthContext(c) → 提取 { userId }
          → service/ → 业务逻辑 + 数据库查询
            → 数据层(data/) → Drizzle ORM → SQLite
      → Response(json / SSE stream)
@@ -100,8 +100,8 @@ app.get('/api/v1/agents', (c) => {
   const auth = getAuthContext(c);
   if (auth instanceof Response) return auth;  // 未认证，直接返回 401
 
-  // auth.tenantId, auth.userId 可直接传递给 service
-  const rows = agentService.list(auth.tenantId);
+  // auth.userId 可直接传递给 service
+  const rows = agentService.list();
   return c.json(rows);
 });
 ```
@@ -132,7 +132,7 @@ return c.json({ error: 'agentId and message are required' }, 400);
 app.get('/api/v1/agents', (c) => {
   const auth = getAuthContext(c);
   if (auth instanceof Response) return auth;
-  const rows = agentService.list(auth.tenantId);
+  const rows = agentService.list();
   return c.json(rows);
 });
 
@@ -142,7 +142,7 @@ app.get('/api/v1/agents/:id', (c) => {
   if (auth instanceof Response) return auth;
   const id = c.req.param('id');
 
-  const agent = agentService.getById(id, auth.tenantId);
+  const agent = agentService.getById(id);
   if (!agent) return c.json({ error: 'Agent not found' }, 404);
   return c.json(agent);
 });
@@ -158,7 +158,7 @@ app.post('/api/v1/agents', async (c) => {
     return c.json({ error: 'name is required' }, 400);
   }
 
-  const id = agentService.create({ name, tenantId: auth.tenantId });
+  const id = agentService.create({ name });
   return c.json({ id, message: 'created' });
 });
 
@@ -169,7 +169,7 @@ app.patch('/api/v1/agents/:id', async (c) => {
   const id = c.req.param('id');
   const body = await c.req.json();
 
-  const result = agentService.update(id, auth.tenantId, body);
+  const result = agentService.update(id, body);
   if (!result) return c.json({ error: 'Agent not found' }, 404);
   return c.json({ message: 'updated' });
 });
@@ -180,7 +180,7 @@ app.delete('/api/v1/agents/:id', (c) => {
   if (auth instanceof Response) return auth;
   const id = c.req.param('id');
 
-  agentService.delete(id, auth.tenantId);
+  agentService.delete(id);
   return c.json({ message: 'deleted' });
 });
 ```
@@ -215,12 +215,11 @@ const sqlite = getSqlite();
 ```typescript
 // ✅ 条件查询
 const agent = db.select().from(agents)
-  .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
+  .where(eq(agents.id, id))
   .get();
 
 // ✅ 列表查询 + 排序
 const rows = db.select().from(agents)
-  .where(eq(agents.tenant_id, tenantId))
   .orderBy(desc(agents.updated_at))
   .all();
 
@@ -228,18 +227,18 @@ const rows = db.select().from(agents)
 const id = uuid();
 const now = Date.now();
 db.insert(agents).values({
-  id, tenant_id: tenantId, name,
+  id, name,
   created_at: now, updated_at: now,
 }).run();
 
 // ✅ 更新
 db.update(agents).set({ name: 'new name', updated_at: Date.now() })
-  .where(and(eq(agents.tenant_id, tenantId), eq(agents.id, id)))
+  .where(eq(agents.id, id))
   .run();
 
 // ✅ 删除
 db.delete(agents)
-  .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
+  .where(eq(agents.id, id))
   .run();
 
 // ✅ Upsert（冲突时更新）
@@ -266,7 +265,6 @@ db.update(conversations).set({
 | JSON 字段 | 插入时 `JSON.stringify()`，读取后 `JSON.parse()` |
 | Boolean 字段 | SQLite 无 bool，用 `0`/`1`（Drizzle integer 类型） |
 | snaked_case 列名 | Schema 列名用 `snake_case`，与数据库一致 |
-| 租户隔离 | 所有业务查询必须带 `eq(table.tenant_id, auth.tenantId)` |
 | 级联删除 | 手动执行关联表删除（SQLite FK 不保证级联行为一致） |
 
 ---
@@ -422,10 +420,6 @@ app.use('/api/v1/*', async (c, next) => {
   if (!session || !user) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
-  // 自动选择活跃组织（private 部署模式兼容）
-  if (!session.activeOrganizationId) {
-    // 查询用户第一个组织并设置
-  }
   return next();
 });
 ```
@@ -493,7 +487,6 @@ export interface SkillTool { /* ... */ }
 // ✅ 跨模块共享的接口 —— 定义在使用方或公共处
 // agent/pipeline.ts
 export interface PipelineContext {
-  tenantId: string;
   agentId: string;
   userId: string;
   conversationId?: string;
@@ -566,7 +559,7 @@ async execute(toolName: string, args: unknown, context: ToolContext) {
 
 ```typescript
 // ✅ 非关键异步操作 —— 静默失败不影响主流程
-longTermMemory.extractAndStore(ctx.tenantId, ctx.userId, messages)
+longTermMemory.extractAndStore(ctx.userId, messages)
   .catch(() => {});  // LTM 提取失败不阻塞对话
 ```
 
@@ -622,7 +615,7 @@ import type { Variables } from '../index.js';
 async function main() {
   runMigrations();                       // 1. 数据库迁移（必须先于 DB 操作）
   await skillManager.init();             // 2. Skill 扫描加载（需在路由注册前完成）
-  await seedDefaultOrgAndAdmin();        // 3. 默认数据 seed
+  await seedDefaultAdmin();              // 3. 默认数据 seed
 
   const app = new Hono<{ Variables: Variables }>();
 
@@ -703,7 +696,7 @@ const tools: SkillTool[] = [
       },
     },
     handler: async (args: { query: string }, context) => {
-      // context.tenantId, context.agentId, context.skillConfig, context.userId
+      // context.agentId, context.skillConfig, context.userId
       const apiKey = context.skillConfig.api_key;
       // 执行搜索逻辑...
       return { results: [...] };
@@ -722,7 +715,6 @@ export default tools;
 |------|---------|
 | 路由中写 100 行业务逻辑 | 提取到 `agent/`、`skill/` 模块 |
 | 使用 `any` 类型 | `Record<string, unknown>` 或 `unknown` + 类型守卫 |
-| 忘记 `tenant_id` 过滤 | 所有业务查询必须带 `eq(table.tenant_id, auth.tenantId)` |
 | ESM 导入不带 `.js` | 始终写 `.js` 扩展名 |
 | 在路由中直接操作 session | 通过 `getAuthContext(c)` 获取 |
 | try-catch 吞掉所有错误 | 仅非关键路径可静默；关键路径让异常冒泡 |
@@ -758,7 +750,7 @@ export default tools;
 async chatHandler(agentId: string, message: string) {
   // 加载 agent 配置
   const agent = db.select().from(agents)
-    .where(and(eq(agents.id, agentId), eq(agents.tenant_id, this.tenantId)))
+    .where(eq(agents.id, agentId))
     .get();
   if (!agent) throw new Error('Agent not found');
   if (!agent.enabled) throw new Error('Agent disabled');
@@ -772,7 +764,7 @@ async chatHandler(agentId: string, message: string) {
   let systemPrompt = agent.system_prompt || '';
   const skillPrompts = await skillManager.getPromptsForAgent(agentId);
   systemPrompt += '\n' + skillPrompts.join('\n');
-  const memories = await longTermMemory.retrieve(this.tenantId, this.userId, message);
+  const memories = await longTermMemory.retrieve(this.userId, message);
   if (memories.length > 0) {
     systemPrompt += '\n## 相关记忆\n' + memories.map(m => `- ${m.content}`).join('\n');
   }
@@ -788,16 +780,16 @@ async chatHandler(agentId: string, message: string) {
 ```typescript
 // ✅ 拆分后 —— 每个函数单一职责，主方法变成编排层
 async chatHandler(agentId: string, message: string) {
-  const agent = loadAgent(agentId, this.tenantId);          // 加载 + 校验
+  const agent = loadAgent(agentId);                          // 加载 + 校验
   const model = resolveModel(agent.model_id);                // 模型解析
   const systemPrompt = await buildSystemPrompt(agent, message); // 提示词组装
   return executeChat(model, systemPrompt, message);          // 执行对话
 }
 
 // 提取为模块级纯函数（不挂在类上）
-function loadAgent(agentId: string, tenantId: string) {
+function loadAgent(agentId: string) {
   const agent = db.select().from(agents)
-    .where(and(eq(agents.id, agentId), eq(agents.tenant_id, tenantId)))
+    .where(eq(agents.id, agentId))
     .get();
   if (!agent) throw new Error('Agent not found');
   if (!agent.enabled) throw new Error('Agent disabled');
@@ -818,7 +810,7 @@ async function buildSystemPrompt(
   if (agent.system_prompt) parts.push(agent.system_prompt);
   const skillPrompts = await skillManager.getPromptsForAgent(agent.id);
   if (skillPrompts.length > 0) parts.push(skillPrompts.join('\n'));
-  const memories = await longTermMemory.retrieve(this.tenantId, this.userId, message);
+  const memories = await longTermMemory.retrieve(this.userId, message);
   if (memories.length > 0) {
     parts.push('## 相关记忆\n' + memories.map(m => `- ${m.content}`).join('\n'));
   }

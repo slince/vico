@@ -18,7 +18,6 @@ export interface MysqlThreadStoreOptions {
 /**
  * MySQL-based ThreadStore.
  * No tenant filtering; suitable for single-tenant scenarios.
- * Multi-tenant scenarios should wrap with WHERE tenant_id externally.
  */
 export class MysqlThreadStore implements ThreadStore {
   private db: MySql2Database<typeof schema>;

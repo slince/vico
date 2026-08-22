@@ -15,7 +15,7 @@ Vico 是一个面向中小企业的 AI Agent 管理平台，基于"配置 + 即�
 | Agent 框架 | Vercel AI SDK 4（`ai` 包） |
 | 数据库 | better-sqlite3（WAL 模式）+ Drizzle ORM |
 | 嵌入模型 | Transformers.js（本地）/ OpenAI API |
-| 认证 | better-auth（Session Cookie + username/organization 插件）|
+| 认证 | better-auth（Session Cookie + username 插件）|
 | 前端 | React 19、Vite 6、Tailwind CSS 4 |
 | UI 组件 | shadcn/ui（radix-rhea 风格） |
 | 前端数据获取 | TanStack Query 5 |
@@ -34,7 +34,7 @@ packages/
 │       ├── agent/       # 聊天管道、工具执行器、模型注册、可观测性、Evals
 │       ├── skill/       # 插件系统：类型定义、加载器、管理器
 │       ├── memory/      # 短期记忆、长期记忆、RAG、嵌入器
-│       ├── auth/        # better-auth 实例配置、Seed 默认组织+管理员；/api/auth/* 由 auth.handler() 处理
+│       ├── auth/        # better-auth 实例配置、Seed 默认管理员；/api/auth/* 由 auth.handler() 处理
 │       └── db/          # Drizzle ORM 连接、Schema、迁移（17 张表）
 ├── web/                 # React 管理后台
 │   └── src/
@@ -60,7 +60,7 @@ packages/
 编写 `packages/server/src/` 下代码时，务必遵守 [docs/ts-server-best-practices.md](docs/ts-server-best-practices.md)。核心要点：
 
 - **路由层**：每个 handler 第一行 `getAuthContext(c)`，不做业务逻辑，不写 try-catch
-- **数据库**：所有查询带 `tenant_id` 过滤，主键用 `uuid()`，时间戳用 `Date.now()`
+- **数据库**：主键用 `uuid()`，时间戳用 `Date.now()`
 - **单例/导入**：Manager 类模块级单例，ESM 导入带 `.js` 扩展名
 - **类型/错误**：避免 `any`，路由层异常自然冒泡，非关键路径可静默
 
@@ -117,7 +117,7 @@ pnpm skill:install <path> # 从目录安装 Skill
 
 ### 认证
 
-better-auth（Session Cookie 替代 JWT）→ `username` + `organization` 插件 → `/api/auth/*` 挂载 → Session 中间件注入 `user`/`session` → `getAuthContext(c)` 提取 `{ tenantId, userId }` → 所有查询按 `tenant_id` 过滤
+better-auth（Session Cookie 替代 JWT）→ `username` 插件 → `/api/auth/*` 挂载 → Session 中间件注入 `user`/`session` → `getAuthContext(c)` 提取 `{ userId }`（单租户，无组织隔离）
 
 ### 数据库
 
