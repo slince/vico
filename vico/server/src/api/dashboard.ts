@@ -17,9 +17,9 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
       totalThreads,
       recentThreads,
     ] = await Promise.all([
-      agentManager.countEnabled(auth.tenantId),
-      agentManager.count(auth.tenantId),
-      knowledgeManager.count(auth.tenantId),
+      agentManager.countEnabled(),
+      agentManager.count(),
+      knowledgeManager.count(),
       threadManager.count(auth.userId),
       threadManager.recent(auth.userId, 5),
     ]);

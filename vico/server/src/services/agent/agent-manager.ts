@@ -1,4 +1,4 @@
-import {and, count, desc, eq} from 'drizzle-orm';
+import {count, desc, eq} from 'drizzle-orm';
 import {v4 as uuid} from 'uuid';
 import {getDb, schema} from '../../db/db.js';
 import {modelManager} from '../model/model-manager.js';
@@ -17,36 +17,34 @@ import {
 const { agents } = schema;
 
 class AgentManager {
-  async countEnabled(tenantId: string): Promise<number> {
+  async countEnabled(): Promise<number> {
     const db = getDb();
     const [row] = await db.select({ c: count() }).from(agents)
-      .where(and(eq(agents.tenant_id, tenantId), eq(agents.enabled, 1)))
+      .where(eq(agents.enabled, 1))
       .all();
     return row?.c ?? 0;
   }
 
-  async count(tenantId: string): Promise<number> {
+  async count(): Promise<number> {
     const db = getDb();
     const [row] = await db.select({ c: count() }).from(agents)
-      .where(eq(agents.tenant_id, tenantId))
       .all();
     return row?.c ?? 0;
   }
 
-  async list(tenantId: string): Promise<AgentDetail[]> {
+  async list(): Promise<AgentDetail[]> {
     const db = getDb();
     const rows = await db.select().from(agents)
-      .where(eq(agents.tenant_id, tenantId))
       .orderBy(desc(agents.updated_at))
       .all();
 
     return rows.map((a) => ({ ...a }) as AgentDetail);
   }
 
-  async getById(tenantId: string, id: string): Promise<AgentDetail | null> {
+  async getById(id: string): Promise<AgentDetail | null> {
     const db = getDb();
     const agent = await db.select().from(agents)
-      .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
+      .where(eq(agents.id, id))
       .get();
 
     if (!agent) return null;
@@ -96,7 +94,7 @@ class AgentManager {
     };
   }
 
-  async create(tenantId: string, input: unknown): Promise<AgentDetail> {
+  async create(input: unknown): Promise<AgentDetail> {
     const data = createAgentSchema.parse(input) as CreateAgentInput;
     const db = getDb();
     const id = uuid();
@@ -104,7 +102,6 @@ class AgentManager {
 
     await db.insert(agents).values({
       id,
-      tenant_id: tenantId,
       name: data.name,
       system_prompt: data.system_prompt,
       model_id: data.model_id,
@@ -117,14 +114,14 @@ class AgentManager {
       created_at: now,
       updated_at: now,
     }).run();
-    return (await this.getById(tenantId, id))!;
+    return (await this.getById(id))!;
   }
 
-  async update(tenantId: string, id: string, input: unknown): Promise<void> {
+  async update(id: string, input: unknown): Promise<void> {
     const db = getDb();
 
     const existing = await db.select({ id: agents.id, is_default: agents.is_default }).from(agents)
-      .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
+      .where(eq(agents.id, id))
       .get();
     if (!existing) throw new Error('Agent not found');
 
@@ -149,38 +146,38 @@ class AgentManager {
 
     updateData.updated_at = Date.now();
     await db.update(agents).set(updateData)
-      .where(and(eq(agents.tenant_id, tenantId), eq(agents.id, id)))
+      .where(eq(agents.id, id))
       .run();
   }
 
-  async remove(tenantId: string, id: string): Promise<void> {
+  async remove(id: string): Promise<void> {
     const db = getDb();
     const agent = await db.select({ is_default: agents.is_default }).from(agents)
-      .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
+      .where(eq(agents.id, id))
       .get();
     if (!agent) return;
     if (agent.is_default === 1) {
       throw new Error('Cannot delete the default agent');
     }
-    await db.delete(agents).where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId))).run();
+    await db.delete(agents).where(eq(agents.id, id)).run();
   }
 
-  async getDefault(tenantId: string): Promise<AgentDetail | null> {
+  async getDefault(): Promise<AgentDetail | null> {
     const db = getDb();
     const agent = await db.select().from(agents)
-      .where(and(eq(agents.tenant_id, tenantId), eq(agents.is_default, 1)))
+      .where(eq(agents.is_default, 1))
       .get();
     if (!agent) return null;
-    return this.getById(tenantId, agent.id);
+    return this.getById(agent.id);
   }
 
-  async replaceKnowledge(tenantId: string, id: string, input: unknown): Promise<void> {
+  async replaceKnowledge(id: string, input: unknown): Promise<void> {
     const { kb_id, mode } = replaceKnowledgeSchema.parse(input);
     const db = getDb();
 
     await db.update(agents)
       .set({ kb_id: kb_id ?? null, updated_at: Date.now() })
-      .where(and(eq(agents.id, id), eq(agents.tenant_id, tenantId)))
+      .where(eq(agents.id, id))
       .run();
   }
 }

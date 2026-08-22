@@ -2,7 +2,7 @@ import {randomBytes, scrypt} from 'node:crypto';
 import {v4 as uuid} from 'uuid';
 import {eq} from 'drizzle-orm';
 import {getDb} from '../db/db.js';
-import {account, member, organization, user} from '../db/auth-schema.js';
+import {account, user} from '../db/auth-schema.js';
 import {agents} from '../db/schema.js';
 import logger from '../lib/logger.js';
 
@@ -31,30 +31,19 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 /**
- * 首次运行时创建默认组织和管理员用户
+ * 首次运行时创建默认管理员用户
  * 管理员凭据：admin / admin123
  */
-export async function seedDefaultOrgAndAdmin() {
+export async function seedDefaultAdmin() {
   const db = getDb();
 
-  // 检查是否已有组织
-  const existing = await db.select({ id: organization.id }).from(organization).limit(1).get();
+  // 检查是否已有用户
+  const existing = await db.select({ id: user.id }).from(user).limit(1).get();
   if (existing) return;
 
   const now = new Date();
-  const nowMs = Date.now();
-  const orgId = uuid();
   const userId = uuid();
   const accountId = uuid();
-
-  // 创建默认组织（租户）
-  await db.insert(organization).values({
-    id: orgId,
-    name: '默认租户',
-    slug: 'default',
-    metadata: '{}',
-    createdAt: now,
-  }).run();
 
   // 创建管理员用户
   await db.insert(user).values({
@@ -80,16 +69,7 @@ export async function seedDefaultOrgAndAdmin() {
     updatedAt: now,
   }).run();
 
-  // 将用户加入组织
-  await db.insert(member).values({
-    id: uuid(),
-    organizationId: orgId,
-    userId,
-    role: 'admin',
-    createdAt: now,
-  }).run();
-
-  logger.info('Default org and admin created (admin / admin123)');
+  logger.info('Default admin created (admin / admin123)');
 }
 
 /**
@@ -104,15 +84,10 @@ export async function seedMainAgent() {
     .where(eq(agents.id, 'vico')).get();
   if (existing) return;
 
-  // 获取已有组织
-  const org = await db.select({ id: organization.id }).from(organization).limit(1).get();
-  if (!org) return; // 还未 seed 组织，等组织创建后下次启动再补
-
   const nowMs = Date.now();
 
   await db.insert(agents).values({
     id: 'vico',
-    tenant_id: org.id,
     name: 'Vico',
     system_prompt: `你是一个通用 AI Agent 调度器（Vico）。你的职责是：
 

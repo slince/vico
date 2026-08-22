@@ -34,7 +34,6 @@ CREATE TABLE `agent_skills` (
 --> statement-breakpoint
 CREATE TABLE `agents` (
 	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
 	`name` text NOT NULL,
 	`system_prompt` text DEFAULT '' NOT NULL,
 	`model_id` text NOT NULL,
@@ -43,8 +42,7 @@ CREATE TABLE `agents` (
 	`rag_mode` text DEFAULT 'auto' NOT NULL,
 	`enabled` integer DEFAULT 1 NOT NULL,
 	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	FOREIGN KEY (`tenant_id`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE no action
+	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `chunks` (
@@ -59,7 +57,6 @@ CREATE TABLE `chunks` (
 --> statement-breakpoint
 CREATE TABLE `conversations` (
 	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
 	`agent_id` text NOT NULL,
 	`user_id` text NOT NULL,
 	`title` text DEFAULT '' NOT NULL,
@@ -68,62 +65,34 @@ CREATE TABLE `conversations` (
 	`total_tokens` integer DEFAULT 0 NOT NULL,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
-	FOREIGN KEY (`tenant_id`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`agent_id`) REFERENCES `agents`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `installed_skills` (
 	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
 	`skill_name` text NOT NULL,
 	`display_name` text NOT NULL,
 	`version` text NOT NULL,
 	`config` text DEFAULT '{}' NOT NULL,
 	`enabled` integer DEFAULT 1 NOT NULL,
-	`installed_at` integer NOT NULL,
-	FOREIGN KEY (`tenant_id`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE no action
+	`installed_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `installed_skills_tenant_id_skill_name_unique` ON `installed_skills` (`tenant_id`,`skill_name`);--> statement-breakpoint
-CREATE TABLE `invitation` (
-	`id` text PRIMARY KEY NOT NULL,
-	`organizationId` text NOT NULL,
-	`email` text NOT NULL,
-	`role` text,
-	`status` text DEFAULT 'pending' NOT NULL,
-	`expiresAt` integer NOT NULL,
-	`inviterId` text NOT NULL,
-	`createdAt` integer NOT NULL,
-	FOREIGN KEY (`organizationId`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`inviterId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
-);
+CREATE UNIQUE INDEX `installed_skills_skill_name_unique` ON `installed_skills` (`skill_name`);
 --> statement-breakpoint
 CREATE TABLE `knowledge_bases` (
 	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
 	`name` text NOT NULL,
 	`description` text DEFAULT '' NOT NULL,
 	`source` text DEFAULT 'upload' NOT NULL,
 	`skill_name` text,
 	`chunk_count` integer DEFAULT 0 NOT NULL,
-	`created_at` integer NOT NULL,
-	FOREIGN KEY (`tenant_id`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE TABLE `member` (
-	`id` text PRIMARY KEY NOT NULL,
-	`organizationId` text NOT NULL,
-	`userId` text NOT NULL,
-	`role` text DEFAULT 'member' NOT NULL,
-	`createdAt` integer NOT NULL,
-	FOREIGN KEY (`organizationId`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
+	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `memory_entries` (
 	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
 	`user_id` text NOT NULL,
 	`type` text NOT NULL,
 	`content` text NOT NULL,
@@ -131,7 +100,6 @@ CREATE TABLE `memory_entries` (
 	`importance` real DEFAULT 0.5 NOT NULL,
 	`created_at` integer NOT NULL,
 	`expires_at` integer,
-	FOREIGN KEY (`tenant_id`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -148,26 +116,14 @@ CREATE TABLE `messages` (
 --> statement-breakpoint
 CREATE TABLE `model_configs` (
 	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
 	`provider` text NOT NULL,
 	`model_name` text NOT NULL,
 	`api_key_encrypted` text NOT NULL,
 	`base_url` text,
 	`is_default` integer DEFAULT 0 NOT NULL,
-	`created_at` integer NOT NULL,
-	FOREIGN KEY (`tenant_id`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE no action
+	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `organization` (
-	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
-	`slug` text,
-	`logo` text,
-	`metadata` text,
-	`createdAt` integer NOT NULL
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `organization_slug_unique` ON `organization` (`slug`);--> statement-breakpoint
 CREATE TABLE `session` (
 	`id` text PRIMARY KEY NOT NULL,
 	`userId` text NOT NULL,
@@ -175,7 +131,6 @@ CREATE TABLE `session` (
 	`expiresAt` integer NOT NULL,
 	`ipAddress` text,
 	`userAgent` text,
-	`activeOrganizationId` text,
 	`createdAt` integer NOT NULL,
 	`updatedAt` integer NOT NULL,
 	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
@@ -184,7 +139,6 @@ CREATE TABLE `session` (
 CREATE UNIQUE INDEX `session_token_unique` ON `session` (`token`);--> statement-breakpoint
 CREATE TABLE `token_usage_logs` (
 	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
 	`agent_id` text NOT NULL,
 	`model_name` text NOT NULL,
 	`prompt_tokens` integer NOT NULL,
@@ -194,7 +148,6 @@ CREATE TABLE `token_usage_logs` (
 --> statement-breakpoint
 CREATE TABLE `tool_call_logs` (
 	`id` text PRIMARY KEY NOT NULL,
-	`tenant_id` text NOT NULL,
 	`agent_id` text NOT NULL,
 	`conversation_id` text NOT NULL,
 	`message_id` text NOT NULL,
@@ -203,8 +156,7 @@ CREATE TABLE `tool_call_logs` (
 	`result` text,
 	`status` text NOT NULL,
 	`duration_ms` integer NOT NULL,
-	`created_at` integer NOT NULL,
-	FOREIGN KEY (`tenant_id`) REFERENCES `organization`(`id`) ON UPDATE no action ON DELETE no action
+	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `user` (

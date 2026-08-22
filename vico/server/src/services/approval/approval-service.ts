@@ -20,16 +20,14 @@ class ApprovalService {
   /**
    * 创建一条 pending 状态的审批记录。
    *
-   * @param tenantId - 租户 ID
    * @param command - 待审批的命令
    * @returns 审批记录 ID
    */
-  async create(tenantId: string, command: string): Promise<string> {
+  async create(command: string): Promise<string> {
     const db = getDb();
     const id = uuid();
     await db.insert(exec_approvals).values({
       id,
-      tenant_id: tenantId,
       agent_id: '',
       command,
       status: 'pending',
@@ -74,12 +72,11 @@ class ApprovalService {
   /**
    * 创建审批并等待结果（一步完成）。
    *
-   * @param tenantId - 租户 ID
    * @param command - 待审批的命令
    * @returns 审批状态
    */
-  async requestAndWait(tenantId: string, command: string): Promise<ApprovalResult> {
-    const id = await this.create(tenantId, command);
+  async requestAndWait(command: string): Promise<ApprovalResult> {
+    const id = await this.create(command);
     return this.waitFor(id);
   }
 }

@@ -4,7 +4,7 @@
  * 提供待审批列表查询和审批处理（批准/拒绝）端点。
  */
 import { Hono } from 'hono';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { getDb, schema } from '../db/db.js';
@@ -21,10 +21,7 @@ export function execApprovalRoutes(app: Hono<{ Variables: Variables }>) {
     const db = getDb();
     const rows = await db.select()
       .from(schema.exec_approvals)
-      .where(and(
-        eq(schema.exec_approvals.tenant_id, auth.tenantId),
-        eq(schema.exec_approvals.status, 'pending'),
-      ))
+      .where(eq(schema.exec_approvals.status, 'pending'))
       .orderBy(desc(schema.exec_approvals.created_at))
       .all();
 
@@ -50,10 +47,7 @@ export function execApprovalRoutes(app: Hono<{ Variables: Variables }>) {
     const db = getDb();
     const record = await db.select({ id: schema.exec_approvals.id })
       .from(schema.exec_approvals)
-      .where(and(
-        eq(schema.exec_approvals.id, approvalId),
-        eq(schema.exec_approvals.tenant_id, auth.tenantId),
-      ))
+      .where(eq(schema.exec_approvals.id, approvalId))
       .get();
 
     if (!record) {

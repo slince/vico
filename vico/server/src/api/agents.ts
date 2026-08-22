@@ -8,14 +8,14 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/agents', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    return c.json(await agentManager.list(auth.tenantId));
+    return c.json(await agentManager.list());
   });
 
   // ── 创建 ──
   app.post('/api/v1/agents', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agent = await agentManager.create(auth.tenantId, await c.req.json());
+    const agent = await agentManager.create(await c.req.json());
     return c.json({ id: agent.id, message: 'created' });
   });
 
@@ -23,7 +23,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/agents/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agent = await agentManager.getById(auth.tenantId, c.req.param('id'));
+    const agent = await agentManager.getById(c.req.param('id'));
     if (!agent) return c.json({ error: 'Agent not found' }, 404);
     return c.json(agent);
   });
@@ -33,7 +33,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     try {
-      await agentManager.update(auth.tenantId, c.req.param('id'), await c.req.json());
+      await agentManager.update(c.req.param('id'), await c.req.json());
     } catch (e: any) {
       if (e.message === 'Agent not found') return c.json({ error: 'Agent not found' }, 404);
       if (e.message === 'Cannot modify system prompt of the default agent') return c.json({ error: e.message }, 403);
@@ -48,7 +48,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     try {
-      await agentManager.remove(auth.tenantId, c.req.param('id'));
+      await agentManager.remove(c.req.param('id'));
     } catch (e: any) {
       if (e.message === 'Cannot delete the default agent') {
         return c.json({ error: e.message }, 403);
@@ -62,7 +62,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.put('/api/v1/agents/:id/knowledge', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    await agentManager.replaceKnowledge(auth.tenantId, c.req.param('id'), await c.req.json());
+    await agentManager.replaceKnowledge(c.req.param('id'), await c.req.json());
     return c.json({ message: 'updated' });
   });
 }

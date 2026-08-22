@@ -1,4 +1,4 @@
-import { eq, and, desc, count } from 'drizzle-orm';
+import { eq, desc, count } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
@@ -44,88 +44,84 @@ const { knowledge_bases, agents } = schema;
  * 封装知识库 CRUD 和文件上传索引逻辑。
  */
 class KnowledgeManager {
-  /** 获取租户下知识库总数 */
-  async count(tenantId: string): Promise<number> {
+  /** 获取知识库总数 */
+  async count(): Promise<number> {
     const db = getDb();
-    const [row] = await db.select({ c: count() }).from(knowledge_bases)
-      .where(eq(knowledge_bases.tenant_id, tenantId))
-      .all();
+    const [row] = await db.select({ c: count() }).from(knowledge_bases).all();
     return row?.c ?? 0;
   }
 
-  /** 获取租户下所有知识库 */
-  async list(tenantId: string): Promise<KnowledgeBaseRow[]> {
+  /** 获取所有知识库 */
+  async list(): Promise<KnowledgeBaseRow[]> {
     const db = getDb();
     return db.select().from(knowledge_bases)
-      .where(eq(knowledge_bases.tenant_id, tenantId))
       .orderBy(desc(knowledge_bases.created_at))
       .all();
   }
 
   /** 获取单个知识库 */
-  async getById(tenantId: string, id: string): Promise<KnowledgeBaseRow | null> {
+  async getById(id: string): Promise<KnowledgeBaseRow | null> {
     const db = getDb();
     const kb = await db.select().from(knowledge_bases)
-      .where(and(eq(knowledge_bases.id, id), eq(knowledge_bases.tenant_id, tenantId)))
+      .where(eq(knowledge_bases.id, id))
       .get();
     return kb || null;
   }
 
   /** 创建知识库 */
-  async create(tenantId: string, input: unknown): Promise<KnowledgeBaseRow> {
+  async create(input: unknown): Promise<KnowledgeBaseRow> {
     const data = createKbSchema.parse(input) as CreateKbInput;
     const db = getDb();
     const id = uuid();
     await db.insert(knowledge_bases).values({
       id,
-      tenant_id: tenantId,
       name: data.name,
       description: data.description,
       source: 'upload',
       chunk_count: 0,
       created_at: Date.now(),
     }).run();
-    return (await this.getById(tenantId, id))!;
+    return (await this.getById(id))!;
   }
 
   /** 删除知识库，级联解除 Agent 绑定 */
-  async remove(tenantId: string, id: string): Promise<void> {
+  async remove(id: string): Promise<void> {
     const db = getDb();
     // 清除绑定此 KB 的 Agent 的 kb_id
     await db.update(agents).set({ kb_id: null }).where(eq(agents.kb_id, id)).run();
     await db.delete(knowledge_bases)
-      .where(and(eq(knowledge_bases.id, id), eq(knowledge_bases.tenant_id, tenantId)))
+      .where(eq(knowledge_bases.id, id))
       .run();
   }
 
   /** 更新知识库基本信息 */
-  async update(tenantId: string, id: string, input: unknown): Promise<KnowledgeBaseRow> {
+  async update(id: string, input: unknown): Promise<KnowledgeBaseRow> {
     const data = updateKbSchema.parse(input) as UpdateKbInput;
     const db = getDb();
     const updates: Record<string, unknown> = {};
     if (data.name !== undefined) updates.name = data.name;
     if (data.description !== undefined) updates.description = data.description;
     if (Object.keys(updates).length === 0) {
-      const kb = await this.getById(tenantId, id);
+      const kb = await this.getById(id);
       if (!kb) throw new Error('Not found');
       return kb;
     }
     await db.update(knowledge_bases)
       .set(updates)
-      .where(and(eq(knowledge_bases.id, id), eq(knowledge_bases.tenant_id, tenantId)))
+      .where(eq(knowledge_bases.id, id))
       .run();
-    return (await this.getById(tenantId, id))!;
+    return (await this.getById(id))!;
   }
 
   /**
    * 上传文件到知识库并触发索引。
    * 包含文件大小校验、MIME 白名单、magic bytes 校验、SHA256 去重。
    */
-  async uploadFile(tenantId: string, kbId: string, formData: FormData): Promise<{ chunkCount: number; documentId: string }> {
+  async uploadFile(kbId: string, formData: FormData): Promise<{ chunkCount: number; documentId: string }> {
     const db = getDb();
 
     const kb = await db.select().from(knowledge_bases)
-      .where(and(eq(knowledge_bases.id, kbId), eq(knowledge_bases.tenant_id, tenantId)))
+      .where(eq(knowledge_bases.id, kbId))
       .get();
     if (!kb) throw new Error('Knowledge base not found');
 
@@ -172,7 +168,7 @@ class KnowledgeManager {
 
     // SHA256 去重检查
     const fileHash = createHash('sha256').update(buf).digest('hex');
-    const existing = await documentManager.findByHash(tenantId, kbId, fileHash);
+    const existing = await documentManager.findByHash(kbId, fileHash);
     if (existing) {
       try { unlinkSync(tmpPath); } catch {}
       throw new Error(`Duplicate file: ${existing.filename} already indexed as document ${existing.id}`);
@@ -183,7 +179,7 @@ class KnowledgeManager {
 
     // 创建文档记录
     const doc = await documentManager.create({
-      tenantId, kbId,
+      kbId,
       filename: safeName,
       fileType: declaredType,
       fileSize: file.size,
@@ -193,31 +189,31 @@ class KnowledgeManager {
     });
 
     try {
-      await documentManager.updateStatus(tenantId, doc.id, 'indexing');
+      await documentManager.updateStatus(doc.id, 'indexing');
       const count = await ragManager.indexFile(kbId, tmpPath, doc.id);
 
       // 持久化到文件存储
       const storageKey = storageManager.generateKey(kb.name, safeName);
       await storageManager.put(tmpPath, storageKey);
-      await documentManager.updateStorageKey(tenantId, doc.id, storageKey);
+      await documentManager.updateStorageKey(doc.id, storageKey);
 
       unlinkSync(tmpPath);
-      await documentManager.updateChunkCount(tenantId, doc.id, count);
-      await documentManager.updateStatus(tenantId, doc.id, 'ready');
+      await documentManager.updateChunkCount(doc.id, count);
+      await documentManager.updateStatus(doc.id, 'ready');
       return { chunkCount: count, documentId: doc.id };
     } catch (err) {
       try { unlinkSync(tmpPath); } catch {}
       const message = err instanceof Error ? err.message : 'Unknown error';
-      await documentManager.updateStatus(tenantId, doc.id, 'error', message);
+      await documentManager.updateStatus(doc.id, 'error', message);
       throw new Error(message);
     }
   }
 
   /** 从 URL 导入网页内容到知识库 */
-  async importUrl(tenantId: string, kbId: string, url: string): Promise<{ chunkCount: number; documentId: string }> {
+  async importUrl(kbId: string, url: string): Promise<{ chunkCount: number; documentId: string }> {
     const db = getDb();
     const kb = await db.select().from(knowledge_bases)
-      .where(and(eq(knowledge_bases.id, kbId), eq(knowledge_bases.tenant_id, tenantId)))
+      .where(eq(knowledge_bases.id, kbId))
       .get();
     if (!kb) throw new Error('Knowledge base not found');
 
@@ -241,7 +237,7 @@ class KnowledgeManager {
 
     // 创建文档记录
     const doc = await documentManager.create({
-      tenantId, kbId, filename,
+      kbId, filename,
       fileType: 'text/html',
       fileSize: html.length,
       source: 'url',
@@ -249,14 +245,14 @@ class KnowledgeManager {
     });
 
     try {
-      await documentManager.updateStatus(tenantId, doc.id, 'indexing');
+      await documentManager.updateStatus(doc.id, 'indexing');
       const count = await ragManager.indexText(kbId, text, { filename, source: url }, doc.id);
-      await documentManager.updateChunkCount(tenantId, doc.id, count);
-      await documentManager.updateStatus(tenantId, doc.id, 'ready');
+      await documentManager.updateChunkCount(doc.id, count);
+      await documentManager.updateStatus(doc.id, 'ready');
       return { chunkCount: count, documentId: doc.id };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      await documentManager.updateStatus(tenantId, doc.id, 'error', message);
+      await documentManager.updateStatus(doc.id, 'error', message);
       throw err;
     }
   }

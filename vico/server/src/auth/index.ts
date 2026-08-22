@@ -5,7 +5,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { username } from 'better-auth/plugins';
-import { organization } from 'better-auth/plugins';
 import { getDb } from '../db/db.js';
 import * as authSchema from '../db/auth-schema.js';
 
@@ -30,9 +29,6 @@ export const auth: any = betterAuth({
     username({
       minUsernameLength: 2,
       maxUsernameLength: 50,
-    }),
-    organization({
-      allowUserToCreateOrganization: true,
     }),
   ],
 

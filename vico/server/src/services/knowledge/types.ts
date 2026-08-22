@@ -1,7 +1,6 @@
 /** 知识库表行类型 */
 export interface KnowledgeBaseRow {
   id: string;
-  tenant_id: string;
   name: string;
   description: string;
   source: string;

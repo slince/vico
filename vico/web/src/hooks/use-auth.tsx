@@ -9,7 +9,6 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
-  tenantId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -44,20 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(sessionRes.data.user as User);
       setSession(sessionRes.data.session as Session);
     }
-
-    // 若存在组织但未选择活跃组织，自动选择第一个
-    if (sessionRes.data?.session && !(sessionRes.data.session as any).activeOrganizationId) {
-      const orgList = await authClient.organization.list();
-      const orgs = orgList.data;
-      if (orgs && orgs.length > 0) {
-        await authClient.organization.setActive({ organizationId: orgs[0].id });
-        const updated = await authClient.getSession();
-        if (updated.data) {
-          setUser(updated.data.user as User);
-          setSession(updated.data.session as Session);
-        }
-      }
-    }
   }, []);
 
   /** 登出 */
@@ -67,8 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
-  const tenantId = (session as any)?.activeOrganizationId ?? null;
-
   return (
     <AuthContext.Provider value={{
       user,
@@ -77,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       isAuthenticated: !!user,
-      tenantId,
     }}>
       {children}
     </AuthContext.Provider>

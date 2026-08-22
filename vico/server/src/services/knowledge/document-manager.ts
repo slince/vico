@@ -12,7 +12,6 @@ const { documents } = schema;
 
 export interface DocumentRow {
   id: string;
-  tenant_id: string;
   kb_id: string;
   filename: string;
   file_type: string;
@@ -48,13 +47,13 @@ export interface PaginatedDocuments {
 
 class DocumentManager {
   /** 获取知识库内文档列表（分页 + 可选父级目录过滤） */
-  async listByKb(tenantId: string, kbId: string, opts?: DocumentListOptions): Promise<PaginatedDocuments> {
+  async listByKb(kbId: string, opts?: DocumentListOptions): Promise<PaginatedDocuments> {
     const db = getDb();
     const page = Math.max(1, opts?.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, opts?.pageSize ?? 20));
     const offset = (page - 1) * pageSize;
 
-    const conditions = [eq(documents.tenant_id, tenantId), eq(documents.kb_id, kbId)];
+    const conditions = [eq(documents.kb_id, kbId)];
     if (opts?.parentId !== undefined) {
       if (opts.parentId === null) {
         conditions.push(isNull(documents.parent_id));
@@ -79,10 +78,9 @@ class DocumentManager {
   }
 
   /** 获取指定目录下的子目录列表 */
-  async listFolders(tenantId: string, kbId: string, parentId?: string | null): Promise<DocumentRow[]> {
+  async listFolders(kbId: string, parentId?: string | null): Promise<DocumentRow[]> {
     const db = getDb();
     const conditions = [
-      eq(documents.tenant_id, tenantId),
       eq(documents.kb_id, kbId),
       eq(documents.file_type, 'application/x-directory'),
     ];
@@ -95,7 +93,7 @@ class DocumentManager {
   }
 
   /** 获取文件夹的祖先链（从根到当前） */
-  async getAncestors(tenantId: string, folderId: string): Promise<DocumentRow[]> {
+  async getAncestors(folderId: string): Promise<DocumentRow[]> {
     const db = getDb();
     const ancestors: DocumentRow[] = [];
     let currentId: string | null = folderId;
@@ -104,7 +102,6 @@ class DocumentManager {
       const row = await db.select().from(documents)
         .where(and(
           eq(documents.id, currentId),
-          eq(documents.tenant_id, tenantId),
           eq(documents.file_type, 'application/x-directory'),
         ))
         .get();
@@ -116,17 +113,17 @@ class DocumentManager {
   }
 
   /** 获取单个文档 */
-  async getById(tenantId: string, docId: string): Promise<DocumentRow | null> {
+  async getById(docId: string): Promise<DocumentRow | null> {
     const db = getDb();
     const row = await db.select().from(documents)
-      .where(and(eq(documents.id, docId), eq(documents.tenant_id, tenantId)))
+      .where(eq(documents.id, docId))
       .get();
     return row ?? null;
   }
 
   /** 创建文档记录 */
   async create(params: {
-    tenantId: string; kbId: string; filename: string; fileType: string;
+    kbId: string; filename: string; fileType: string;
     fileSize: number; fileHash?: string; source?: string; sourceUrl?: string;
     path?: string; storageKey?: string; parentId?: string | null;
   }): Promise<DocumentRow> {
@@ -140,7 +137,7 @@ class DocumentManager {
     if (params.path !== undefined) {
       computedPath = params.path; // 调用方显式指定路径时优先使用
     } else if (params.parentId) {
-      const parent = await this.getById(params.tenantId, params.parentId);
+      const parent = await this.getById(params.parentId);
       const parentPath = parent?.path || '';
       computedPath = isDir
         ? `${parentPath}${params.filename}/`
@@ -151,7 +148,6 @@ class DocumentManager {
 
     await db.insert(documents).values({
       id,
-      tenant_id: params.tenantId,
       kb_id: params.kbId,
       filename: params.filename,
       file_type: params.fileType,
@@ -166,15 +162,14 @@ class DocumentManager {
       created_at: now,
       updated_at: now,
     }).run();
-    return (await this.getById(params.tenantId, id))!;
+    return (await this.getById(id))!;
   }
 
   /** 按 file_hash 查找已存在文档（去重） */
-  async findByHash(tenantId: string, kbId: string, hash: string): Promise<DocumentRow | null> {
+  async findByHash(kbId: string, hash: string): Promise<DocumentRow | null> {
     const db = getDb();
     const row = await db.select().from(documents)
       .where(and(
-        eq(documents.tenant_id, tenantId),
         eq(documents.kb_id, kbId),
         eq(documents.file_hash, hash),
       ))
@@ -183,60 +178,60 @@ class DocumentManager {
   }
 
   /** 更新文档状态 */
-  async updateStatus(tenantId: string, id: string, status: string, errorMsg?: string): Promise<void> {
+  async updateStatus(id: string, status: string, errorMsg?: string): Promise<void> {
     const db = getDb();
     await db.update(documents).set({
       status,
       error_msg: errorMsg ?? null,
       updated_at: Date.now(),
-    }).where(and(eq(documents.id, id), eq(documents.tenant_id, tenantId))).run();
+    }).where(eq(documents.id, id)).run();
   }
 
   /** 更新文档 chunk_count */
-  async updateChunkCount(tenantId: string, id: string, delta: number): Promise<void> {
+  async updateChunkCount(id: string, delta: number): Promise<void> {
     const db = getDb();
     const doc = await db.select().from(documents)
-      .where(and(eq(documents.id, id), eq(documents.tenant_id, tenantId)))
+      .where(eq(documents.id, id))
       .get();
     if (!doc) return;
     await db.update(documents).set({
       chunk_count: doc.chunk_count + delta,
       updated_at: Date.now(),
-    }).where(and(eq(documents.id, id), eq(documents.tenant_id, tenantId))).run();
+    }).where(eq(documents.id, id)).run();
   }
 
   /** 更新文档标签或元数据 */
-  async updateMeta(tenantId: string, id: string, data: { tags?: string[]; metadata?: Record<string, unknown> }): Promise<void> {
+  async updateMeta(id: string, data: { tags?: string[]; metadata?: Record<string, unknown> }): Promise<void> {
     const db = getDb();
     const updates: Record<string, any> = { updated_at: Date.now() };
     if (data.tags) updates.tags = JSON.stringify(data.tags);
     if (data.metadata) updates.metadata = JSON.stringify(data.metadata);
     await db.update(documents).set(updates)
-      .where(and(eq(documents.id, id), eq(documents.tenant_id, tenantId))).run();
+      .where(eq(documents.id, id)).run();
   }
 
   /** 更新文档 storage_key */
-  async updateStorageKey(tenantId: string, id: string, storageKey: string): Promise<void> {
+  async updateStorageKey(id: string, storageKey: string): Promise<void> {
     const db = getDb();
     await db.update(documents).set({
       storage_key: storageKey,
       updated_at: Date.now(),
-    }).where(and(eq(documents.id, id), eq(documents.tenant_id, tenantId))).run();
+    }).where(eq(documents.id, id)).run();
   }
 
   /** 删除文档 */
-  async remove(tenantId: string, id: string): Promise<void> {
+  async remove(id: string): Promise<void> {
     const db = getDb();
     await db.delete(documents)
-      .where(and(eq(documents.id, id), eq(documents.tenant_id, tenantId)))
+      .where(eq(documents.id, id))
       .run();
   }
 
   /** 统计知识库内文档数 */
-  async countByKb(tenantId: string, kbId: string): Promise<number> {
+  async countByKb(kbId: string): Promise<number> {
     const db = getDb();
     const [row] = await db.select({ c: count() }).from(documents)
-      .where(and(eq(documents.tenant_id, tenantId), eq(documents.kb_id, kbId)))
+      .where(eq(documents.kb_id, kbId))
       .all();
     return row?.c ?? 0;
   }

@@ -1,10 +1,7 @@
 import {Hono} from 'hono';
 import {cors} from 'hono/cors';
-import {eq} from 'drizzle-orm';
 import {auth} from './auth';
 import {registerRoutes} from './api/router.js';
-import {getDb} from './db/db.js';
-import {member, session as sessionTable} from './db/auth-schema.js';
 import {config} from './config.js';
 import logger from './lib/logger.js';
 import type {Variables} from './index.js';
@@ -97,31 +94,12 @@ export function createApp(): Hono<{ Variables: Variables }> {
     return next();
   });
 
-  /** Auth 守卫中间件 — 保护 /api/v1/* 路由，private 模式下自动选择第一个组织 */
+  /** Auth 守卫中间件 — 保护 /api/v1/* 路由 */
   app.use('/api/v1/*', async (c, next) => {
     const session = c.get('session');
     const user = c.get('user');
     if (!session || !user) {
       return c.json({ error: 'Unauthorized' }, 401);
-    }
-    // 若用户尚未选择活跃组织（private 部署模式下自动选择第一个）
-    if (!session.activeOrganizationId) {
-      const db = getDb();
-      const membership = await db
-        .select({ organizationId: member.organizationId })
-        .from(member)
-        .where(eq(member.userId, user.id))
-        .limit(1)
-        .get();
-      if (!membership) {
-        return c.json({ error: 'No organization found' }, 401);
-      }
-      // 直接更新 session 记录的活跃组织
-      await db.update(sessionTable)
-        .set({ activeOrganizationId: membership.organizationId })
-        .where(eq(sessionTable.id, session.id))
-        .run();
-      session.activeOrganizationId = membership.organizationId;
     }
     return next();
   });

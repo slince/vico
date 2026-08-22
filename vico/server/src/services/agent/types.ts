@@ -12,7 +12,6 @@ export type BuiltinToolsConfig = Record<string, BuiltinToolEntry>;
 /** agents 表行类型，与 Drizzle schema 对齐 */
 export interface AgentRow {
   id: string;
-  tenant_id: string;
   name: string;
   system_prompt: string;
   model_id: string;

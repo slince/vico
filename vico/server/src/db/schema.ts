@@ -1,11 +1,10 @@
 import { sqliteTable, text, integer, real, primaryKey, unique, index } from 'drizzle-orm/sqlite-core';
 // 引用 better-auth 管理的表（用于外键约束）
-import { organization, user } from './auth-schema.js';
+import { user } from './auth-schema.js';
 
-/** 模型配置表 — 每个租户可配置多个 LLM 模型 */
+/** 模型配置表 — LLM 模型配置 */
 export const model_configs = sqliteTable('model_configs', {
   id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
   provider: text('provider').notNull(),
   model_name: text('model_name').notNull(),
   api_key: text('api_key_encrypted').notNull(),
@@ -17,7 +16,6 @@ export const model_configs = sqliteTable('model_configs', {
 /** Agent 定义表 */
 export const agents = sqliteTable('agents', {
   id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
   name: text('name').notNull(),
   system_prompt: text('system_prompt').notNull().default(''),
   model_id: text('model_id').notNull(),
@@ -36,7 +34,6 @@ export const agents = sqliteTable('agents', {
 /** 知识库表 */
 export const knowledge_bases = sqliteTable('knowledge_bases', {
   id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
   source: text('source').notNull().default('upload'),
@@ -50,7 +47,6 @@ export const knowledge_bases = sqliteTable('knowledge_bases', {
 /** 文档表 — 知识库中单个文件/URL/手动创建的文档记录 */
 export const documents = sqliteTable('documents', {
   id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
   kb_id: text('kb_id').notNull().references(() => knowledge_bases.id, { onDelete: 'cascade' }),
   filename: text('filename').notNull(),
   file_type: text('file_type').notNull(),         // 'txt'|'md'|'pdf'|'docx'|'csv'|'html'|'url'|'manual'
@@ -70,7 +66,6 @@ export const documents = sqliteTable('documents', {
   updated_at: integer('updated_at').notNull(),
 }, (table) => ({
   kbIdx: index('idx_documents_kb_id').on(table.kb_id),
-  tenantIdx: index('idx_documents_tenant').on(table.tenant_id),
   kbFileUnq: unique('uq_documents_kb_file').on(table.kb_id, table.file_hash),
   pathIdx: index('idx_documents_kb_path').on(table.kb_id, table.path),
   parentIdx: index('idx_documents_parent_id').on(table.parent_id),
@@ -91,7 +86,6 @@ export const agent_knowledge_bases = sqliteTable('agent_knowledge_bases', {
 /** 对话记录表 */
 export const conversations = sqliteTable('conversations', {
   id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
   agent_id: text('agent_id').notNull().references(() => agents.id),
   user_id: text('user_id').notNull().references(() => user.id),
   title: text('title').notNull().default(''),
@@ -116,33 +110,30 @@ export const messages = sqliteTable('messages', {
 /** 记忆表 — 工作记忆和观察记忆共享，通过 type 字段区分 */
 export const memory_entries = sqliteTable('memory_entries', {
   id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull(),
   user_id: text('user_id').notNull().default(''),
   type: text('type').notNull(),
   content: text('content').notNull(),
   importance: real('importance').notNull().default(0.5),
   created_at: integer('created_at').notNull(),
 }, (table) => ({
-  typeTenantIdx: index('idx_me_tenant_type_imp').on(table.tenant_id, table.type, table.importance),
+  typeIdx: index('idx_me_type_imp').on(table.type, table.importance),
 }));
 
 /** 命令执行审批表 */
 export const exec_approvals = sqliteTable('exec_approvals', {
   id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
   agent_id: text('agent_id').notNull().references(() => agents.id),
   command: text('command').notNull(),
   status: text('status').notNull().default('pending'),
   created_at: integer('created_at').notNull(),
   resolved_at: integer('resolved_at'),
 }, (table) => ({
-  tenantStatusIdx: index('idx_ea_tenant_status').on(table.tenant_id, table.status),
+  statusIdx: index('idx_ea_status').on(table.status),
 }));
 
 /** Thread — 会话线程表 */
 export const threads = sqliteTable('threads', {
   id: text('id').primaryKey(),
-  tenant_id: text('tenant_id').notNull().references(() => organization.id),
   agent_id: text('agent_id').notNull(),
   user_id: text('user_id'),
   title: text('title'),

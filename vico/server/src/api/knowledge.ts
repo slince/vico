@@ -17,20 +17,20 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/knowledge-bases', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    return c.json(await knowledgeManager.list(auth.tenantId));
+    return c.json(await knowledgeManager.list());
   });
 
   app.post('/api/v1/knowledge-bases', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const kb = await knowledgeManager.create(auth.tenantId, await c.req.json());
+    const kb = await knowledgeManager.create(await c.req.json());
     return c.json({ id: kb.id, message: 'created' });
   });
 
   app.get('/api/v1/knowledge-bases/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const kb = await knowledgeManager.getById(auth.tenantId, c.req.param('id'));
+    const kb = await knowledgeManager.getById(c.req.param('id'));
     if (!kb) return c.json({ error: 'Not found' }, 404);
     return c.json(kb);
   });
@@ -38,14 +38,14 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/knowledge-bases/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    await knowledgeManager.remove(auth.tenantId, c.req.param('id'));
+    await knowledgeManager.remove(c.req.param('id'));
     return c.json({ message: 'deleted' });
   });
 
   app.put('/api/v1/knowledge-bases/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const kb = await knowledgeManager.update(auth.tenantId, c.req.param('id'), await c.req.json());
+    const kb = await knowledgeManager.update(c.req.param('id'), await c.req.json());
     return c.json(kb);
   });
 
@@ -57,14 +57,14 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
     const parentId = c.req.query('parent_id') || null;
-    const folders = await documentManager.listFolders(auth.tenantId, c.req.param('id'), parentId || null);
+    const folders = await documentManager.listFolders(c.req.param('id'), parentId || null);
     return c.json({ folders });
   });
 
   app.get('/api/v1/knowledge-bases/:id/folders/:folderId/ancestors', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const ancestors = await documentManager.getAncestors(auth.tenantId, c.req.param('folderId'));
+    const ancestors = await documentManager.getAncestors(c.req.param('folderId'));
     return c.json({ ancestors });
   });
 
@@ -79,7 +79,6 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
 
     // 创建目录文档，使用实际名称作为 filename
     const doc = await documentManager.create({
-      tenantId: auth.tenantId,
       kbId: c.req.param('id'),
       filename: folderName,
       fileType: 'application/x-directory',
@@ -87,7 +86,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
       source: 'manual',
       parentId: parent_id || null,
     });
-    await documentManager.updateStatus(auth.tenantId, doc.id, 'ready');
+    await documentManager.updateStatus(doc.id, 'ready');
     return c.json({ id: doc.id, name: folderName, parent_id: doc.parent_id });
   });
 
@@ -97,7 +96,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     const page = parseInt(c.req.query('page') || '1');
     const pageSize = parseInt(c.req.query('page_size') || '20');
     const parentId = c.req.query('parent_id') !== undefined ? (c.req.query('parent_id') || null) : undefined;
-    return c.json(await documentManager.listByKb(auth.tenantId, c.req.param('id'), {
+    return c.json(await documentManager.listByKb(c.req.param('id'), {
       page, pageSize, parentId,
     }));
   });
@@ -105,7 +104,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/knowledge-bases/:id/documents/:docId', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const doc = await documentManager.getById(auth.tenantId, c.req.param('docId'));
+    const doc = await documentManager.getById(c.req.param('docId'));
     if (!doc) return c.json({ error: 'Not found' }, 404);
     return c.json(doc);
   });
@@ -117,13 +116,13 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     const docId = c.req.param('docId');
 
     // 清理存储文件
-    const doc = await documentManager.getById(auth.tenantId, docId);
+    const doc = await documentManager.getById(docId);
     if (doc?.storage_key) {
       try { await storageManager.delete(doc.storage_key); } catch {}
     }
 
     await ragManager.deleteDocumentChunks(kbId, docId);
-    await documentManager.remove(auth.tenantId, docId);
+    await documentManager.remove(docId);
     return c.json({ message: 'deleted' });
   });
 
@@ -138,7 +137,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
     const docId = c.req.param('docId');
     const body = await c.req.json();
-    await documentManager.updateMeta(auth.tenantId, docId, body);
+    await documentManager.updateMeta(docId, body);
     return c.json({ message: 'updated' });
   });
 
@@ -147,7 +146,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/knowledge-bases/:id/documents/:docId/download', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const doc = await documentManager.getById(auth.tenantId, c.req.param('docId'));
+    const doc = await documentManager.getById(c.req.param('docId'));
     if (!doc) return c.json({ error: 'Not found' }, 404);
     if (!doc.storage_key) return c.json({ error: 'File not persisted' }, 404);
 
@@ -167,7 +166,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
     const kbId = c.req.param('id');
     const docId = c.req.param('docId');
-    const doc = await documentManager.getById(auth.tenantId, docId);
+    const doc = await documentManager.getById(docId);
     if (!doc) return c.json({ error: 'Not found' }, 404);
 
     // 有 storage_key → 从文件存储读取
@@ -282,7 +281,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     const { url } = await c.req.json();
     if (!url) return c.json({ error: 'url is required' }, 400);
     try {
-      const result = await knowledgeManager.importUrl(auth.tenantId, c.req.param('id'), url);
+      const result = await knowledgeManager.importUrl(c.req.param('id'), url);
       return c.json({ message: 'imported', ...result });
     } catch (e: any) {
       return c.json({ error: e.message }, 400);
@@ -298,7 +297,6 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     if (!content || !filename) return c.json({ error: 'content and filename required' }, 400);
 
     const doc = await documentManager.create({
-      tenantId: auth.tenantId,
       kbId: c.req.param('id'),
       filename: `${filename}.md`,
       fileType: 'text/markdown',
@@ -308,13 +306,13 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     });
 
     try {
-      await documentManager.updateStatus(auth.tenantId, doc.id, 'indexing');
+      await documentManager.updateStatus(doc.id, 'indexing');
       const count = await ragManager.indexText(c.req.param('id'), content, { filename: `${filename}.md`, source: 'manual' }, doc.id);
-      await documentManager.updateChunkCount(auth.tenantId, doc.id, count);
-      await documentManager.updateStatus(auth.tenantId, doc.id, 'ready');
+      await documentManager.updateChunkCount(doc.id, count);
+      await documentManager.updateStatus(doc.id, 'ready');
       return c.json({ id: doc.id, chunk_count: count });
     } catch (err: any) {
-      await documentManager.updateStatus(auth.tenantId, doc.id, 'error', err.message);
+      await documentManager.updateStatus(doc.id, 'error', err.message);
       throw err;
     }
   });
@@ -326,7 +324,6 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
     try {
       const result = await knowledgeManager.uploadFile(
-        auth.tenantId,
         c.req.param('id'),
         await c.req.formData(),
       );

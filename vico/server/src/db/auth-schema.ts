@@ -22,7 +22,6 @@ export const session = sqliteTable('session', {
   expiresAt: integer('expiresAt', { mode: 'timestamp' }).notNull(),
   ipAddress: text('ipAddress'),
   userAgent: text('userAgent'),
-  activeOrganizationId: text('activeOrganizationId'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull(),
 });
@@ -54,37 +53,3 @@ export const verification = sqliteTable('verification', {
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull(),
 });
 
-/** better-auth 组织（租户）表 — 替代原有 tenants 表 */
-export const organization = sqliteTable('organization', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  slug: text('slug').unique(),
-  logo: text('logo'),
-  metadata: text('metadata'),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
-});
-
-/** better-auth 组织成员表 */
-export const member = sqliteTable('member', {
-  id: text('id').primaryKey(),
-  organizationId: text('organizationId').notNull()
-    .references(() => organization.id, { onDelete: 'cascade' }),
-  userId: text('userId').notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  role: text('role').notNull().default('member'),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
-});
-
-/** better-auth 邀请表 */
-export const invitation = sqliteTable('invitation', {
-  id: text('id').primaryKey(),
-  organizationId: text('organizationId').notNull()
-    .references(() => organization.id, { onDelete: 'cascade' }),
-  email: text('email').notNull(),
-  role: text('role'),
-  status: text('status').notNull().default('pending'),
-  expiresAt: integer('expiresAt', { mode: 'timestamp' }).notNull(),
-  inviterId: text('inviterId').notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
-});
