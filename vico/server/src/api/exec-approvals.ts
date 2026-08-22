@@ -12,7 +12,7 @@ import { getDb, schema } from '../db/db.js';
 export function execApprovalRoutes(app: Hono<{ Variables: Variables }>) {
   /**
    * GET /api/v1/exec-approvals/pending
-   * 获取当前租户所有待审批的命令执行请求。
+   * 获取所有待审批的命令执行请求。
    */
   app.get('/api/v1/exec-approvals/pending', async (c) => {
     const auth = await getAuthContext(c);

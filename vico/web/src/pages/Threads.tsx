@@ -64,9 +64,8 @@ interface Agent {
 /**
  * Threads list page.
  *
- * Displays a searchable, filterable table of all user-Agent threads
- * across the current tenant. Each row links through to a thread detail
- * page (`/threads/:id`).
+ * Displays a searchable, filterable table of all user-Agent threads.
+ * Each row links through to a thread detail page (`/threads/:id`).
  *
  * States handled:
  * - loading – skeleton table rows

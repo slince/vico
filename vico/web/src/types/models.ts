@@ -10,7 +10,7 @@ export interface Agent {
   id: string;
   /** Agent 名称，允许中文 */
   name: string;
-  /** 是否为租户默认 Agent（1=是，0=否），每个租户只有一个默认 Agent */
+  /** 是否为默认 Agent（1=是，0=否），全局只有一个默认 Agent */
   is_default: number;
 }
 

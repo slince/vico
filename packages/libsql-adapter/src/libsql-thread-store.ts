@@ -15,10 +15,7 @@ export interface LibSqlThreadStoreOptions {
   db: LibSQLDatabase<typeof schema>;
 }
 
-/**
- * LibSQL 版 ThreadStore。
- * 无租户过滤，适合单租户场景。
- */
+/** LibSQL 版 ThreadStore。 */
 export class LibSqlThreadStore implements ThreadStore {
   private db: LibSQLDatabase<typeof schema>;
 

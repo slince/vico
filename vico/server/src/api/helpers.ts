@@ -7,7 +7,7 @@ export interface AuthContext {
 
 /**
  * 从 better-auth session 提取 AuthContext，供路由处理函数使用。
- * 单租户模式下仅返回 { userId }。
+ * 仅返回 { userId }。
  *
  * @param c Hono 上下文
  * @returns AuthContext，若未认证则返回 401 Response

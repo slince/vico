@@ -15,10 +15,7 @@ export interface MysqlThreadStoreOptions {
   db: MySql2Database<typeof schema>;
 }
 
-/**
- * MySQL-based ThreadStore.
- * No tenant filtering; suitable for single-tenant scenarios.
- */
+/** MySQL-based ThreadStore. */
 export class MysqlThreadStore implements ThreadStore {
   private db: MySql2Database<typeof schema>;
 

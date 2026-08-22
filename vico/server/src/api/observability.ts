@@ -9,7 +9,6 @@ import type { InValue } from '@libsql/client';
  *
  * 提供 trace 列表查询、单条 trace 详情、聚合统计三个端点。
  * 数据来源于 Mastra Storage Exporter 自动写入 mastra_ai_spans 的遥测数据。
- * 单租户模式下不做租户隔离过滤。
  *
  * LibSQL 存储后端未实现 listTracesLight/getTrace 方法（会抛错误），
  * 因此直接通过 libsql client 查询 mastra_ai_spans 表。

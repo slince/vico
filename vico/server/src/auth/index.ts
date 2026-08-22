@@ -1,6 +1,6 @@
 /**
  * Vico 认证模块 — 基于 better-auth
- * 提供邮箱/用户名密码认证、Session 管理、多租户（组织）支持
+ * 提供邮箱/用户名密码认证、Session 管理
  */
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
