@@ -37,7 +37,7 @@ export function createConfiguredEmbedder(): Embedder {
     }
     embedder = createEmbedder({ provider, model });
   } else {
-    embedder = createEmbedder(embedderCfg as any);
+    embedder = createEmbedder(embedderCfg);
   }
   _embedder = embedder;
   return embedder;

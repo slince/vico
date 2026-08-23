@@ -33,7 +33,7 @@ export { MarkdownChunker } from './chunking/markdown.js';
 export { CodeChunker } from './chunking/code.js';
 
 // Embedding
-export { createEmbedder } from './embedding/index.js';
+export { createEmbedder, type EmbedderConfig } from './embedding/index.js';
 export { FastEmbedEmbedder, type FastEmbedOptions } from './embedding/fastembed.js';
 export { OpenAIEmbedder, type OpenAIEmbedderOptions } from './embedding/openai.js';
 

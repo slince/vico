@@ -2,6 +2,7 @@ import {existsSync, readFileSync} from 'node:fs';
 import {parse} from 'yaml';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import type {EmbedderConfig} from '@vico/rag';
 
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,7 +30,7 @@ interface AppConfig {
     chunk_size: number;
     chunk_overlap: number;
     retrieval_top_k: number;
-    embedder: 'fastembed' | string | Record<string, unknown>;
+    embedder: string | EmbedderConfig;
   };
   /** 文件存储后端配置 */
   storage: {
