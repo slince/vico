@@ -30,7 +30,7 @@ export type EmbedderConfig = FastEmbedProviderConfig | OpenAIProviderConfig;
  *
  * 支持字符串：
  * - "fastembed" — 本地 ONNX 嵌入
- * - "openai:<baseUrl>" — OpenAI-compatible API（自定义 endpoint）
+ * - "openai/<model>" — OpenAI API（缺省 provider 时可直接写模型名，如 "text-embedding-3-small"）
  *
  * 支持对象（按 provider 分层）：
  * - { provider: "fastembed", model?, cacheDir?, allowRemoteModels? }
@@ -40,15 +40,18 @@ export type EmbedderConfig = FastEmbedProviderConfig | OpenAIProviderConfig;
  * @returns Embedder 实例（无法解析时抛出）
  */
 export function createEmbedder(config: string | EmbedderConfig): Embedder {
-  // string 形式
+  // string 形式：识别内置别名，其余按 "provider/model" 解析（缺省 provider 时默认 openai）
   if (typeof config === 'string') {
     if (config === 'fastembed') {
       return new FastEmbedEmbedder();
     }
-    if (config.startsWith('openai:')) {
-      return new OpenAIEmbedder({ baseUrl: config.slice('openai:'.length) });
+    const slash = config.indexOf('/');
+    const provider = slash === -1 ? 'openai' : config.slice(0, slash);
+    const model = slash === -1 ? config : config.slice(slash + 1);
+    if (provider !== 'openai') {
+      throw new Error(`Unsupported embedder provider: "${provider}"`);
     }
-    throw new Error(`Unsupported embedder config: "${config}"`);
+    return new OpenAIEmbedder({ model });
   }
 
   // object 形式，按 provider 判别

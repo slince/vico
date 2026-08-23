@@ -23,22 +23,7 @@ let _embedder: Embedder | undefined;
  */
 export function createConfiguredEmbedder(): Embedder {
   if (_embedder) return _embedder;
-  const { embedder: embedderCfg } = config.rag;
-  let embedder: Embedder;
-  if (embedderCfg === 'fastembed') {
-    embedder = createEmbedder('fastembed');
-  } else if (typeof embedderCfg === 'string') {
-    // string 形式为 "provider/model"（如 "openai/text-embedding-3-small"）；无前缀时默认 openai
-    const slash = embedderCfg.indexOf('/');
-    const provider = slash === -1 ? 'openai' : embedderCfg.slice(0, slash);
-    const model = slash === -1 ? embedderCfg : embedderCfg.slice(slash + 1);
-    if (provider !== 'openai') {
-      throw new Error(`Unsupported embedder provider: "${provider}"`);
-    }
-    embedder = createEmbedder({ provider, model });
-  } else {
-    embedder = createEmbedder(embedderCfg);
-  }
+  const embedder = createEmbedder(config.rag.embedder);
   _embedder = embedder;
   return embedder;
 }
