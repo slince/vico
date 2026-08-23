@@ -3,7 +3,6 @@ import { eq, and } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import {
   DEFAULT_WORKING_MEMORY_TEMPLATE,
-  KeyedMutex,
   MEMORY_ENTRY_TYPE,
   WORKING_MEMORY_SCOPE_TYPE,
   type WorkingMemory,
@@ -23,8 +22,6 @@ export interface MysqlWorkingMemoryOptions {
 export class MysqlWorkingMemory implements WorkingMemory {
   private db: MySql2Database<typeof schema>;
   private template: string;
-  /** 按 scopeId 分片的写锁 — 串行化同一用户的并发写 */
-  private readonly mutex = new KeyedMutex();
 
   constructor(options: MysqlWorkingMemoryOptions) {
     this.db = options.db;
@@ -47,29 +44,27 @@ export class MysqlWorkingMemory implements WorkingMemory {
   }
 
   async set(scopeId: string, content: string): Promise<void> {
-    await this.mutex.run(scopeId, async () => {
-      // Use deterministic id for upsert (INSERT … ON DUPLICATE KEY UPDATE)
-      const id = `user:${scopeId}:working`;
-      const now = Date.now();
+    // Use deterministic id for upsert (INSERT … ON DUPLICATE KEY UPDATE)
+    const id = `user:${scopeId}:working`;
+    const now = Date.now();
 
-      await this.db
-        .insert(memoryEntries)
-        .values({
-          id,
-          thread_id: null,
-          scope_type: WORKING_MEMORY_SCOPE_TYPE,
-          scope_id: scopeId,
-          type: MEMORY_ENTRY_TYPE.working,
-          content,
-          embedding: null,
-          metadata: {},
-          importance: 0,
-          created_at: now,
-        })
-        .onDuplicateKeyUpdate({
-          set: { content, created_at: now },
-        });
-    });
+    await this.db
+      .insert(memoryEntries)
+      .values({
+        id,
+        thread_id: null,
+        scope_type: WORKING_MEMORY_SCOPE_TYPE,
+        scope_id: scopeId,
+        type: MEMORY_ENTRY_TYPE.working,
+        content,
+        embedding: null,
+        metadata: {},
+        importance: 0,
+        created_at: now,
+      })
+      .onDuplicateKeyUpdate({
+        set: { content, created_at: now },
+      });
   }
 
   getTemplate(): string {
