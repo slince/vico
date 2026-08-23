@@ -159,7 +159,7 @@ export { createAgent } from './agent/create-agent.js';
 
 // LoopAgent（Agent 默认实现）
 export { LoopAgent, type LoopAgentOptions } from './agent/loop-agent.js';
-export { collectTurnResult, normalizeUserMessage, extractApprovalDecisions } from './agent/utils.js';
+export { collectTurnResult, normalizeUserMessage } from './agent/utils.js';
 export { TurnOutput } from './agent/turn-output.js';
 export { type TurnEvent } from './agent/types.js';
 export { type TurnResult, type RunOptions, type ToolApproval, type ToolCallApproval } from './agent/loop-agent-options.js';

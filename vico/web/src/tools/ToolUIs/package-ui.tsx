@@ -59,6 +59,9 @@ export const PackageToolRenderer: ToolCallMessagePartComponent = ({
   result,
   isError,
   approval,
+  interrupt,
+  resume,
+  addResult,
   respondToApproval,
 }) => {
   const {t} = useTranslation('assistant');
@@ -79,6 +82,9 @@ export const PackageToolRenderer: ToolCallMessagePartComponent = ({
       result={result}
       isError={isError}
       approval={approval}
+      interrupt={interrupt}
+      resume={resume}
+      addResult={addResult}
       respondToApproval={respondToApproval}
       approvalDescription={approvalDescription}
       renderResult={(r) => {

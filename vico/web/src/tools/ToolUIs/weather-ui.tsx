@@ -11,7 +11,7 @@ import {Cloud, Droplets, MapPin, Thermometer, Wind, Check, X} from 'lucide-react
 import {ToolApprovalCard} from '@/components/assistant-ui/tool-approval-card';
 import type {GetWeatherArgs, GetWeatherResult} from '../get-weather.tool';
 
-export const WeatherToolRenderer: ToolCallMessagePartComponent<GetWeatherArgs, GetWeatherResult> = ({ status, args, result, isError, approval, respondToApproval }) => {
+export const WeatherToolRenderer: ToolCallMessagePartComponent<GetWeatherArgs, GetWeatherResult> = ({ status, args, result, isError, approval, interrupt, resume, addResult, respondToApproval }) => {
   const {t} = useTranslation('assistant');
 
   // 审批已裁决（被拒绝或已批准且有结果）
@@ -83,6 +83,10 @@ export const WeatherToolRenderer: ToolCallMessagePartComponent<GetWeatherArgs, G
         toolName={t('tool.weather.title')}
         title={t('tool.weather.approvalTitle')}
         description={t('tool.weather.location', {location: String(args?.location ?? t('tool.weather.unknown'))})}
+        approval={approval}
+        interrupt={interrupt}
+        resume={resume}
+        addResult={addResult}
         respondToApproval={respondToApproval}
       />
     );

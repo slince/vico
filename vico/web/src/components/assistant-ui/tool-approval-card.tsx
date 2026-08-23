@@ -5,12 +5,10 @@ import {useTranslation} from "react-i18next";
 import {ShieldAlert} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {cn} from "@/lib/utils";
-import {ToolApprovalResponse} from "@assistant-ui/react";
+import type {ToolCallMessagePart, ToolCallMessagePartProps} from "@assistant-ui/react";
 
-/** 审批响应函数签名 */
-type ApproveFn = (response: ToolApprovalResponse) => void;
-
-export interface ToolApprovalCardProps {
+export interface ToolApprovalCardProps
+  extends Partial<Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">> {
   /** 工具名称（展示用） */
   toolName: string;
   /** 审批标题（如 "天气查询需要确认"），不传则默认 "{toolName} 需要确认" */
@@ -21,8 +19,10 @@ export interface ToolApprovalCardProps {
   children?: ReactNode;
   /** 自定义图标 */
   icon?: React.ElementType;
-  /** assistant-ui approve 回调 */
-  respondToApproval?: ApproveFn;
+  /** 服务端审批门禁状态（未决时 respondToApproval 才有效） */
+  approval?: ToolCallMessagePart["approval"];
+  /** 前端 human 工具的中断请求（需 resume 恢复） */
+  interrupt?: ToolCallMessagePart["interrupt"];
   className?: string;
 }
 
@@ -38,18 +38,38 @@ export function ToolApprovalCard({
   description,
   children,
   icon: Icon = ShieldAlert,
+  approval,
+  interrupt,
+  resume,
+  addResult,
   respondToApproval,
   className,
 }: ToolApprovalCardProps) {
   const {t} = useTranslation("assistant");
   const [submitted, setSubmitted] = useState(false);
 
+  // 审批已裁决（已批准/拒绝/取消/过期）→ 不再渲染审批按钮，交由父渲染器展示结果态
+  if (
+    approval != null &&
+    (approval.approved !== undefined || approval.resolution !== undefined)
+  ) {
+    return null;
+  }
+
   const respond = (approved: boolean) => {
     if (submitted) return;
-    try {
-      respondToApproval?.({ approved });
-    } catch (e) {
-      console.error('[ToolApprovalCard] respondToApproval error:', e);
+    // 三种 HITL 机制分别处理：服务端 approval 门禁 / 前端 human 中断 / 直接写结果兜底
+    if (
+      approval != null &&
+      approval.approved === undefined &&
+      approval.resolution === undefined &&
+      respondToApproval
+    ) {
+      respondToApproval({ approved });
+    } else if (interrupt) {
+      resume?.({ approved });
+    } else {
+      addResult?.(approved ? t("tool.approvedResult") : t("tool.deniedResult"));
     }
     setSubmitted(true);
   };

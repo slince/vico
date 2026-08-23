@@ -106,6 +106,9 @@ export const FileReadRenderer: ToolCallMessagePartComponent = ({
   result,
   isError,
   approval,
+  interrupt,
+  resume,
+  addResult,
   respondToApproval,
 }) => {
   const {t} = useTranslation('assistant');
@@ -120,6 +123,9 @@ export const FileReadRenderer: ToolCallMessagePartComponent = ({
       result={result}
       isError={isError}
       approval={approval}
+      interrupt={interrupt}
+      resume={resume}
+      addResult={addResult}
       respondToApproval={respondToApproval}
       renderResult={(r) => {
         switch (toolName) {

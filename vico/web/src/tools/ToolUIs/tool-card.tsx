@@ -9,7 +9,7 @@
 import {useState, type ReactNode} from 'react';
 import { useTranslation } from 'react-i18next';
 import {Loader2, Wrench, X, ChevronDown} from 'lucide-react';
-import type {ToolApprovalResponse, ToolCallMessagePartStatus} from '@assistant-ui/react';
+import type {ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartProps, ToolCallMessagePartStatus} from '@assistant-ui/react';
 import {ToolApprovalCard} from '@/components/assistant-ui/tool-approval-card';
 import {cn} from '@/lib/utils';
 
@@ -24,8 +24,14 @@ export interface ToolCardProps {
   result?: unknown;
   /** 是否出错 */
   isError?: boolean;
-  /** 审批状态 */
-  approval?: {approved?: boolean};
+  /** 服务端审批门禁状态 */
+  approval?: ToolCallMessagePart["approval"];
+  /** 前端 human 工具的中断请求 */
+  interrupt?: ToolCallMessagePart["interrupt"];
+  /** 恢复 human 工具（interrupt）执行 */
+  resume?: ToolCallMessagePartProps["resume"];
+  /** 直接写入工具结果（无审批/无 interrupt 时的兜底） */
+  addResult?: ToolCallMessagePartProps["addResult"];
   /** 审批回调 */
   respondToApproval?: (response: ToolApprovalResponse) => void;
   /** 审批卡片补充描述（requires-action 时展示） */
@@ -51,6 +57,9 @@ export function ToolCard({
   result,
   isError,
   approval,
+  interrupt,
+  resume,
+  addResult,
   respondToApproval,
   approvalDescription,
   renderResult,
@@ -112,6 +121,10 @@ export function ToolCard({
         toolName={title}
         description={approvalDescription}
         icon={Icon}
+        approval={approval}
+        interrupt={interrupt}
+        resume={resume}
+        addResult={addResult}
         respondToApproval={respondToApproval}
       />
     );

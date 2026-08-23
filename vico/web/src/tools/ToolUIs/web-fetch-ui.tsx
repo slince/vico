@@ -25,6 +25,9 @@ export const WebFetchRenderer: ToolCallMessagePartComponent = ({
   result,
   isError,
   approval,
+  interrupt,
+  resume,
+  addResult,
   respondToApproval,
 }) => {
   const {t} = useTranslation('assistant');
@@ -36,6 +39,9 @@ export const WebFetchRenderer: ToolCallMessagePartComponent = ({
       result={result}
       isError={isError}
       approval={approval}
+      interrupt={interrupt}
+      resume={resume}
+      addResult={addResult}
       respondToApproval={respondToApproval}
       renderResult={(r) => {
         const res = r as WebFetchResult;

@@ -20,7 +20,7 @@ function parseSourceLine(line: string) {
   return { filename: source[0] || 'unknown', chunkIndex: source[1] || '', content: match[2] };
 }
 
-export const KnowledgeSearchToolRenderer: ToolCallMessagePartComponent<KnowledgeSearchArgs, KnowledgeSearchResult> = ({ status, args, result, isError, approval, respondToApproval }) => {
+export const KnowledgeSearchToolRenderer: ToolCallMessagePartComponent<KnowledgeSearchArgs, KnowledgeSearchResult> = ({ status, args, result, isError, approval, interrupt, resume, addResult, respondToApproval }) => {
   const { t } = useTranslation('assistant');
 
   // 审批已裁决（被拒绝或已批准且有结果）
@@ -102,6 +102,10 @@ export const KnowledgeSearchToolRenderer: ToolCallMessagePartComponent<Knowledge
         toolName={t('tool.knowledgeSearch.name')}
         title={t('tool.knowledgeSearch.approvalTitle')}
         description={t('tool.knowledgeSearch.query', {query: String(args?.query ?? '')})}
+        approval={approval}
+        interrupt={interrupt}
+        resume={resume}
+        addResult={addResult}
         respondToApproval={respondToApproval}
       />
     );
