@@ -7,8 +7,11 @@ import { getMessageText } from '../../model/message-utils.js';
 import type {MemoryStore} from '../../memory/memory-store.js';
 import type {MemoryRecord} from '../../memory/types.js';
 
-/** 事实匹配模式 — 包含这些动词/模式的句子视为事实 */
-const FACT_PATTERNS = /\b(is|are|was|were|lives?|works?|located|prefers?|likes?|uses?|has|have|name|from|occupation|role|goal|deadline|project)\b/i;
+/** 事实匹配模式 — 聚焦用户属性陈述（“我”开头或含属性词），避免泛化 be/have 动词误报 */
+const FACT_PATTERNS = /(我(?:叫|是|住|在|喜欢|偏好|做|从事)|职业|工作|职位|电话|邮箱|地址|生日|年龄|姓名|名字|(?:my|i'?m|i)\b|occupation|role|job|email|phone|address|location|prefer|like)/i;
+
+/** 语义召回最小相似度 — 低于该值的记忆视为不相关，不注入上下文 */
+const RECALL_MIN_SCORE = 0.5;
 
 /** 注入会话历史、工作记忆和语义召回结果（NORMAL 优先级） */
 export class MemoryProcessor implements ContextProcessor {
@@ -85,9 +88,11 @@ export class MemoryProcessor implements ContextProcessor {
     if (!query) return;
 
     const items = await this.memoryStore.semantic.search(query, 5, ctx.scopeId);
-    if (items.length === 0) return;
+    // 按相似度阈值过滤，避免低相关记忆污染上下文
+    const relevant = items.filter((m) => m.score >= RECALL_MIN_SCORE);
+    if (relevant.length === 0) return;
 
-    const memText = items.map((m) => `- ${m.content}`).join('\n');
+    const memText = relevant.map((m) => `- ${m.content}`).join('\n');
     ctx.messages.push({ role: 'system', content: `相关记忆：\n${memText}` });
   }
 
@@ -103,15 +108,16 @@ export class MemoryProcessor implements ContextProcessor {
     const scopeId = ctx.scopeId || undefined;
     const facts: MemoryRecord[] = [];
 
-    for (const msg of ctx.messages) {
-      if (msg.role !== 'assistant') continue;
+    // 仅扫本轮用户消息 — 用户陈述是事实源头，且避免跨轮重复提取历史
+    for (const msg of ctx.userMessages) {
+      if (msg.role !== 'user') continue;
       const text = getMessageText(msg);
-      if (!text || text.length < 10) continue;
+      if (!text || text.length < 4) continue;
 
-      // 按句号、换行拆分
-      const sentences = text.split(/[.\n]+/).map((s) => s.trim()).filter(Boolean);
+      // 按中英文标点拆分句子
+      const sentences = text.split(/[。！？!?.\n]+/).map((s) => s.trim()).filter(Boolean);
       for (const sentence of sentences) {
-        if (sentence.length < 15) continue; // 太短的不算事实
+        if (sentence.length < 4) continue; // 过滤过短片段（“嗯”“好”等）
         if (!FACT_PATTERNS.test(sentence)) continue;
 
         facts.push({

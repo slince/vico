@@ -1,9 +1,11 @@
 // @vico/core - VectorSemanticRecall: 基于 @vico/rag BatchEmbedder + VectorStore 的语义召回实现
-import type {MemoryRecord, SemanticRecallMemory} from '../types.js';
+import type {MemoryRecord, MemorySearchResult, SemanticRecallMemory} from '../types.js';
 import type {BatchEmbedder, VectorStore, VectorQueryResult} from '@vico/rag';
 import {InMemoryVectorStore} from '@vico/rag';
 
 const INDEX = 'memory';
+/** 语义去重阈值 — 已有记忆相似度达到该值视为重复，跳过写入 */
+const DEDUP_THRESHOLD = 0.92;
 
 /** VectorSemanticRecall 构造选项 */
 export interface VectorSemanticRecallOptions {
@@ -33,7 +35,7 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
     }
   }
 
-  async search(query: string, limit = 5, scopeId?: string): Promise<MemoryRecord[]> {
+  async search(query: string, limit = 5, scopeId?: string): Promise<MemorySearchResult[]> {
     const { embeddings } = await this.embedder.doEmbed({ values: [query] });
     await this.ensureIndex(embeddings[0].length);
     const results = await this.store.query({
@@ -52,6 +54,18 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
       embedding = embeddings[0];
     }
     await this.ensureIndex(embedding.length);
+
+    // 语义去重 — 复用已算好的 embedding 查最近邻，避免重复堆积同一事实
+    const dups = await this.store.query({
+      indexName: INDEX,
+      queryVector: embedding,
+      topK: 1,
+      filter: record.scopeId ? { scopeId: record.scopeId } : undefined,
+    });
+    if (dups.length > 0 && dups[0].score >= DEDUP_THRESHOLD) {
+      return;
+    }
+
     await this.store.upsert({
       indexName: INDEX,
       vectors: [embedding],
@@ -103,8 +117,8 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
     };
   }
 
-  /** 将向量查询结果还原为 MemoryRecord */
-  private toRecord(r: VectorQueryResult): MemoryRecord {
+  /** 将向量查询结果还原为带分数的 MemorySearchResult */
+  private toRecord(r: VectorQueryResult): MemorySearchResult {
     return {
       id: r.id,
       content: r.metadata.content as string ?? '',
@@ -112,6 +126,7 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
       scopeId: r.metadata.scopeId as string | undefined,
       createdAt: r.metadata.createdAt as number ?? Date.now(),
       metadata: r.metadata as Record<string, unknown>,
+      score: r.score,
     };
   }
 }

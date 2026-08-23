@@ -11,6 +11,12 @@ export interface MemoryRecord {
   createdAt: number;
 }
 
+/** 语义搜索结果 — 在 MemoryRecord 基础上附带相似度分数 */
+export interface MemorySearchResult extends MemoryRecord {
+  /** 余弦相似度（约 -1~1，越大越相关） */
+  score: number;
+}
+
 /** 语义召回记忆 — 基于向量检索的长期记忆 */
 export interface SemanticRecallMemory {
   /**
@@ -18,7 +24,7 @@ export interface SemanticRecallMemory {
    *
    * @param scopeId - 用户级隔离标识；提供时仅召回该用户的记忆
    */
-  search(query: string, limit?: number, scopeId?: string): Promise<MemoryRecord[]>;
+  search(query: string, limit?: number, scopeId?: string): Promise<MemorySearchResult[]>;
   /** 创建记忆记录 */
   create(record: MemoryRecord): Promise<void>;
   /** 更新记忆记录 */

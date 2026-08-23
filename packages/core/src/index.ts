@@ -9,7 +9,7 @@ export {
   type ToolPolicy,
   type ToolKind,
 } from './tool/types.js';
-export { type MemoryRecord } from './memory/types.js';
+export { type MemoryRecord, type MemorySearchResult } from './memory/types.js';
 
 // Ports — Model（消息/流类型全部 re-export AI SDK 原生类型）
 export type { ModelMessage, UIMessage, UIMessageChunk, ToolSet } from 'ai';
