@@ -21,7 +21,7 @@ export async function api<T = any>(
 
   if (!res.ok) {
     if (res.status === 401) {
-      window.location.href = '/login';
+      console.warn('[api] 收到 401，会话可能失效，暂不跳转登录页', { path, url: res.url, status: res.status });
       throw new Error('Unauthorized');
     }
     const body = await res.json().catch(() => ({}));

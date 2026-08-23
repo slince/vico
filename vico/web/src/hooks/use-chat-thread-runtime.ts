@@ -87,7 +87,7 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
     },
     onError: (err: Error) => {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
-        window.location.href = '/login';
+        console.warn('[chat] 流式请求收到 401/Unauthorized，会话可能失效，暂不跳转登录页', { message: err.message });
       }
       onError?.(err);
     },
