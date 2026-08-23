@@ -1,6 +1,7 @@
 "use client";
 
 import {type ReactNode, useState} from "react";
+import {useTranslation} from "react-i18next";
 import {ShieldAlert} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {cn} from "@/lib/utils";
@@ -40,11 +41,11 @@ export function ToolApprovalCard({
   respondToApproval,
   className,
 }: ToolApprovalCardProps) {
+  const {t} = useTranslation("assistant");
   const [submitted, setSubmitted] = useState(false);
 
   const respond = (approved: boolean) => {
     if (submitted) return;
-    console.log('[ToolApprovalCard] respond called, approved:', approved, 'respondToApproval:', typeof respondToApproval);
     try {
       respondToApproval?.({ approved });
     } catch (e) {
@@ -63,7 +64,7 @@ export function ToolApprovalCard({
       <div className="flex items-center gap-2">
         <Icon size={14} className="text-muted-foreground" />
         <span className="text-sm font-medium">
-          {title ?? `${toolName} 需要确认`}
+          {title ?? t("tool.approvalRequired", {name: toolName})}
         </span>
       </div>
 
@@ -80,7 +81,7 @@ export function ToolApprovalCard({
           onClick={() => respond(true)}
           disabled={submitted}
         >
-          允许
+          {t("tool.allowOnce")}
         </Button>
         <Button
           size="sm"
@@ -88,7 +89,7 @@ export function ToolApprovalCard({
           onClick={() => respond(false)}
           disabled={submitted}
         >
-          拒绝
+          {t("tool.denyOnce")}
         </Button>
       </div>
     </div>

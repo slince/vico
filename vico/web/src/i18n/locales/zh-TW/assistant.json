@@ -43,6 +43,7 @@
     "allowAlways": "始終允許",
     "denyOnce": "拒絕",
     "denyAlways": "始終拒絕",
+    "approvalRequired": "{{name}} 需要確認",
     "knowledgeSearch": {
       "searching": "正在搜尋知識庫...",
       "failed": "知識庫搜尋失敗",

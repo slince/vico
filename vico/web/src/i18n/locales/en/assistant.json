@@ -43,6 +43,7 @@
     "allowAlways": "Always allow",
     "denyOnce": "Deny",
     "denyAlways": "Always deny",
+    "approvalRequired": "{{name}} requires confirmation",
     "knowledgeSearch": {
       "searching": "Searching knowledge base...",
       "failed": "Knowledge search failed",

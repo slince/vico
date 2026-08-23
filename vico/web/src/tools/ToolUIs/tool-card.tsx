@@ -108,7 +108,6 @@ export function ToolCard({
     return (
       <ToolApprovalCard
         toolName={title}
-        title={`${title}需要确认`}
         description={approvalDescription}
         icon={Icon}
         respondToApproval={respondToApproval}

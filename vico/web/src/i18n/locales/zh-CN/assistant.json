@@ -43,6 +43,7 @@
     "allowAlways": "始终允许",
     "denyOnce": "拒绝",
     "denyAlways": "始终拒绝",
+    "approvalRequired": "{{name}} 需要确认",
     "knowledgeSearch": {
       "searching": "正在搜索知识库...",
       "failed": "知识库搜索失败",
