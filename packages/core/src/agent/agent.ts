@@ -25,7 +25,8 @@ export interface AgentOptions {
   temperature: number;
   /** 推理力度，不传则 provider 默认 */
   reasoning?: ReasoningEffort;
-  maxTokens: number;
+  /** 最大输出 token 数，不传则由 provider 决定 */
+  maxTokens?: number;
   maxSteps: number;
   skills: Skill[];
   tools: Tool[];
@@ -66,7 +67,7 @@ export interface Agent {
   readonly modelClient: ModelClient;
   readonly temperature: number;
   readonly reasoning?: ReasoningEffort;
-  readonly maxTokens: number;
+  readonly maxTokens?: number;
   readonly maxSteps: number;
   readonly skills: Skill[];
   readonly tools: Tool[];

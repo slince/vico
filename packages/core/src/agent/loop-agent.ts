@@ -74,7 +74,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly modelClient: ModelClient;
   readonly temperature: number;
   readonly reasoning?: ReasoningEffort;
-  readonly maxTokens: number;
+  readonly maxTokens?: number;
   readonly maxSteps: number;
   readonly skills: Skill[];
   readonly tools: Tool[];

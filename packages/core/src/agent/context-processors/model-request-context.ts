@@ -11,7 +11,7 @@ export interface AgentRef {
   name: string;
   systemPrompt: string;
   temperature: number;
-  maxTokens: number;
+  maxTokens?: number;
   maxSteps: number;
 }
 

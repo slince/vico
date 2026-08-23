@@ -152,7 +152,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     model: model,
     temperature: config.temperature ?? 0.7,
     reasoning: config.reasoning,
-    maxTokens: config.maxTokens ?? 4096,
+    maxTokens: config.maxTokens,
     maxSteps: config.maxSteps ?? 10,
     skills: skills || [],
     tools: tools,
