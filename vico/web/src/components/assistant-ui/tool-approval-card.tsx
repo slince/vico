@@ -5,10 +5,9 @@ import {useTranslation} from "react-i18next";
 import {ShieldAlert} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {cn} from "@/lib/utils";
-import type {ToolCallMessagePart, ToolCallMessagePartProps} from "@assistant-ui/react";
+import type {ToolApprovalResponse, ToolCallMessagePart} from "@assistant-ui/react";
 
-export interface ToolApprovalCardProps
-  extends Partial<Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">> {
+export interface ToolApprovalCardProps {
   /** 工具名称（展示用） */
   toolName: string;
   /** 审批标题（如 "天气查询需要确认"），不传则默认 "{toolName} 需要确认" */
@@ -23,6 +22,12 @@ export interface ToolApprovalCardProps
   approval?: ToolCallMessagePart["approval"];
   /** 前端 human 工具的中断请求（需 resume 恢复） */
   interrupt?: ToolCallMessagePart["interrupt"];
+  /** 恢复 human 工具（interrupt）执行 */
+  resume?: (payload: unknown) => void;
+  /** 直接写入工具结果。result 类型随各工具 TResult 泛型而异，any 与 @assistant-ui/react 内部一致 */
+  addResult?: (result: any) => void;
+  /** 服务端审批决议回调 */
+  respondToApproval?: (response: ToolApprovalResponse) => void;
   className?: string;
 }
 

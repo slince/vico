@@ -9,7 +9,7 @@
 import {useState, type ReactNode} from 'react';
 import { useTranslation } from 'react-i18next';
 import {Loader2, Wrench, X, ChevronDown} from 'lucide-react';
-import type {ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartProps, ToolCallMessagePartStatus} from '@assistant-ui/react';
+import type {ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartStatus} from '@assistant-ui/react';
 import {ToolApprovalCard} from '@/components/assistant-ui/tool-approval-card';
 import {cn} from '@/lib/utils';
 
@@ -29,9 +29,9 @@ export interface ToolCardProps {
   /** 前端 human 工具的中断请求 */
   interrupt?: ToolCallMessagePart["interrupt"];
   /** 恢复 human 工具（interrupt）执行 */
-  resume?: ToolCallMessagePartProps["resume"];
-  /** 直接写入工具结果（无审批/无 interrupt 时的兜底） */
-  addResult?: ToolCallMessagePartProps["addResult"];
+  resume?: (payload: unknown) => void;
+  /** 直接写入工具结果。result 类型随各工具 TResult 泛型而异，any 与 @assistant-ui/react 内部一致 */
+  addResult?: (result: any) => void;
   /** 审批回调 */
   respondToApproval?: (response: ToolApprovalResponse) => void;
   /** 审批卡片补充描述（requires-action 时展示） */
