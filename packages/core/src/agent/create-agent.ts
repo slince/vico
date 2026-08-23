@@ -17,6 +17,7 @@ import {MittEventRecorder} from "../events/event-recorder.js";
 import {basicTools, codingTools, filesystemTools} from "../tool/builtin/index.js";
 import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
+import {DEFAULT_CONVERSATION_WINDOW} from '../memory/constants.js';
 import {composeResolvers, defaultApprovalResolvers} from "../tool/policy-helpers.js";
 import type {CheckpointStore} from "./checkpoint.js";
 import {MemoryCheckpointStore} from "./memory-checkpoint-store.js";
@@ -109,6 +110,8 @@ export interface AgentConfig {
   tools?: ToolOptions;
   skills?: SkillOptions;
   memory?: MemoryStore;
+  /** 会话历史滑动窗口大小（已完成轮次数），仅在未显式传入 memory 时生效 */
+  conversationWindow?: number;
   thread?: ThreadStore;
   /** 工作空间路径，作为工具执行的默认工作目录 */
   workspace?: string;
@@ -129,7 +132,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
   const events = config.events || new MittEventRecorder<TurnEvent>()
   const thread = config.thread || new InMemoryThreadStore()
   const memory = config.memory || new MemoryStore({
-    conversation: new ConversationHistoryMemory(thread, 10)
+    conversation: new ConversationHistoryMemory(thread, config.conversationWindow ?? DEFAULT_CONVERSATION_WINDOW)
   });
 
   const skills = await buildSkills(config.skills)

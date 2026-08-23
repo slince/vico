@@ -2,8 +2,9 @@
 import type {MemoryRecord, MemorySearchResult, SemanticRecallMemory} from '../types.js';
 import type {BatchEmbedder, VectorStore, VectorQueryResult} from '@vico/rag';
 import {InMemoryVectorStore} from '@vico/rag';
+import {MEMORY_INDEX_NAME} from '../constants.js';
+import {KeyedMutex} from '../../utils/async-keyed-lock.js';
 
-const INDEX = 'memory';
 /** 语义去重阈值 — 已有记忆相似度达到该值视为重复，跳过写入 */
 const DEDUP_THRESHOLD = 0.92;
 
@@ -20,6 +21,8 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
   private readonly embedder: BatchEmbedder;
   private store: VectorStore;
   private ready = false;
+  /** 按 scopeId 分片的写锁 — 串行化「去重查询 + 插入」，消除并发重复写入 */
+  private readonly mutex = new KeyedMutex();
   /** 内存缓存 — VectorStore 无单条读取能力，update 合并需依赖它 */
   private records = new Map<string, MemoryRecord>();
 
@@ -30,7 +33,7 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
 
   private async ensureIndex(dimension: number): Promise<void> {
     if (!this.ready) {
-      await this.store.createIndex({ indexName: INDEX, dimension, metric: 'cosine' });
+      await this.store.createIndex({ indexName: MEMORY_INDEX_NAME, dimension, metric: 'cosine' });
       this.ready = true;
     }
   }
@@ -39,7 +42,7 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
     const { embeddings } = await this.embedder.doEmbed({ values: [query] });
     await this.ensureIndex(embeddings[0].length);
     const results = await this.store.query({
-      indexName: INDEX,
+      indexName: MEMORY_INDEX_NAME,
       queryVector: embeddings[0],
       topK: limit,
       filter: scopeId ? { scopeId } : undefined,
@@ -48,62 +51,69 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
   }
 
   async create(record: MemoryRecord): Promise<void> {
-    let embedding = record.embedding;
-    if (!embedding) {
-      const { embeddings } = await this.embedder.doEmbed({ values: [record.content] });
-      embedding = embeddings[0];
-    }
-    await this.ensureIndex(embedding.length);
+    // 按 scopeId 串行：去重查询 + 插入是「检查-再写入」，并发下会重复插入
+    await this.mutex.run(record.scopeId ?? 'global', async () => {
+      let embedding = record.embedding;
+      if (!embedding) {
+        const { embeddings } = await this.embedder.doEmbed({ values: [record.content] });
+        embedding = embeddings[0];
+      }
+      await this.ensureIndex(embedding.length);
 
-    // 语义去重 — 复用已算好的 embedding 查最近邻，避免重复堆积同一事实
-    const dups = await this.store.query({
-      indexName: INDEX,
-      queryVector: embedding,
-      topK: 1,
-      filter: record.scopeId ? { scopeId: record.scopeId } : undefined,
-    });
-    if (dups.length > 0 && dups[0].score >= DEDUP_THRESHOLD) {
-      return;
-    }
+      // 语义去重 — 复用已算好的 embedding 查最近邻，避免重复堆积同一事实
+      const dups = await this.store.query({
+        indexName: MEMORY_INDEX_NAME,
+        queryVector: embedding,
+        topK: 1,
+        filter: record.scopeId ? { scopeId: record.scopeId } : undefined,
+      });
+      if (dups.length > 0 && dups[0].score >= DEDUP_THRESHOLD) {
+        return;
+      }
 
-    await this.store.upsert({
-      indexName: INDEX,
-      vectors: [embedding],
-      ids: [record.id],
-      metadata: [this.toMetadata(record)],
+      await this.store.upsert({
+        indexName: MEMORY_INDEX_NAME,
+        vectors: [embedding],
+        ids: [record.id],
+        metadata: [this.toMetadata(record)],
+      });
+      this.records.set(record.id, record);
     });
-    this.records.set(record.id, record);
   }
 
   async update(id: string, patch: Partial<MemoryRecord>): Promise<void> {
-    const prev = this.records.get(id);
-    if (!prev) return;
+    await this.mutex.run(id, async () => {
+      const prev = this.records.get(id);
+      if (!prev) return;
 
-    const next: MemoryRecord = { ...prev, ...patch, id };
+      const next: MemoryRecord = { ...prev, ...patch, id };
 
-    // content 变更必须重新嵌入，否则向量仍对应旧 content
-    let embedding = patch.embedding;
-    if (patch.content !== undefined) {
-      const { embeddings } = await this.embedder.doEmbed({ values: [patch.content] });
-      embedding = embeddings[0];
-    }
-    embedding = embedding ?? prev.embedding;
-    if (!embedding) return;
+      // content 变更必须重新嵌入，否则向量仍对应旧 content
+      let embedding = patch.embedding;
+      if (patch.content !== undefined) {
+        const { embeddings } = await this.embedder.doEmbed({ values: [patch.content] });
+        embedding = embeddings[0];
+      }
+      embedding = embedding ?? prev.embedding;
+      if (!embedding) return;
 
-    await this.store.deleteVectors({ indexName: INDEX, ids: [id] });
-    await this.ensureIndex(embedding.length);
-    await this.store.upsert({
-      indexName: INDEX,
-      vectors: [embedding],
-      ids: [id],
-      metadata: [this.toMetadata(next)],
+      await this.store.deleteVectors({ indexName: MEMORY_INDEX_NAME, ids: [id] });
+      await this.ensureIndex(embedding.length);
+      await this.store.upsert({
+        indexName: MEMORY_INDEX_NAME,
+        vectors: [embedding],
+        ids: [id],
+        metadata: [this.toMetadata(next)],
+      });
+      this.records.set(id, next);
     });
-    this.records.set(id, next);
   }
 
   async delete(id: string): Promise<void> {
-    await this.store.deleteVectors({ indexName: INDEX, ids: [id] });
-    this.records.delete(id);
+    await this.mutex.run(id, async () => {
+      await this.store.deleteVectors({ indexName: MEMORY_INDEX_NAME, ids: [id] });
+      this.records.delete(id);
+    });
   }
 
   /** 将 MemoryRecord 序列化为向量存储 metadata（scopeId 用于用户级隔离） */

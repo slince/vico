@@ -13,6 +13,7 @@ import type {BatchEmbedder} from '@vico/rag';
 import {createConfiguredEmbedder} from '../memory/rag.js';
 import {getDb} from '../db/db.js';
 import {getClient} from '../db/init-libsql.js';
+import {config} from '../config.js';
 
 let _memoryStore: MemoryStore;
 let _threadStore: LibSqlThreadStore;
@@ -22,7 +23,7 @@ let _checkpointStore: LibSqlCheckpointStore;
 export function getMemory(): MemoryStore {
   if (!_memoryStore) {
     _memoryStore = new MemoryStore({
-      conversation: new ConversationHistoryMemory(getThreadStore(), 10),
+      conversation: new ConversationHistoryMemory(getThreadStore(), config.memory.stm_window),
       working: new LibSqlWorkingMemory({ db: getDb() as any }),
       semantic: new VectorSemanticRecall({
         embedder: createLazyEmbedder(),

@@ -115,6 +115,12 @@ export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/worki
 export { DEFAULT_WORKING_MEMORY_TEMPLATE } from './memory/working/default-template.js';
 export { createUpdateWorkingMemoryTool } from './memory/tool/working-memory-tool.js';
 export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/semantic/vector-semantic-recall.js';
+export {
+  MEMORY_INDEX_NAME,
+  WORKING_MEMORY_SCOPE_TYPE,
+  MEMORY_ENTRY_TYPE,
+  DEFAULT_CONVERSATION_WINDOW,
+} from './memory/constants.js';
 
 // Ports — SkillLoader
 export { type SkillLoader, type Skill } from './skill/types.js';
@@ -137,6 +143,9 @@ export { InMemoryThreadStore } from './thread/memory-thread-store.js';
 
 // ContextCompactor
 export { ContextCompactor } from './agent/context-compactor.js';
+
+// Utils
+export { KeyedMutex } from './utils/async-keyed-lock.js';
 
 // Events
 export { MittEventRecorder } from './events/event-recorder.js';

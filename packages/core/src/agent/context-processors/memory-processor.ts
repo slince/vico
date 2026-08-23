@@ -9,7 +9,7 @@ import type {MemoryStore} from '../../memory/memory-store.js';
 /** 语义召回最小相似度 — 低于该值的记忆视为不相关，不注入上下文 */
 const RECALL_MIN_SCORE = 0.5;
 
-/** 注入会话历史、工作记忆和语义召回结果（NORMAL 优先级） */
+/** 注入会话历史、工作记忆和语义召回结果（HIGH 优先级） */
 export class MemoryProcessor implements ContextProcessor {
   readonly name = 'memory';
   readonly priority = Priority.HIGH;

@@ -52,11 +52,20 @@ export const checkpoints = mysqlTable('vico_checkpoints', {
 
 // --- Memory tables ---
 
-/** memory entries — working and semantic share table, distinguished by type field */
+/**
+ * memory entries — working and semantic share table, distinguished by `type` field.
+ *
+ * `scope_type` column meaning depends on `type` (see @vico/core memory/constants.ts):
+ * - `type='working'`: `scope_type` is the scope dimension ('user'), `scope_id` is userId.
+ * - `type='semantic'`: `scope_type` is the vector index name (semantic memory 'memory', RAG kb index name),
+ *   `scope_id` is the vector owner id (userId for semantic memory).
+ */
 export const memoryEntries = mysqlTable('vico_memory_entries', {
   id: varchar('id', { length: 255 }).primaryKey(),
   thread_id: varchar('thread_id', { length: 36 }),
+  /** scope dimension (working) or vector index name (semantic), see table contract above */
   scope_type: varchar('scope_type', { length: 36 }).notNull(),
+  /** scope identifier (userId / kbId) */
   scope_id: varchar('scope_id', { length: 36 }).notNull(),
   /** 'working' | 'semantic' */
   type: varchar('type', { length: 36 }).notNull(),

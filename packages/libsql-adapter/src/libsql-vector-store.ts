@@ -15,6 +15,10 @@ export interface LibSQLVectorStoreOptions {
  * - 精确检索: vector_distance_cos / vector_distance_l2
  * - 近似检索: vector_top_k + libsql_vector_idx 索引（可选）
  *
+ * 后端表为 `vico_memory_entries`，与 WorkingMemory 共享：向量行固定 `type='semantic'`，
+ * 用 `scope_type` 列存 `indexName` 作为向量索引命名空间（语义记忆为 'memory'，RAG 为 kb 索引名），
+ * `scope_id` 存归属标识。查询时始终以 `scope_type = indexName AND type = 'semantic'` 分区。
+ *
  * @example
  * ```ts
  * import { createClient } from '@libsql/client';

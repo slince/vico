@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { WorkingMemory } from '../types.js';
 import { DEFAULT_WORKING_MEMORY_TEMPLATE } from './default-template.js';
+import { KeyedMutex } from '../../utils/async-keyed-lock.js';
 
 /** 构造选项 */
 export interface FileWorkingMemoryOptions {
@@ -16,6 +17,8 @@ export interface FileWorkingMemoryOptions {
 export class FileWorkingMemory implements WorkingMemory {
   private dir: string;
   private template: string;
+  /** 按 scopeId 分片的写锁 — 串行化同一用户的并发写，避免交错覆盖文件 */
+  private readonly mutex = new KeyedMutex();
 
   constructor(options: FileWorkingMemoryOptions) {
     this.dir = options.dir;
@@ -43,8 +46,10 @@ export class FileWorkingMemory implements WorkingMemory {
    * @param content - 要写入的 Markdown 内容
    */
   async set(scopeId: string, content: string): Promise<void> {
-    await fs.mkdir(this.dir, { recursive: true });
-    await fs.writeFile(this.filePath(scopeId), content, 'utf-8');
+    await this.mutex.run(scopeId, async () => {
+      await fs.mkdir(this.dir, { recursive: true });
+      await fs.writeFile(this.filePath(scopeId), content, 'utf-8');
+    });
   }
 
   getTemplate(): string {
