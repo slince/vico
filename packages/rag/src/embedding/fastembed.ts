@@ -16,36 +16,46 @@ export interface FastEmbedOptions {
  */
 export class FastEmbedEmbedder implements BatchEmbedder {
   private model?: string;
-  private extractor?: unknown;
+  private extractorPromise?: Promise<unknown>;
 
   constructor(options: FastEmbedOptions = {}) {
     this.model = options.model ?? 'Xenova/all-MiniLM-L6-v2';
+    // 构造时即启动模型加载（后台不阻塞）——模型下载重，若延迟到首次嵌入才加载会导致该请求超时
+    this.extractorPromise = this.loadModel();
   }
 
-  async doEmbed(options: BatchEmbedOptions): Promise<BatchEmbedResult> {
+  /**
+   * 加载 ONNX 模型。永不 reject —— 失败时返回 Error 对象，交由 doEmbed 统一抛出，
+   * 避免构造期后台加载产生 unhandled rejection。
+   */
+  private async loadModel(): Promise<unknown> {
     try {
-      // 首次嵌入时才加载 ONNX 模型并缓存，之后复用 — 模型加载重（数百 MB / 数秒），避免每次请求重复加载
-      if (!this.extractor) {
-        // @ts-ignore — @huggingface/transformers is an optional peerDependency, may not be installed
-        const { pipeline } = await import('@huggingface/transformers');
-        this.extractor = await pipeline('feature-extraction', this.model);
-      }
-      const embeddings: number[][] = [];
-
-      for (const value of options.values) {
-        const result = await (this.extractor as any)(value, { pooling: 'mean', normalize: true });
-        embeddings.push(Array.from(result.data as Float32Array));
-      }
-
-      return { embeddings };
+      // @ts-ignore — @huggingface/transformers is an optional peerDependency, may not be installed
+      const { pipeline } = await import('@huggingface/transformers');
+      return await pipeline('feature-extraction', this.model);
     } catch (err: any) {
       if (err?.code === 'ERR_MODULE_NOT_FOUND') {
-        throw new Error(
+        return new Error(
           'FastEmbedEmbedder requires @huggingface/transformers.\n' +
           'Install: pnpm add @huggingface/transformers'
         );
       }
-      throw err;
+      return err instanceof Error ? err : new Error(String(err));
     }
+  }
+
+  async doEmbed(options: BatchEmbedOptions): Promise<BatchEmbedResult> {
+    const extractor = await this.extractorPromise!;
+    if (extractor instanceof Error) {
+      throw extractor;
+    }
+
+    const embeddings: number[][] = [];
+    for (const value of options.values) {
+      const result = await (extractor as any)(value, { pooling: 'mean', normalize: true });
+      embeddings.push(Array.from(result.data as Float32Array));
+    }
+
+    return { embeddings };
   }
 }
