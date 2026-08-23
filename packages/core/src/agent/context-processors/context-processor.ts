@@ -54,6 +54,7 @@ export class ProcessorPipeline {
           `[ProcessorPipeline] Processor "${processor.name}" (priority ${processor.priority}) threw:`,
           err instanceof Error ? err.message : err,
         );
+        throw err
       }
     }
   }

@@ -13,21 +13,30 @@ import { getClient } from '../db/init-libsql.js';
 
 const parserRegistry = new DefaultParserRegistry();
 
+let _embedder: BatchEmbedder | undefined;
+
 /**
  * 从 server.config.yaml 的 rag.embedder 配置构建 BatchEmbedder。
- * RAG 索引与语义记忆共用此工厂，避免重复实现。
+ * RAG 索引与语义记忆共用此单例，避免重复创建 embedder 实例。
  *
- * @returns BatchEmbedder 实例，无法解析时返回 undefined
+ * @returns BatchEmbedder 实例，配置无法解析时抛出
  */
-export async function createConfiguredEmbedder(): Promise<BatchEmbedder | undefined> {
+export function createConfiguredEmbedder(): BatchEmbedder {
+  if (_embedder) return _embedder;
   const { embedder: embedderCfg } = config.rag;
+  let embedder: BatchEmbedder | undefined;
   if (embedderCfg === 'fastembed') {
-    return createEmbedder('fastembed');
+    embedder = createEmbedder('fastembed');
+  } else if (typeof embedderCfg === 'string') {
+    embedder = createEmbedder({ provider: 'openai', model: embedderCfg });
+  } else {
+    embedder = createEmbedder(embedderCfg as any);
   }
-  if (typeof embedderCfg === 'string') {
-    return createEmbedder({ provider: 'openai', model: embedderCfg });
+  if (!embedder) {
+    throw new Error('Failed to initialize embedder (check server.config.yaml rag.embedder)');
   }
-  return createEmbedder(embedderCfg as any);
+  _embedder = embedder;
+  return embedder;
 }
 
 class RAGManager {
@@ -52,7 +61,7 @@ class RAGManager {
     const chunkIds = chunks.map(() => uuid());
 
     // 向量化（需要 embedder — 由调用方提供或使用默认）
-    const embedder = await this.getEmbedder();
+    const embedder = this.getEmbedder();
     const embedResult = await embedder.doEmbed({ values: chunkTexts });
 
     const indexName = kbIndexName(kbId);
@@ -92,8 +101,8 @@ class RAGManager {
     return chunkTexts.length;
   }
 
-  /** 获取 embedder */
-  private async getEmbedder(): Promise<any> {
+  /** 获取 embedder 单例 */
+  private getEmbedder(): BatchEmbedder {
     return createConfiguredEmbedder();
   }
 

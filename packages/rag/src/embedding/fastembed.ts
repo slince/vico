@@ -16,6 +16,7 @@ export interface FastEmbedOptions {
  */
 export class FastEmbedEmbedder implements BatchEmbedder {
   private model?: string;
+  private extractor?: unknown;
 
   constructor(options: FastEmbedOptions = {}) {
     this.model = options.model ?? 'Xenova/all-MiniLM-L6-v2';
@@ -23,13 +24,16 @@ export class FastEmbedEmbedder implements BatchEmbedder {
 
   async doEmbed(options: BatchEmbedOptions): Promise<BatchEmbedResult> {
     try {
-      // @ts-ignore — @huggingface/transformers is an optional peerDependency, may not be installed
-      const { pipeline } = await import('@huggingface/transformers');
-      const extractor = await pipeline('feature-extraction', this.model);
+      // 首次嵌入时才加载 ONNX 模型并缓存，之后复用 — 模型加载重（数百 MB / 数秒），避免每次请求重复加载
+      if (!this.extractor) {
+        // @ts-ignore — @huggingface/transformers is an optional peerDependency, may not be installed
+        const { pipeline } = await import('@huggingface/transformers');
+        this.extractor = await pipeline('feature-extraction', this.model);
+      }
       const embeddings: number[][] = [];
 
       for (const value of options.values) {
-        const result = await (extractor as any)(value, { pooling: 'mean', normalize: true });
+        const result = await (this.extractor as any)(value, { pooling: 'mean', normalize: true });
         embeddings.push(Array.from(result.data as Float32Array));
       }
 
