@@ -1,22 +1,9 @@
 // @vico/libsql-adapter — Drizzle-backed WorkingMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import type { WorkingMemory } from '@vico/core';
+import { DEFAULT_WORKING_MEMORY_TEMPLATE, type WorkingMemory } from '@vico/core';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
-
-const DEFAULT_TEMPLATE = `# 用户信息
-- **姓名**：
-- **位置**：
-- **时区**：
-- **语言**：
-
-## 偏好设置
-- **沟通风格**：
-
-## 会话上下文
-- **当前任务**：
-`;
 
 /** LibSqlWorkingMemory 构造选项 */
 export interface LibSqlWorkingMemoryOptions {
@@ -33,7 +20,7 @@ export class LibSqlWorkingMemory implements WorkingMemory {
 
   constructor(options: LibSqlWorkingMemoryOptions) {
     this.db = options.db;
-    this.template = options.template ?? DEFAULT_TEMPLATE;
+    this.template = options.template ?? DEFAULT_WORKING_MEMORY_TEMPLATE;
   }
 
   async get(scopeId: string): Promise<string> {

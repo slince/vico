@@ -2,19 +2,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { WorkingMemory } from '../types.js';
-
-const DEFAULT_TEMPLATE = `# 用户信息
-- **姓名**：
-- **位置**：
-- **时区**：
-- **语言**：
-
-## 偏好设置
-- **沟通风格**：
-
-## 会话上下文
-- **当前任务**：
-`;
+import { DEFAULT_WORKING_MEMORY_TEMPLATE } from './default-template.js';
 
 /** 构造选项 */
 export interface FileWorkingMemoryOptions {
@@ -31,7 +19,7 @@ export class FileWorkingMemory implements WorkingMemory {
 
   constructor(options: FileWorkingMemoryOptions) {
     this.dir = options.dir;
-    this.template = options.template ?? DEFAULT_TEMPLATE;
+    this.template = options.template ?? DEFAULT_WORKING_MEMORY_TEMPLATE;
   }
 
   /**

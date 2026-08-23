@@ -112,6 +112,7 @@ export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
 export { ConversationHistoryMemory } from './memory/conversation-history-memory.js';
 export { InMemoryWorkingMemory } from './memory/working/in-memory-working-memory.js';
 export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/working/file-working-memory.js';
+export { DEFAULT_WORKING_MEMORY_TEMPLATE } from './memory/working/default-template.js';
 export { createUpdateWorkingMemoryTool } from './memory/tool/working-memory-tool.js';
 export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/semantic/vector-semantic-recall.js';
 

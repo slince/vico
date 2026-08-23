@@ -4,6 +4,11 @@ import {createTool} from '../../tool/create-tool.js';
 import type {ToolCallContext} from '../../tool/types.js';
 import type {WorkingMemory} from '../types.js';
 
+/** 归一化字符串空白，用于宽松比对模板（忽略换行/空格差异） */
+function normalize(s: string): string {
+  return s.replace(/\s+/g, '');
+}
+
 /**
  * 创建 updateWorkingMemory 工具，绑定 WorkingMemory 实例
  *
@@ -11,8 +16,6 @@ import type {WorkingMemory} from '../types.js';
  * @returns 返回一个用于更新工作记忆的工具定义
  */
 export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
-  const template = wm.getTemplate();
-
   return createTool({
     name: 'updateWorkingMemory',
     description:
@@ -27,12 +30,16 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
     kind: 'mutation',
     tags: ['builtin'],
     async execute(args: { memory: string }, ctx: ToolCallContext) {
-      const scopeId = ctx.session.thread.userId ?? '';
-      const current = await wm.get(scopeId);
-      if (current && args.memory.trim() === template.trim()) {
+      const userId = ctx.session.thread.userId;
+      if (!userId) {
+        throw new Error('缺少用户标识，无法更新工作记忆');
+      }
+      const current = await wm.get(userId);
+      // 宽松归一化比对：忽略换行/空格差异，拦截用空模板覆盖已有数据
+      if (current && normalize(args.memory) === normalize(wm.getTemplate())) {
         throw new Error('拒绝用空模板替换工作记忆');
       }
-      await wm.set(scopeId, args.memory);
+      await wm.set(userId, args.memory);
       return { status: 'updated' as const };
     },
   });

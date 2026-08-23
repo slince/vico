@@ -1,22 +1,9 @@
 // @vico/mysql-adapter — MySQL/Drizzle-backed WorkingMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import type { WorkingMemory } from '@vico/core';
+import { DEFAULT_WORKING_MEMORY_TEMPLATE, type WorkingMemory } from '@vico/core';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
-
-const DEFAULT_TEMPLATE = `# User Facts
-- **Name**:
-- **Location**:
-- **Time Zone**:
-- **Language**:
-
-## Preferences
-- **Communication Style**:
-
-## Session Context
-- **Current Task**:
-`;
 
 /** MysqlWorkingMemory construction options */
 export interface MysqlWorkingMemoryOptions {
@@ -33,7 +20,7 @@ export class MysqlWorkingMemory implements WorkingMemory {
 
   constructor(options: MysqlWorkingMemoryOptions) {
     this.db = options.db;
-    this.template = options.template ?? DEFAULT_TEMPLATE;
+    this.template = options.template ?? DEFAULT_WORKING_MEMORY_TEMPLATE;
   }
 
   async get(scopeId: string): Promise<string> {

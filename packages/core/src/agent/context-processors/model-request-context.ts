@@ -23,7 +23,7 @@ export class ModelRequestContext {
   systemPrompt: string;
   /** 本轮输入消息组 */
   readonly userMessages: ModelMessage[];
-  /** 消息列表 — 处理器可追加 history（unshift）和 system/memory 消息（push） */
+  /** 消息列表 — 处理器可追加 history（unshift） */
   messages: ModelMessage[];
   /** 暴露给 LLM 的工具 */
   tools: Tool[];

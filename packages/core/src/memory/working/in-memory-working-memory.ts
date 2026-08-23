@@ -1,18 +1,6 @@
 // src/memory/in-memory-working-memory.ts
 import type { WorkingMemory } from '../types.js';
-
-const DEFAULT_TEMPLATE = `# 用户信息
-- **姓名**：
-- **位置**：
-- **时区**：
-- **语言**：
-
-## 偏好设置
-- **沟通风格**：
-
-## 会话上下文
-- **当前任务**：
-`;
+import { DEFAULT_WORKING_MEMORY_TEMPLATE } from './default-template.js';
 
 /** 基于 Map 的内存版工作记忆 */
 export class InMemoryWorkingMemory implements WorkingMemory {
@@ -20,7 +8,7 @@ export class InMemoryWorkingMemory implements WorkingMemory {
   private template: string;
 
   constructor(options?: { template?: string }) {
-    this.template = options?.template ?? DEFAULT_TEMPLATE;
+    this.template = options?.template ?? DEFAULT_WORKING_MEMORY_TEMPLATE;
   }
 
   async get(scopeId: string): Promise<string> {
