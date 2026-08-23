@@ -28,7 +28,11 @@ export function createConfiguredEmbedder(): BatchEmbedder {
   if (embedderCfg === 'fastembed') {
     embedder = createEmbedder('fastembed');
   } else if (typeof embedderCfg === 'string') {
-    embedder = createEmbedder({ provider: 'openai', model: embedderCfg });
+    // string 形式为 "provider/model"（如 "openai/text-embedding-3-small"）；无前缀时默认 openai
+    const slash = embedderCfg.indexOf('/');
+    const provider = slash === -1 ? 'openai' : embedderCfg.slice(0, slash);
+    const model = slash === -1 ? embedderCfg : embedderCfg.slice(slash + 1);
+    embedder = createEmbedder({ provider, model });
   } else {
     embedder = createEmbedder(embedderCfg as any);
   }
