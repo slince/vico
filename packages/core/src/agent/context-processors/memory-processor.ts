@@ -1,9 +1,9 @@
 // @vico/core - MemoryProcessor: injects conversation history, working memory, and semantic recall
 import {randomUUID} from 'node:crypto';
 import type {ContextProcessor} from './context-processor.js';
-import type {ModelRequestContext} from './model-request-context.js';
 import {Priority} from './context-processor.js';
-import { getMessageText } from '../../model/message-utils.js';
+import type {ModelRequestContext} from './model-request-context.js';
+import {getMessageText} from '../../model/message-utils.js';
 import type {MemoryStore} from '../../memory/memory-store.js';
 
 /** 语义召回最小相似度 — 低于该值的记忆视为不相关，不注入上下文 */
@@ -77,7 +77,7 @@ export class MemoryProcessor implements ContextProcessor {
     const dataBlock = current || template;
 
     ctx.appendSystemPrompt(
-      `调用 updateWorkingMemory 工具存储用户信息。如果信息可能被再次引用——存储它！\n\n` +
+      `调用 update_working_memory 工具存储用户信息。如果信息可能被再次引用——存储它！\n\n` +
       `使用指南：\n` +
       `1. 了解到用户新信息时主动更新\n` +
       `2. 仅替换变更部分，保持其他部分不变\n` +

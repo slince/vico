@@ -1,0 +1,102 @@
+/**
+ * 文件写入工具 UI — 渲染 write / edit 两个变更类工具（需审批）。
+ *
+ *   write → action（created/updated）+ path + lines + size
+ *   edit  → path + replacements + diff（行级着色）
+ */
+import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import {FilePlus, FilePen} from 'lucide-react';
+import {ToolCard} from './tool-card';
+import type {WriteArgs, WriteResult, EditResult} from '../filesystem.tool';
+
+/** 工具名 → 中文标题 */
+const TOOL_TITLE: Record<string, string> = {
+  write: '写入文件',
+  edit: '编辑文件',
+};
+
+/** 工具名 → 图标 */
+const TOOL_ICON: Record<string, React.ElementType> = {
+  write: FilePlus,
+  edit: FilePen,
+};
+
+/** edit 的 simple diff（+/- 行）着色 */
+function DiffLines({diff}: {diff: string}) {
+  return (
+    <pre className="text-[11px] leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2">
+      {diff.split('\n').map((line, i) => {
+        let cls = 'text-muted-foreground';
+        if (line.startsWith('+')) cls = 'text-green-600 dark:text-green-400';
+        else if (line.startsWith('-')) cls = 'text-red-600 dark:text-red-400';
+        return (
+          <div key={i} className={cls}>
+            {line || ' '}
+          </div>
+        );
+      })}
+    </pre>
+  );
+}
+
+/** write 结果视图 */
+function WriteView({result}: {result: WriteResult}) {
+  const actionText = result.action === 'created' ? '已创建' : '已更新';
+  return (
+    <div className="space-y-1 text-xs">
+      <p className="font-mono text-muted-foreground">{result.path}</p>
+      <p className="text-muted-foreground">
+        {actionText} · {result.lines} 行 · {result.size} 字节
+      </p>
+    </div>
+  );
+}
+
+/** edit 结果视图 */
+function EditView({result}: {result: EditResult}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="font-mono text-[11px] text-muted-foreground">{result.path}</p>
+      {result.replacements > 0 && (
+        <p className="text-xs text-muted-foreground">{result.replacements} 处替换</p>
+      )}
+      <DiffLines diff={result.diff} />
+    </div>
+  );
+}
+
+/**
+ * 文件写入渲染器 — 统一处理 write/edit 两个变更类工具（走审批）。
+ */
+export const FileWriteRenderer: ToolCallMessagePartComponent = ({
+  toolName,
+  status,
+  args,
+  result,
+  isError,
+  approval,
+  respondToApproval,
+}) => {
+  const title = TOOL_TITLE[toolName] ?? toolName;
+  const Icon = TOOL_ICON[toolName] ?? FilePlus;
+
+  const approvalDescription = `路径：${String((args as {path?: string})?.path ?? '')}`;
+
+  return (
+    <ToolCard
+      title={title}
+      icon={Icon}
+      status={status}
+      result={result}
+      isError={isError}
+      approval={approval}
+      respondToApproval={respondToApproval}
+      approvalDescription={approvalDescription}
+      renderResult={(r) => {
+        if (toolName === 'write') return <WriteView result={r as WriteResult} />;
+        if (toolName === 'edit') return <EditView result={r as EditResult} />;
+        return null;
+      }}
+    />
+  );
+};

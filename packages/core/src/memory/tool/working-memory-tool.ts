@@ -10,14 +10,14 @@ function normalize(s: string): string {
 }
 
 /**
- * 创建 updateWorkingMemory 工具，绑定 WorkingMemory 实例
+ * 创建 update_working_memory 工具，绑定 WorkingMemory 实例
  *
  * @param wm - WorkingMemory 实例，用于读写工作记忆
  * @returns 返回一个用于更新工作记忆的工具定义
  */
 export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
   return createTool({
-    name: 'updateWorkingMemory',
+    name: 'update_working_memory',
     description:
       '用用户事实和上下文更新工作记忆。每当了解到可能日后有用的用户信息时调用此工具。提供完整的 Markdown 内容——它将替换现有工作记忆。',
     inputSchema: z.object({
