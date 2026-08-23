@@ -1,6 +1,6 @@
 // @vico/rag — Types barrel export
 export type { ChunkStrategy, ChunkOptions, Chunk, Chunker } from './chunk.js';
-export type { BatchEmbedOptions, BatchEmbedResult, BatchEmbedder } from './embedder.js';
+export type { EmbedOptions, EmbedResult, Embedder } from './embedder.js';
 export type {
   VectorRecord,
   VectorQueryResult,

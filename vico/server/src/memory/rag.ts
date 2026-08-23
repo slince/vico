@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { RecursiveChunker, createEmbedder, DefaultParserRegistry } from '@vico/rag';
-import type { BatchEmbedder } from '@vico/rag';
+import type { Embedder } from '@vico/rag';
 import { config, DEFAULT_RAG_CONFIG } from '../config.js';
 import { getVector } from '../agent/memory-setup.js';
 import logger from '../lib/logger.js';
@@ -13,18 +13,18 @@ import { getClient } from '../db/init-libsql.js';
 
 const parserRegistry = new DefaultParserRegistry();
 
-let _embedder: BatchEmbedder | undefined;
+let _embedder: Embedder | undefined;
 
 /**
- * 从 server.config.yaml 的 rag.embedder 配置构建 BatchEmbedder。
+ * 从 server.config.yaml 的 rag.embedder 配置构建 Embedder。
  * RAG 索引与语义记忆共用此单例，避免重复创建 embedder 实例。
  *
- * @returns BatchEmbedder 实例，配置无法解析时抛出
+ * @returns Embedder 实例，配置无法解析时抛出
  */
-export function createConfiguredEmbedder(): BatchEmbedder {
+export function createConfiguredEmbedder(): Embedder {
   if (_embedder) return _embedder;
   const { embedder: embedderCfg } = config.rag;
-  let embedder: BatchEmbedder | undefined;
+  let embedder: Embedder;
   if (embedderCfg === 'fastembed') {
     embedder = createEmbedder('fastembed');
   } else if (typeof embedderCfg === 'string') {
@@ -32,12 +32,12 @@ export function createConfiguredEmbedder(): BatchEmbedder {
     const slash = embedderCfg.indexOf('/');
     const provider = slash === -1 ? 'openai' : embedderCfg.slice(0, slash);
     const model = slash === -1 ? embedderCfg : embedderCfg.slice(slash + 1);
+    if (provider !== 'openai') {
+      throw new Error(`Unsupported embedder provider: "${provider}"`);
+    }
     embedder = createEmbedder({ provider, model });
   } else {
     embedder = createEmbedder(embedderCfg as any);
-  }
-  if (!embedder) {
-    throw new Error('Failed to initialize embedder (check server.config.yaml rag.embedder)');
   }
   _embedder = embedder;
   return embedder;
@@ -106,7 +106,7 @@ class RAGManager {
   }
 
   /** 获取 embedder 单例 */
-  private getEmbedder(): BatchEmbedder {
+  private getEmbedder(): Embedder {
     return createConfiguredEmbedder();
   }
 

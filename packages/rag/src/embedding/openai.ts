@@ -1,6 +1,6 @@
 // @vico/rag — OpenAI-compatible embedder
 
-import type { BatchEmbedder, BatchEmbedOptions, BatchEmbedResult } from '../types/embedder.js';
+import type { Embedder, EmbedOptions, EmbedResult } from '../types/embedder.js';
 
 export interface OpenAIEmbedderOptions {
   model?: string;
@@ -13,7 +13,7 @@ export interface OpenAIEmbedderOptions {
  *
  * 默认使用 text-embedding-3-small 模型。
  */
-export class OpenAIEmbedder implements BatchEmbedder {
+export class OpenAIEmbedder implements Embedder {
   private model: string;
   private apiKey?: string;
   private baseUrl: string;
@@ -24,7 +24,7 @@ export class OpenAIEmbedder implements BatchEmbedder {
     this.baseUrl = options.baseUrl ?? 'https://api.openai.com/v1';
   }
 
-  async doEmbed(options: BatchEmbedOptions): Promise<BatchEmbedResult> {
+  async doEmbed(options: EmbedOptions): Promise<EmbedResult> {
     if (!this.apiKey) {
       throw new Error('OpenAIEmbedder requires apiKey (pass directly or set OPENAI_API_KEY env)');
     }

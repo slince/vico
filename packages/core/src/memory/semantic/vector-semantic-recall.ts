@@ -1,6 +1,6 @@
-// @vico/core - VectorSemanticRecall: 基于 @vico/rag BatchEmbedder + VectorStore 的语义召回实现
+// @vico/core - VectorSemanticRecall: 基于 @vico/rag Embedder + VectorStore 的语义召回实现
 import type {MemoryRecord, MemorySearchResult, SemanticRecallMemory} from '../types.js';
-import type {BatchEmbedder, VectorStore, VectorQueryResult} from '@vico/rag';
+import type {Embedder, VectorStore, VectorQueryResult} from '@vico/rag';
 import {InMemoryVectorStore} from '@vico/rag';
 import {MEMORY_INDEX_NAME} from '../constants.js';
 
@@ -10,14 +10,14 @@ const DEDUP_THRESHOLD = 0.92;
 /** VectorSemanticRecall 构造选项 */
 export interface VectorSemanticRecallOptions {
   /** 批量嵌入器，将文本转换为向量 */
-  embedder: BatchEmbedder;
+  embedder: Embedder;
   /** 向量存储，未提供时使用 @vico/rag 的 InMemoryVectorStore */
   vectorStore?: VectorStore;
 }
 
-/** 基于 BatchEmbedder + VectorStore 的语义召回实现 */
+/** 基于 Embedder + VectorStore 的语义召回实现 */
 export class VectorSemanticRecall implements SemanticRecallMemory {
-  private readonly embedder: BatchEmbedder;
+  private readonly embedder: Embedder;
   private store: VectorStore;
   private ready = false;
   /** 内存缓存 — VectorStore 无单条读取能力，update 合并需依赖它 */

@@ -2,7 +2,7 @@
 // Requires: pnpm add @huggingface/transformers
 // Gracefully degrades if not installed.
 
-import type { BatchEmbedder, BatchEmbedOptions, BatchEmbedResult } from '../types/embedder.js';
+import type { Embedder, EmbedOptions, EmbedResult } from '../types/embedder.js';
 
 export interface FastEmbedOptions {
   model?: string;
@@ -18,7 +18,7 @@ export interface FastEmbedOptions {
  * 依赖 @huggingface/transformers（peerDependency）。
  * 未安装时 doEmbed 抛出明确错误。
  */
-export class FastEmbedEmbedder implements BatchEmbedder {
+export class FastEmbedEmbedder implements Embedder {
   private model?: string;
   private cacheDir?: string;
   private allowRemoteModels?: boolean;
@@ -55,7 +55,7 @@ export class FastEmbedEmbedder implements BatchEmbedder {
     }
   }
 
-  async doEmbed(options: BatchEmbedOptions): Promise<BatchEmbedResult> {
+  async doEmbed(options: EmbedOptions): Promise<EmbedResult> {
     const extractor = await this.extractorPromise!;
     if (extractor instanceof Error) {
       throw extractor;

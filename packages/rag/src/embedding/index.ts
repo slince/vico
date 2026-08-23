@@ -2,59 +2,74 @@
 
 import { FastEmbedEmbedder } from './fastembed.js';
 import { OpenAIEmbedder } from './openai.js';
-import type { BatchEmbedder } from '../types/embedder.js';
+import type { Embedder } from '../types/embedder.js';
 
-/** createEmbedder 的 object 配置 */
-interface EmbedderObjectConfig {
-  provider: string;
+/** fastembed 提供方配置 */
+interface FastEmbedProviderConfig {
+  provider: 'fastembed';
   model?: string;
-  baseUrl?: string;
-  apiKey?: string;
-  /** fastembed 专用：模型缓存目录（默认 ~/.cache/huggingface） */
+  /** 模型缓存目录（默认 ~/.cache/huggingface） */
   cacheDir?: string;
-  /** fastembed 专用：是否允许联网下载模型 */
+  /** 是否允许联网下载模型；false 则仅用本地缓存（离线模式） */
   allowRemoteModels?: boolean;
 }
 
+/** openai 提供方配置 */
+interface OpenAIProviderConfig {
+  provider: 'openai';
+  model?: string;
+  baseUrl?: string;
+  apiKey?: string;
+}
+
+/** 对象形式的嵌入器配置，按 provider 判别 */
+export type EmbedderConfig = FastEmbedProviderConfig | OpenAIProviderConfig;
+
 /**
- * 嵌入器工厂 — 从配置创建 BatchEmbedder 实例。
+ * 嵌入器工厂 — 从配置创建 Embedder 实例。
  *
  * 支持字符串：
  * - "fastembed" — 本地 ONNX 嵌入
  * - "openai:<baseUrl>" — OpenAI-compatible API（自定义 endpoint）
  *
- * 支持对象：
- * - { provider: "openai", model?, baseUrl?, apiKey? }
+ * 支持对象（按 provider 分层）：
  * - { provider: "fastembed", model?, cacheDir?, allowRemoteModels? }
+ * - { provider: "openai", model?, baseUrl?, apiKey? }
  *
  * @param config - 嵌入器配置字符串或对象
- * @returns BatchEmbedder 实例，或 undefined（无法解析时）
+ * @returns Embedder 实例（无法解析时抛出）
  */
-export function createEmbedder(config: string | EmbedderObjectConfig): BatchEmbedder | undefined {
-  const provider = typeof config === 'string' ? config : config.provider;
-
-  if (provider === 'fastembed') {
-    if (typeof config === 'object') {
-      return new FastEmbedEmbedder({
-        model: config.model,
-        cacheDir: config.cacheDir,
-        allowRemoteModels: config.allowRemoteModels,
-      });
+export function createEmbedder(config: string | EmbedderConfig): Embedder {
+  // string 形式
+  if (typeof config === 'string') {
+    if (config === 'fastembed') {
+      return new FastEmbedEmbedder();
     }
-    return new FastEmbedEmbedder();
+    if (config.startsWith('openai:')) {
+      return new OpenAIEmbedder({ baseUrl: config.slice('openai:'.length) });
+    }
+    throw new Error(`Unsupported embedder config: "${config}"`);
   }
 
-  if (provider === 'openai' || provider.startsWith('openai:')) {
-    const isString = typeof config === 'string';
-    return new OpenAIEmbedder({
-      // string 形式 "openai:<baseUrl>" 冒号后是 endpoint；object 形式 model/baseUrl/apiKey 独立映射
-      model: isString ? undefined : config.model,
-      baseUrl: isString ? provider.slice(provider.indexOf(':') + 1) : config.baseUrl,
-      apiKey: isString ? undefined : config.apiKey,
+  // object 形式，按 provider 判别
+  if (config.provider === 'fastembed') {
+    return new FastEmbedEmbedder({
+      model: config.model,
+      cacheDir: config.cacheDir,
+      allowRemoteModels: config.allowRemoteModels,
     });
   }
 
-  return undefined;
+  if (config.provider === 'openai') {
+    return new OpenAIEmbedder({
+      model: config.model,
+      baseUrl: config.baseUrl,
+      apiKey: config.apiKey,
+    });
+  }
+
+  // 运行时兜底：provider 来自 YAML 无静态类型，可能是不支持的字符串
+  throw new Error(`Unsupported embedder provider: "${(config as { provider: string }).provider}"`);
 }
 
 export { FastEmbedEmbedder, type FastEmbedOptions } from './fastembed.js';

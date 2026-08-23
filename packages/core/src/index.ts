@@ -52,9 +52,9 @@ export {
   type RagProvider,
 } from './rag/types.js';
 export {
-  type BatchEmbedder,
-  type BatchEmbedOptions,
-  type BatchEmbedResult,
+  type Embedder,
+  type EmbedOptions,
+  type EmbedResult,
 } from '@vico/rag';
 export {
   type SemanticRecallMemory,

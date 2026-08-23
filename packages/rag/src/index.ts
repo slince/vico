@@ -5,7 +5,7 @@ export type {
   ChunkStrategy, ChunkOptions, Chunk, Chunker,
 } from './types/chunk.js';
 export type {
-  BatchEmbedOptions, BatchEmbedResult, BatchEmbedder,
+  EmbedOptions, EmbedResult, Embedder,
 } from './types/embedder.js';
 export type {
   VectorRecord, VectorQueryResult, DistanceMetric, VectorStore,

@@ -1,6 +1,6 @@
 // @vico/rag — RetrievalPipeline: orchestrates search → filter → dedup → rerank → format
 
-import type { BatchEmbedder } from '../types/embedder.js';
+import type { Embedder } from '../types/embedder.js';
 import type { VectorStore, VectorQueryResult } from '../types/vector-store.js';
 import type { Reranker } from '../types/reranker.js';
 import type { QueryRewriter, SearchOptions, SearchResult, RetrievalPipeline } from '../types/retrieval.js';
@@ -9,7 +9,7 @@ import { dedup } from './dedup.js';
 import { DefaultQueryRewriter } from './query-rewrite.js';
 
 export interface PipelineOptions {
-  embedder: BatchEmbedder;
+  embedder: Embedder;
   vectorStore: VectorStore;
   reranker?: Reranker;
   queryRewriter?: QueryRewriter;
@@ -21,7 +21,7 @@ export interface PipelineOptions {
  * 流程：query rewrite → embed → vector search → filter → dedup → rerank → format
  */
 export class DefaultRetrievalPipeline implements RetrievalPipeline {
-  private embedder: BatchEmbedder;
+  private embedder: Embedder;
   private vectorStore: VectorStore;
   private reranker?: Reranker;
   private queryRewriter: QueryRewriter;
