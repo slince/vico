@@ -24,7 +24,7 @@ rag:
   chunk_size: 512
   chunk_overlap: 64
   retrieval_top_k: 5
-  embedder: "fastembed"
+  embedder: "none"
 
 tool:
   timeout_ms: 30000
