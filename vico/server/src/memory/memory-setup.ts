@@ -9,7 +9,7 @@
  */
 import {type CheckpointStore, ConversationHistoryMemory, MemoryStore, VectorSemanticRecall} from '@vico/core';
 import {LibSqlCheckpointStore, LibSqlThreadStore, LibSQLVectorStore, LibSqlWorkingMemory} from '@vico/libsql-adapter';
-import {createConfiguredEmbedder} from '../memory/rag.js';
+import {createConfiguredEmbedder} from './embedder.js';
 import {getDb} from '../db/db.js';
 import {getClient} from '../db/init-libsql.js';
 import {config} from '../config.js';
@@ -21,13 +21,12 @@ let _checkpointStore: LibSqlCheckpointStore;
 
 export function getMemory(): MemoryStore {
   if (!_memoryStore) {
+    const embedder = createConfiguredEmbedder();
     _memoryStore = new MemoryStore({
       conversation: new ConversationHistoryMemory(getThreadStore(), config.memory.stm_window),
       working: new LibSqlWorkingMemory({ db: getDb() as any }),
-      semantic: new VectorSemanticRecall({
-        embedder: createConfiguredEmbedder(),
-        vectorStore: getVector(),
-      }),
+      // embedder 为 "none" 时禁用语义记忆
+      semantic: embedder ? new VectorSemanticRecall({ embedder, vectorStore: getVector() }) : undefined,
     });
   }
   return _memoryStore;

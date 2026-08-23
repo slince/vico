@@ -5,7 +5,7 @@ import { knowledgeManager } from '../services/knowledge/knowledge-manager.js';
 import { documentManager } from '../services/knowledge/document-manager.js';
 import { storageManager } from '../services/knowledge/storage-manager.js';
 import { ragManager } from '../memory/rag.js';
-import { getVector } from '../agent/memory-setup.js';
+import { getVector } from '../memory/memory-setup.js';
 import { kbIndexName } from '../lib/resource.js';
 import { getClient } from '../db/init-libsql.js';
 import { getDb, schema } from '../db/db.js';

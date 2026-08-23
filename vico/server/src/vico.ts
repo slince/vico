@@ -12,7 +12,7 @@
 import {Vico} from '@vico/core';
 import {ensureTables} from '@vico/libsql-adapter';
 import {getDb} from './db/db.js';
-import {getCheckpointStore, getMemory, getThreadStore} from './agent/memory-setup.js';
+import {getCheckpointStore, getMemory, getThreadStore} from './memory/memory-setup.js';
 import {createApp} from './app.js';
 import logger from './lib/logger.js';
 import {weatherTool} from "./agent/tools/weather-tool";

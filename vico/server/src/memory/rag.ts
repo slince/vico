@@ -1,10 +1,11 @@
 import { v4 as uuid } from 'uuid';
 import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
-import { RecursiveChunker, createEmbedder, DefaultParserRegistry } from '@vico/rag';
+import { RecursiveChunker, DefaultParserRegistry } from '@vico/rag';
 import type { Embedder } from '@vico/rag';
-import { config, DEFAULT_RAG_CONFIG } from '../config.js';
-import { getVector } from '../agent/memory-setup.js';
+import { DEFAULT_RAG_CONFIG } from '../config.js';
+import { getVector } from './memory-setup.js';
+import { createConfiguredEmbedder } from './embedder.js';
 import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
@@ -12,21 +13,6 @@ import { kbIndexName } from '../lib/resource.js';
 import { getClient } from '../db/init-libsql.js';
 
 const parserRegistry = new DefaultParserRegistry();
-
-let _embedder: Embedder | undefined;
-
-/**
- * 从 server.config.yaml 的 rag.embedder 配置构建 Embedder。
- * RAG 索引与语义记忆共用此单例，避免重复创建 embedder 实例。
- *
- * @returns Embedder 实例，配置无法解析时抛出
- */
-export function createConfiguredEmbedder(): Embedder {
-  if (_embedder) return _embedder;
-  const embedder = createEmbedder(config.rag.embedder);
-  _embedder = embedder;
-  return embedder;
-}
 
 class RAGManager {
   /**
@@ -90,9 +76,13 @@ class RAGManager {
     return chunkTexts.length;
   }
 
-  /** 获取 embedder 单例 */
+  /** 获取 embedder 单例（配置为 "none" 时抛错） */
   private getEmbedder(): Embedder {
-    return createConfiguredEmbedder();
+    const embedder = createConfiguredEmbedder();
+    if (!embedder) {
+      throw new Error('RAG 索引需要 embedder，请在 server.config.yaml 配置 rag.embedder（当前为 "none"）');
+    }
+    return embedder;
   }
 
   async indexFile(kbId: string, filePath: string, documentId?: string): Promise<number> {
