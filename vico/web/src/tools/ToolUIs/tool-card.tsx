@@ -27,6 +27,8 @@ export interface ToolCardProps {
   respondToApproval?: (response: ToolApprovalResponse) => void;
   /** 审批卡片补充描述（requires-action 时展示） */
   approvalDescription?: string;
+  /** 标题行右侧附加内容（如折叠按钮），仅在完成态展示 */
+  headerRight?: ReactNode;
   /** 完成态内容渲染（仅在 complete 且 result 存在时调用） */
   renderResult: (result: unknown) => ReactNode;
 }
@@ -50,6 +52,7 @@ export function ToolCard({
   approval,
   respondToApproval,
   approvalDescription,
+  headerRight,
   renderResult,
 }: ToolCardProps) {
   // 审批已裁决（被拒绝或已批准且有结果）
@@ -73,6 +76,7 @@ export function ToolCard({
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/50">
             <Icon size={14} className="text-muted-foreground" />
             <span className="text-sm font-medium">{title}</span>
+            {headerRight && <div className="ml-auto">{headerRight}</div>}
           </div>
           {renderResult(result)}
         </div>
