@@ -4,15 +4,10 @@
  * 两个工具均为 on-request（需审批），结果展示命令输出 + 退出码。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import {Package, Play} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {PackageInstallResult, PackageRunResult} from '../package.tool';
-
-/** 工具名 → 中文标题 */
-const TOOL_TITLE: Record<string, string> = {
-  package_install: '安装依赖',
-  package_run: '运行脚本',
-};
 
 /** 工具名 → 图标 */
 const TOOL_ICON: Record<string, React.ElementType> = {
@@ -22,6 +17,7 @@ const TOOL_ICON: Record<string, React.ElementType> = {
 
 /** 命令输出 + 退出码视图（install / run 共用） */
 function OutputView({output, exitCode, error}: {output: string; exitCode: number; error?: string}) {
+  const {t} = useTranslation('assistant');
   return (
     <div className="space-y-1.5">
       {output ? (
@@ -29,19 +25,20 @@ function OutputView({output, exitCode, error}: {output: string; exitCode: number
           {output}
         </pre>
       ) : (
-        <p className="text-xs text-muted-foreground">（无输出）</p>
+        <p className="text-xs text-muted-foreground">{t('tool.package.noOutput')}</p>
       )}
       {error && <p className="text-xs text-destructive whitespace-pre-wrap">{error}</p>}
-      <p className="text-[10px] text-muted-foreground">退出码：{exitCode}</p>
+      <p className="text-[10px] text-muted-foreground">{t('tool.package.exitCode', {code: exitCode})}</p>
     </div>
   );
 }
 
 /** package_install 结果视图 */
 function InstallView({result}: {result: PackageInstallResult}) {
+  const {t} = useTranslation('assistant');
   return (
     <div className="space-y-1.5">
-      <p className="text-xs text-muted-foreground">管理器：{result.manager}</p>
+      <p className="text-xs text-muted-foreground">{t('tool.package.manager', {manager: result.manager})}</p>
       <OutputView output={result.output} exitCode={result.exitCode} error={result.error} />
     </div>
   );
@@ -64,14 +61,15 @@ export const PackageToolRenderer: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
-  const title = TOOL_TITLE[toolName] ?? toolName;
+  const {t} = useTranslation('assistant');
+  const title = t(`tool.package.title.${toolName}`, {defaultValue: toolName});
   const Icon = TOOL_ICON[toolName] ?? Package;
 
   // 审批卡片补充描述
   const approvalDescription =
     toolName === 'package_install'
-      ? `安装：${String((args as {packages?: string[]})?.packages?.join(', ') ?? '全部依赖')}`
-      : `脚本：${String((args as {script?: string})?.script ?? '')}`;
+      ? t('tool.package.install', {packages: String((args as {packages?: string[]})?.packages?.join(', ') ?? t('tool.package.allDeps'))})
+      : t('tool.package.script', {script: String((args as {script?: string})?.script ?? '')});
 
   return (
     <ToolCard

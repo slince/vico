@@ -4,6 +4,7 @@
  * 展示 HTTP 状态行 + 响应体（截断提示 + 错误提示）。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import {Globe} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {WebFetchResult} from '../web-fetch.tool';
@@ -26,9 +27,10 @@ export const WebFetchRenderer: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
+  const {t} = useTranslation('assistant');
   return (
     <ToolCard
-      title="网页请求"
+      title={t('tool.webFetch.title')}
       icon={Globe}
       status={status}
       result={result}
@@ -48,11 +50,11 @@ export const WebFetchRenderer: ToolCallMessagePartComponent = ({
               <p className="text-xs text-destructive whitespace-pre-wrap">{res.error}</p>
             ) : (
               <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
-                {res.body || '(空响应体)'}
+                {res.body || t('tool.webFetch.emptyBody')}
               </pre>
             )}
             {res.truncated && (
-              <p className="text-[10px] text-muted-foreground">响应已截断（超过 100KB）</p>
+              <p className="text-[10px] text-muted-foreground">{t('tool.webFetch.truncated')}</p>
             )}
           </div>
         );

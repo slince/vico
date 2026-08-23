@@ -7,6 +7,7 @@
  * 完成态结果默认折叠，标题行右侧提供展开/折叠按钮，避免长结果占用过多空间。
  */
 import {useState, type ReactNode} from 'react';
+import { useTranslation } from 'react-i18next';
 import {Loader2, Wrench, X, ChevronDown} from 'lucide-react';
 import type {ToolApprovalResponse, ToolCallMessagePartStatus} from '@assistant-ui/react';
 import {ToolApprovalCard} from '@/components/assistant-ui/tool-approval-card';
@@ -54,6 +55,7 @@ export function ToolCard({
   approvalDescription,
   renderResult,
 }: ToolCardProps) {
+  const {t} = useTranslation('assistant');
   // 完成态结果折叠状态（默认展开，可手动折叠）
   const [open, setOpen] = useState(true);
 
@@ -66,7 +68,7 @@ export function ToolCard({
         <div className="border border-destructive/30 rounded-lg p-3 my-2 bg-destructive/5">
           <div className="flex items-center gap-2">
             <X size={16} className="text-destructive" />
-            <span className="text-sm text-destructive">{title}已被拒绝</span>
+            <span className="text-sm text-destructive">{t('tool.card.rejected', {name: title})}</span>
           </div>
         </div>
       );
@@ -81,7 +83,7 @@ export function ToolCard({
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              aria-label={open ? '折叠内容' : '展开内容'}
+              aria-label={open ? t('tool.card.collapse') : t('tool.card.expand')}
               className="ml-auto p-1 rounded hover:bg-muted transition-colors"
             >
               <ChevronDown
@@ -121,7 +123,7 @@ export function ToolCard({
       <div className="border rounded-lg p-3 my-2 bg-muted/30 animate-pulse">
         <div className="flex items-center gap-2">
           <Loader2 size={14} className="text-muted-foreground animate-spin" />
-          <span className="text-sm text-muted-foreground">{title}执行中...</span>
+          <span className="text-sm text-muted-foreground">{t('tool.card.running', {name: title})}</span>
         </div>
       </div>
     );
@@ -133,7 +135,7 @@ export function ToolCard({
       <div className="border border-destructive/30 rounded-lg p-3 my-2 bg-destructive/5">
         <div className="flex items-center gap-2">
           <X size={16} className="text-destructive" />
-          <span className="text-sm text-destructive">{title}失败</span>
+          <span className="text-sm text-destructive">{t('tool.card.failed', {name: title})}</span>
         </div>
       </div>
     );

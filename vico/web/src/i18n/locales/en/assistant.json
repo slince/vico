@@ -44,11 +44,22 @@
     "denyOnce": "Deny",
     "denyAlways": "Always deny",
     "approvalRequired": "{{name}} requires confirmation",
+    "card": {
+      "rejected": "{{name}} rejected",
+      "running": "{{name}} running...",
+      "failed": "{{name}} failed",
+      "collapse": "Collapse",
+      "expand": "Expand"
+    },
     "knowledgeSearch": {
       "searching": "Searching knowledge base...",
       "failed": "Knowledge search failed",
       "resultCount": "{{count}} result(s)",
-      "noResults": "No relevant knowledge found"
+      "noResults": "No relevant knowledge found",
+      "rejected": "Knowledge search rejected",
+      "name": "Knowledge Search",
+      "approvalTitle": "Knowledge search requires confirmation",
+      "query": "Query: {{query}}"
     },
     "exec": {
       "name": "Exec",
@@ -56,6 +67,88 @@
       "approved": "Command approved.",
       "rejected": "Command rejected.",
       "executing": "Executing command..."
+    },
+    "git": {
+      "title": {
+        "git_status": "Git Status",
+        "git_diff": "Git Diff",
+        "git_log": "Commit History",
+        "git_branch": "Git Branches",
+        "git_commit": "Git Commit",
+        "git_checkout": "Checkout Branch"
+      },
+      "status": { "M": "Modified", "A": "Added", "D": "Deleted", "R": "Renamed", "untracked": "Untracked" },
+      "clean": "Working tree clean",
+      "current": "Current",
+      "commitMessage": "Commit message: {{message}}",
+      "target": "Target: {{target}}"
+    },
+    "fileRead": {
+      "title": { "read": "Read File", "ls": "List Directory", "find": "Find Files", "grep": "Search Content" },
+      "noMatch": "No matches found"
+    },
+    "fileWrite": {
+      "title": { "write": "Write File", "edit": "Edit File" },
+      "created": "Created",
+      "updated": "Updated",
+      "lines": "{{n}} lines",
+      "bytes": "{{n}} bytes",
+      "replacements": "{{n}} replacements",
+      "path": "Path: {{path}}"
+    },
+    "browser": {
+      "title": { "browser_navigate": "Navigate", "browser_snapshot": "Page Snapshot", "browser_click": "Click Element" },
+      "noTitle": "(No title)",
+      "url": "URL: {{url}}",
+      "selector": "Selector: {{selector}}"
+    },
+    "package": {
+      "title": { "package_install": "Install Dependencies", "package_run": "Run Script" },
+      "manager": "Manager: {{manager}}",
+      "noOutput": "(No output)",
+      "exitCode": "Exit code: {{code}}",
+      "install": "Install: {{packages}}",
+      "script": "Script: {{script}}",
+      "allDeps": "all dependencies"
+    },
+    "simple": {
+      "title": { "echo": "Echo", "now": "Current Time", "todo_write": "Todo List" },
+      "status": { "pending": "Pending", "in_progress": "In Progress", "completed": "Completed" },
+      "noTasks": "No tasks"
+    },
+    "webFetch": {
+      "title": "Web Request",
+      "emptyBody": "(Empty response body)",
+      "truncated": "Response truncated (over 100KB)"
+    },
+    "lsp": {
+      "title": "LSP Language Service",
+      "action": { "diagnostics": "Diagnostics", "go_to_definition": "Go to Definition", "completions": "Completions", "hover": "Hover" },
+      "operation": "Action: {{action}}",
+      "noResult": "(No result)",
+      "notSupported": "This action is not supported by the current language server"
+    },
+    "delegate": {
+      "title": "Delegate Subtask",
+      "noResult": "(No result)",
+      "steps": "Steps: {{steps}}"
+    },
+    "workingMemory": {
+      "title": "Update Working Memory",
+      "updated": "Updated",
+      "empty": "(Empty)"
+    },
+    "weather": {
+      "title": "Weather",
+      "rejected": "Weather query rejected",
+      "unknown": "Unknown",
+      "approvalTitle": "Weather query requires confirmation",
+      "location": "Location: {{location}}",
+      "querying": "Querying weather...",
+      "feelsLike": "Feels like {{temp}}°C",
+      "humidity": "{{value}}% humidity",
+      "gust": "Gust {{value}} km/h",
+      "failed": "Weather query failed"
     }
   },
   "modal": {

@@ -12,6 +12,7 @@
  * 状态机与 weather-ui 一致：requires-action → running → complete / 拒绝 / 错误。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import {GitBranch, GitCommit, FileDiff, History, Check} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {
@@ -29,25 +30,6 @@ const STATUS_CODE_COLOR: Record<string, string> = {
   A: 'text-green-600 dark:text-green-400',
   D: 'text-red-600 dark:text-red-400',
   R: 'text-purple-600 dark:text-purple-400',
-};
-
-/** 状态码 → 中文含义 */
-const STATUS_CODE_LABEL: Record<string, string> = {
-  M: '修改',
-  A: '新增',
-  D: '删除',
-  R: '重命名',
-  '?': '未跟踪',
-};
-
-/** 工具名 → 中文标题 */
-const TOOL_TITLE: Record<string, string> = {
-  git_status: 'Git 状态',
-  git_diff: 'Git 变更',
-  git_log: '提交历史',
-  git_branch: 'Git 分支',
-  git_commit: 'Git 提交',
-  git_checkout: '分支切换',
 };
 
 /** 工具名 → 图标 */
@@ -69,6 +51,15 @@ function statusCodeText(index: string, worktree: string): string {
  * git_status 结果视图 — 分支名 + 变更文件列表。
  */
 function StatusView({result}: {result: GitStatusResult}) {
+  const {t} = useTranslation('assistant');
+  // 状态码 → 展示文案（由 i18n 提供）
+  const statusLabel: Record<string, string> = {
+    M: t('tool.git.status.M'),
+    A: t('tool.git.status.A'),
+    D: t('tool.git.status.D'),
+    R: t('tool.git.status.R'),
+    '?': t('tool.git.status.untracked'),
+  };
   return (
     <div className="space-y-2">
       {result.branch && (
@@ -93,14 +84,14 @@ function StatusView({result}: {result: GitStatusResult}) {
                 </span>
                 <span className="font-mono truncate">{f.file}</span>
                 <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
-                  {STATUS_CODE_LABEL[f.worktree] || STATUS_CODE_LABEL[f.index] || ''}
+                  {statusLabel[f.worktree] || statusLabel[f.index] || ''}
                 </span>
               </li>
             );
           })}
         </ul>
       ) : (
-        <p className="text-xs text-muted-foreground">工作区干净，无变更</p>
+        <p className="text-xs text-muted-foreground">{t('tool.git.clean')}</p>
       )}
     </div>
   );
@@ -153,6 +144,7 @@ function LogView({result}: {result: GitLogResult}) {
 
 /** git_branch 结果视图 — 分支列表，当前分支高亮 */
 function BranchView({result}: {result: GitBranchResult}) {
+  const {t} = useTranslation('assistant');
   return (
     <ul className="space-y-0.5">
       {result.branches.map((b, i) => {
@@ -167,7 +159,7 @@ function BranchView({result}: {result: GitBranchResult}) {
               {b}
             </span>
             {isCurrent && (
-              <span className="text-[10px] text-green-600 dark:text-green-400 ml-auto">当前</span>
+              <span className="text-[10px] text-green-600 dark:text-green-400 ml-auto">{t('tool.git.current')}</span>
             )}
           </li>
         );
@@ -216,15 +208,16 @@ export const GitToolRenderer: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
-  const title = TOOL_TITLE[toolName] ?? toolName;
+  const {t} = useTranslation('assistant');
+  const title = t(`tool.git.title.${toolName}`, {defaultValue: toolName});
   const Icon = TOOL_ICON[toolName] ?? GitBranch;
 
   // 审批卡片补充描述（仅 git_commit / git_checkout 会触发审批）
   const approvalDescription =
     toolName === 'git_commit'
-      ? `提交信息：${String((args as {message?: string})?.message ?? '')}`
+      ? t('tool.git.commitMessage', {message: String((args as {message?: string})?.message ?? '')})
       : toolName === 'git_checkout'
-        ? `目标：${String((args as {target?: string})?.target ?? '')}`
+        ? t('tool.git.target', {target: String((args as {target?: string})?.target ?? '')})
         : undefined;
 
   return (

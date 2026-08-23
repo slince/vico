@@ -44,11 +44,22 @@
     "denyOnce": "拒绝",
     "denyAlways": "始终拒绝",
     "approvalRequired": "{{name}} 需要确认",
+    "card": {
+      "rejected": "{{name}} 已被拒绝",
+      "running": "{{name}} 执行中...",
+      "failed": "{{name}} 失败",
+      "collapse": "折叠内容",
+      "expand": "展开内容"
+    },
     "knowledgeSearch": {
       "searching": "正在搜索知识库...",
       "failed": "知识库搜索失败",
       "resultCount": "{{count}} 条结果",
-      "noResults": "未找到相关知识"
+      "noResults": "未找到相关知识",
+      "rejected": "知识库检索已被拒绝",
+      "name": "知识库检索",
+      "approvalTitle": "知识库检索需要确认",
+      "query": "查询内容：{{query}}"
     },
     "exec": {
       "name": "命令执行",
@@ -56,6 +67,88 @@
       "approved": "命令已批准",
       "rejected": "命令已拒绝",
       "executing": "正在执行命令..."
+    },
+    "git": {
+      "title": {
+        "git_status": "Git 状态",
+        "git_diff": "Git 变更",
+        "git_log": "提交历史",
+        "git_branch": "Git 分支",
+        "git_commit": "Git 提交",
+        "git_checkout": "分支切换"
+      },
+      "status": { "M": "修改", "A": "新增", "D": "删除", "R": "重命名", "untracked": "未跟踪" },
+      "clean": "工作区干净，无变更",
+      "current": "当前",
+      "commitMessage": "提交信息：{{message}}",
+      "target": "目标：{{target}}"
+    },
+    "fileRead": {
+      "title": { "read": "读取文件", "ls": "列出目录", "find": "查找文件", "grep": "搜索内容" },
+      "noMatch": "未找到匹配"
+    },
+    "fileWrite": {
+      "title": { "write": "写入文件", "edit": "编辑文件" },
+      "created": "已创建",
+      "updated": "已更新",
+      "lines": "{{n}} 行",
+      "bytes": "{{n}} 字节",
+      "replacements": "{{n}} 处替换",
+      "path": "路径：{{path}}"
+    },
+    "browser": {
+      "title": { "browser_navigate": "浏览器导航", "browser_snapshot": "页面快照", "browser_click": "点击元素" },
+      "noTitle": "（无标题）",
+      "url": "URL：{{url}}",
+      "selector": "选择器：{{selector}}"
+    },
+    "package": {
+      "title": { "package_install": "安装依赖", "package_run": "运行脚本" },
+      "manager": "管理器：{{manager}}",
+      "noOutput": "（无输出）",
+      "exitCode": "退出码：{{code}}",
+      "install": "安装：{{packages}}",
+      "script": "脚本：{{script}}",
+      "allDeps": "全部依赖"
+    },
+    "simple": {
+      "title": { "echo": "回显", "now": "当前时间", "todo_write": "任务清单" },
+      "status": { "pending": "待处理", "in_progress": "进行中", "completed": "已完成" },
+      "noTasks": "无任务"
+    },
+    "webFetch": {
+      "title": "网页请求",
+      "emptyBody": "（空响应体）",
+      "truncated": "响应已截断（超过 100KB）"
+    },
+    "lsp": {
+      "title": "LSP 语言服务",
+      "action": { "diagnostics": "诊断", "go_to_definition": "跳转定义", "completions": "代码补全", "hover": "悬停信息" },
+      "operation": "操作：{{action}}",
+      "noResult": "（无结果）",
+      "notSupported": "当前语言服务器不支持此操作"
+    },
+    "delegate": {
+      "title": "委托子任务",
+      "noResult": "（无结果）",
+      "steps": "执行步数：{{steps}}"
+    },
+    "workingMemory": {
+      "title": "更新工作记忆",
+      "updated": "已更新",
+      "empty": "（空）"
+    },
+    "weather": {
+      "title": "天气查询",
+      "rejected": "天气查询已被拒绝",
+      "unknown": "未知",
+      "approvalTitle": "天气查询需要确认",
+      "location": "查询地点：{{location}}",
+      "querying": "正在查询天气...",
+      "feelsLike": "体感 {{temp}}°C",
+      "humidity": "{{value}}% 湿度",
+      "gust": "阵风 {{value}} km/h",
+      "failed": "天气查询失败"
     }
   },
   "modal": {

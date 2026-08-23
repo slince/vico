@@ -99,9 +99,9 @@ export const KnowledgeSearchToolRenderer: ToolCallMessagePartComponent<Knowledge
   if (status.type === 'requires-action') {
     return (
       <ToolApprovalCard
-        toolName="知识库检索"
-        title="知识库检索需要确认"
-        description={`查询内容：${String(args?.query ?? '')}`}
+        toolName={t('tool.knowledgeSearch.name')}
+        title={t('tool.knowledgeSearch.approvalTitle')}
+        description={t('tool.knowledgeSearch.query', {query: String(args?.query ?? '')})}
         respondToApproval={respondToApproval}
       />
     );

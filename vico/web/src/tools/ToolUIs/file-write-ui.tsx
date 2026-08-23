@@ -5,15 +5,10 @@
  *   edit  → path + replacements + diff（行级着色）
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import {FilePlus, FilePen} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {WriteArgs, WriteResult, EditResult} from '../filesystem.tool';
-
-/** 工具名 → 中文标题 */
-const TOOL_TITLE: Record<string, string> = {
-  write: '写入文件',
-  edit: '编辑文件',
-};
 
 /** 工具名 → 图标 */
 const TOOL_ICON: Record<string, React.ElementType> = {
@@ -41,12 +36,13 @@ function DiffLines({diff}: {diff: string}) {
 
 /** write 结果视图 */
 function WriteView({result}: {result: WriteResult}) {
-  const actionText = result.action === 'created' ? '已创建' : '已更新';
+  const {t} = useTranslation('assistant');
+  const actionText = result.action === 'created' ? t('tool.fileWrite.created') : t('tool.fileWrite.updated');
   return (
     <div className="space-y-1 text-xs">
       <p className="font-mono text-muted-foreground">{result.path}</p>
       <p className="text-muted-foreground">
-        {actionText} · {result.lines} 行 · {result.size} 字节
+        {actionText} · {t('tool.fileWrite.lines', {n: result.lines})} · {t('tool.fileWrite.bytes', {n: result.size})}
       </p>
     </div>
   );
@@ -54,11 +50,12 @@ function WriteView({result}: {result: WriteResult}) {
 
 /** edit 结果视图 */
 function EditView({result}: {result: EditResult}) {
+  const {t} = useTranslation('assistant');
   return (
     <div className="space-y-1.5">
       <p className="font-mono text-[11px] text-muted-foreground">{result.path}</p>
       {result.replacements > 0 && (
-        <p className="text-xs text-muted-foreground">{result.replacements} 处替换</p>
+        <p className="text-xs text-muted-foreground">{t('tool.fileWrite.replacements', {n: result.replacements})}</p>
       )}
       <DiffLines diff={result.diff} />
     </div>
@@ -77,10 +74,11 @@ export const FileWriteRenderer: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
-  const title = TOOL_TITLE[toolName] ?? toolName;
+  const {t} = useTranslation('assistant');
+  const title = t(`tool.fileWrite.title.${toolName}`, {defaultValue: toolName});
   const Icon = TOOL_ICON[toolName] ?? FilePlus;
 
-  const approvalDescription = `路径：${String((args as {path?: string})?.path ?? '')}`;
+  const approvalDescription = t('tool.fileWrite.path', {path: String((args as {path?: string})?.path ?? '')});
 
   return (
     <ToolCard

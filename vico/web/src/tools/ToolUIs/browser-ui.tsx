@@ -4,6 +4,7 @@
  * navigate / click 为 on-request（需审批），snapshot 为只读。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import {Globe, Camera, MousePointerClick} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {
@@ -11,13 +12,6 @@ import type {
   BrowserSnapshotResult,
   BrowserClickResult,
 } from '../browser.tool';
-
-/** 工具名 → 中文标题 */
-const TOOL_TITLE: Record<string, string> = {
-  browser_navigate: '浏览器导航',
-  browser_snapshot: '页面快照',
-  browser_click: '点击元素',
-};
 
 /** 工具名 → 图标 */
 const TOOL_ICON: Record<string, React.ElementType> = {
@@ -28,9 +22,10 @@ const TOOL_ICON: Record<string, React.ElementType> = {
 
 /** navigate 结果视图 — 标题 + 最终 URL */
 function NavigateView({result}: {result: BrowserNavigateResult}) {
+  const {t} = useTranslation('assistant');
   return (
     <div className="space-y-1 text-xs">
-      <p className="font-medium">{result.title || '(无标题)'}</p>
+      <p className="font-medium">{result.title || t('tool.browser.noTitle')}</p>
       <p className="font-mono text-[11px] text-muted-foreground break-all">{result.url}</p>
       {result.error && <p className="text-destructive">{result.error}</p>}
     </div>
@@ -55,9 +50,10 @@ function SnapshotView({result}: {result: BrowserSnapshotResult}) {
 
 /** click 结果视图 — 点击后的页面标题 + URL */
 function ClickView({result}: {result: BrowserClickResult}) {
+  const {t} = useTranslation('assistant');
   return (
     <div className="space-y-1 text-xs">
-      <p className="font-medium">{result.title || '(无标题)'}</p>
+      <p className="font-medium">{result.title || t('tool.browser.noTitle')}</p>
       <p className="font-mono text-[11px] text-muted-foreground break-all">{result.url}</p>
       {result.error && <p className="text-destructive">{result.error}</p>}
     </div>
@@ -76,15 +72,16 @@ export const BrowserToolRenderer: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
-  const title = TOOL_TITLE[toolName] ?? toolName;
+  const {t} = useTranslation('assistant');
+  const title = t(`tool.browser.title.${toolName}`, {defaultValue: toolName});
   const Icon = TOOL_ICON[toolName] ?? Globe;
 
   // 审批卡片补充描述（navigate / click 会触发审批）
   const approvalDescription =
     toolName === 'browser_navigate'
-      ? `URL：${String((args as {url?: string})?.url ?? '')}`
+      ? t('tool.browser.url', {url: String((args as {url?: string})?.url ?? '')})
       : toolName === 'browser_click'
-        ? `选择器：${String((args as {selector?: string})?.selector ?? '')}`
+        ? t('tool.browser.selector', {selector: String((args as {selector?: string})?.selector ?? '')})
         : undefined;
 
   return (

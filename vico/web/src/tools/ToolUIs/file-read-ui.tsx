@@ -8,17 +8,10 @@
  *   grep → 搜索结果文本
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import {FileText, FolderOpen, Search, FileSearch} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {ReadResult, LsResult, FindResult, GrepResult} from '../filesystem.tool';
-
-/** 工具名 → 中文标题 */
-const TOOL_TITLE: Record<string, string> = {
-  read: '读取文件',
-  ls: '列出目录',
-  find: '查找文件',
-  grep: '搜索内容',
-};
 
 /** 工具名 → 图标 */
 const TOOL_ICON: Record<string, React.ElementType> = {
@@ -90,6 +83,7 @@ function FindView({result}: {result: FindResult}) {
 
 /** grep 结果视图 — 搜索结果文本 */
 function GrepView({result}: {result: GrepResult}) {
+  const {t} = useTranslation('assistant');
   return (
     <div className="space-y-1">
       {result.count > 0 ? (
@@ -97,7 +91,7 @@ function GrepView({result}: {result: GrepResult}) {
           {result.matches}
         </pre>
       ) : (
-        <p className="text-xs text-muted-foreground">未找到匹配</p>
+        <p className="text-xs text-muted-foreground">{t('tool.fileRead.noMatch')}</p>
       )}
     </div>
   );
@@ -114,7 +108,8 @@ export const FileReadRenderer: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
-  const title = TOOL_TITLE[toolName] ?? toolName;
+  const {t} = useTranslation('assistant');
+  const title = t(`tool.fileRead.title.${toolName}`, {defaultValue: toolName});
   const Icon = TOOL_ICON[toolName] ?? FileText;
 
   return (

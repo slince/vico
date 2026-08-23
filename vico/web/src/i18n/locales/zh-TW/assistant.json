@@ -44,11 +44,22 @@
     "denyOnce": "拒絕",
     "denyAlways": "始終拒絕",
     "approvalRequired": "{{name}} 需要確認",
+    "card": {
+      "rejected": "{{name}} 已被拒絕",
+      "running": "{{name}} 執行中...",
+      "failed": "{{name}} 失敗",
+      "collapse": "摺疊內容",
+      "expand": "展開內容"
+    },
     "knowledgeSearch": {
       "searching": "正在搜尋知識庫...",
       "failed": "知識庫搜尋失敗",
       "resultCount": "{{count}} 條結果",
-      "noResults": "未找到相關知識"
+      "noResults": "未找到相關知識",
+      "rejected": "知識庫檢索已被拒絕",
+      "name": "知識庫檢索",
+      "approvalTitle": "知識庫檢索需要確認",
+      "query": "查詢內容：{{query}}"
     },
     "exec": {
       "name": "命令執行",
@@ -56,6 +67,88 @@
       "approved": "命令已批准",
       "rejected": "命令已拒絕",
       "executing": "正在執行命令..."
+    },
+    "git": {
+      "title": {
+        "git_status": "Git 狀態",
+        "git_diff": "Git 變更",
+        "git_log": "提交歷史",
+        "git_branch": "Git 分支",
+        "git_commit": "Git 提交",
+        "git_checkout": "分支切換"
+      },
+      "status": { "M": "修改", "A": "新增", "D": "刪除", "R": "重命名", "untracked": "未追蹤" },
+      "clean": "工作區乾淨，無變更",
+      "current": "當前",
+      "commitMessage": "提交訊息：{{message}}",
+      "target": "目標：{{target}}"
+    },
+    "fileRead": {
+      "title": { "read": "讀取檔案", "ls": "列出目錄", "find": "查找檔案", "grep": "搜尋內容" },
+      "noMatch": "未找到符合項目"
+    },
+    "fileWrite": {
+      "title": { "write": "寫入檔案", "edit": "編輯檔案" },
+      "created": "已建立",
+      "updated": "已更新",
+      "lines": "{{n}} 行",
+      "bytes": "{{n}} 位元組",
+      "replacements": "{{n}} 處替換",
+      "path": "路徑：{{path}}"
+    },
+    "browser": {
+      "title": { "browser_navigate": "瀏覽器導航", "browser_snapshot": "頁面快照", "browser_click": "點擊元素" },
+      "noTitle": "（無標題）",
+      "url": "URL：{{url}}",
+      "selector": "選擇器：{{selector}}"
+    },
+    "package": {
+      "title": { "package_install": "安裝依賴", "package_run": "執行指令碼" },
+      "manager": "管理器：{{manager}}",
+      "noOutput": "（無輸出）",
+      "exitCode": "退出碼：{{code}}",
+      "install": "安裝：{{packages}}",
+      "script": "指令碼：{{script}}",
+      "allDeps": "全部依賴"
+    },
+    "simple": {
+      "title": { "echo": "回顯", "now": "當前時間", "todo_write": "任務清單" },
+      "status": { "pending": "待處理", "in_progress": "進行中", "completed": "已完成" },
+      "noTasks": "無任務"
+    },
+    "webFetch": {
+      "title": "網頁請求",
+      "emptyBody": "（空回應內容）",
+      "truncated": "回應已截斷（超過 100KB）"
+    },
+    "lsp": {
+      "title": "LSP 語言服務",
+      "action": { "diagnostics": "診斷", "go_to_definition": "跳轉定義", "completions": "程式碼補全", "hover": "懸停資訊" },
+      "operation": "操作：{{action}}",
+      "noResult": "（無結果）",
+      "notSupported": "當前語言伺服器不支援此操作"
+    },
+    "delegate": {
+      "title": "委託子任務",
+      "noResult": "（無結果）",
+      "steps": "執行步數：{{steps}}"
+    },
+    "workingMemory": {
+      "title": "更新工作記憶",
+      "updated": "已更新",
+      "empty": "（空）"
+    },
+    "weather": {
+      "title": "天氣查詢",
+      "rejected": "天氣查詢已被拒絕",
+      "unknown": "未知",
+      "approvalTitle": "天氣查詢需要確認",
+      "location": "查詢地點：{{location}}",
+      "querying": "正在查詢天氣...",
+      "feelsLike": "體感 {{temp}}°C",
+      "humidity": "{{value}}% 濕度",
+      "gust": "陣風 {{value}} km/h",
+      "failed": "天氣查詢失敗"
     }
   },
   "modal": {

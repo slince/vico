@@ -4,6 +4,7 @@
  * 展示子 agent 的分析结果与执行步数。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import {Bot} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {DelegateResult} from '../delegate.tool';
@@ -19,9 +20,10 @@ export const DelegateRenderer: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
+  const {t} = useTranslation('assistant');
   return (
     <ToolCard
-      title="委托子任务"
+      title={t('tool.delegate.title')}
       icon={Bot}
       status={status}
       result={result}
@@ -36,11 +38,11 @@ export const DelegateRenderer: ToolCallMessagePartComponent = ({
               <p className="text-xs text-destructive whitespace-pre-wrap">{res.error}</p>
             ) : (
               <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
-                {res.result || '(无结果)'}
+                {res.result || t('tool.delegate.noResult')}
               </pre>
             )}
             {res.steps !== undefined && (
-              <p className="text-[10px] text-muted-foreground">执行步数：{res.steps}</p>
+              <p className="text-[10px] text-muted-foreground">{t('tool.delegate.steps', {steps: res.steps})}</p>
             )}
           </div>
         );

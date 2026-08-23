@@ -5,6 +5,7 @@
  * 折叠能力由共享 ToolCard 统一提供。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import {Brain, Check} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {WorkingMemoryResult} from '../working-memory.tool';
@@ -20,6 +21,7 @@ export const WorkingMemoryRenderer: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
+  const {t} = useTranslation('assistant');
   const memory =
     typeof (args as {memory?: string})?.memory === 'string'
       ? (args as {memory: string}).memory
@@ -27,7 +29,7 @@ export const WorkingMemoryRenderer: ToolCallMessagePartComponent = ({
 
   return (
     <ToolCard
-      title="更新工作记忆"
+      title={t('tool.workingMemory.title')}
       icon={Brain}
       status={status}
       result={result}
@@ -40,10 +42,10 @@ export const WorkingMemoryRenderer: ToolCallMessagePartComponent = ({
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
               <Check size={14} />
-              <span>{res.status === 'updated' ? '已更新' : res.status}</span>
+              <span>{res.status === 'updated' ? t('tool.workingMemory.updated') : res.status}</span>
             </div>
             <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
-              {memory || '(空)'}
+              {memory || t('tool.workingMemory.empty')}
             </pre>
           </div>
         );
