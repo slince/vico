@@ -16,6 +16,6 @@ export class SkillProcessor implements ContextProcessor {
     const skillList = this.skills
       .map((s) => `- ${s.name}: ${s.description}`)
       .join('\n');
-    ctx.systemPrompt += `\n\n<available_skills>\n${skillList}\n</available_skills>`;
+    ctx.appendSystemPrompt(`<available_skills>\n${skillList}\n</available_skills>`);
   }
 }

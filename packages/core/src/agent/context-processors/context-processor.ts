@@ -87,7 +87,7 @@ export class ProcessorPipeline {
  */
 export function buildModelRequest(ctx: ModelRequestContext) {
   return {
-    system: ctx.systemPrompt || undefined,
+    system: ctx.getSystemPrompt() || undefined,
     messages: ctx.messages,
     tools: ctx.tools,
     maxTokens: ctx.agent.maxTokens,

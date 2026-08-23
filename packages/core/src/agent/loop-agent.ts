@@ -747,7 +747,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const { ctx, controller } = context;
 
     const request: ModelRequest = {
-      system: ctx.systemPrompt,
+      system: ctx.getSystemPrompt(),
       messages: step.messages,
       tools: ctx.tools,
       maxOutputTokens: this.maxTokens,

@@ -19,8 +19,6 @@ export interface AgentRef {
 export class ModelRequestContext {
   /** Agent 配置（只读引用） */
   readonly agent: AgentRef;
-  /** 系统提示词 — 处理器追加内容 */
-  systemPrompt: string;
   /** 本轮输入消息组 */
   readonly userMessages: ModelMessage[];
   /** 消息列表 — 处理器可追加 history（unshift） */
@@ -31,6 +29,8 @@ export class ModelRequestContext {
   readonly session?: TurnSession;
   /** 当前 step（一次 LLM 调用 + 可选工具执行） */
   step?: Step;
+  /** 系统提示词 — 仅通过 appendSystemPrompt 追加，读取用 getSystemPrompt() */
+  private systemPrompt: string;
 
   constructor({
     agent,
@@ -57,6 +57,24 @@ export class ModelRequestContext {
     this.tools = tools ?? [];
     this.session = session;
     this.step = step;
+  }
+
+  /**
+   * 读取系统提示词。
+   *
+   * @returns 当前系统提示词内容
+   */
+  getSystemPrompt(): string {
+    return this.systemPrompt;
+  }
+
+  /**
+   * 追加系统提示词内容，默认在片段前拼两个换行符分隔。
+   *
+   * @param text - 要追加的提示词片段
+   */
+  appendSystemPrompt(text: string): void {
+    this.systemPrompt += '\n\n' + text;
   }
 
   /** 主用户消息（本轮消息组中末条 user 角色；未提供消息组时从 messages 兜底查找） */

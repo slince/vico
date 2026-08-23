@@ -76,13 +76,13 @@ export class MemoryProcessor implements ContextProcessor {
 
     const dataBlock = current || template;
 
-    ctx.systemPrompt +=
-      `\n\n调用 updateWorkingMemory 工具存储用户信息。如果信息可能被再次引用——存储它！\n\n` +
+    ctx.appendSystemPrompt(
+      `调用 updateWorkingMemory 工具存储用户信息。如果信息可能被再次引用——存储它！\n\n` +
       `使用指南：\n` +
       `1. 了解到用户新信息时主动更新\n` +
       `2. 仅替换变更部分，保持其他部分不变\n` +
       `3. 使用下方 Markdown 格式——不要直接输出模板文本，始终通过工具更新\n\n` +
-      `当前工作记忆：\n\`\`\`markdown\n${dataBlock}\n\`\`\``;
+      `当前工作记忆：\n\`\`\`markdown\n${dataBlock}\n\`\`\``);
   }
 
   /**
@@ -101,6 +101,6 @@ export class MemoryProcessor implements ContextProcessor {
     if (relevant.length === 0) return;
 
     const memText = relevant.map((m) => `- ${m.content}`).join('\n');
-    ctx.systemPrompt += `\n\n相关记忆：\n${memText}`;
+    ctx.appendSystemPrompt(`相关记忆：\n${memText}`);
   }
 }
