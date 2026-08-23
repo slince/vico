@@ -1,9 +1,8 @@
 import {TurnOutput} from "./turn-output.js";
-import type {ToolCallApproval, TurnResult} from "./loop-agent-options.js";
+import type {TurnResult} from "./loop-agent-options.js";
 import type {Message} from '../thread/thread-store.js';
 import type {ModelMessage, UIMessage} from 'ai';
 import {convertToModelMessages, validateUIMessages} from 'ai';
-import {buildApprovalResponseMessage} from '../model/message-utils.js';
 import type {UserMessage} from '../stream/types.js';
 import {SkillSettings} from "./create-agent.js";
 import {resolve} from "node:path";
@@ -32,26 +31,6 @@ export function fromModelMessage(msg: ModelMessage): { role: string; content: st
   return { role: msg.role, content: JSON.stringify(msg.content) };
 }
 
-/**
- * 从 UIMessage[] 提取审批决策（Vico 客户端扩展 part：`{type:'tool-approval-response', approvalId, approved, scope?}`）。
- * 同一 toolCallId 后出现的决策覆盖先前的；无审批 part 时返回 undefined。
- */
-export function extractApprovalDecisions(messages: UIMessage[]): ToolCallApproval[] | undefined {
-  const decisions = new Map<string, ToolCallApproval>();
-  for (const msg of messages) {
-    for (const part of msg.parts as Array<Record<string, unknown>>) {
-      if (part.type === 'tool-approval-response' && typeof part.approvalId === 'string') {
-        decisions.set(part.approvalId, {
-          toolCallId: part.approvalId,
-          approved: part.approved === true,
-          scope: part.scope as 'turn' | 'session' | undefined,
-        });
-      }
-    }
-  }
-  if (decisions.size === 0) return undefined;
-  return [...decisions.values()];
-}
 
 /**
  * UserMessage 归一化为本轮输入消息组（审批决策以原生 tool-approval-response 消息 in-band 携带）：
@@ -77,27 +56,13 @@ export async function normalizeUserMessage(message: UserMessage): Promise<ModelM
 
   // UIMessage 必有 parts 字段，ModelMessage 必有 content 字段
   if ('parts' in message[0]) {
-    const uiMessages = message as UIMessage[];
+    const messages = message as UIMessage[];
 
-    // 提取审批扩展 part，合成原生审批 tool 消息（in-band 携带）
-    const decisions = extractApprovalDecisions(uiMessages);
+    const validated = await validateUIMessages({ messages });
+    const converted = await convertToModelMessages(validated, { ignoreIncompleteToolCalls: true });
+    const last = converted[converted.length - 1];
 
-    // 剥离审批 part 后校验转换，取最后一条（useChat 全量历史不重复入库）
-    const stripped = uiMessages
-      .map((m) => ({ ...m, parts: m.parts.filter((p) => p.type !== 'tool-approval-response') }))
-      .filter((m) => m.parts.length > 0);
-
-    const result: ModelMessage[] = [];
-    if (decisions && decisions.length > 0) {
-      result.push(buildApprovalResponseMessage(decisions));
-    }
-    if (stripped.length > 0) {
-      const validated = await validateUIMessages({ messages: stripped });
-      const converted = await convertToModelMessages(validated, { ignoreIncompleteToolCalls: true });
-      const last = converted[converted.length - 1];
-      if (last) result.push(last);
-    }
-    return result;
+    return last ? [last] : [];
   }
 
   return message as ModelMessage[];
