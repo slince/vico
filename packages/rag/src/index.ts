@@ -37,9 +37,6 @@ export { createEmbedder } from './embedding/index.js';
 export { FastEmbedEmbedder, type FastEmbedOptions } from './embedding/fastembed.js';
 export { OpenAIEmbedder, type OpenAIEmbedderOptions } from './embedding/openai.js';
 
-// Vector Store
-export { InMemoryVectorStore } from './vector-store/in-memory.js';
-
 // Parsing
 export { DefaultParserRegistry } from './parsing/registry.js';
 export { TextParser } from './parsing/text-parser.js';

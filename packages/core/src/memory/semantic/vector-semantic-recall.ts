@@ -1,7 +1,6 @@
 // @vico/core - VectorSemanticRecall: 基于 @vico/rag Embedder + VectorStore 的语义召回实现
 import type {MemoryRecord, MemorySearchResult, SemanticRecallMemory} from '../types.js';
 import type {Embedder, VectorStore, VectorQueryResult} from '@vico/rag';
-import {InMemoryVectorStore} from '@vico/rag';
 import {MEMORY_INDEX_NAME} from '../constants.js';
 
 /** 语义去重阈值 — 已有记忆相似度达到该值视为重复，跳过写入 */
@@ -11,8 +10,8 @@ const DEDUP_THRESHOLD = 0.92;
 export interface VectorSemanticRecallOptions {
   /** 批量嵌入器，将文本转换为向量 */
   embedder: Embedder;
-  /** 向量存储，未提供时使用 @vico/rag 的 InMemoryVectorStore */
-  vectorStore?: VectorStore;
+  /** 向量存储 */
+  vectorStore: VectorStore;
 }
 
 /** 基于 Embedder + VectorStore 的语义召回实现 */
@@ -25,7 +24,7 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
 
   constructor(options: VectorSemanticRecallOptions) {
     this.embedder = options.embedder;
-    this.store = options.vectorStore ?? new InMemoryVectorStore();
+    this.store = options.vectorStore;
   }
 
   private async ensureIndex(dimension: number): Promise<void> {
