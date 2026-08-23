@@ -48,6 +48,13 @@
       "failed": "知識庫搜尋失敗",
       "resultCount": "{{count}} 條結果",
       "noResults": "未找到相關知識"
+    },
+    "exec": {
+      "name": "命令執行",
+      "approvalTitle": "命令執行需要確認",
+      "approved": "命令已批准",
+      "rejected": "命令已拒絕",
+      "executing": "正在執行命令..."
     }
   },
   "modal": {

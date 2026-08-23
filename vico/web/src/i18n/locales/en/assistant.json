@@ -48,6 +48,13 @@
       "failed": "Knowledge search failed",
       "resultCount": "{{count}} result(s)",
       "noResults": "No relevant knowledge found"
+    },
+    "exec": {
+      "name": "Exec",
+      "approvalTitle": "Exec Approval Required",
+      "approved": "Command approved.",
+      "rejected": "Command rejected.",
+      "executing": "Executing command..."
     }
   },
   "modal": {

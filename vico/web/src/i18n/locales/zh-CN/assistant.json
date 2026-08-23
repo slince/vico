@@ -48,6 +48,13 @@
       "failed": "知识库搜索失败",
       "resultCount": "{{count}} 条结果",
       "noResults": "未找到相关知识"
+    },
+    "exec": {
+      "name": "命令执行",
+      "approvalTitle": "命令执行需要确认",
+      "approved": "命令已批准",
+      "rejected": "命令已拒绝",
+      "executing": "正在执行命令..."
     }
   },
   "modal": {

@@ -6,11 +6,14 @@
  * 用户通过 respondToApproval 提交决定。
  */
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
+import { useTranslation } from 'react-i18next';
 import { Terminal, Check, X } from 'lucide-react';
 import { ToolApprovalCard } from '@/components/assistant-ui/tool-approval-card';
 import type { BashArgs } from '../bash.tool';
 
 export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> = ({ status, args, respondToApproval, approval, result }) => {
+  const { t } = useTranslation('assistant');
+
   const command =
     typeof args.command === 'string'
       ? args.command
@@ -27,7 +30,7 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> =
           ) : (
             <X size={16} className="text-destructive" />
           )}
-          <span>{isApproved ? 'Command approved.' : 'Command rejected.'}</span>
+          <span>{isApproved ? t('tool.exec.approved') : t('tool.exec.rejected')}</span>
         </div>
         <pre className="text-xs bg-background p-2 rounded border mt-1 overflow-x-auto whitespace-pre-wrap break-all max-h-32">
           {command}
@@ -40,8 +43,8 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> =
   if (status.type === 'requires-action') {
     return (
       <ToolApprovalCard
-        toolName="Exec"
-        title="Exec Approval Required"
+        toolName={t('tool.exec.name')}
+        title={t('tool.exec.approvalTitle')}
         icon={Terminal}
         respondToApproval={respondToApproval}
       >
@@ -58,7 +61,7 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> =
       <div className="border rounded-lg p-3 my-2 bg-muted/30 animate-pulse">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Terminal size={16} />
-          <span>Executing command...</span>
+          <span>{t('tool.exec.executing')}</span>
         </div>
         <pre className="text-xs bg-background p-2 rounded border mt-1 overflow-x-auto whitespace-pre-wrap break-all max-h-32">
           {command}
