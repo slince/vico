@@ -23,6 +23,7 @@ import {echoTool, nowTool, todoWriteTool} from './simple.tool';
 import {webFetchTool} from './web-fetch.tool';
 import {lspTool} from './lsp.tool';
 import {delegateTool} from './delegate.tool';
+import {workingMemoryTool} from './working-memory.tool';
 
 export const toolkit = defineToolkit({
   'get-weather': getWeatherTool,
@@ -67,4 +68,7 @@ export const toolkit = defineToolkit({
 
   // Delegate
   delegate: delegateTool,
+
+  // Working memory
+  update_working_memory: workingMemoryTool,
 });
