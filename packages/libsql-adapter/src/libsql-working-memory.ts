@@ -22,21 +22,17 @@ const DEFAULT_TEMPLATE = `# 用户信息
 export interface LibSqlWorkingMemoryOptions {
   /** Drizzle LibSQL 数据库实例（schema 需包含本包的表） */
   db: LibSQLDatabase<typeof schema>;
-  /** 作用域，默认 'user' */
-  scope?: 'user' | 'workspace';
   /** Markdown 模板，未提供时使用默认模板 */
   template?: string;
 }
 
-/** LibSQL 版工作记忆实现 — 每个 scope 一行 */
+/** LibSQL 版工作记忆实现 — 每个用户一行 */
 export class LibSqlWorkingMemory implements WorkingMemory {
-  readonly scope: 'user' | 'workspace';
   private db: LibSQLDatabase<typeof schema>;
   private template: string;
 
   constructor(options: LibSqlWorkingMemoryOptions) {
     this.db = options.db;
-    this.scope = options.scope ?? 'user';
     this.template = options.template ?? DEFAULT_TEMPLATE;
   }
 
@@ -46,7 +42,7 @@ export class LibSqlWorkingMemory implements WorkingMemory {
       .from(memoryEntries)
       .where(
         and(
-          eq(memoryEntries.scope_type, this.scope),
+          eq(memoryEntries.scope_type, 'user'),
           eq(memoryEntries.scope_id, scopeId),
           eq(memoryEntries.type, 'working'),
         ),
@@ -57,7 +53,7 @@ export class LibSqlWorkingMemory implements WorkingMemory {
 
   async set(scopeId: string, content: string): Promise<void> {
     // 使用确定性 id 实现 upsert（INSERT … ON CONFLICT DO UPDATE）
-    const id = `${this.scope}:${scopeId}:working`;
+    const id = `user:${scopeId}:working`;
     const now = Date.now();
 
     await this.db
@@ -65,7 +61,7 @@ export class LibSqlWorkingMemory implements WorkingMemory {
       .values({
         id,
         thread_id: null,
-        scope_type: this.scope,
+        scope_type: 'user',
         scope_id: scopeId,
         type: 'working',
         content,

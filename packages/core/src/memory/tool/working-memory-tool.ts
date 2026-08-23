@@ -27,7 +27,7 @@ export function createUpdateWorkingMemoryTool(wm: WorkingMemory) {
     kind: 'mutation',
     tags: ['builtin'],
     async execute(args: { memory: string }, ctx: ToolCallContext) {
-      const scopeId = wm.scope === 'user' ? ctx.session.thread.userId ?? '' : ctx.session.workspace ?? '';
+      const scopeId = ctx.session.thread.userId ?? '';
       const current = await wm.get(scopeId);
       if (current && args.memory.trim() === template.trim()) {
         throw new Error('拒绝用空模板替换工作记忆');

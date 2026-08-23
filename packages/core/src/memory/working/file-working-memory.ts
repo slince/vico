@@ -20,21 +20,17 @@ const DEFAULT_TEMPLATE = `# 用户信息
 export interface FileWorkingMemoryOptions {
   /** 文件存储目录 */
   dir: string;
-  /** 作用域，默认 'user' */
-  scope?: 'user' | 'workspace';
   /** Markdown 模板，未提供时使用默认模板 */
   template?: string;
 }
 
-/** 基于 Markdown 文件的工作记忆 — 每个 scopeId 对应一个 {scope}-{scopeId}.md 文件 */
+/** 基于 Markdown 文件的工作记忆 — 每个 userId 对应一个 user-{userId}.md 文件 */
 export class FileWorkingMemory implements WorkingMemory {
-  readonly scope: 'user' | 'workspace';
   private dir: string;
   private template: string;
 
   constructor(options: FileWorkingMemoryOptions) {
     this.dir = options.dir;
-    this.scope = options.scope ?? 'user';
     this.template = options.template ?? DEFAULT_TEMPLATE;
   }
 
@@ -68,6 +64,6 @@ export class FileWorkingMemory implements WorkingMemory {
   }
 
   private filePath(scopeId: string): string {
-    return path.join(this.dir, `${this.scope}-${scopeId}.md`);
+    return path.join(this.dir, `user-${scopeId}.md`);
   }
 }

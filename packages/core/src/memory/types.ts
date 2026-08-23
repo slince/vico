@@ -35,8 +35,6 @@ export interface SemanticRecallMemory {
 
 /** 工作记忆 — 模板驱动的用户事实存储，LLM 自主更新 */
 export interface WorkingMemory {
-  /** 作用域 */
-  readonly scope: 'user' | 'workspace';
   /** 获取当前工作记忆内容（Markdown） */
   get(scopeId: string): Promise<string>;
   /** 全量替换工作记忆内容 */

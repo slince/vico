@@ -22,21 +22,17 @@ const DEFAULT_TEMPLATE = `# User Facts
 export interface MysqlWorkingMemoryOptions {
   /** Drizzle MySQL database instance (schema must include this package's tables) */
   db: MySql2Database<typeof schema>;
-  /** Scope, default 'user' */
-  scope?: 'user' | 'workspace';
   /** Markdown template, uses default template if not provided */
   template?: string;
 }
 
-/** MySQL-based working memory implementation — one row per scope */
+/** MySQL-based working memory implementation — one row per user */
 export class MysqlWorkingMemory implements WorkingMemory {
-  readonly scope: 'user' | 'workspace';
   private db: MySql2Database<typeof schema>;
   private template: string;
 
   constructor(options: MysqlWorkingMemoryOptions) {
     this.db = options.db;
-    this.scope = options.scope ?? 'user';
     this.template = options.template ?? DEFAULT_TEMPLATE;
   }
 
@@ -46,7 +42,7 @@ export class MysqlWorkingMemory implements WorkingMemory {
       .from(memoryEntries)
       .where(
         and(
-          eq(memoryEntries.scope_type, this.scope),
+          eq(memoryEntries.scope_type, 'user'),
           eq(memoryEntries.scope_id, scopeId),
           eq(memoryEntries.type, 'working'),
         ),
@@ -57,7 +53,7 @@ export class MysqlWorkingMemory implements WorkingMemory {
 
   async set(scopeId: string, content: string): Promise<void> {
     // Use deterministic id for upsert (INSERT … ON DUPLICATE KEY UPDATE)
-    const id = `${this.scope}:${scopeId}:working`;
+    const id = `user:${scopeId}:working`;
     const now = Date.now();
 
     await this.db
@@ -65,7 +61,7 @@ export class MysqlWorkingMemory implements WorkingMemory {
       .values({
         id,
         thread_id: null,
-        scope_type: this.scope,
+        scope_type: 'user',
         scope_id: scopeId,
         type: 'working',
         content,
