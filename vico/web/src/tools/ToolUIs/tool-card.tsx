@@ -16,6 +16,8 @@ import {cn} from '@/lib/utils';
 export interface ToolCardProps {
   /** 卡片标题（工具中文名） */
   title: string;
+  /** 标题右侧补充信息（如文件/目录路径），mono 字体展示 */
+  subtitle?: string;
   /** 标题图标 */
   icon?: React.ElementType;
   /** 工具调用状态 */
@@ -52,6 +54,7 @@ export interface ToolCardProps {
  */
 export function ToolCard({
   title,
+  subtitle,
   icon: Icon = Wrench,
   status,
   result,
@@ -89,6 +92,11 @@ export function ToolCard({
           <div className="flex items-center gap-2">
             <Icon size={14} className="text-muted-foreground" />
             <span className="text-sm font-medium">{title}</span>
+            {subtitle && (
+              <span className="font-mono text-xs text-muted-foreground truncate max-w-[50%]">
+                {subtitle}
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}

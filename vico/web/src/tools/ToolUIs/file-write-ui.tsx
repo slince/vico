@@ -8,7 +8,7 @@ import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';
 import {FilePlus, FilePen} from 'lucide-react';
 import {ToolCard} from './tool-card';
-import type {WriteArgs, WriteResult, EditResult} from '../filesystem.tool';
+import type {WriteArgs, WriteResult, EditArgs, EditResult} from '../filesystem.tool';
 
 /** 工具名 → 图标 */
 const TOOL_ICON: Record<string, React.ElementType> = {
@@ -62,10 +62,14 @@ function EditView({result}: {result: EditResult}) {
   );
 }
 
+/** 变更类工具参数/结果的联合类型（write/edit 共用一个渲染器） */
+type FileWriteArgs = WriteArgs | EditArgs;
+type FileWriteResult = WriteResult | EditResult;
+
 /**
  * 文件写入渲染器 — 统一处理 write/edit 两个变更类工具（走审批）。
  */
-export const FileWriteRenderer: ToolCallMessagePartComponent = ({
+export const FileWriteRenderer: ToolCallMessagePartComponent<FileWriteArgs, FileWriteResult> = ({
   toolName,
   status,
   args,
@@ -81,11 +85,14 @@ export const FileWriteRenderer: ToolCallMessagePartComponent = ({
   const title = t(`tool.fileWrite.title.${toolName}`, {defaultValue: toolName});
   const Icon = TOOL_ICON[toolName] ?? FilePlus;
 
-  const approvalDescription = t('tool.fileWrite.path', {path: String((args as {path?: string})?.path ?? '')});
+  // 变更类工具从 args.path 提取目标文件路径，展示在标题行并用于审批描述
+  const path = args?.path;
+  const approvalDescription = t('tool.fileWrite.path', {path: path ?? ''});
 
   return (
     <ToolCard
       title={title}
+      subtitle={path}
       icon={Icon}
       status={status}
       result={result}

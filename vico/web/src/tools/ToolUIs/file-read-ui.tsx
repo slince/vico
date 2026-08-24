@@ -11,7 +11,7 @@ import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';
 import {FileText, FolderOpen, Search, FileSearch} from 'lucide-react';
 import {ToolCard} from './tool-card';
-import type {ReadResult, LsResult, FindResult, GrepResult} from '../filesystem.tool';
+import type {ReadArgs, ReadResult, LsArgs, LsResult, FindArgs, FindResult, GrepArgs, GrepResult} from '../filesystem.tool';
 
 /** 工具名 → 图标 */
 const TOOL_ICON: Record<string, React.ElementType> = {
@@ -97,12 +97,17 @@ function GrepView({result}: {result: GrepResult}) {
   );
 }
 
+/** 只读工具参数/结果的联合类型（read/ls/find/grep 共用一个渲染器） */
+type FileReadArgs = ReadArgs | LsArgs | FindArgs | GrepArgs;
+type FileReadResult = ReadResult | LsResult | FindResult | GrepResult;
+
 /**
  * 文件读取渲染器 — 统一处理 read/ls/find/grep 四个只读工具。
  */
-export const FileReadRenderer: ToolCallMessagePartComponent = ({
+export const FileReadRenderer: ToolCallMessagePartComponent<FileReadArgs, FileReadResult> = ({
   toolName,
   status,
+  args,
   result,
   isError,
   approval,
@@ -114,10 +119,13 @@ export const FileReadRenderer: ToolCallMessagePartComponent = ({
   const {t} = useTranslation('assistant');
   const title = t(`tool.fileRead.title.${toolName}`, {defaultValue: toolName});
   const Icon = TOOL_ICON[toolName] ?? FileText;
+  // 只读工具统一从 args.path 提取文件/目录路径，展示在标题行
+  const path = args?.path;
 
   return (
     <ToolCard
       title={title}
+      subtitle={path}
       icon={Icon}
       status={status}
       result={result}
