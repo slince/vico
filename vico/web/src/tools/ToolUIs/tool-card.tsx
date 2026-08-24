@@ -127,6 +127,7 @@ export function ToolCard({
     return (
       <ToolApprovalCard
         toolName={title}
+        subtitle={subtitle}
         description={approvalDescription}
         icon={Icon}
         approval={approval}

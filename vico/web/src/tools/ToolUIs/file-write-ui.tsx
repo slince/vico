@@ -85,9 +85,8 @@ export const FileWriteRenderer: ToolCallMessagePartComponent<FileWriteArgs, File
   const title = t(`tool.fileWrite.title.${toolName}`, {defaultValue: toolName});
   const Icon = TOOL_ICON[toolName] ?? FilePlus;
 
-  // 变更类工具从 args.path 提取目标文件路径，展示在标题行并用于审批描述
+  // 变更类工具从 args.path 提取目标文件路径，展示在标题行
   const path = args?.path;
-  const approvalDescription = t('tool.fileWrite.path', {path: path ?? ''});
 
   return (
     <ToolCard
@@ -102,7 +101,6 @@ export const FileWriteRenderer: ToolCallMessagePartComponent<FileWriteArgs, File
       resume={resume}
       addResult={addResult}
       respondToApproval={respondToApproval}
-      approvalDescription={approvalDescription}
       renderResult={(r) => {
         if (toolName === 'write') return <WriteView result={r as WriteResult} />;
         if (toolName === 'edit') return <EditView result={r as EditResult} />;

@@ -12,6 +12,8 @@ export interface ToolApprovalCardProps {
   toolName: string;
   /** 审批标题（如 "天气查询需要确认"），不传则默认 "{toolName} 需要确认" */
   title?: string;
+  /** 标题右侧补充信息（如文件/目录路径），mono 字体展示 */
+  subtitle?: string;
   /** 补充描述信息 */
   description?: string;
   /** 额外内容（参数展示等） */
@@ -40,6 +42,7 @@ export interface ToolApprovalCardProps {
 export function ToolApprovalCard({
   toolName,
   title,
+  subtitle,
   description,
   children,
   icon: Icon = ShieldAlert,
@@ -91,6 +94,11 @@ export function ToolApprovalCard({
         <span className="text-sm font-medium">
           {title ?? t("tool.approvalRequired", {name: toolName})}
         </span>
+        {subtitle && (
+          <span className="font-mono text-xs text-muted-foreground truncate max-w-[50%]">
+            {subtitle}
+          </span>
+        )}
       </div>
 
       {description && (
