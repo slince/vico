@@ -6,6 +6,7 @@
  * delegate 为 auto（无需审批），kind=delegate。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {DelegateRenderer} from './ToolUIs/delegate-ui';
 
 const delegateSchema = z.object({
@@ -20,7 +21,7 @@ const delegateOutputSchema = z.object({
 export type DelegateArgs = z.infer<typeof delegateSchema>;
 export type DelegateResult = z.infer<typeof delegateOutputSchema>;
 
-export const delegateTool = {
+export const delegateTool: ToolkitDefinitionEntry<DelegateArgs, DelegateResult> = {
   description: '将子任务委托给子 agent 执行。子 agent 使用只读工具探索代码库并返回分析结果。',
   parameters: delegateSchema,
   render: DelegateRenderer,

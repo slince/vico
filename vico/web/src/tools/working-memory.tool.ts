@@ -6,6 +6,7 @@
  * update_working_memory 为 auto mutation（无需审批）。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {WorkingMemoryRenderer} from './ToolUIs/working-memory-ui';
 
 const workingMemorySchema = z.object({
@@ -17,7 +18,7 @@ const workingMemoryOutputSchema = z.object({
 export type WorkingMemoryArgs = z.infer<typeof workingMemorySchema>;
 export type WorkingMemoryResult = z.infer<typeof workingMemoryOutputSchema>;
 
-export const workingMemoryTool = {
+export const workingMemoryTool: ToolkitDefinitionEntry<WorkingMemoryArgs, WorkingMemoryResult> = {
   description: '用用户事实和上下文更新工作记忆。提供完整的 Markdown 内容，它将替换现有工作记忆。',
   parameters: workingMemorySchema,
   render: WorkingMemoryRenderer,

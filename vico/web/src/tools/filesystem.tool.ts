@@ -6,6 +6,7 @@
  * 写组（write/edit）共用 FileWriteRenderer。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {FileReadRenderer} from './ToolUIs/file-read-ui';
 import {FileWriteRenderer} from './ToolUIs/file-write-ui';
 
@@ -102,37 +103,37 @@ const editOutputSchema = z.object({
 export type EditArgs = z.infer<typeof editSchema>;
 export type EditResult = z.infer<typeof editOutputSchema>;
 
-export const readTool = {
+export const readTool: ToolkitDefinitionEntry<ReadArgs, ReadResult> = {
   description: '读取工作区文件，支持行偏移和行数限制。图片文件自动检测并以 base64 返回。',
   parameters: readSchema,
   render: FileReadRenderer,
 };
 
-export const lsTool = {
+export const lsTool: ToolkitDefinitionEntry<LsArgs, LsResult> = {
   description: '列出工作区目录内容，按字母排序，目录以 "/" 结尾标记。',
   parameters: lsSchema,
   render: FileReadRenderer,
 };
 
-export const findTool = {
+export const findTool: ToolkitDefinitionEntry<FindArgs, FindResult> = {
   description: '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。',
   parameters: findSchema,
   render: FileReadRenderer,
 };
 
-export const grepTool = {
+export const grepTool: ToolkitDefinitionEntry<GrepArgs, GrepResult> = {
   description: '使用正则表达式搜索文件内容。支持 glob 过滤、忽略大小写和上下文行。',
   parameters: grepSchema,
   render: FileReadRenderer,
 };
 
-export const writeTool = {
+export const writeTool: ToolkitDefinitionEntry<WriteArgs, WriteResult> = {
   description: '在工作区创建新文件或覆盖已有文件，父目录不存在时自动创建。',
   parameters: writeSchema,
   render: FileWriteRenderer,
 };
 
-export const editTool = {
+export const editTool: ToolkitDefinitionEntry<EditArgs, EditResult> = {
   description: '编辑文件，支持字符串替换、行号编辑、行插入三种模式。返回 unified diff。',
   parameters: editSchema,
   render: FileWriteRenderer,

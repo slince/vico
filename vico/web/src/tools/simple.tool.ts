@@ -6,6 +6,7 @@
  * echo/now/todo_write 均为 auto（无需审批）。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {SimpleToolRenderer} from './ToolUIs/simple-ui';
 
 // ── echo ──
@@ -42,19 +43,19 @@ const todoWriteOutputSchema = z.object({
 export type TodoWriteArgs = z.infer<typeof todoWriteSchema>;
 export type TodoWriteResult = z.infer<typeof todoWriteOutputSchema>;
 
-export const echoTool = {
+export const echoTool: ToolkitDefinitionEntry<EchoArgs, EchoResult> = {
   description: '回显输入内容，用于测试工具执行管道。',
   parameters: echoSchema,
   render: SimpleToolRenderer,
 };
 
-export const nowTool = {
+export const nowTool: ToolkitDefinitionEntry<NowArgs, NowResult> = {
   description: '获取当前日期和时间（ISO 8601 格式）。',
   parameters: nowSchema,
   render: SimpleToolRenderer,
 };
 
-export const todoWriteTool = {
+export const todoWriteTool: ToolkitDefinitionEntry<TodoWriteArgs, TodoWriteResult> = {
   description: '创建和更新结构化任务列表，用于跟踪多步任务的执行进度。每次调用会替换全部任务列表。',
   parameters: todoWriteSchema,
   render: SimpleToolRenderer,

@@ -5,6 +5,7 @@
  * 参数定义参考 docs/mastra/09-builtin-tools-catalog.md
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {ExecToolRenderer} from './ToolUIs/exec-ui';
 
 const bashSchema = z.object({
@@ -17,7 +18,7 @@ const bashSchema = z.object({
 
 export type BashArgs = z.infer<typeof bashSchema>;
 
-export const bashTool = {
+export const bashTool: ToolkitDefinitionEntry<BashArgs, unknown> = {
   type: 'human' as const,
   description: '在沙箱中执行 Shell 命令，支持管道/重定向/后台运行',
   parameters: bashSchema,

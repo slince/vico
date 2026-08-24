@@ -5,6 +5,7 @@
  * 参数 schema 与服务端 inputSchema/outputSchema 保持一致。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {WeatherToolRenderer} from './ToolUIs/weather-ui';
 
 const getWeatherSchema = z.object({
@@ -24,7 +25,7 @@ const getWeatherOutputSchema = z.object({
 export type GetWeatherArgs = z.infer<typeof getWeatherSchema>;
 export type GetWeatherResult = z.infer<typeof getWeatherOutputSchema>;
 
-export const getWeatherTool = {
+export const getWeatherTool: ToolkitDefinitionEntry<GetWeatherArgs, GetWeatherResult> = {
   description: 'Get current weather for a location',
   parameters: getWeatherSchema,
   render: WeatherToolRenderer,

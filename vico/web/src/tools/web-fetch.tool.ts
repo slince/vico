@@ -6,6 +6,7 @@
  * web_fetch 为 auto（无需审批）。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {WebFetchRenderer} from './ToolUIs/web-fetch-ui';
 
 const webFetchSchema = z.object({
@@ -26,7 +27,7 @@ const webFetchOutputSchema = z.object({
 export type WebFetchArgs = z.infer<typeof webFetchSchema>;
 export type WebFetchResult = z.infer<typeof webFetchOutputSchema>;
 
-export const webFetchTool = {
+export const webFetchTool: ToolkitDefinitionEntry<WebFetchArgs, WebFetchResult> = {
   description: '发起 HTTP 请求获取网页或 API 数据。支持自定义方法、请求头和请求体。响应体超过 100KB 自动截断。',
   parameters: webFetchSchema,
   render: WebFetchRenderer,

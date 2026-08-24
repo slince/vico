@@ -6,6 +6,7 @@
  * navigate/click 为 on-request（需审批），snapshot 为 auto（只读）。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {BrowserToolRenderer} from './ToolUIs/browser-ui';
 
 // ── browser_navigate ──
@@ -48,19 +49,19 @@ const browserClickOutputSchema = z.object({
 export type BrowserClickArgs = z.infer<typeof browserClickSchema>;
 export type BrowserClickResult = z.infer<typeof browserClickOutputSchema>;
 
-export const browserNavigateTool = {
+export const browserNavigateTool: ToolkitDefinitionEntry<BrowserNavigateArgs, BrowserNavigateResult> = {
   description: '使用 headless Chromium 导航到指定 URL，返回页面标题和最终 URL。需要安装 Playwright 依赖。',
   parameters: browserNavigateSchema,
   render: BrowserToolRenderer,
 };
 
-export const browserSnapshotTool = {
+export const browserSnapshotTool: ToolkitDefinitionEntry<BrowserSnapshotArgs, BrowserSnapshotResult> = {
   description: '获取页面的文本快照（可见文本内容），不包含 HTML 标签。需安装 Playwright。',
   parameters: browserSnapshotSchema,
   render: BrowserToolRenderer,
 };
 
-export const browserClickTool = {
+export const browserClickTool: ToolkitDefinitionEntry<BrowserClickArgs, BrowserClickResult> = {
   description: '点击页面元素（CSS 选择器或文本匹配），等待导航后返回新页面信息。需安装 Playwright。',
   parameters: browserClickSchema,
   render: BrowserToolRenderer,

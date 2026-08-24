@@ -6,6 +6,7 @@
  * install / run 均为 on-request（需审批）。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {PackageToolRenderer} from './ToolUIs/package-ui';
 
 // ── package_install ──
@@ -36,13 +37,13 @@ const packageRunOutputSchema = z.object({
 export type PackageRunArgs = z.infer<typeof packageRunSchema>;
 export type PackageRunResult = z.infer<typeof packageRunOutputSchema>;
 
-export const packageInstallTool = {
+export const packageInstallTool: ToolkitDefinitionEntry<PackageInstallArgs, PackageInstallResult> = {
   description: '安装依赖包。自动检测包管理器（pnpm/yarn/npm/pip），支持开发依赖安装。不指定 packages 时安装 lockfile 全部依赖。',
   parameters: packageInstallSchema,
   render: PackageToolRenderer,
 };
 
-export const packageRunTool = {
+export const packageRunTool: ToolkitDefinitionEntry<PackageRunArgs, PackageRunResult> = {
   description: '执行 package.json scripts 或 pip 命令。自动检测包管理器（pnpm/yarn/npm/pip）。',
   parameters: packageRunSchema,
   render: PackageToolRenderer,

@@ -6,6 +6,7 @@
  * 6 个 git 工具共用一个渲染器 GitToolRenderer，内部按 toolName 分支。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {GitToolRenderer} from './ToolUIs/git-ui';
 
 // ── git_status ──
@@ -96,37 +97,37 @@ const gitCheckoutOutputSchema = z.object({
 export type GitCheckoutArgs = z.infer<typeof gitCheckoutSchema>;
 export type GitCheckoutResult = z.infer<typeof gitCheckoutOutputSchema>;
 
-export const gitStatusTool = {
+export const gitStatusTool: ToolkitDefinitionEntry<GitStatusArgs, GitStatusResult> = {
   description: '显示 git 工作区和暂存区状态。返回分支信息及变更文件列表（M=修改，A=新增，D=删除，?=未跟踪）。',
   parameters: gitStatusSchema,
   render: GitToolRenderer,
 };
 
-export const gitDiffTool = {
+export const gitDiffTool: ToolkitDefinitionEntry<GitDiffArgs, GitDiffResult> = {
   description: '显示 git diff 变更。默认显示工作区未暂存的变更，staged 参数查看已暂存变更。',
   parameters: gitDiffSchema,
   render: GitToolRenderer,
 };
 
-export const gitLogTool = {
+export const gitLogTool: ToolkitDefinitionEntry<GitLogArgs, GitLogResult> = {
   description: '显示 git 提交历史。返回指定数量的最近提交，包含 hash、提交信息、日期和作者。',
   parameters: gitLogSchema,
   render: GitToolRenderer,
 };
 
-export const gitBranchTool = {
+export const gitBranchTool: ToolkitDefinitionEntry<GitBranchArgs, GitBranchResult> = {
   description: '列出或创建 git 分支。action=list 返回所有本地分支及当前分支标记，action=create 创建新分支。',
   parameters: gitBranchSchema,
   render: GitToolRenderer,
 };
 
-export const gitCommitTool = {
+export const gitCommitTool: ToolkitDefinitionEntry<GitCommitArgs, GitCommitResult> = {
   description: '创建 git 提交。可选择性暂存指定文件后提交。提交信息为必填项。',
   parameters: gitCommitSchema,
   render: GitToolRenderer,
 };
 
-export const gitCheckoutTool = {
+export const gitCheckoutTool: ToolkitDefinitionEntry<GitCheckoutArgs, GitCheckoutResult> = {
   description: '切换 git 分支或恢复文件。isFile=true 时恢复文件到上次提交的状态，否则切换到指定分支。',
   parameters: gitCheckoutSchema,
   render: GitToolRenderer,

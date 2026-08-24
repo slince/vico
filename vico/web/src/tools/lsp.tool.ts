@@ -6,6 +6,7 @@
  * lsp 为 auto 只读（无需审批）。
  */
 import {z} from 'zod/v4';
+import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {LspRenderer} from './ToolUIs/lsp-ui';
 
 const lspSchema = z.object({
@@ -23,7 +24,7 @@ const lspOutputSchema = z.object({
 export type LspArgs = z.infer<typeof lspSchema>;
 export type LspResult = z.infer<typeof lspOutputSchema>;
 
-export const lspTool = {
+export const lspTool: ToolkitDefinitionEntry<LspArgs, LspResult> = {
   description: '语言服务器协议集成工具。支持诊断、跳转定义、代码补全和悬停信息。自动按文件扩展名匹配语言服务器。',
   parameters: lspSchema,
   render: LspRenderer,
