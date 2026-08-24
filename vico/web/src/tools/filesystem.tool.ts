@@ -106,7 +106,6 @@ export const readTool = {
   description: '读取工作区文件，支持行偏移和行数限制。图片文件自动检测并以 base64 返回。',
   parameters: readSchema,
   render: FileReadRenderer,
-  display: 'standalone' as const,
 };
 
 export const lsTool = {
@@ -125,7 +124,6 @@ export const grepTool = {
   description: '使用正则表达式搜索文件内容。支持 glob 过滤、忽略大小写和上下文行。',
   parameters: grepSchema,
   render: FileReadRenderer,
-  display: 'standalone' as const,
 };
 
 export const writeTool = {

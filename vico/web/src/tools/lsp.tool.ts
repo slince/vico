@@ -27,5 +27,4 @@ export const lspTool = {
   description: '语言服务器协议集成工具。支持诊断、跳转定义、代码补全和悬停信息。自动按文件扩展名匹配语言服务器。',
   parameters: lspSchema,
   render: LspRenderer,
-  display: 'standalone' as const,
 };

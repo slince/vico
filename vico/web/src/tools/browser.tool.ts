@@ -58,7 +58,6 @@ export const browserSnapshotTool = {
   description: '获取页面的文本快照（可见文本内容），不包含 HTML 标签。需安装 Playwright。',
   parameters: browserSnapshotSchema,
   render: BrowserToolRenderer,
-  display: 'standalone' as const,
 };
 
 export const browserClickTool = {

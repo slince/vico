@@ -24,5 +24,4 @@ export const delegateTool = {
   description: '将子任务委托给子 agent 执行。子 agent 使用只读工具探索代码库并返回分析结果。',
   parameters: delegateSchema,
   render: DelegateRenderer,
-  display: 'standalone' as const,
 };

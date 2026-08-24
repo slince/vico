@@ -21,5 +21,4 @@ export const workingMemoryTool = {
   description: '用用户事实和上下文更新工作记忆。提供完整的 Markdown 内容，它将替换现有工作记忆。',
   parameters: workingMemorySchema,
   render: WorkingMemoryRenderer,
-  display: 'standalone' as const,
 };

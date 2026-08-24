@@ -106,7 +106,6 @@ export const gitDiffTool = {
   description: '显示 git diff 变更。默认显示工作区未暂存的变更，staged 参数查看已暂存变更。',
   parameters: gitDiffSchema,
   render: GitToolRenderer,
-  display: 'standalone' as const,
 };
 
 export const gitLogTool = {

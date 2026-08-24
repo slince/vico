@@ -65,8 +65,8 @@ export function ToolCard({
   renderResult,
 }: ToolCardProps) {
   const {t} = useTranslation('assistant');
-  // 完成态结果折叠状态（默认展开，可手动折叠）
-  const [open, setOpen] = useState(true);
+  // 完成态结果折叠状态（默认折叠，可手动展开）
+  const [open, setOpen] = useState(false);
 
   // 审批已裁决（被拒绝或已批准且有结果）
   if (approval?.approved !== undefined || result !== undefined) {
