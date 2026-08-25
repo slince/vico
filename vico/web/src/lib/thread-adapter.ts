@@ -6,12 +6,14 @@
  */
 import type {
   GenericThreadHistoryAdapter,
+  MessageFormatItem,
   RemoteThreadListAdapter,
   ThreadHistoryAdapter,
   ThreadMessage
 } from '@assistant-ui/react';
 import type {ContentPart} from '@vico/core';
 import {api} from '@/api/client';
+import {UIMessage} from "ai";
 
 /**
  * 将 API 返回的 content 归一化为 assistant-ui 的 parts 数组。
@@ -26,77 +28,19 @@ function normalizeContentParts(content: string | ContentPart[]): ContentPart[] {
 }
 
 /**
- * 处理消息列表：顺序遍历，将 tool 消息合并到最近一条 assistant 消息的 tool-call part，
- * 并注入审批状态。返回助理 UI 可直接渲染的消息数组（仅 user/assistant 角色，工具消息已吸收）。
+ * 将后端返回的扁平 UIMessage 列表转换为 assistant-ui 历史消息格式。
+ *
+ * 后端已通过 toUiMessages 完成 tool 消息合并与 tool part 状态注入，此处仅需
+ * 为每条消息建立 parentId 链：线性历史中即上一条消息的 id，首条为 null。
+ *
+ * @param messages - 后端返回的扁平消息列表（已按时间排序）
+ * @returns 带 parentId 指向的消息项数组，供 assistant-ui 重建消息树
  */
-function processHistoryMessages(
-  messages: MessageItem[],
-  paused?: boolean,
-  pendingToolCalls?: Array<{ id: string; name: string; args: unknown }>,
-): Array<{ parentIndex: number; message: { id: string; role: 'user' | 'assistant'; parts: ContentPart[] } }> {
-  const pendingIds = new Set(pendingToolCalls?.map(tc => tc.id) ?? []);
-
-  // 顺序遍历：tool 消息紧随产生 tool-call 的 assistant 消息，直接合并到最近一条 assistant，无需预先扫描
-  const result: Array<{ parentIndex: number; message: { id: string; role: 'user' | 'assistant'; parts: ContentPart[] } }> = [];
-  let lastAssistantIndex = -1;
-
-  for (const msg of messages) {
-    // tool 消息 → 把 tool-result 合并进最近 assistant 消息的对应 tool-call part
-    if (msg.role === 'tool') {
-      if (lastAssistantIndex < 0 || !Array.isArray(msg.content)) continue;
-      const assistant = result[lastAssistantIndex]!;
-
-      for (const part of msg.content as Array<Record<string, unknown>>) {
-        if (part.type !== 'tool-result' || typeof part.toolCallId !== 'string') continue;
-        assistant.message.parts = assistant.message.parts.map((ap): ContentPart => {
-          if (ap.type !== 'tool-call') return ap;
-          const tc = ap as Record<string, unknown>;
-          if (tc.toolCallId !== part.toolCallId) return ap;
-          const enriched: Record<string, unknown> = {
-            ...tc,
-            result: {
-              type: 'tool-result',
-              toolCallId: part.toolCallId,
-              toolName: tc.toolName,
-              output: part.output,
-              isError: Boolean(part.isError),
-            },
-          };
-          return enriched as ContentPart;
-        });
-      }
-      continue;
-    }
-
-    // user / assistant / system → 输出为可见消息
-    let parts = normalizeContentParts(msg.content);
-
-    if (msg.role === 'assistant') {
-      // 待审批的 tool-call 注入审批状态（未执行的工具不会产生 tool-result）
-      parts = parts.map((part): ContentPart => {
-        if (part.type !== 'tool-call') return part;
-        const tc = part as Record<string, unknown>;
-        if (paused && pendingIds.has(tc.toolCallId as string)) {
-          const enriched: Record<string, unknown> = { ...tc, approval: { approvalId: tc.toolCallId } };
-          return enriched as ContentPart;
-        }
-        return part;
-      });
-    }
-
-    const parentIndex = result.length > 0 ? result.length - 1 : -1;
-    result.push({
-      parentIndex,
-      message: {
-        id: msg.id || crypto.randomUUID(),
-        role: (msg.role === 'system' ? 'assistant' : msg.role) as 'user' | 'assistant',
-        parts,
-      },
-    });
-    if (msg.role === 'assistant') lastAssistantIndex = result.length - 1;
-  }
-
-  return result;
+function processHistoryMessages(messages: UIMessage[]): MessageFormatItem<UIMessage>[] {
+  return messages.map((message, index) => ({
+    parentId: index > 0 ? messages[index - 1]!.id : null,
+    message,
+  }));
 }
 
 interface ThreadItem {
@@ -175,16 +119,8 @@ export function createThreadListAdapter(agentId: string): RemoteThreadListAdapte
   };
 }
 
-interface MessageItem {
-  id: string;
-  role: 'user' | 'assistant' | 'system' | 'tool';
-  content: string | ContentPart[];
-}
-
 interface ThreadDetail {
-  messages: MessageItem[];
-  paused?: boolean;
-  pendingToolCalls?: Array<{ id: string; name: string; args: unknown }>;
+  messages: UIMessage[];
 }
 
 /**
@@ -206,15 +142,8 @@ export function createThreadHistoryAdapter(remoteId: string | undefined): Thread
           const data = await api<ThreadDetail>(`/threads/${remoteId}`);
           const msgs = data.messages || [];
 
-          const processed = processHistoryMessages(msgs, data.paused, data.pendingToolCalls);
-
-          console.log(processed)
-
           return {
-            messages: processed.map(({ message, parentIndex }) => ({
-              parentId: parentIndex >= 0 ? processed[parentIndex]!.message.id : null,
-              message,
-            })),
+            messages: processHistoryMessages(msgs),
           };
         },
 
