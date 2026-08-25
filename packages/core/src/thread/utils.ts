@@ -1,6 +1,7 @@
 // src/thread/utils.ts — ThreadStore Message 与原生 ModelMessage/UIMessage 的相互转换
 import type {Message} from './thread-store.js';
-import type {ModelMessage, UIMessage} from 'ai';
+import type {ModelMessage, ToolUIPart, UIMessage} from 'ai';
+import {ToolCallPart} from "@ai-sdk/provider-utils";
 
 /**
  * ThreadStore Message → 原生 ModelMessage（content 反序列化）。
@@ -18,8 +19,6 @@ export function toModelMessages(entries: Message[]): ModelMessage[] {
   });
 }
 
-
-
 /**
  * 原生 ModelMessage → ThreadStore 持久化字段（content 序列化）。
  */
@@ -27,40 +26,33 @@ export function fromModelMessage(msg: ModelMessage): Pick<Message, 'role'|'conte
   return { role: msg.role, content: JSON.stringify(msg.content) };
 }
 
-/** UIMessage 的宽松形态 — parts 以 Record 承载，规避 AI SDK tool part 模板字面量类型的强约束 */
-interface UIMessageLike {
-  id: string;
-  role: UIMessage['role'];
-  parts: Record<string, unknown>[];
+/**
+ * 解析 Message.content 为规范形态（string 或 parts 数组）。
+ * content 由 fromModelMessage 以 JSON.stringify 写入，反序列化即还原 ModelMessage.content。
+ */
+function parseContent(content: string): ModelMessage['content'] {
+  return JSON.parse(content) as ModelMessage['content'];
+}
+
+/** 判断 UIMessage part 是否为静态 tool part（type 以 tool- 开头） */
+function isToolUIPart(part: UIMessage['parts'][number]): part is ToolUIPart {
+  return typeof part.type === 'string' && part.type.startsWith('tool-');
 }
 
 /**
- * 解析 Message.content，成功时返回 parts 数组，失败时按原文兜底。
+ * ModelMessage tool-call part → UIMessage tool part（初始 input-available，
+ * 等待后续 tool-result 合并改写为 output-available / output-error）。
+ *
+ * 依赖 UIMessage 默认泛型 TOOLS = UITools（Record<string, UITool>），
+ * 使 type 的模板字面量 `tool-${string}` 可匹配任意动态工具名，无需自建宽松中间类型。
  */
-function parseContent(content: string): unknown {
-  try {
-    return JSON.parse(content);
-  } catch {
-    return content;
-  }
-}
-
-/**
- * ModelMessage 的 tool-call part → UIMessage 的 tool-${toolName} part（初始 input-available，
- * 等待后续 tool-result 合并为 output-available / output-error）。
- */
-function toToolUIPart(part: Record<string, unknown>): Record<string, unknown> {
+function toToolUIPart(part: ToolCallPart): ToolUIPart {
   return {
     type: `tool-${part.toolName ?? 'unknown'}`,
-    toolCallId: part.toolCallId,
+    toolCallId: part.toolCallId ?? '',
     input: part.input,
     state: 'input-available',
-  };
-}
-
-/** 判断 part 是否为 UIMessage 的静态 tool part（type 以 tool- 开头） */
-function isToolUIPartLike(part: Record<string, unknown>): boolean {
-  return typeof part.type === 'string' && part.type.startsWith('tool-');
+  } as ToolUIPart;
 }
 
 /**
@@ -75,7 +67,7 @@ function isToolUIPartLike(part: Record<string, unknown>): boolean {
  * @returns 可直接渲染的 UIMessage 数组
  */
 export function toUiMessages(entries: Message[]): UIMessage[] {
-  const result: UIMessageLike[] = [];
+  const result: UIMessage[] = [];
   let lastAssistantIndex = -1;
 
   for (const entry of entries) {
@@ -85,15 +77,15 @@ export function toUiMessages(entries: Message[]): UIMessage[] {
     if (entry.role === 'tool') {
       if (lastAssistantIndex < 0 || !Array.isArray(content)) continue;
       const assistant = result[lastAssistantIndex]!;
-      for (const part of content as Record<string, unknown>[]) {
-        if (part.type !== 'tool-result' || typeof part.toolCallId !== 'string') continue;
-        const output = part.output as { type?: string; value?: unknown } | undefined;
+      for (const raw of content) {
+        if (raw.type !== 'tool-result' || typeof raw.toolCallId !== 'string') continue;
+        const output = raw.output as { type?: string; value?: unknown } | undefined;
         assistant.parts = assistant.parts.map((ap) => {
-          if (!isToolUIPartLike(ap) || ap.toolCallId !== part.toolCallId) return ap;
+          if (!isToolUIPart(ap) || ap.toolCallId !== raw.toolCallId) return ap;
           if (output?.type === 'error-text') {
-            return { ...ap, state: 'output-error', errorText: output.value };
+            return { ...ap, state: 'output-error', errorText: String(output.value) } as ToolUIPart;
           }
-          return { ...ap, state: 'output-available', output: output?.value };
+          return { ...ap, state: 'output-available', output: output?.value } as ToolUIPart;
         });
       }
       continue;
@@ -102,15 +94,21 @@ export function toUiMessages(entries: Message[]): UIMessage[] {
     // 仅 user / assistant / system 产出 UIMessage，未知角色跳过
     if (entry.role !== 'user' && entry.role !== 'assistant' && entry.role !== 'system') continue;
 
-    const parts = Array.isArray(content)
-      ? (content as Record<string, unknown>[]).map((part) =>
-          part.type === 'tool-call' ? toToolUIPart(part) : part,
-        )
-      : [{ type: 'text', text: String(content ?? '') }];
+    let parts: UIMessage['parts'];
+    if (Array.isArray(content)) {
+      parts = content.map((p) => {
+        if (p.type === 'tool-call') {
+          return toToolUIPart(p);
+        }
+        return p as UIMessage['parts'][number];
+      });
+    } else {
+      parts = [{ type: 'text', text: String(content) }];
+    }
 
     result.push({ id: entry.id, role: entry.role, parts });
     if (entry.role === 'assistant') lastAssistantIndex = result.length - 1;
   }
 
-  return result as unknown as UIMessage[];
+  return result;
 }
