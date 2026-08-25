@@ -8,10 +8,19 @@
  *   grep → 搜索结果文本
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
-import { useTranslation } from 'react-i18next';
-import {FileText, FolderOpen, Search, FileSearch} from 'lucide-react';
+import {useTranslation} from 'react-i18next';
+import {FileSearch, FileText, FolderOpen, Search} from 'lucide-react';
 import {ToolCard} from './tool-card';
-import type {ReadArgs, ReadResult, LsArgs, LsResult, FindArgs, FindResult, GrepArgs, GrepResult} from '../filesystem.tool';
+import type {
+  FindArgs,
+  FindResult,
+  GrepArgs,
+  GrepResult,
+  LsArgs,
+  LsResult,
+  ReadArgs,
+  ReadResult
+} from '../filesystem.tool';
 
 /** 工具名 → 图标 */
 const TOOL_ICON: Record<string, React.ElementType> = {
@@ -49,7 +58,7 @@ function LsView({result}: {result: LsResult}) {
     <div className="space-y-1">
       <p className="font-mono text-[11px] text-muted-foreground">{result.path}</p>
       <ul className="grid grid-cols-1 gap-0.5">
-        {result.entries.map((entry, i) => {
+        {result?.entries?.map((entry, i) => {
           const isDir = entry.endsWith('/');
           return (
             <li key={i} className="flex items-center gap-1.5 text-xs">

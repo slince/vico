@@ -142,6 +142,8 @@ export function createThreadHistoryAdapter(remoteId: string | undefined): Thread
           const data = await api<ThreadDetail>(`/threads/${remoteId}`);
           const msgs = data.messages || [];
 
+          console.log(msgs)
+
           return {
             messages: processHistoryMessages(msgs),
           };
