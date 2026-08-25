@@ -1,7 +1,7 @@
 import {vico} from '../../vico.js';
 import {agentManager} from '../agent/agent-manager.js';
-import type {ThreadDetail, ThreadItem, MessageItem, RecentThread} from './types.js';
-import {type ContentPart, type Message, type ThreadStore} from "@vico/core";
+import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
+import {type ContentPart, type Message, type ThreadStore, toUiMessages} from "@vico/core";
 
 /**
  * 解析消息 content 为原生 parts 数组，解析失败时按纯文本兜底。
@@ -56,6 +56,7 @@ class ThreadManager {
   ): Promise<ThreadDetail | null> {
     const thread = await this.store.getThread(id);
     if (!thread) return null;
+
     if (thread.userId && thread.userId !== userId) return null;
 
     const entries = await this.store.getEntries(id, { ...pagination, roles: VISIBLE_ROLES });
@@ -66,33 +67,8 @@ class ThreadManager {
       messageCount = all.length;
     }
 
-    const messages: MessageItem[] = entries.map((msg: Message) => ({
-      id: msg.id,
-      threadId: msg.threadId ?? id,
-      role: msg.role,
-      content: parseMessageContent(msg),
-      createdAt: msg.createdAt ?? Date.now(),
-    }));
-
-    // 检查暂停状态
-    let paused = false;
-    let pendingToolCalls: Array<{ id: string; name: string; args: unknown }> | undefined;
-    try {
-      const latestTurn = await this.store.getLatestTurn(id);
-      if (latestTurn && latestTurn.status === 'paused') {
-        const checkpoint = await vico.checkpointStore?.getByTurn(latestTurn.id);
-        if (checkpoint?.pauseInfo?.pendingToolCalls) {
-          paused = true;
-          pendingToolCalls = checkpoint.pauseInfo.pendingToolCalls.map(tc => ({
-            id: tc.id,
-            name: tc.name,
-            args: tc.args,
-          }));
-        }
-      }
-    } catch { /* 获取暂停状态失败不影响消息返回 */ }
-
-    return { ...thread, messageCount, messages, paused, pendingToolCalls };
+    const messages = toUiMessages(entries);
+    return { ...thread, messageCount, messages};
   }
 
   async count(userId: string): Promise<number> {

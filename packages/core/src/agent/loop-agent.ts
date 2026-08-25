@@ -35,7 +35,8 @@ import type {
 
 import {ModelClient} from '../model/model-client.js';
 import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
-import {fromModelMessage, normalizeUserMessage, toModelMessages} from './utils.js';
+import {normalizeUserMessage} from './utils.js';
+import {fromModelMessage, toModelMessages} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
 import {buildAssistantMessage, buildToolResultMessage, extractApprovalResponses,} from '../model/message-utils.js';

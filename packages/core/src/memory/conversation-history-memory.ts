@@ -1,7 +1,7 @@
 // src/memory/conversation-history-memory.ts
 import type {ThreadStore} from '../thread/thread-store.js';
 import type { ModelMessage } from 'ai';
-import {toModelMessages} from '../agent/utils.js';
+import {toModelMessages} from '../thread/utils.js';
 
 
 /**

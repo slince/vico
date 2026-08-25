@@ -139,6 +139,7 @@ export {
   type SessionApprovedTool,
 } from './thread/thread-store.js';
 export { InMemoryThreadStore } from './thread/memory-thread-store.js';
+export { toModelMessages, fromModelMessage, toUiMessages } from './thread/utils.js';
 
 // ContextCompactor
 export { ContextCompactor } from './agent/context-compactor.js';

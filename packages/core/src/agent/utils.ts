@@ -1,36 +1,11 @@
 import {TurnOutput} from "./turn-output.js";
 import type {TurnResult} from "./loop-agent-options.js";
-import type {Message} from '../thread/thread-store.js';
 import type {ModelMessage, UIMessage} from 'ai';
 import {convertToModelMessages, validateUIMessages} from 'ai';
 import type {UserMessage} from '../stream/types.js';
 import {SkillSettings} from "./create-agent.js";
 import {resolve} from "node:path";
 import {homedir} from "node:os";
-
-/**
- * ThreadStore Message → 原生 ModelMessage（content 反序列化）。
- * 解析失败时按纯文本内容兜底（防御历史脏数据）。
- */
-export function toModelMessages(entries: Message[]): ModelMessage[] {
-  return entries.map((e) => {
-    let content: unknown;
-    try {
-      content = JSON.parse(e.content);
-    } catch {
-      content = e.content;
-    }
-    return { role: e.role, content } as ModelMessage;
-  });
-}
-
-/**
- * 原生 ModelMessage → ThreadStore 持久化字段（content 序列化）。
- */
-export function fromModelMessage(msg: ModelMessage): Pick<Message, 'role'|'content'> {
-  return { role: msg.role, content: JSON.stringify(msg.content) };
-}
-
 
 /**
  * UserMessage 归一化为本轮输入消息组（审批决策以原生 tool-approval-response 消息 in-band 携带）：
