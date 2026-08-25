@@ -54,6 +54,9 @@ function ReadView({result}: {result: ReadResult}) {
 
 /** ls 结果视图 — 目录条目列表 */
 function LsView({result}: {result: LsResult}) {
+
+  console.log(result);
+
   return (
     <div className="space-y-1">
       <p className="font-mono text-[11px] text-muted-foreground">{result.path}</p>
