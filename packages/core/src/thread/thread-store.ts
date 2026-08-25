@@ -52,6 +52,9 @@ export interface Turn {
   createdAt: number;
 }
 
+
+export type MessageMetadata = Record<string, unknown>
+
 /** 对话记录条目 — content 存原生 ModelMessage.content 的 JSON 序列化（string 或 parts 数组） */
 export interface Message {
   id: string;
@@ -61,7 +64,7 @@ export interface Message {
   /** JSON.stringify(ModelMessage.content)，读取时 JSON.parse 还原 */
   content: string;
   /** 自定义上下文字段（JSON 可序列化） */
-  metadata?: Record<string, unknown>;
+  metadata?: MessageMetadata;
   createdAt: number;
 }
 

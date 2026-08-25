@@ -27,7 +27,7 @@ export function toModelMessages(entries: Message[]): ModelMessage[] {
 /**
  * 原生 ModelMessage → ThreadStore 持久化字段（content 序列化）。
  */
-export function fromModelMessage(msg: ModelMessage): { role: string; content: string } {
+export function fromModelMessage(msg: ModelMessage): Pick<Message, 'role'|'content'> {
   return { role: msg.role, content: JSON.stringify(msg.content) };
 }
 
