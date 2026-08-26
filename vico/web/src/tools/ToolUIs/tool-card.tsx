@@ -22,8 +22,8 @@ export interface ToolCardProps {
   icon?: React.ElementType;
   /** 工具调用状态 */
   status?: ToolCallMessagePartStatus;
-  /** 执行结果 */
-  result?: unknown;
+  /** 执行结果（错误态含 error 字段） */
+  result?: ToolCardResult;
   /** 是否出错 */
   isError?: boolean;
   /** 服务端审批门禁状态 */
@@ -43,14 +43,26 @@ export interface ToolCardProps {
 }
 
 /**
+ * 工具执行结果。
+ *
+ * 错误态（isError）下 result 为 `{ error: string }`；成功态为各工具的具体结果对象，
+ * 由 renderResult 内部 cast 后使用。index signature 用于兼容任意成功态结果对象。
+ */
+type ToolCardResult = {
+  /** 错误信息（isError 时存在） */
+  error?: string;
+  [key: string]: unknown;
+};
+
+/**
  * 通用工具卡片。
  *
- * 状态机：
+ * 状态机（优先级从高到低）：
+ * - isError / incomplete → destructive 错误态（isError 时 result 可能携带 { error: ... }，须优先于完成态判断）
  * - approval 被拒绝 → destructive 拒绝态
  * - complete 且有 result → 卡片（header + 可折叠的 renderResult）
  * - requires-action → ToolApprovalCard 审批
  * - running → 加载占位
- * - isError / incomplete → destructive 错误态
  */
 export function ToolCard({
   title,
@@ -70,6 +82,25 @@ export function ToolCard({
   const {t} = useTranslation('assistant');
   // 完成态结果折叠状态（默认折叠，可手动展开）
   const [open, setOpen] = useState(false);
+
+  // 错误/未完成优先：isError 时 result 可能携带 { error: ... }，不能按完成态渲染
+  if (isError || status?.type === 'incomplete') {
+    // isError 时展示 result.error；incomplete（取消）通常无错误详情
+    const errorMessage = isError ? result?.error : undefined;
+    return (
+      <div className="border border-destructive/30 rounded-lg p-3 my-2 bg-destructive/5">
+        <div className="flex items-center gap-2">
+          <X size={16} className="text-destructive" />
+          <span className="text-sm text-destructive">{t('tool.card.failed', {name: title})}</span>
+        </div>
+        {errorMessage && (
+          <p className="mt-1.5 font-mono text-xs text-destructive/80 break-all whitespace-pre-wrap">
+            {errorMessage}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   // 审批已裁决（被拒绝或已批准且有结果）
   if (approval?.approved !== undefined || result !== undefined) {
@@ -146,18 +177,6 @@ export function ToolCard({
         <div className="flex items-center gap-2">
           <Loader2 size={14} className="text-muted-foreground animate-spin" />
           <span className="text-sm text-muted-foreground">{t('tool.card.running', {name: title})}</span>
-        </div>
-      </div>
-    );
-  }
-
-  // 错误
-  if (isError || status?.type === 'incomplete') {
-    return (
-      <div className="border border-destructive/30 rounded-lg p-3 my-2 bg-destructive/5">
-        <div className="flex items-center gap-2">
-          <X size={16} className="text-destructive" />
-          <span className="text-sm text-destructive">{t('tool.card.failed', {name: title})}</span>
         </div>
       </div>
     );
