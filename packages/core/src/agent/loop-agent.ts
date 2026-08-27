@@ -702,12 +702,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.events.emit(event);
   };
 
-  /** 将 ToolResult 转为消息文本，可选 token 截断 */
+  /** 将 ToolResult 转为消息文本 */
   resolveToolResult(r: ToolResult): string {
-    const raw = r.status === 'success'
+    return r.status === 'success'
       ? (typeof r.output === 'string' ? r.output : JSON.stringify(r.output))
       : (r.error instanceof Error ? r.error.message : (r.error ?? 'tool execution failed'));
-    return this.tokenEconomy?.truncateToolOutput(raw) ?? raw;
   }
 
   /** 工具结果 → 原生 tool 消息 + 批量持久化 */

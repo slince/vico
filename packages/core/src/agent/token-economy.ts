@@ -7,13 +7,10 @@ export class TokenEconomy {
   private outputTokens = 0;
   private inputBudget: number;
   private outputBudget: number;
-  /** 每个工具结果的最大长度 */
-  private maxToolResultLength: number;
 
-  constructor(inputBudget = 100_000, outputBudget = 20_000, maxToolResultLength = 4000) {
+  constructor(inputBudget = 100_000, outputBudget = 20_000) {
     this.inputBudget = inputBudget;
     this.outputBudget = outputBudget;
-    this.maxToolResultLength = maxToolResultLength;
   }
 
   track(input: number, output: number): void {
@@ -37,17 +34,6 @@ export class TokenEconomy {
    */
   isOutputExhausted(): boolean {
     return this.outputTokens >= this.outputBudget;
-  }
-
-  /**
-   * 截断工具输出，超过最大长度时追加截断标记。
-   *
-   * @param output - 工具输出的原始字符串
-   * @returns 截断后的字符串
-   */
-  truncateToolOutput(output: string): string {
-    if (output.length <= this.maxToolResultLength) return output;
-    return output.slice(0, this.maxToolResultLength) + '... [已截断]';
   }
 
   getUsage(): UsageMetrics {
