@@ -1,5 +1,5 @@
 // @vico/core - 原生 ModelMessage 工具函数：文本提取、消息构造、UIMessage 转换、ToolSet 转换
-import type {ModelMessage, ToolSet, UIMessage} from 'ai';
+import type {JSONValue, ModelMessage, ToolSet, UIMessage} from 'ai';
 import {tool} from 'ai';
 import type {
   AssistantModelMessage,
@@ -8,6 +8,7 @@ import type {
   ToolApprovalResponse,
   ToolCallPart,
   ToolModelMessage,
+  ToolResultOutput,
   ToolResultPart,
 } from '@ai-sdk/provider-utils';
 import type {Tool, ToolCall, ToolResult} from '../tool/types.js';
@@ -99,23 +100,38 @@ export function buildAssistantMessage(text: string, toolCalls: ToolCall[], reaso
 }
 
 /**
- * 构造原生 tool 消息：Vico ToolResult → tool-result part（成功 text / 失败 error-text）。
+ * 构造原生 tool 消息：Vico ToolResult → tool-result part。
+ * 成功时保留原生输出类型（string → text，其余 JSON 值 → json），失败 → error-text。
  *
  * @param result - Vico 工具执行结果
- * @param content - 已 resolve（可能截断）的结果文本
  */
-export function buildToolResultMessage(result: ToolResult, content: string): ToolModelMessage {
+export function buildToolResultMessage(result: ToolResult): ToolModelMessage {
+  const output = resolveToolOutput(result);
+
   return {
     role: 'tool',
     content: [{
       type: 'tool-result',
       toolCallId: result.callId,
       toolName: result.name,
-      output: result.status === 'success'
-        ? { type: 'text', value: content }
-        : { type: 'error-text', value: content },
+      output,
     }],
   };
+}
+
+/** 将 ToolResult 转为原生 ToolResultOutput：成功 text/json，失败 error-text。 */
+function resolveToolOutput(result: ToolResult): ToolResultOutput {
+  if (result.status === 'success') {
+    if (typeof result.output === 'string') {
+      return { type: 'text', value: result.output };
+    }
+    return { type: 'json', value: result.output as JSONValue };
+  }
+
+  if (result.error instanceof Error) {
+    return { type: 'error-text', value: result.error.message };
+  }
+  return { type: 'error-text', value: result.error ?? 'tool execution failed' };
 }
 
 /**
