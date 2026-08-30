@@ -43,14 +43,17 @@
 
 ```sql
 CREATE TABLE vico_checkpoint_versions (
-  turn_id    TEXT NOT NULL,
-  thread_id  TEXT NOT NULL,
-  version    INTEGER NOT NULL,          -- per-turn 单调递增
-  step_index INTEGER NOT NULL,
-  paused     INTEGER NOT NULL DEFAULT 0, -- 冗余列：支持按暂停态查询
-  snapshot   TEXT NOT NULL,             -- 完整 Checkpoint JSON（现有类型）
-  created_at INTEGER NOT NULL,
-  PRIMARY KEY (turn_id, version)        -- 复合主键
+  turn_id         TEXT NOT NULL,
+  thread_id       TEXT NOT NULL,
+  version         INTEGER NOT NULL,          -- per-turn 单调递增
+  step_index      INTEGER NOT NULL,
+  paused          INTEGER NOT NULL DEFAULT 0, -- 冗余列：支持按暂停态查询
+  next_action     TEXT NOT NULL,             -- 下一步意图，见 CheckpointVersion.nextAction
+  parent_turn_id  TEXT,                      -- 前驱版本所属 turn（fork 时为源 turn）
+  parent_version  INTEGER,                   -- 前驱版本号；同 turn 链由 store 自动回填，fork 显式传源版本
+  snapshot        TEXT NOT NULL,             -- 完整 Checkpoint JSON（现有类型）
+  created_at      INTEGER NOT NULL,
+  PRIMARY KEY (turn_id, version)
 );
 CREATE INDEX idx_ckpt_versions_thread ON vico_checkpoint_versions(thread_id);
 ```
@@ -58,15 +61,29 @@ CREATE INDEX idx_ckpt_versions_thread ON vico_checkpoint_versions(thread_id);
 **类型新增**（checkpoint.ts）：
 
 ```typescript
+type NextAction = 'model' | 'tool-approval' | 'tool-execution' | 'end';
+
 interface CheckpointVersion {
   turnId: string;
   threadId: string;
   version: number;      // per-turn 递增
   stepIndex: number;
+  /** 下一步意图：模型调用 / 等待审批 / 待执行工具 / 已结束 */
+  nextAction: NextAction;
+  /** 前驱版本。同 turn 内 = 上一个版本；fork 出的新 turn 首版本 = 源 turn 的分叉版本 */
+  parent: { turnId: string; version: number } | null;
   snapshot: Checkpoint; // 复用现有 Checkpoint 快照类型
   createdAt: number;
 }
 ```
+
+**为什么加 `nextAction`**：版本快照只有"当前状态"，审计时看不出版本之后要发生什么。`nextAction` 显式标注下一步：
+- `model` — step 完成，下一步进入下一轮模型调用
+- `tool-approval` — pause，等待审批
+- `tool-execution` — 有待执行工具（`pendingToolCall` 非空）
+- `end` — turn 终态（completed/failed/aborted）
+
+**为什么加 `parent`**：`(turn_id, version)` 递增只隐含顺序，不是链。显式 `parent` 指针让版本可链式导航，且 fork 出的新 turn 首版本能追溯到源版本。
 
 **Checkpoint 类型修正**：新增一个字段，供分叉时精确定位消息链边界。
 
@@ -96,7 +113,7 @@ interface Checkpoint {
 | `deleteByTurn(turnId)` | 改造 | 不再于 completed 时调用；改为显式删除整个 turn 的版本链 |
 | `purgeExpired(ttlMs)` | 改造 | 按 created_at 整链删除（一个 turn 的所有版本一起删）+ 级联删现场行 |
 | `listByThread(threadId)` | 保留 | 读现场行（每 turn 最新），审计明细走新方法 |
-| **`appendVersion(checkpoint)`** | 新增 | step 完成 / pause / completed 时，把现场行快照 append 到版本链，版本号 = max+1 |
+| **`appendVersion(checkpoint, { nextAction, parent? })`** | 新增 | step 完成 / pause / completed 时，把现场行快照 append 到版本链，版本号 = max+1；`nextAction` 由调用点传入（step→model / pause→tool-approval / completed→end），`parent` 缺省时 store 自动取同 turn 上一个版本，fork 场景显式传源版本 |
 | **`getVersion(turnId, version)`** | 新增 | 读指定版本，审计 / fork 用 |
 | **`listVersions(turnId)`** | 新增 | 按版本号升序返回，审计时间线 |
 | **`fork(turnId, version, newTurnId, newThreadId)`** | 新增 | 从历史版本复制快照到新 turn 的现场行，作为分叉起点 |
@@ -110,16 +127,19 @@ interface Checkpoint {
 ## 六、fork 回放流程（分叉成新 turn）
 
 ```
-1. getVersion(turnId, version)          → 读版本链快照（含 stepIndex + lastMessageId）
+1. getVersion(turnId, version)          → 读版本链快照（含 stepIndex + lastMessageId + nextAction）
 2. threadStore 复制消息链：
      getEntriesByTurns([turnId]) → 找到 lastMessageId → 截断之后
      → 复制到新 thread（新 turn 获得独立消息链）
 3. threadStore.createTurn(新thread)     → 新 turn，status: running
-4. checkpointStore.fork(...)            → 从快照复制初始化新 turn 现场行（stepIndex 取分叉点）
+4. checkpointStore.fork(...)            → 从快照复制初始化新 turn 现场行（stepIndex 取分叉点），
+                                         并 append 新 turn 首版本，其 parent = { 源turn, 分叉版本 }
 5. 返回新 turn —— 用户发新消息 → chat API → start() 检测到
    未完成 turn + checkpoint → resumeTurn → startTurnLoop(分叉点 stepIndex)
    → 从分叉点带新指令继续执行，原 turn 版本链保持不变
 ```
+
+新 turn 的版本链首版本通过 `parent` 指向源 turn 的分叉版本，形成跨 turn 的可追溯链——审计时从分叉出的 turn 一路回源，能看到"这个 turn 是哪个 turn 从哪一步分叉出来的"。
 
 **为什么能复用 resumeTurn**：分叉出的新 turn 是 `running` + 有现场行 + 有消息链，正好命中 `start()` 的恢复检测（loop-agent.ts:243-251）。`resumeTurn` 里 `pauseInfo`/`pendingToolCall` 通常为 null → 走路径 C 直接续跑，并把用户的新消息 push 进上下文。
 
@@ -161,15 +181,15 @@ interface Checkpoint {
 
 ## 十、测试
 
-- **store 单测**：appendVersion 版本递增、getVersion、listVersions 排序、fork 快照复制、purgeExpired 整链删除
+- **store 单测**：appendVersion 版本递增、getVersion、listVersions 排序、fork 快照复制、purgeExpired 整链删除、`nextAction` 标注正确性、`parent` 链导航（同 turn 链 + fork 跨 turn 链回源）
 - **loop 集成**：崩溃恢复三条路径 + fork 后续跑 + 幂等三层防线（窗口 B 模拟、并发恢复串行、completedToolResults 去重）
 - **purgeExpired 接线验证**（启动调用）
 
 ## 十一、改动文件清单
 
 ```
-packages/core/src/agent/checkpoint.ts               类型+接口+lastMessageId
-packages/core/src/agent/memory-checkpoint-store.ts  新方法
+packages/core/src/agent/checkpoint.ts               类型+接口（CheckpointVersion 含 nextAction/parent；Checkpoint 含 lastMessageId）
+packages/core/src/agent/memory-checkpoint-store.ts  新方法（appendVersion/getVersion/listVersions/fork）
 packages/libsql-adapter/src/schema.ts               版本链表定义
 packages/libsql-adapter/src/migrate.ts              ensureTables 建表
 packages/libsql-adapter/src/libsql-checkpoint-store.ts 新方法
