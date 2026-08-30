@@ -17,7 +17,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
   async create(turnId: string, threadId: string): Promise<Checkpoint> {
     const checkpoint = createCheckpoint(turnId, threadId);
     this.store.set(this.key(turnId, checkpoint.version), checkpoint);
-    return checkpoint;
+    return this.snapshot(checkpoint);
   }
 
   /** 追加一个版本：版本号 = 当前最大版本 + 1，快照字段由 patch 全量覆盖 */
@@ -36,7 +36,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
       createdAt: Date.now(),
     };
     this.store.set(this.key(turnId, checkpoint.version), checkpoint);
-    return checkpoint;
+    return this.snapshot(checkpoint);
   }
 
   /** 读最新版本（版本号最大） */
@@ -47,20 +47,20 @@ export class MemoryCheckpointStore implements CheckpointStore {
         latest = ckpt;
       }
     }
-    return latest ? this.migrate(latest) : undefined;
+    return latest ? this.snapshot(this.migrate(latest)) : undefined;
   }
 
   /** 读指定版本 */
   async getVersion(turnId: string, version: number): Promise<Checkpoint | undefined> {
     const ckpt = this.store.get(this.key(turnId, version));
-    return ckpt ? this.migrate(ckpt) : undefined;
+    return ckpt ? this.snapshot(this.migrate(ckpt)) : undefined;
   }
 
   /** 按版本号升序返回完整版本链 */
   async listVersions(turnId: string): Promise<Checkpoint[]> {
     const versions: Checkpoint[] = [];
     for (const ckpt of this.store.values()) {
-      if (ckpt.turnId === turnId) versions.push(this.migrate(ckpt));
+      if (ckpt.turnId === turnId) versions.push(this.snapshot(this.migrate(ckpt)));
     }
     versions.sort((a, b) => a.version - b.version);
     return versions;
@@ -77,7 +77,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
     checkpoint.pauseInfo = source.pauseInfo;
     checkpoint.lastMessageId = source.lastMessageId;
     this.store.set(this.key(newTurnId, checkpoint.version), checkpoint);
-    return checkpoint;
+    return this.snapshot(checkpoint);
   }
 
   /** 删除整个 turn 的版本链 */
@@ -113,5 +113,10 @@ export class MemoryCheckpointStore implements CheckpointStore {
       snapshot = migrateFn(snapshot);
     }
     return snapshot as unknown as Checkpoint;
+  }
+
+  /** 返回防御性拷贝，避免调用方原地改动污染已存储版本（与 durable store 的 JSON 序列化语义一致） */
+  private snapshot(ckpt: Checkpoint): Checkpoint {
+    return { ...ckpt, approvedTools: { ...ckpt.approvedTools } };
   }
 }

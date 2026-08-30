@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryCheckpointStore } from './memory-checkpoint-store.js';
-import type { CheckpointAppendPatch } from './checkpoint.js';
+import type { Checkpoint, CheckpointAppendPatch } from './checkpoint.js';
 
 function patch(overrides: Partial<CheckpointAppendPatch> = {}): CheckpointAppendPatch {
   return { stepIndex: 1, nextAction: 'model', approvedTools: {}, pauseInfo: null, lastMessageId: null, ...overrides };
@@ -75,9 +75,10 @@ describe('MemoryCheckpointStore（多版本链）', () => {
     await store.create('turn-old', 'thread-1');
     await store.append('turn-old', patch());
     await store.create('turn-new', 'thread-1');
-    // 把 turn-old 的 created_at 调回过去
-    for (const v of await store.listVersions('turn-old')) {
-      (v as { createdAt: number }).createdAt = Date.now() - 100_000;
+    // 把 turn-old 的 created_at 调回过去（copy-on-read 后返回值是拷贝，需白盒直改存储对象）
+    const rawStore = store as unknown as { store: Map<string, Checkpoint> };
+    for (const ckpt of rawStore.store.values()) {
+      if (ckpt.turnId === 'turn-old') ckpt.createdAt = Date.now() - 100_000;
     }
     const purged = await store.purgeExpired(10_000);
     expect(purged).toEqual(['turn-old']);

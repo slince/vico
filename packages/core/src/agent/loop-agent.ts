@@ -282,14 +282,17 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const latestTurn = await this.thread.getLatestTurn(thread.id);
     if (latestTurn && latestTurn.status !== 'completed') {
       return this.resumeMutex.run(latestTurn.id, async () => {
+        // 锁内重读 turn 状态：等待排队的第二个 start() 可能已错过 turn 完成，
+        // 若已终态则降级为新建 turn，避免对已完成 turn 重复恢复执行。
+        const turnNow = await this.thread.getTurn(latestTurn.id);
         const checkpoint = await this.checkpointStore.getLatest(latestTurn.id);
-        if (!checkpoint) {
-          // 无 checkpoint 的未完成 turn：降级为新建 turn
+        if (!turnNow || turnNow.status === 'completed' || !checkpoint) {
+          // 无 checkpoint 或已终态的 turn：降级为新建 turn
           const turn = await this.thread.createTurn(thread.id);
           const session: TurnSession = { workspace, thread, turn };
           return this.startTurn({ session, userMessages, signal, controller });
         }
-        this.log.info({ turnId: latestTurn.id, threadId: thread.id, status: latestTurn.status }, 'resuming turn');
+        this.log.info({ turnId: latestTurn.id, threadId: thread.id, status: turnNow.status }, 'resuming turn');
         const session: TurnSession = { workspace, thread, turn: latestTurn };
         return this.resumeTurn({ session, checkpoint, userMessages, signal, controller });
       });
@@ -349,11 +352,14 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const entries = await this.thread.getEntriesByTurns([turn.id]);
     const messages = toModelMessages(entries);
 
-    // ── 防线② 消息链核对：未配对工具调用 → 截断到该 assistant 消息之前，模型重新决策 ──
-    const unpaired = findUnpairedToolCalls(messages);
-    if (unpaired) {
-      this.log.info({ turnId: turn.id, unpaired: unpaired.unpairedCallIds }, 'unpaired tool calls, truncating chain for re-decision');
-      messages.splice(unpaired.assistantIndex);
+    // ── 防线② 消息链核对（仅无 pauseInfo 路径）：未配对工具调用 → 截断到该 assistant 消息之前，模型重新决策 ──
+    // 审批恢复（有 pauseInfo）由 applyPauseInfoRecovery 全量恢复现场，不得截断已落链的 assistant tool-call。
+    if (!checkpoint.pauseInfo) {
+      const unpaired = findUnpairedToolCalls(messages);
+      if (unpaired) {
+        this.log.info({ turnId: turn.id, unpaired: unpaired.unpairedCallIds }, 'unpaired tool calls, truncating chain for re-decision');
+        messages.splice(unpaired.assistantIndex);
+      }
     }
 
     // 构建 request context, 补全必要信息
