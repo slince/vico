@@ -1,72 +1,78 @@
-// @vico/mysql-adapter — MySQL CheckpointStore implementation
-import { eq, lt } from 'drizzle-orm';
+// @vico/mysql-adapter — MySQL CheckpointStore implementation（多版本链，append-only）
+import { eq, sql, desc } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import type { Checkpoint, CheckpointStore } from '@vico/core';
+import type { Checkpoint, CheckpointAppendPatch, CheckpointStore } from '@vico/core';
 import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint } from '@vico/core';
 import { checkpoints } from './schema.js';
+import type * as schema from './schema.js';
 
-/**
- * MySQL-backed {@link CheckpointStore} implementation using Drizzle ORM.
- * Stores complete checkpoint snapshots as JSON in the `snapshot` column,
- * with frequently queried fields denormalized to dedicated columns.
- */
+/** MySQL 多版本 {@link CheckpointStore}，语义与 LibSql 版一致 */
 export class MysqlCheckpointStore implements CheckpointStore {
-  constructor(private db: MySql2Database) {}
+  constructor(private db: MySql2Database<typeof schema>) {}
 
-  /** 创建新 checkpoint（turn 开始时调用，返回内存对象） */
   async create(turnId: string, threadId: string): Promise<Checkpoint> {
     const checkpoint = createCheckpoint(turnId, threadId);
     await this.db.insert(checkpoints).values(this.toRow(checkpoint));
     return checkpoint;
   }
 
-  /**
-   * 持久化 checkpoint 对象（全量覆盖）。
-   * 内部统一维护 version 与 updatedAt，调用方只需 mutate 业务字段。
-   * 序列化（toRow）在首次 await 前同步执行，保证并发下读到对象最新状态。
-   */
-  async update(checkpoint: Checkpoint): Promise<void> {
-    checkpoint.version = CHECKPOINT_CURRENT_VERSION;
-    checkpoint.updatedAt = Date.now();
-    const row = this.toRow(checkpoint);
-    await this.db
-      .update(checkpoints)
-      .set(row)
-      .where(eq(checkpoints.turnId, checkpoint.turnId));
+  async append(turnId: string, patch: CheckpointAppendPatch): Promise<Checkpoint> {
+    const latest = await this.getLatest(turnId);
+    const checkpoint: Checkpoint = {
+      turnId,
+      threadId: latest?.threadId ?? '',
+      version: (latest?.version ?? 0) + 1,
+      stepIndex: patch.stepIndex,
+      nextAction: patch.nextAction,
+      approvedTools: patch.approvedTools,
+      pauseInfo: patch.pauseInfo,
+      lastMessageId: patch.lastMessageId,
+      schemaVersion: CHECKPOINT_CURRENT_VERSION,
+      createdAt: Date.now(),
+    };
+    await this.db.insert(checkpoints).values(this.toRow(checkpoint));
+    return checkpoint;
   }
 
-  async getByTurn(turnId: string): Promise<Checkpoint | undefined> {
+  async getLatest(turnId: string): Promise<Checkpoint | undefined> {
     const rows = await this.db
       .select()
       .from(checkpoints)
       .where(eq(checkpoints.turnId, turnId))
+      .orderBy(desc(checkpoints.version))
       .limit(1);
-    if (rows.length === 0) return undefined;
-
-    let snapshot = JSON.parse(rows[0].snapshot) as Record<string, unknown>;
-    while ((snapshot.version as number) < CHECKPOINT_CURRENT_VERSION) {
-      const migrateFn = checkpointMigrations[snapshot.version as number];
-      if (!migrateFn) break;
-      snapshot = migrateFn(snapshot);
-    }
-    return snapshot as unknown as Checkpoint;
+    return rows.length === 0 ? undefined : this.migrate(JSON.parse(rows[0].snapshot));
   }
 
-  async listByThread(threadId: string): Promise<Checkpoint[]> {
+  async getVersion(turnId: string, version: number): Promise<Checkpoint | undefined> {
     const rows = await this.db
       .select()
       .from(checkpoints)
-      .where(eq(checkpoints.threadId, threadId));
+      .where(sql`${checkpoints.turnId} = ${turnId} AND ${checkpoints.version} = ${version}`)
+      .limit(1);
+    return rows.length === 0 ? undefined : this.migrate(JSON.parse(rows[0].snapshot));
+  }
 
-    return rows.map((r) => {
-      let snapshot = JSON.parse(r.snapshot) as Record<string, unknown>;
-      while ((snapshot.version as number) < CHECKPOINT_CURRENT_VERSION) {
-        const migrateFn = checkpointMigrations[snapshot.version as number];
-        if (!migrateFn) break;
-        snapshot = migrateFn(snapshot);
-      }
-      return snapshot as unknown as Checkpoint;
-    });
+  async listVersions(turnId: string): Promise<Checkpoint[]> {
+    const rows = await this.db
+      .select()
+      .from(checkpoints)
+      .where(eq(checkpoints.turnId, turnId))
+      .orderBy(checkpoints.version);
+    return rows.map((r) => this.migrate(JSON.parse(r.snapshot)));
+  }
+
+  async fork(sourceTurnId: string, version: number, newTurnId: string, newThreadId: string): Promise<Checkpoint | undefined> {
+    const source = await this.getVersion(sourceTurnId, version);
+    if (!source) return undefined;
+    const checkpoint = createCheckpoint(newTurnId, newThreadId);
+    checkpoint.stepIndex = source.stepIndex;
+    checkpoint.nextAction = source.nextAction;
+    checkpoint.approvedTools = source.approvedTools;
+    checkpoint.pauseInfo = source.pauseInfo;
+    checkpoint.lastMessageId = source.lastMessageId;
+    await this.db.insert(checkpoints).values(this.toRow(checkpoint));
+    return checkpoint;
   }
 
   async deleteByTurn(turnId: string): Promise<void> {
@@ -75,29 +81,36 @@ export class MysqlCheckpointStore implements CheckpointStore {
 
   async purgeExpired(ttlMs: number): Promise<string[]> {
     const cutoff = Date.now() - ttlMs;
-
     const expired = await this.db
-      .select({ turnId: checkpoints.turnId, paused: checkpoints.paused })
+      .select({ turnId: checkpoints.turnId })
       .from(checkpoints)
-      .where(lt(checkpoints.createdAt, cutoff));
-
-    await this.db.delete(checkpoints).where(lt(checkpoints.createdAt, cutoff));
-
-    return expired.filter((r) => r.paused === 1).map((r) => r.turnId);
+      .groupBy(checkpoints.turnId)
+      .having(sql`max(${checkpoints.createdAt}) < ${cutoff}`);
+    const turnIds = expired.map((r) => r.turnId);
+    for (const turnId of turnIds) {
+      await this.db.delete(checkpoints).where(eq(checkpoints.turnId, turnId));
+    }
+    return turnIds;
   }
 
   private toRow(ckpt: Checkpoint) {
     return {
-      id: ckpt.id,
       turnId: ckpt.turnId,
       threadId: ckpt.threadId,
       version: ckpt.version,
       stepIndex: ckpt.stepIndex,
-      paused: ckpt.pauseInfo !== null ? 1 : 0,
-      pendingTool: ckpt.pendingToolCall ? JSON.stringify(ckpt.pendingToolCall) : null,
+      nextAction: ckpt.nextAction,
       snapshot: JSON.stringify(ckpt),
       createdAt: ckpt.createdAt,
-      updatedAt: ckpt.updatedAt,
     };
+  }
+
+  private migrate(snapshot: Record<string, unknown>): Checkpoint {
+    while ((snapshot.schemaVersion as number) < CHECKPOINT_CURRENT_VERSION) {
+      const migrateFn = checkpointMigrations[snapshot.schemaVersion as number];
+      if (!migrateFn) break;
+      snapshot = migrateFn(snapshot);
+    }
+    return snapshot as unknown as Checkpoint;
   }
 }
