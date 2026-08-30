@@ -54,12 +54,13 @@ export class InMemoryThreadStore implements ThreadStore {
 
   // Turn 操作
 
-  async createTurn(threadId: string): Promise<Turn> {
+  async createTurn(threadId: string, opts?: { forkedFrom?: Turn['forkedFrom'] }): Promise<Turn> {
     const turn: Turn = {
       id: crypto.randomUUID(),
       threadId,
       status: 'running',
       steps: 0,
+      forkedFrom: opts?.forkedFrom ?? null,
       createdAt: Date.now(),
     };
     this.turns.set(turn.id, turn);

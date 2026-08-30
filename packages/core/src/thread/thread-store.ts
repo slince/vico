@@ -49,6 +49,8 @@ export interface Turn {
   steps: number;
   /** 自定义元数据（JSON 可序列化），如 PauseInfo */
   metadata?: TurnMetadata;
+  /** 本 turn 由源 turn 的某版本分叉而来（null = 普通 turn） */
+  forkedFrom?: { turnId: string; version: number } | null;
   createdAt: number;
 }
 
@@ -85,8 +87,8 @@ export interface ThreadStore {
 
   /** Turn 操作 */
 
-  /** 创建新轮次 */
-  createTurn(threadId: string): Promise<Turn>;
+  /** 创建新轮次，可携带 fork 来源（forkedFrom） */
+  createTurn(threadId: string, opts?: { forkedFrom?: Turn['forkedFrom'] }): Promise<Turn>;
   /** 更新轮次状态 */
   updateTurn(turnId: string, patch: Partial<Turn>): Promise<void>;
   /** 获取轮次详情 */
