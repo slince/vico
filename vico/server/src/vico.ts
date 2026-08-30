@@ -11,6 +11,8 @@
  */
 import {Vico} from '@vico/core';
 import {ensureTables} from '@vico/libsql-adapter';
+import {startCheckpointPurge} from './checkpoint-purge.js';
+import {config} from './config.js';
 import {getDb} from './db/db.js';
 import {getCheckpointStore, getMemory, getThreadStore} from './memory/memory-setup.js';
 import {createApp} from './app.js';
@@ -36,5 +38,11 @@ export const app = createApp();
 export async function initVico(): Promise<void> {
   // 确保 Vico 持久化表存在（vico_threads / vico_turns / vico_messages / vico_memory_entries）
   await ensureTables(db as any);
+  // checkpoint 版本链 TTL 清理：启动一次 + 每小时一次
+  startCheckpointPurge(
+    getCheckpointStore(),
+    config.checkpoint.ttl_days * 24 * 60 * 60 * 1000,
+    logger,
+  );
   logger.info('Vico agent framework initialized');
 }

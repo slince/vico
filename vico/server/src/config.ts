@@ -59,6 +59,10 @@ interface AppConfig {
     timeout_ms: number;
     isolation: 'none' | 'seatbelt' | 'bwrap';
   };
+  /** checkpoint 版本链 TTL 配置 */
+  checkpoint: {
+    ttl_days: number;
+  };
 }
 
 /** RAG 全局配置类型 */
@@ -83,6 +87,7 @@ function loadConfig(): AppConfig {
     upload: { max_size_bytes: 50 * 1024 * 1024, allowed_mime_types: ['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'text/x-python', 'text/javascript', 'application/json'] },
     storage: { type: 'local', root: './data/storage' },
     workspace: { base_path: resolve(__dirname, '../../workspace'), contained: true, allowed_paths: [], timeout_ms: 30000, isolation: 'none' },
+    checkpoint: { ttl_days: 30 },
   };
 
   if (existsSync(configPath)) {
@@ -101,6 +106,7 @@ function loadConfig(): AppConfig {
       upload: { ...defaultConfig.upload, ...parsed.upload },
       storage: { ...defaultConfig.storage, ...parsed.storage },
       workspace: { ...defaultConfig.workspace, ...parsed.workspace },
+      checkpoint: { ...defaultConfig.checkpoint, ...parsed.checkpoint },
     };
     return merged;
   }

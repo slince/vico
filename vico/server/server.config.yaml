@@ -47,3 +47,6 @@ storage:
   # access_key_id: your-access-key
   # secret_access_key: your-secret-key
   # bucket: vico-storage
+
+checkpoint:
+  ttl_days: 30
