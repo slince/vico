@@ -164,7 +164,7 @@ export { collectTurnResult, normalizeUserMessage } from './agent/utils.js';
 export { TurnOutput } from './agent/turn-output.js';
 export { type TurnEvent } from './agent/types.js';
 export { type TurnResult, type RunOptions, type ToolApproval, type ToolCallApproval } from './agent/loop-agent-options.js';
-export { type PauseInfo, type Checkpoint, type CheckpointStore, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint, DEFAULT_CHECKPOINT_TTL } from './agent/checkpoint.js';
+export { type PauseInfo, type Checkpoint, type CheckpointAppendPatch, type CheckpointStore, type NextAction, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint, DEFAULT_CHECKPOINT_TTL } from './agent/checkpoint.js';
 export { TokenEconomy } from './agent/token-economy.js';
 
 // Container
