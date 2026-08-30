@@ -1,5 +1,5 @@
 // @vico/libsql-adapter — Drizzle table definitions for thread and memory persistence
-import { sqliteTable, text, integer, blob, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob, index, primaryKey } from 'drizzle-orm/sqlite-core';
 
 // --- Thread tables ---
 
@@ -14,13 +14,15 @@ export const threads = sqliteTable('vico_threads', {
   updated_at: integer('updated_at').notNull(),
 });
 
-/** 对话轮次 */
+/** 对话轮次（新增 forked_from 列：分叉来源） */
 export const turns = sqliteTable('vico_turns', {
   id: text('id').primaryKey(),
   thread_id: text('thread_id').notNull(),
   status: text('status').notNull().default('running'),
   steps: integer('steps').notNull().default(0),
   metadata: text('metadata'),
+  /** 本 turn 由源 turn 的某版本分叉而来（JSON 序列化的 {turnId, version}） */
+  forked_from: text('forked_from'),
   created_at: integer('created_at').notNull(),
 });
 
@@ -37,19 +39,18 @@ export const messages = sqliteTable('vico_messages', {
 
 // --- Checkpoints ---
 
-/** turn 执行状态检查点，用于崩溃恢复和审批恢复 */
+/** turn 执行状态检查点 — 多版本链：(turn_id, version) 复合主键，一行一个版本快照 */
 export const checkpoints = sqliteTable('vico_checkpoints', {
-  id: text('id').primaryKey(),
-  turnId: text('turn_id').notNull().unique(),
+  turnId: text('turn_id').notNull(),
   threadId: text('thread_id').notNull(),
-  version: integer('version').notNull().default(1),
-  stepIndex: integer('step_index').notNull().default(0),
-  paused: integer('paused').notNull().default(0),
-  pendingTool: text('pending_tool'),
+  version: integer('version').notNull(),
+  stepIndex: integer('step_index').notNull(),
+  nextAction: text('next_action').notNull(),
   snapshot: text('snapshot').notNull(),
   createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-});
+}, (t) => ({
+  pk: primaryKey({ columns: [t.turnId, t.version] }),
+}));
 
 // --- Memory tables ---
 
@@ -81,5 +82,4 @@ export const memoryEntries = sqliteTable('vico_memory_entries', {
 
 // --- Indexes ---
 
-export const checkpointsThreadIdIdx = index('idx_thread_id').on(checkpoints.threadId);
-export const checkpointsCreatedAtIdx = index('idx_created_at').on(checkpoints.createdAt);
+export const checkpointsThreadIdIdx = index('idx_checkpoints_thread_id').on(checkpoints.threadId);

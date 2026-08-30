@@ -40,6 +40,7 @@ export async function ensureTables(
       status TEXT NOT NULL DEFAULT 'running',
       steps INTEGER NOT NULL DEFAULT 0,
       metadata TEXT,
+      forked_from TEXT,
       created_at INTEGER NOT NULL
     )
   `);
@@ -62,30 +63,33 @@ export async function ensureTables(
     ON vico_messages(thread_id)
   `);
 
-  // turn 执行状态检查点，用于崩溃恢复和审批恢复
+  // 迁移检测：旧版 vico_checkpoints 为单列主键 id + turn_id UNIQUE 单行制。
+  // SQLite 无法 ALTER 复合主键，检测到旧结构时 DROP 重建为多版本链（旧单行数据开发期丢弃）。
+  const ckptCols = await db.values<[string]>(sql`
+    SELECT name FROM pragma_table_info('vico_checkpoints')
+  `);
+  const ckptColNames = ckptCols.map((r) => r[0]);
+  if (ckptColNames.length > 0 && !ckptColNames.includes('next_action')) {
+    await db.run(sql`DROP TABLE vico_checkpoints`);
+  }
+
+  // 检查点多版本链表
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_checkpoints (
-      id TEXT PRIMARY KEY,
-      turn_id TEXT NOT NULL UNIQUE,
+      turn_id TEXT NOT NULL,
       thread_id TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
-      step_index INTEGER NOT NULL DEFAULT 0,
-      paused INTEGER NOT NULL DEFAULT 0,
-      pending_tool TEXT,
+      version INTEGER NOT NULL,
+      step_index INTEGER NOT NULL,
+      next_action TEXT NOT NULL,
       snapshot TEXT NOT NULL,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      PRIMARY KEY (turn_id, version)
     )
   `);
 
   await db.run(sql`
-    CREATE INDEX IF NOT EXISTS idx_thread_id
+    CREATE INDEX IF NOT EXISTS idx_checkpoints_thread_id
     ON vico_checkpoints(thread_id)
-  `);
-
-  await db.run(sql`
-    CREATE INDEX IF NOT EXISTS idx_created_at
-    ON vico_checkpoints(created_at)
   `);
 
   // 记忆条目表 — embedding 使用 libsql 原生 F32_BLOB 向量类型
