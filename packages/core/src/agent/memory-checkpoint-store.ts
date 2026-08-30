@@ -1,83 +1,114 @@
-// @vico/core — In-memory CheckpointStore implementation
-import type { Checkpoint, CheckpointStore } from './checkpoint.js';
+// @vico/core — In-memory CheckpointStore implementation（多版本链，append-only）
+import type { Checkpoint, CheckpointAppendPatch, CheckpointStore } from './checkpoint.js';
 import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint } from './checkpoint.js';
 
 /**
- * In-memory implementation of {@link CheckpointStore}.
- * Stores checkpoints in a Map keyed by turnId.
- * Supports lazy version migration on read.
+ * In-memory 多版本 {@link CheckpointStore}。
+ * 以 `${turnId}:${version}` 为 key 存一个 turn 的完整版本链，支持懒迁移。
  */
 export class MemoryCheckpointStore implements CheckpointStore {
   private store = new Map<string, Checkpoint>();
 
-  /** 创建新 checkpoint（turn 开始时调用，返回内存对象） */
+  private key(turnId: string, version: number): string {
+    return `${turnId}:${version}`;
+  }
+
+  /** 创建初始版本（version=1、stepIndex=0、nextAction=model），turn 开始时调用 */
   async create(turnId: string, threadId: string): Promise<Checkpoint> {
     const checkpoint = createCheckpoint(turnId, threadId);
-    this.store.set(turnId, checkpoint);
+    this.store.set(this.key(turnId, checkpoint.version), checkpoint);
     return checkpoint;
   }
 
-  /**
-   * 持久化 checkpoint 对象（全量覆盖）。
-   * 内部统一维护 version 与 updatedAt，调用方只需 mutate 业务字段。
-   */
-  async update(checkpoint: Checkpoint): Promise<void> {
-    checkpoint.version = CHECKPOINT_CURRENT_VERSION;
-    checkpoint.updatedAt = Date.now();
-    this.store.set(checkpoint.turnId, checkpoint);
+  /** 追加一个版本：版本号 = 当前最大版本 + 1，快照字段由 patch 全量覆盖 */
+  async append(turnId: string, patch: CheckpointAppendPatch): Promise<Checkpoint> {
+    const latest = await this.getLatest(turnId);
+    const checkpoint: Checkpoint = {
+      turnId,
+      threadId: latest?.threadId ?? '',
+      version: (latest?.version ?? 0) + 1,
+      stepIndex: patch.stepIndex,
+      nextAction: patch.nextAction,
+      approvedTools: patch.approvedTools,
+      pauseInfo: patch.pauseInfo,
+      lastMessageId: patch.lastMessageId,
+      schemaVersion: CHECKPOINT_CURRENT_VERSION,
+      createdAt: Date.now(),
+    };
+    this.store.set(this.key(turnId, checkpoint.version), checkpoint);
+    return checkpoint;
   }
 
-  /** Retrieve a single checkpoint by turnId, with lazy migration. */
-  async getByTurn(turnId: string): Promise<Checkpoint | undefined> {
-    const ckpt = this.store.get(turnId);
-    if (!ckpt) return undefined;
-    return this.migrate(ckpt);
-  }
-
-  /** List all checkpoints belonging to the given threadId. */
-  async listByThread(threadId: string): Promise<Checkpoint[]> {
-    const results: Checkpoint[] = [];
+  /** 读最新版本（版本号最大） */
+  async getLatest(turnId: string): Promise<Checkpoint | undefined> {
+    let latest: Checkpoint | undefined;
     for (const ckpt of this.store.values()) {
-      if (ckpt.threadId === threadId) {
-        results.push(this.migrate(ckpt));
+      if (ckpt.turnId === turnId && (!latest || ckpt.version > latest.version)) {
+        latest = ckpt;
       }
     }
-    return results;
+    return latest ? this.migrate(latest) : undefined;
   }
 
-  /** Delete the checkpoint for the given turnId. */
+  /** 读指定版本 */
+  async getVersion(turnId: string, version: number): Promise<Checkpoint | undefined> {
+    const ckpt = this.store.get(this.key(turnId, version));
+    return ckpt ? this.migrate(ckpt) : undefined;
+  }
+
+  /** 按版本号升序返回完整版本链 */
+  async listVersions(turnId: string): Promise<Checkpoint[]> {
+    const versions: Checkpoint[] = [];
+    for (const ckpt of this.store.values()) {
+      if (ckpt.turnId === turnId) versions.push(this.migrate(ckpt));
+    }
+    versions.sort((a, b) => a.version - b.version);
+    return versions;
+  }
+
+  /** 从源 turn 的历史版本复制快照到新 turn 的初始版本（分叉起点） */
+  async fork(sourceTurnId: string, version: number, newTurnId: string, newThreadId: string): Promise<Checkpoint | undefined> {
+    const source = await this.getVersion(sourceTurnId, version);
+    if (!source) return undefined;
+    const checkpoint = createCheckpoint(newTurnId, newThreadId);
+    checkpoint.stepIndex = source.stepIndex;
+    checkpoint.nextAction = source.nextAction;
+    checkpoint.approvedTools = { ...source.approvedTools };
+    checkpoint.pauseInfo = source.pauseInfo;
+    checkpoint.lastMessageId = source.lastMessageId;
+    this.store.set(this.key(newTurnId, checkpoint.version), checkpoint);
+    return checkpoint;
+  }
+
+  /** 删除整个 turn 的版本链 */
   async deleteByTurn(turnId: string): Promise<void> {
-    this.store.delete(turnId);
+    for (const key of this.store.keys()) {
+      if (key.startsWith(`${turnId}:`)) this.store.delete(key);
+    }
   }
 
-  /**
-   * Purge expired checkpoints.
-   * Returns the turnIds of any purged checkpoints that were in a paused state,
-   * so callers can clean up associated resources (e.g. pause locks).
-   */
+  /** 整链清理：一个 turn 的所有版本一起删（否则断链），返回被删 turnId 数组 */
   async purgeExpired(ttlMs: number): Promise<string[]> {
     const cutoff = Date.now() - ttlMs;
     const expiredTurnIds: string[] = [];
-    for (const [turnId, ckpt] of this.store.entries()) {
-      if (ckpt.createdAt < cutoff) {
-        if (ckpt.pauseInfo !== null) {
-          expiredTurnIds.push(turnId);
-        }
-        this.store.delete(turnId);
+    const turnIds = new Set([...this.store.values()].map((c) => c.turnId));
+    for (const turnId of turnIds) {
+      const versions = [...this.store.values()].filter((c) => c.turnId === turnId);
+      const latestCreatedAt = Math.max(...versions.map((c) => c.createdAt));
+      // 整链最新版本都过期才删整链
+      if (latestCreatedAt < cutoff) {
+        expiredTurnIds.push(turnId);
+        for (const v of versions) this.store.delete(this.key(turnId, v.version));
       }
     }
     return expiredTurnIds;
   }
 
-  /**
-   * Lazy version migration: applies all pending migrations
-   * ({@link checkpointMigrations}) until the checkpoint reaches
-   * {@link CHECKPOINT_CURRENT_VERSION}.
-   */
+  /** 懒迁移：按 schemaVersion 逐级升级到 CHECKPOINT_CURRENT_VERSION */
   private migrate(ckpt: Checkpoint): Checkpoint {
     let snapshot = ckpt as unknown as Record<string, unknown>;
-    while ((snapshot.version as number) < CHECKPOINT_CURRENT_VERSION) {
-      const migrateFn = checkpointMigrations[snapshot.version as number];
+    while ((snapshot.schemaVersion as number) < CHECKPOINT_CURRENT_VERSION) {
+      const migrateFn = checkpointMigrations[snapshot.schemaVersion as number];
       if (!migrateFn) break;
       snapshot = migrateFn(snapshot);
     }
