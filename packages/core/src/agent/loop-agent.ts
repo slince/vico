@@ -39,7 +39,7 @@ import {normalizeUserMessage} from './utils.js';
 import {fromModelMessage, toModelMessages} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
-import {buildAssistantMessage, buildToolResultMessage, extractApprovalResponses,} from '../model/message-utils.js';
+import {buildAssistantMessage, buildToolResultMessage, extractApprovalResponses, getToolCalls,} from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
@@ -62,6 +62,41 @@ function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextP
     new WorkspaceToolProcessor(),
     new MemoryProcessor(memory),
   ];
+}
+
+/**
+ * 消息链核对（防线②）：找到最后一条含 toolCalls 的 assistant 消息，
+ * 检查其调用是否全部在链内配对到 tool_result。
+ *
+ * - 全部配对 → 返回 null：该 step 已完成，恢复时直接从 stepIndex 续跑，不重发工具。
+ * - 存在未配对 → 返回该 assistant 消息索引与未配对 callId 列表：
+ *   崩溃发生在「副作用已发生但结果未落链」窗口，恢复时截断到该消息之前，
+ *   让模型基于一致链重新决策（不盲目重执行 mutation 工具）。
+ *
+ * @param messages - 从 threadStore 恢复出的模型消息链
+ * @returns 未配对的 assistant 消息信息；无未配对时返回 null
+ */
+export function findUnpairedToolCalls(messages: ModelMessage[]): { assistantIndex: number; unpairedCallIds: string[] } | null {
+  const toolResultIds = (msg: ModelMessage): string[] => {
+    if (msg.role !== 'tool') return [];
+    return msg.content
+      .filter((p) => p.type === 'tool-result')
+      .map((p) => p.toolCallId);
+  };
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== 'assistant') continue;
+    const calls = getToolCalls(msg);
+    if (calls.length === 0) continue;
+    const resultIds = new Set<string>();
+    for (let j = i + 1; j < messages.length; j++) {
+      for (const id of toolResultIds(messages[j])) resultIds.add(id);
+    }
+    const unpaired = calls.filter((c) => !resultIds.has(c.id)).map((c) => c.id);
+    return unpaired.length > 0 ? { assistantIndex: i, unpairedCallIds: unpaired } : null;
+  }
+  return null;
 }
 
 /** LoopAgent — Agent 默认实现，编排 model→tool→repeat 循环 */
