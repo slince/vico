@@ -47,6 +47,7 @@ import {SystemPromptProcessor} from './context-processors/system-prompt-processo
 import {SkillProcessor} from './context-processors/skill-processor.js';
 import {MemoryProcessor} from './context-processors/memory-processor.js';
 import {WorkspaceToolProcessor} from './context-processors/workspace-tool-processor.js';
+import {KeyedMutex} from '../utils/async-keyed-lock.js';
 
 /** LoopAgent 构造选项 */
 export interface LoopAgentOptions extends AgentOptions {
@@ -126,6 +127,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
   private readonly toolExecutor: ToolExecutor<TToolSet>;
   private readonly pipeline: ProcessorPipeline;
+  /** per-turn 恢复执行锁（防线①）：同一 turn 的并发恢复串行排队 */
+  private readonly resumeMutex = new KeyedMutex();
 
   constructor(options: LoopAgentOptions) {
     const { processors, ...rest } = options;
@@ -274,15 +277,22 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const workspace = thread.metadata?.workspace ?? this.workspace;
 
-    // 自动恢复所有未完成的 turn（paused/running/failed），前提是存在 checkpoint
+    // 自动恢复所有未完成的 turn（paused/running/failed），前提是存在 checkpoint。
+    // 整体包进 per-turn 锁，并在锁内重读最新版本，规避并发恢复 TOCTOU。
     const latestTurn = await this.thread.getLatestTurn(thread.id);
     if (latestTurn && latestTurn.status !== 'completed') {
-      const checkpoint = await this.checkpointStore.getByTurn(latestTurn.id);
-      if (checkpoint) {
+      return this.resumeMutex.run(latestTurn.id, async () => {
+        const checkpoint = await this.checkpointStore.getLatest(latestTurn.id);
+        if (!checkpoint) {
+          // 无 checkpoint 的未完成 turn：降级为新建 turn
+          const turn = await this.thread.createTurn(thread.id);
+          const session: TurnSession = { workspace, thread, turn };
+          return this.startTurn({ session, userMessages, signal, controller });
+        }
         this.log.info({ turnId: latestTurn.id, threadId: thread.id, status: latestTurn.status }, 'resuming turn');
         const session: TurnSession = { workspace, thread, turn: latestTurn };
         return this.resumeTurn({ session, checkpoint, userMessages, signal, controller });
-      }
+      });
     }
 
     // ── 正常新 turn ──
@@ -308,7 +318,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: [...this.tools], session});
     await this.pipeline.enter(requestContext);
 
-    // turn 开始时显式创建 checkpoint，后续子步骤直接 mutate 该对象并 update 持久化
+    // turn 开始时显式创建 checkpoint 初始版本（version=1），后续子步骤以 append 追加版本
     const checkpoint = await this.checkpointStore.create(session.turn.id, session.thread.id);
 
     // 本轮次的上下文对象
@@ -335,12 +345,18 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
     const { decisions } = extractApprovalResponses(userMessages);
 
-
     // 恢复历史消息
     const entries = await this.thread.getEntriesByTurns([turn.id]);
     const messages = toModelMessages(entries);
 
-    // 构建request context, 补全必要信息
+    // ── 防线② 消息链核对：未配对工具调用 → 截断到该 assistant 消息之前，模型重新决策 ──
+    const unpaired = findUnpairedToolCalls(messages);
+    if (unpaired) {
+      this.log.info({ turnId: turn.id, unpaired: unpaired.unpairedCallIds }, 'unpaired tool calls, truncating chain for re-decision');
+      messages.splice(unpaired.assistantIndex);
+    }
+
+    // 构建 request context, 补全必要信息
     const requestContext = new ModelRequestContext({agent: this, messages, tools: this.tools, session});
     await this.pipeline.enter(requestContext);
 
@@ -350,18 +366,21 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller, checkpoint };
 
     if (checkpoint.pauseInfo) {
-      // 路径 A：审批恢复
+      // 路径 A：审批恢复（处理待审批调用），恢复现场进版本链
       await this.applyPauseInfoRecovery(checkpoint.pauseInfo, decisions, context);
-      // 清除 pauseInfo
-      checkpoint.pauseInfo = null;
-      await this.checkpointStore.update(checkpoint);
-    } else if (checkpoint.pendingToolCall) {
-      // 路径 B：工具重试
-      await this.resolvePendingTool(checkpoint.completedToolResults, checkpoint.pendingToolCall, context);
+      context.checkpoint = await this.checkpointStore.append(turn.id, {
+        stepIndex: checkpoint.stepIndex,
+        nextAction: 'model',
+        approvedTools: Object.fromEntries(context.approvedTools),
+        pauseInfo: null,
+        lastMessageId: context.checkpoint.lastMessageId,
+      });
     }
+    // 路径 B（pendingToolCall 重试）随 pendingToolCall 字段一并删除：
+    // 无 pauseInfo 时由消息链核对 + stepIndex 续跑兜底。
 
     await this.thread.updateTurn(turn.id, { status: 'running' });
-    return this.startTurnLoop(checkpoint.stepIndex, context, usage);
+    return this.startTurnLoop(context.checkpoint.stepIndex, context, usage);
   }
 
   /**
@@ -427,16 +446,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 路径 B：重试 pending 工具。
-   * 执行前检查消息链，若已有 tool_result 则跳过（并发恢复保护）。
-   */
-  private async resolvePendingTool(completedToolResults: ToolResult[], pending: ToolCall, context: TurnContext<TToolSet>,): Promise<void> {
-    // 执行工具（pending 中已存完整 args，直接构造 ToolCall 即可），结果统一持久化
-    const pendingToolResults = await this.toolExecutor.executeToolCalls([{ id: pending.id, name: pending.name, args: pending.args }], context);
-    await this.appendToolResults([...completedToolResults, ...pendingToolResults], context);
-  }
-
-  /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
    */
   private async startTurnLoop(startStep: number, context: TurnContext<TToolSet>, usage: UsageMetrics): Promise<TurnResult> {
@@ -462,6 +471,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     if (loopResult.status === 'failed') {
       const err = loopResult.error!;
       await this.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
+      await this.checkpointStore.append(turn.id, {
+        stepIndex: loopResult.steps,
+        nextAction: 'end',
+        approvedTools: Object.fromEntries(context.approvedTools),
+        pauseInfo: null,
+        lastMessageId: context.checkpoint.lastMessageId,
+      });
       context.controller.enqueue(finishPart('error', usage));
       this.emit({ type: 'error', error: err });
 
@@ -474,11 +490,14 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const status = loopResult.status === 'aborted' ? 'aborted' : 'completed';
     await this.thread.updateTurn(turn.id, { status, steps: loopResult.steps });
 
-    // completed 终态：清理 checkpoint
-    if (status === 'completed') {
-      this.log.info({ turnId: turn.id, steps: loopResult.steps }, 'turn completed, cleaning checkpoint');
-      await this.checkpointStore.deleteByTurn(turn.id);
-    }
+    // 终态进版本链（nextAction='end'），审计可见；版本链全量保留，不再 deleteByTurn
+    await this.checkpointStore.append(turn.id, {
+      stepIndex: loopResult.steps,
+      nextAction: 'end',
+      approvedTools: Object.fromEntries(context.approvedTools),
+      pauseInfo: null,
+      lastMessageId: context.checkpoint.lastMessageId,
+    });
 
     // 终态生命周期 part：中断先发 abort，再统一发 finish
     if (status === 'aborted') {
@@ -515,11 +534,14 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       usage.output += stepUsage.output;
 
       if (action === 'pause') {
-        // 持久化暂停信息到 checkpoint
-        context.checkpoint.pauseInfo = pauseInfo ?? null;
-        context.checkpoint.approvedTools = Object.fromEntries(context.approvedTools);
-        context.checkpoint.stepIndex = steps;
-        await this.checkpointStore.update(context.checkpoint);
+        // 暂停现场进版本链（nextAction='tool-approval'）
+        context.checkpoint = await this.checkpointStore.append(turn.id, {
+          stepIndex: steps,
+          nextAction: 'tool-approval',
+          approvedTools: Object.fromEntries(context.approvedTools),
+          pauseInfo: pauseInfo ?? null,
+          lastMessageId: context.checkpoint.lastMessageId,
+        });
         await this.thread.updateTurn(turn.id, { status: 'paused', steps });
         return { status: 'paused', steps, usage };
       }
@@ -531,7 +553,16 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         }
         break
       }
+
+      // action === 'continue'：step 完成 → 追加 'model' 版本（每 step 一个版本）
       steps++;
+      context.checkpoint = await this.checkpointStore.append(turn.id, {
+        stepIndex: steps,
+        nextAction: 'model',
+        approvedTools: Object.fromEntries(context.approvedTools),
+        pauseInfo: null,
+        lastMessageId: context.checkpoint.lastMessageId,
+      });
     }
 
     return { status: signal.aborted ? 'aborted' : 'completed', steps, usage };
@@ -542,12 +573,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    */
   private async executeModelStep(step: Step, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
-
-    // step-start checkpoint：记录当前 step 进度
-    context.checkpoint.stepIndex = step.index;
-    context.checkpoint.pendingToolCall = null;
-    context.checkpoint.approvedTools = Object.fromEntries(context.approvedTools);
-    await this.checkpointStore.update(context.checkpoint);
 
     const usage = { input: 0, output: 0 };
 
@@ -725,9 +750,14 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const threadId = context.session.thread.id;
     const turnId = context.session.turn.id;
-    await this.thread.appendEntries(
+    const created = await this.thread.appendEntries(
       messages.map(message => ({ threadId, turnId, ...fromModelMessage(message) })),
     );
+    // 记录最后一条消息 id，供 fork 时截断消息链精确定位
+    const last = created.at(-1);
+    if (last) {
+      context.checkpoint.lastMessageId = last.id;
+    }
   }
 
   /**
