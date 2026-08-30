@@ -12,7 +12,7 @@ export interface ToolExecutorOptions<TToolSet extends ToolSet = ToolSet> {
   host: LoopAgent<TToolSet>;
 }
 
-/** ToolExecutor — 工具注册、执行、结果持久化 */
+/** ToolExecutor — 工具注册、执行、结果上流 */
 export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   private tools: Map<string, Tool> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();

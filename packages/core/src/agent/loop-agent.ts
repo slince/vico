@@ -293,7 +293,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           return this.startTurn({ session, userMessages, signal, controller });
         }
         this.log.info({ turnId: latestTurn.id, threadId: thread.id, status: turnNow.status }, 'resuming turn');
-        const session: TurnSession = { workspace, thread, turn: latestTurn };
+        const session: TurnSession = { workspace, thread, turn: turnNow };
         return this.resumeTurn({ session, checkpoint, userMessages, signal, controller });
       });
     }

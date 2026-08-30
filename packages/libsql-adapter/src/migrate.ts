@@ -45,6 +45,16 @@ export async function ensureTables(
     )
   `);
 
+  // 迁移检测：存量 vico_turns 无 forked_from 列 → 幂等补列（新库 CREATE 已含，此处只处理存量库）。
+  // 缺失该列时 LibSqlThreadStore 读写 forked_from 会 "no such column"，应用硬崩。
+  const turnCols = await db.values<[string]>(sql`
+    SELECT name FROM pragma_table_info('vico_turns')
+  `);
+  const turnColNames = turnCols.map((r) => r[0]);
+  if (turnColNames.length > 0 && !turnColNames.includes('forked_from')) {
+    await db.run(sql`ALTER TABLE vico_turns ADD COLUMN forked_from TEXT`);
+  }
+
   // 消息表（content 存原生 ModelMessage.content JSON；不兼容旧库，重建即可）
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_messages (

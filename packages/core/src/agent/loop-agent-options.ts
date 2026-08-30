@@ -48,7 +48,7 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   signal: AbortSignal;
   /** 流控制器，用于向客户端推送 chunk（引擎层协议 TextStreamPart） */
   controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
-  /** 本 turn 的 checkpoint 对象（startTurn/resumeTurn 创建，子步骤 mutate 后 update 持久化） */
+  /** 本 turn 的 checkpoint 对象（startTurn/resumeTurn 创建，append-only 版本链：step 完成 / pause / 终态时由 loop-agent append 新版本） */
   checkpoint: Checkpoint;
 }
 

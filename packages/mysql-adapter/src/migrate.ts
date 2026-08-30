@@ -37,10 +37,21 @@ export async function ensureTables(
       thread_id VARCHAR(36) NOT NULL,
       status VARCHAR(36) NOT NULL DEFAULT 'running',
       steps INT NOT NULL DEFAULT 0,
+      forked_from TEXT,
       created_at BIGINT NOT NULL,
       KEY idx_turns_thread (thread_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  // 迁移检测：存量 vico_turns 无 forked_from 列 → 幂等补列
+  const turnCols = await db.execute(sql`
+    SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vico_turns'
+  `);
+  const turnColNames = (turnCols[0] as unknown as Array<{ COLUMN_NAME: string }>).map((r) => r.COLUMN_NAME);
+  if (turnColNames.length > 0 && !turnColNames.includes('forked_from')) {
+    await db.execute(sql`ALTER TABLE vico_turns ADD COLUMN forked_from TEXT`);
+  }
 
   // Messages table（content 存原生 ModelMessage.content JSON）
   await db.execute(sql`
@@ -56,21 +67,29 @@ export async function ensureTables(
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
-  // Checkpoints table
+  // 迁移检测：旧版 vico_checkpoints 为单行制（id PK + turn_id UNIQUE + 无 next_action）。
+  // MySQL 无法 ALTER 复合主键，检测到旧结构时 DROP 重建为多版本链（旧单行数据开发期丢弃）。
+  const ckptCols = await db.execute(sql`
+    SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vico_checkpoints'
+  `);
+  const ckptColNames = (ckptCols[0] as unknown as Array<{ COLUMN_NAME: string }>).map((r) => r.COLUMN_NAME);
+  if (ckptColNames.length > 0 && !ckptColNames.includes('next_action')) {
+    await db.execute(sql`DROP TABLE vico_checkpoints`);
+  }
+
+  // Checkpoints table — 多版本链：(turn_id, version) 复合主键，一行一个版本快照
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS vico_checkpoints (
-      id VARCHAR(36) PRIMARY KEY,
-      turn_id VARCHAR(36) NOT NULL UNIQUE,
+      turn_id VARCHAR(36) NOT NULL,
       thread_id VARCHAR(36) NOT NULL,
-      version INT NOT NULL DEFAULT 1,
-      step_index INT NOT NULL DEFAULT 0,
-      paused INT NOT NULL DEFAULT 0,
-      pending_tool TEXT,
+      version INT NOT NULL,
+      step_index INT NOT NULL,
+      next_action VARCHAR(20) NOT NULL,
       snapshot TEXT NOT NULL,
       created_at BIGINT NOT NULL,
-      updated_at BIGINT NOT NULL,
-      KEY idx_thread_id (thread_id),
-      KEY idx_created_at (created_at)
+      PRIMARY KEY (turn_id, version),
+      KEY idx_thread_id (thread_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 

@@ -102,7 +102,7 @@ export function createCheckpoint(turnId: string, threadId: string): Checkpoint {
  */
 export const checkpointMigrations: Record<number, (snapshot: Record<string, unknown>) => Record<string, unknown>> = {
   // 示例：v1 → v2
-  // 1: (s) => ({ ...s, version: 2, executionTimeline: buildTimeline(s) }),
+  // 1: (s) => ({ ...s, schemaVersion: 2, executionTimeline: buildTimeline(s) }),
 };
 
 /** 默认 checkpoint 存活时间：30 天 */
