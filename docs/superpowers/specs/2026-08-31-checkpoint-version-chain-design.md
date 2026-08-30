@@ -63,9 +63,9 @@ interface Checkpoint {
   threadId: string;
   /** per-turn 递增链版本号（非 schema 版本） */
   version: number;
-  /** 恢复续跑点：下一步从该 step 继续 */
+  /** 恢复续跑点：下一步从该 step 继续（平铺列 step_index） */
   stepIndex: number;
-  /** 下一步意图：模型调用 / 等待审批 / 已结束 */
+  /** 下一步意图：模型调用 / 等待审批 / 已结束（平铺列 next_action） */
   nextAction: NextAction;
   // ── 以下序列化进 snapshot JSON ──
   /** 本 turn 已批准的工具名 → ToolApproval */
@@ -101,7 +101,7 @@ forkedFrom: { turnId: string; version: number } | null;  // 本 turn 由源 turn
 
 ## 五、CheckpointStore 接口改造
 
-现有 6 个方法改造为版本链语义，删除 `update`。三个 store（内存/LibSQL/MySQL）同步实现。
+现有 6 个方法改造为版本链语义，删除 `update` 与 `listByThread`。三个 store（内存/LibSQL/MySQL）同步实现。
 
 | 方法 | 变化 | 说明 |
 |------|------|------|
@@ -133,7 +133,8 @@ forkedFrom: { turnId: string; version: number } | null;  // 本 turn 由源 turn
      getEntriesByTurns([turnId]) → 找到 lastMessageId → 截断之后
      → 复制到新 thread（新 turn 获得独立消息链）
 3. threadStore.createTurn(新thread)     → 新 turn，status: running，forkedFrom = { 源turn, 分叉版本 }
-4. checkpointStore.fork(...)            → 从快照复制初始化新 turn 的初始版本（stepIndex 取分叉点）
+4. checkpointStore.fork(...)            → 从快照复制初始化新 turn 的初始版本（stepIndex 取分叉点，
+                                          nextAction/pauseInfo 继承源版本，恢复逻辑沿用 resumeTurn）
 5. 返回新 turn —— 用户发新消息 → chat API → start() 检测到
    未完成 turn + 有 checkpoint → resumeTurn → startTurnLoop(分叉点 stepIndex)
    → 从分叉点带新指令继续执行，原 turn 版本链保持不变
@@ -152,6 +153,11 @@ forkedFrom: { turnId: string; version: number } | null;  // 本 turn 由源 turn
 ## 七、幂等修复（mutation 工具恰好一次）
 
 **判据原则**：消息链是唯一"事实源"——工具是否已执行以消息链中是否存在对应的 `tool_result` 为准。checkpoint 只记录执行进度，不记录工具级现场。
+
+**恢复路径（`resumeTurn`）简化为两条**：
+- `pauseInfo` 非空 → 审批恢复（`applyPauseInfoRecovery`，处理待审批调用）
+- 否则 → 消息链核对后从 `stepIndex` 续跑（见防线②）
+原路径 B（`pendingToolCall` 重试）随 `pendingToolCall` 字段一并删除。
 
 **防线**：
 
@@ -172,7 +178,7 @@ forkedFrom: { turnId: string; version: number } | null;  // 本 turn 由源 turn
 ## 九、迁移与兼容
 
 - `vico_checkpoints` 表结构变更：单行（`turn_id` UNIQUE + 单列主键 `id`）→ 多版本（复合主键 `(turn_id, version)`），删 `id`/`paused`/`pending_tool`/`updated_at` 列，加 `next_action` 列
-- 由 `ensureTables`（libsql-adapter/src/migrate.ts:66）在启动时重建/校验表结构
+- 由 `ensureTables`（libsql-adapter/src/migrate.ts:66）在启动时检测旧结构（`turn_id` UNIQUE 单列主键 `id`）并重建表——SQLite 下复合主键变更无法 ALTER，需 DROP + CREATE 重建，`CREATE TABLE IF NOT EXISTS` 无法处理已存在的旧表
 - 旧单行数据（升级前运行中 turn 的现场）：不迁移，启动时丢弃——运行中的 turn 降级为"无 checkpoint"，下次请求走新建 turn（开发期项目，务实取舍）
 - 快照内 `schemaVersion` 保留懒迁移机制（`CHECKPOINT_CURRENT_VERSION` / `checkpointMigrations` 读时升级）；`lastMessageId` 用 `?? null` 兜底
 
@@ -187,7 +193,7 @@ forkedFrom: { turnId: string; version: number } | null;  // 本 turn 由源 turn
 ```
 packages/core/src/agent/checkpoint.ts               Checkpoint 多版本类型 + CheckpointStore 接口重写
 packages/core/src/thread/thread-store.ts            Turn 类型增加 forkedFrom
-packages/core/src/agent/memory-checkpoint-store.ts  create/append/getLatest/getVersion/listVersions/fork/purgeExpired
+packages/core/src/agent/memory-checkpoint-store.ts  create/append/getLatest/getVersion/listVersions/fork/deleteByTurn/purgeExpired
 packages/libsql-adapter/src/schema.ts               vico_checkpoints 复合主键 + next_action
 packages/libsql-adapter/src/migrate.ts              ensureTables 改表
 packages/libsql-adapter/src/libsql-checkpoint-store.ts 重写
