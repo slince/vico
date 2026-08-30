@@ -1,124 +1,131 @@
-// @vico/libsql-adapter — LibSQL CheckpointStore implementation
-import { eq, lt } from 'drizzle-orm';
+// @vico/libsql-adapter — LibSQL CheckpointStore implementation（多版本链，append-only）
+import { eq, sql, desc } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import type { Checkpoint, CheckpointStore } from '@vico/core';
+import type { Checkpoint, CheckpointAppendPatch, CheckpointStore } from '@vico/core';
 import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint } from '@vico/core';
 import { checkpoints } from './schema.js';
+import type * as schema from './schema.js';
 
 /**
- * LibSQL-backed {@link CheckpointStore} implementation using Drizzle ORM.
- * Stores complete checkpoint snapshots as JSON in the `snapshot` column,
- * with frequently queried fields denormalized to dedicated columns
- * for efficient filtering (turnId, threadId, paused, createdAt).
- *
- * Supports lazy version migration via {@link checkpointMigrations} on read.
+ * LibSQL 多版本 {@link CheckpointStore}。
+ * 一行一个版本快照（复合主键 turn_id+version），snapshot 存完整 Checkpoint JSON，
+ * step_index / next_action 平铺为索引列。读时懒迁移。
  */
 export class LibSqlCheckpointStore implements CheckpointStore {
-  constructor(private db: LibSQLDatabase) {}
+  constructor(private db: LibSQLDatabase<typeof schema>) {}
 
-  /** 创建新 checkpoint（turn 开始时调用，返回内存对象） */
+  /** 创建初始版本（version=1、stepIndex=0、nextAction=model） */
   async create(turnId: string, threadId: string): Promise<Checkpoint> {
     const checkpoint = createCheckpoint(turnId, threadId);
     await this.db.insert(checkpoints).values(this.toRow(checkpoint));
     return checkpoint;
   }
 
-  /**
-   * 持久化 checkpoint 对象（全量覆盖）。
-   * 内部统一维护 version 与 updatedAt，调用方只需 mutate 业务字段。
-   * 序列化（toRow）在首次 await 前同步执行，保证并发下读到对象最新状态。
-   */
-  async update(checkpoint: Checkpoint): Promise<void> {
-    checkpoint.version = CHECKPOINT_CURRENT_VERSION;
-    checkpoint.updatedAt = Date.now();
-    const row = this.toRow(checkpoint);
-    await this.db
-      .update(checkpoints)
-      .set(row)
-      .where(eq(checkpoints.turnId, checkpoint.turnId));
+  /** 追加一个版本：版本号 = 当前最大版本 + 1 */
+  async append(turnId: string, patch: CheckpointAppendPatch): Promise<Checkpoint> {
+    const latest = await this.getLatest(turnId);
+    const checkpoint: Checkpoint = {
+      turnId,
+      threadId: latest?.threadId ?? '',
+      version: (latest?.version ?? 0) + 1,
+      stepIndex: patch.stepIndex,
+      nextAction: patch.nextAction,
+      approvedTools: patch.approvedTools,
+      pauseInfo: patch.pauseInfo,
+      lastMessageId: patch.lastMessageId,
+      schemaVersion: CHECKPOINT_CURRENT_VERSION,
+      createdAt: Date.now(),
+    };
+    await this.db.insert(checkpoints).values(this.toRow(checkpoint));
+    return checkpoint;
   }
 
-  /** Retrieve a single checkpoint by turnId, with lazy migration. */
-  async getByTurn(turnId: string): Promise<Checkpoint | undefined> {
+  /** 读最新版本（版本号最大） */
+  async getLatest(turnId: string): Promise<Checkpoint | undefined> {
     const row = await this.db
       .select()
       .from(checkpoints)
       .where(eq(checkpoints.turnId, turnId))
+      .orderBy(desc(checkpoints.version))
+      .limit(1)
       .get();
-    if (!row) return undefined;
-
-    let snapshot = JSON.parse(row.snapshot) as Record<string, unknown>;
-    // Apply lazy migrations until the snapshot reaches the current version
-    while ((snapshot.version as number) < CHECKPOINT_CURRENT_VERSION) {
-      const migrateFn = checkpointMigrations[snapshot.version as number];
-      if (!migrateFn) break;
-      snapshot = migrateFn(snapshot);
-    }
-    return snapshot as unknown as Checkpoint;
+    return row ? this.migrate(JSON.parse(row.snapshot)) : undefined;
   }
 
-  /** List all checkpoints belonging to the given threadId. */
-  async listByThread(threadId: string): Promise<Checkpoint[]> {
+  /** 读指定版本 */
+  async getVersion(turnId: string, version: number): Promise<Checkpoint | undefined> {
+    const row = await this.db
+      .select()
+      .from(checkpoints)
+      .where(sql`${checkpoints.turnId} = ${turnId} AND ${checkpoints.version} = ${version}`)
+      .get();
+    return row ? this.migrate(JSON.parse(row.snapshot)) : undefined;
+  }
+
+  /** 按版本号升序返回完整版本链 */
+  async listVersions(turnId: string): Promise<Checkpoint[]> {
     const rows = await this.db
       .select()
       .from(checkpoints)
-      .where(eq(checkpoints.threadId, threadId))
-      .all();
-
-    return rows.map((r) => {
-      let snapshot = JSON.parse(r.snapshot) as Record<string, unknown>;
-      while ((snapshot.version as number) < CHECKPOINT_CURRENT_VERSION) {
-        const migrateFn = checkpointMigrations[snapshot.version as number];
-        if (!migrateFn) break;
-        snapshot = migrateFn(snapshot);
-      }
-      return snapshot as unknown as Checkpoint;
-    });
+      .where(eq(checkpoints.turnId, turnId))
+      .orderBy(checkpoints.version);
+    return rows.map((r) => this.migrate(JSON.parse(r.snapshot)));
   }
 
-  /** Delete the checkpoint for the given turnId. */
+  /** 从源版本复制快照到新 turn 初始版本（分叉起点） */
+  async fork(sourceTurnId: string, version: number, newTurnId: string, newThreadId: string): Promise<Checkpoint | undefined> {
+    const source = await this.getVersion(sourceTurnId, version);
+    if (!source) return undefined;
+    const checkpoint = createCheckpoint(newTurnId, newThreadId);
+    checkpoint.stepIndex = source.stepIndex;
+    checkpoint.nextAction = source.nextAction;
+    checkpoint.approvedTools = source.approvedTools;
+    checkpoint.pauseInfo = source.pauseInfo;
+    checkpoint.lastMessageId = source.lastMessageId;
+    await this.db.insert(checkpoints).values(this.toRow(checkpoint));
+    return checkpoint;
+  }
+
+  /** 删除整个 turn 的版本链 */
   async deleteByTurn(turnId: string): Promise<void> {
     await this.db.delete(checkpoints).where(eq(checkpoints.turnId, turnId));
   }
 
-  /**
-   * Purge expired checkpoints.
-   * Returns the turnIds of any purged checkpoints that were in a paused state,
-   * so callers can clean up associated resources (e.g. pause locks).
-   */
+  /** 整链清理：GROUP BY turn 取整链最新 created_at，全部过期才删，返回被删 turnId 数组 */
   async purgeExpired(ttlMs: number): Promise<string[]> {
     const cutoff = Date.now() - ttlMs;
-
-    // Collect paused turn IDs before deletion
     const expired = await this.db
-      .select({ turnId: checkpoints.turnId, paused: checkpoints.paused })
+      .select({ turnId: checkpoints.turnId })
       .from(checkpoints)
-      .where(lt(checkpoints.createdAt, cutoff))
-      .all();
-
-    await this.db.delete(checkpoints).where(lt(checkpoints.createdAt, cutoff));
-
-    return expired.filter((r) => r.paused === 1).map((r) => r.turnId);
+      .groupBy(checkpoints.turnId)
+      .having(sql`max(${checkpoints.createdAt}) < ${cutoff}`);
+    const turnIds = expired.map((r) => r.turnId);
+    for (const turnId of turnIds) {
+      await this.db.delete(checkpoints).where(eq(checkpoints.turnId, turnId));
+    }
+    return turnIds;
   }
 
-  /**
-   * Map a {@link Checkpoint} to column values for insert/update.
-   * - `paused`: 1 if pauseInfo is set, 0 otherwise
-   * - `pendingTool`: JSON-serialized pendingToolCall, or null
-   * - `snapshot`: JSON-serialized full checkpoint for recovery and migration
-   */
+  /** Checkpoint → 行（snapshot 存完整 JSON） */
   private toRow(ckpt: Checkpoint) {
     return {
-      id: ckpt.id,
       turnId: ckpt.turnId,
       threadId: ckpt.threadId,
       version: ckpt.version,
       stepIndex: ckpt.stepIndex,
-      paused: ckpt.pauseInfo !== null ? 1 : 0,
-      pendingTool: ckpt.pendingToolCall ? JSON.stringify(ckpt.pendingToolCall) : null,
+      nextAction: ckpt.nextAction,
       snapshot: JSON.stringify(ckpt),
       createdAt: ckpt.createdAt,
-      updatedAt: ckpt.updatedAt,
     };
+  }
+
+  /** 懒迁移：按 schemaVersion 逐级升级 */
+  private migrate(snapshot: Record<string, unknown>): Checkpoint {
+    while ((snapshot.schemaVersion as number) < CHECKPOINT_CURRENT_VERSION) {
+      const migrateFn = checkpointMigrations[snapshot.schemaVersion as number];
+      if (!migrateFn) break;
+      snapshot = migrateFn(snapshot);
+    }
+    return snapshot as unknown as Checkpoint;
   }
 }
