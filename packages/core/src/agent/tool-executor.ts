@@ -1,4 +1,4 @@
-// @vico/core - ToolExecutor: 工具注册、执行、checkpoint 追踪
+// @vico/core - ToolExecutor: 工具注册、执行、结果上流
 import type {Tool, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
 import {StormBreaker} from '../tool/storm-breaker.js';
 import type {ToolSet} from 'ai';
@@ -85,45 +85,37 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   }
 
   /**
-   * 执行工具调用，逐条持久化 + checkpoint 追踪。
-   * readonly 并行执行（无副作用）后串行持久化，其余串行逐条持久化。
+   * 执行工具调用，逐条上流结果。
+   * readonly 并行执行（无副作用），其余串行逐条执行。
+   * 工具结果只落消息链（由调用方 appendToolResults 持久化），本方法不写 checkpoint。
    */
   async executeToolCalls(toolCalls: ToolCall[], context: TurnContext<TToolSet>): Promise<ToolResult[]> {
     if (toolCalls.length === 0) return [];
 
     const toolCallContext: ToolCallContext = { session: context.session, signal: context.signal };
-    const checkpoint = context.checkpoint;
-    const store = this.host.checkpointStore;
 
     const { readonlyCalls, sequentialCalls } = this.partitionCalls(toolCalls);
 
     const results: ToolResult[] = [];
 
-    // 工具执行结果上流：success → tool-result part，error → tool-error part（消息链持久化由调用方 appendToolResults 负责）
+    // 工具执行结果上流：success → tool-result part，error → tool-error part
     const emitResult = (call: ToolCall, result: ToolResult): void => {
       context.controller.enqueue(toolResultPart(result, call.args));
       this.host.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
     };
 
-    // readonly：并行执行（无副作用、不写 pending），结果追加与持久化串行化以规避 completedToolResults 覆盖竞态
+    // readonly：并行执行（无副作用），结果串行上流
     const executed = await Promise.all(
       readonlyCalls.map(async (call) => ({ call, result: await this.execute(call, toolCallContext) })),
     );
     for (const { call, result } of executed) {
-      checkpoint.completedToolResults.push(result);
-      await store.update(checkpoint);
       emitResult(call, result);
       results.push(result);
     }
 
-    // sequential：串行逐条执行，执行前写 pending 保证崩溃后重试（mutation 有副作用，需逐条持久化）
+    // sequential：串行逐条执行（mutation 有副作用，串行避免并发干扰）
     for (const call of sequentialCalls) {
-      checkpoint.pendingToolCall = call;
-      await store.update(checkpoint);
       const result = await this.execute(call, toolCallContext);
-      checkpoint.completedToolResults.push(result);
-      checkpoint.pendingToolCall = null;
-      await store.update(checkpoint);
       emitResult(call, result);
       results.push(result);
     }
