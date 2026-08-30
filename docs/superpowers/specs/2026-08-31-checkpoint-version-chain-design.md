@@ -59,7 +59,7 @@ CREATE INDEX idx_ckpt_versions_thread ON vico_checkpoint_versions(thread_id);
 **类型新增**（checkpoint.ts）：
 
 ```typescript
-type NextAction = 'model' | 'tool-approval' | 'tool-execution' | 'end';
+type NextAction = 'model' | 'tool-approval' | 'end';
 
 interface CheckpointVersion {
   turnId: string;
@@ -82,11 +82,15 @@ interface CheckpointVersion {
 forkedFrom: { turnId: string; version: number } | null;  // 本 turn 由源 turn 的某版本分叉而来
 ```
 
-**为什么加 `nextAction`**：版本快照只有"当前状态"，审计时看不出版本之后要发生什么。`nextAction` 显式标注下一步：
-- `model` — step 完成，下一步进入下一轮模型调用
-- `tool-approval` — pause，等待审批
-- `tool-execution` — 有待执行工具（`pendingToolCall` 非空）
-- `end` — turn 终态（completed/failed/aborted）
+**为什么加 `nextAction`**：版本快照只有"当前状态"，审计时看不出版本之后要发生什么。`nextAction` 显式标注下一步，三态与 append 时机严格对应：
+
+| nextAction | append 时机 | 快照特征 |
+|-----------|------------|---------|
+| `model` | step 完成 | `pendingToolCall`=null、`pauseInfo`=null、尚未结束，下一步进入下一轮模型调用 |
+| `tool-approval` | pause | `pauseInfo` 非空、`pendingToolCall`=null，下一步等待审批 |
+| `end` | completed / failed / aborted | 终态 |
+
+**为什么没有 `tool-execution`**：有待执行工具（`pendingToolCall` 非空）是 step **内部**的瞬间状态（tool-pre → tool-done 之间），实时性由现场行（表 A）承担，不进入 step 级版本链——版本 append 的三个时机（step 完成 / pause / 终态）恰好都在 `pendingToolCall` 已清空或未设置之后，故版本快照中 `pendingToolCall` 恒为 null，`tool-execution` 永远不会被 append 使用。
 
 **Checkpoint 类型修正**：新增一个字段，供分叉时精确定位消息链边界。
 
@@ -116,15 +120,16 @@ interface Checkpoint {
 | `deleteByTurn(turnId)` | 改造 | 不再于 completed 时调用；改为显式删除整个 turn 的版本链 |
 | `purgeExpired(ttlMs)` | 改造 | 按 created_at 整链删除（一个 turn 的所有版本一起删）+ 级联删现场行 |
 | `listByThread(threadId)` | 保留 | 读现场行（每 turn 最新），审计明细走新方法 |
-| **`appendVersion(checkpoint, { nextAction })`** | 新增 | step 完成 / pause / completed 时，把现场行快照 append 到版本链，版本号 = max+1；`nextAction` 由调用点传入（step→model / pause→tool-approval / completed→end） |
+| **`appendVersion(checkpoint, { nextAction })`** | 新增 | step 完成 / pause / completed / failed / aborted 时，把现场行快照 append 到版本链，版本号 = max+1；`nextAction` 由调用点传入（step→model / pause→tool-approval / 终态→end） |
 | **`getVersion(turnId, version)`** | 新增 | 读指定版本，审计 / fork 用 |
 | **`listVersions(turnId)`** | 新增 | 按版本号升序返回，审计时间线 |
 | **`fork(turnId, version, newTurnId, newThreadId)`** | 新增 | 从历史版本复制快照到新 turn 的现场行，作为分叉起点 |
 
 **loop-agent.ts 调用点改造**：
-- completed 终态：`deleteByTurn`（loop-agent.ts:445）→ `appendVersion`（写终态版本）
-- pause 状态：追加 `appendVersion`（pause 现场进版本链）
-- step 完成：追加 `appendVersion`（每 step 一个版本）
+- step 完成：追加 `appendVersion`，nextAction=`model`（每 step 一个版本）
+- pause 状态：追加 `appendVersion`，nextAction=`tool-approval`（pause 现场进版本链）
+- completed 终态：`deleteByTurn`（loop-agent.ts:445）→ `appendVersion`，nextAction=`end`（写终态版本）
+- failed / aborted 终态：追加 `appendVersion`，nextAction=`end`（失败/中断现场也进版本链，审计可见）
 - `update` 的 5 个现有调用点：**零改动**（继续实时写现场行）
 
 ## 六、fork 回放流程（分叉成新 turn）
