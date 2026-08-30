@@ -1,5 +1,5 @@
 // @vico/mysql-adapter — MySQL Drizzle table definitions for thread and memory persistence
-import { mysqlTable, varchar, text, bigint, int, json } from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, text, bigint, int, json, primaryKey } from 'drizzle-orm/mysql-core';
 
 // --- Thread tables ---
 
@@ -14,12 +14,14 @@ export const threads = mysqlTable('vico_threads', {
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
 });
 
-/** conversation turns */
+/** conversation turns（新增 forked_from 列：分叉来源） */
 export const turns = mysqlTable('vico_turns', {
   id: varchar('id', { length: 36 }).primaryKey(),
   thread_id: varchar('thread_id', { length: 36 }).notNull(),
   status: varchar('status', { length: 36 }).notNull().default('running'),
   steps: int('steps').notNull().default(0),
+  /** 本 turn 由源 turn 的某版本分叉而来（JSON 序列化的 {turnId, version}） */
+  forked_from: text('forked_from'),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
 
@@ -36,19 +38,18 @@ export const messages = mysqlTable('vico_messages', {
 
 // --- Checkpoints ---
 
-/** turn execution state checkpoint, for crash recovery and approval recovery */
+/** turn 执行状态检查点 — 多版本链：(turn_id, version) 复合主键，一行一个版本快照 */
 export const checkpoints = mysqlTable('vico_checkpoints', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  turnId: varchar('turn_id', { length: 36 }).notNull().unique(),
+  turnId: varchar('turn_id', { length: 36 }).notNull(),
   threadId: varchar('thread_id', { length: 36 }).notNull(),
-  version: int('version').notNull().default(1),
-  stepIndex: int('step_index').notNull().default(0),
-  paused: int('paused').notNull().default(0),
-  pendingTool: text('pending_tool'),
+  version: int('version').notNull(),
+  stepIndex: int('step_index').notNull(),
+  nextAction: varchar('next_action', { length: 20 }).notNull(),
   snapshot: text('snapshot').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-});
+}, (t) => ({
+  pk: primaryKey({ columns: [t.turnId, t.version] }),
+}));
 
 // --- Memory tables ---
 

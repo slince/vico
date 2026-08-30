@@ -81,7 +81,7 @@ export class MysqlThreadStore implements ThreadStore {
 
   // --- Turn ---
 
-  async createTurn(threadId: string): Promise<Turn> {
+  async createTurn(threadId: string, opts?: { forkedFrom?: Turn['forkedFrom'] }): Promise<Turn> {
     const id = crypto.randomUUID();
     const now = Date.now();
     await this.db.insert(turns).values({
@@ -89,15 +89,17 @@ export class MysqlThreadStore implements ThreadStore {
       thread_id: threadId,
       status: 'running',
       steps: 0,
+      forked_from: opts?.forkedFrom ? JSON.stringify(opts.forkedFrom) : null,
       created_at: now,
     });
-    return { id, threadId, status: 'running', steps: 0, createdAt: now };
+    return { id, threadId, status: 'running', steps: 0, forkedFrom: opts?.forkedFrom ?? null, createdAt: now };
   }
 
   async updateTurn(turnId: string, patch: Partial<Turn>): Promise<void> {
     const values: Record<string, unknown> = {};
     if (patch.status !== undefined) values.status = patch.status;
     if (patch.steps !== undefined) values.steps = patch.steps;
+    if (patch.forkedFrom !== undefined) values.forked_from = patch.forkedFrom ? JSON.stringify(patch.forkedFrom) : null;
     if (Object.keys(values).length === 0) return;
     await this.db
       .update(turns)
@@ -214,6 +216,7 @@ export class MysqlThreadStore implements ThreadStore {
       threadId: r.thread_id,
       status: r.status as Turn['status'],
       steps: r.steps,
+      forkedFrom: r.forked_from ? (JSON.parse(r.forked_from) as { turnId: string; version: number }) : null,
       createdAt: r.created_at,
     };
   }
