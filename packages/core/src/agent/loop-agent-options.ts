@@ -1,6 +1,6 @@
 import {UsageMetrics} from "./types.js";
 import {ToolCall, ToolResult} from "../tool/types.js";
-import type {Checkpoint, PauseInfo} from "./checkpoint.js";
+import type {Checkpoint} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from "../thread/thread-store.js";
@@ -9,8 +9,12 @@ import {Thread, Turn} from "../thread/thread-store.js";
 export interface ModelStepResult {
   /** 步骤执行后的动作：break=终止循环, pause=暂停等待审批, continue=继续下一步 */
   action: 'break' | 'pause' | 'continue';
-  /** 暂停信息（action 为 pause 时需要） */
-  pauseInfo?: PauseInfo;
+  /** 待审批的 ToolCall（action 为 pause 时需要） */
+  pendingApprovalCalls?: ToolCall[];
+  /** 审批阶段已自动批准的调用（action 为 pause 时需要，恢复时直接执行） */
+  approvedCalls?: ToolCall[];
+  /** 已自动拒绝的结果（action 为 pause 时需要，恢复时直接落库） */
+  deniedResults?: ToolResult[];
   /** 本 step 的 token 用量 */
   usage: UsageMetrics;
   /** 本step是否执行出错*/

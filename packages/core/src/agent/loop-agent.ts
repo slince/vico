@@ -16,7 +16,7 @@ import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
 import type {ContextCompactor} from './context-compactor.js';
 import type {TokenEconomy} from './token-economy.js';
-import type {Checkpoint, CheckpointStore, PauseInfo} from './checkpoint.js';
+import type {Checkpoint, CheckpointStore} from './checkpoint.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ProcessorPipeline} from './context-processors/context-processor.js';
 import type {
@@ -352,9 +352,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const entries = await this.thread.getEntriesByTurns([turn.id]);
     const messages = toModelMessages(entries);
 
-    // ── 防线② 消息链核对（仅无 pauseInfo 路径）：未配对工具调用 → 截断到该 assistant 消息之前，模型重新决策 ──
-    // 审批恢复（有 pauseInfo）由 applyPauseInfoRecovery 全量恢复现场，不得截断已落链的 assistant tool-call。
-    if (!checkpoint.pauseInfo) {
+    // ── 防线② 消息链核对（仅非审批恢复路径）：未配对工具调用 → 截断到该 assistant 消息之前，模型重新决策 ──
+    // 审批恢复（nextAction='tool-approval'）由 applyPauseInfoRecovery 全量恢复现场，不得截断已落链的 assistant tool-call。
+    if (checkpoint.nextAction !== 'tool-approval') {
       const unpaired = findUnpairedToolCalls(messages);
       if (unpaired) {
         this.log.info({ turnId: turn.id, unpaired: unpaired.unpairedCallIds }, 'unpaired tool calls, truncating chain for re-decision');
@@ -371,49 +371,49 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.loadSessionApprovals(session, approvedTools);
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller, checkpoint };
 
-    if (checkpoint.pauseInfo) {
-      // 路径 A：审批恢复（处理待审批调用），恢复现场进版本链
-      await this.applyPauseInfoRecovery(checkpoint.pauseInfo, decisions, context);
+    if (checkpoint.nextAction === 'tool-approval') {
+      // 路径 A：审批恢复（处理待审批调用），恢复现场进版本树
+      await this.applyPauseInfoRecovery(checkpoint, decisions, context);
       context.checkpoint = await this.checkpointStore.append(turn.id, {
+        parentId: checkpoint.id,
         stepIndex: checkpoint.stepIndex,
         nextAction: 'model',
         approvedTools: Object.fromEntries(context.approvedTools),
-        pauseInfo: null,
+        pendingApprovalCalls: [],
+        approvedCalls: [],
+        deniedResults: [],
         lastMessageId: context.checkpoint.lastMessageId,
       });
     }
-    // 路径 B（pendingToolCall 重试）随 pendingToolCall 字段一并删除：
-    // 无 pauseInfo 时由消息链核对 + stepIndex 续跑兜底。
+    // 路径 B（非审批恢复）由消息链核对 + stepIndex 续跑兜底（见上方防线②）。
 
     await this.thread.updateTurn(turn.id, { status: 'running' });
     return this.startTurnLoop(context.checkpoint.stepIndex, context, usage);
   }
 
   /**
-   * 从 pauseInfo 恢复工具调用：执行自动批准的调用、追加自动拒绝的结果、
-   * 处理等待审批的调用（根据 approvalDecisions 决定执行或拒绝）。
+   * 从 checkpoint 平铺字段恢复工具调用：执行自动批准的调用、追加自动拒绝的结果、
+   * 处理待审批的调用（根据 approvalDecisions 决定执行或拒绝）。
    */
-  private async applyPauseInfoRecovery(pauseInfo: PauseInfo, decisions: ToolCallApproval[], context: TurnContext<TToolSet>): Promise<void> {
-    if (pauseInfo.reason !== 'tool-approval') return;
-
+  private async applyPauseInfoRecovery(checkpoint: Checkpoint, decisions: ToolCallApproval[], context: TurnContext<TToolSet>): Promise<void> {
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d]));
 
     // 1. 执行暂停前已自动批准的调用，结果统一持久化
-    if (pauseInfo.approvedCalls && pauseInfo.approvedCalls.length > 0) {
-      const results = await this.toolExecutor.executeToolCalls(pauseInfo.approvedCalls, context);
+    if (checkpoint.approvedCalls.length > 0) {
+      const results = await this.toolExecutor.executeToolCalls(checkpoint.approvedCalls, context);
       await this.appendToolResults(results, context);
     }
 
     // 2. 持久化暂停前已自动拒绝的结果
-    if (pauseInfo.deniedResults && pauseInfo.deniedResults.length > 0) {
-      await this.appendToolResults(pauseInfo.deniedResults, context);
+    if (checkpoint.deniedResults.length > 0) {
+      await this.appendToolResults(checkpoint.deniedResults, context);
     }
 
-    // 3. 处理等待审批的调用
+    // 3. 处理待审批的调用
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
 
-    for (const pendingCall of pauseInfo.pendingToolCalls) {
+    for (const pendingCall of checkpoint.pendingApprovalCalls) {
       const decision = decisionMap.get(pendingCall.id);
       const approved = decision?.approved ?? false;
       const scope = decision?.scope ?? 'turn';
@@ -478,10 +478,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       const err = loopResult.error!;
       await this.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
       await this.checkpointStore.append(turn.id, {
+        parentId: context.checkpoint.id,
         stepIndex: loopResult.steps,
         nextAction: 'end',
         approvedTools: Object.fromEntries(context.approvedTools),
-        pauseInfo: null,
+        pendingApprovalCalls: [],
+        approvedCalls: [],
+        deniedResults: [],
         lastMessageId: context.checkpoint.lastMessageId,
       });
       context.controller.enqueue(finishPart('error', usage));
@@ -498,10 +501,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 终态进版本链（nextAction='end'），审计可见；版本链全量保留，不再 deleteByTurn
     await this.checkpointStore.append(turn.id, {
+      parentId: context.checkpoint.id,
       stepIndex: loopResult.steps,
       nextAction: 'end',
       approvedTools: Object.fromEntries(context.approvedTools),
-      pauseInfo: null,
+      pendingApprovalCalls: [],
+      approvedCalls: [],
+      deniedResults: [],
       lastMessageId: context.checkpoint.lastMessageId,
     });
 
@@ -535,17 +541,20 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     while (steps < this.maxSteps && !signal.aborted) {
       const step: Step = { index: steps, messages: context.messages };
-      const { action, pauseInfo, usage: stepUsage, error } = await this.executeModelStep(step, context);
+      const { action, pendingApprovalCalls, approvedCalls, deniedResults, usage: stepUsage, error } = await this.executeModelStep(step, context);
       usage.input += stepUsage.input;
       usage.output += stepUsage.output;
 
       if (action === 'pause') {
-        // 暂停现场进版本链（nextAction='tool-approval'）
+        // 暂停现场进版本树（nextAction='tool-approval'）
         context.checkpoint = await this.checkpointStore.append(turn.id, {
+          parentId: context.checkpoint.id,
           stepIndex: steps,
           nextAction: 'tool-approval',
           approvedTools: Object.fromEntries(context.approvedTools),
-          pauseInfo: pauseInfo ?? null,
+          pendingApprovalCalls: pendingApprovalCalls ?? [],
+          approvedCalls: approvedCalls ?? [],
+          deniedResults: deniedResults ?? [],
           lastMessageId: context.checkpoint.lastMessageId,
         });
         await this.thread.updateTurn(turn.id, { status: 'paused', steps });
@@ -563,10 +572,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       // action === 'continue'：step 完成 → 追加 'model' 版本（每 step 一个版本）
       steps++;
       context.checkpoint = await this.checkpointStore.append(turn.id, {
+        parentId: context.checkpoint.id,
         stepIndex: steps,
         nextAction: 'model',
         approvedTools: Object.fromEntries(context.approvedTools),
-        pauseInfo: null,
+        pendingApprovalCalls: [],
+        approvedCalls: [],
+        deniedResults: [],
         lastMessageId: context.checkpoint.lastMessageId,
       });
     }
@@ -628,16 +640,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 有待审批的工具 → 暂停 turn
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pausedCalls.length > 0) {
-      const pauseInfo: PauseInfo = {
-        reason: 'tool-approval',
-        pendingToolCalls: pausedCalls,
-        // 保存已在审批阶段自动决策的调用，恢复时直接使用，避免重复审批
-        approvedCalls: approvedCalls,
-        deniedResults: deniedResults,
-        pausedAtStep: step.index,
-      };
       this.emit({ type: 'step-end', step: step.index + 1 });
-      return { action: 'pause', pauseInfo, usage };
+      return { action: 'pause', pendingApprovalCalls: pausedCalls, approvedCalls, deniedResults, usage };
     }
 
     // 已批准的调用直接执行，结果统一持久化（含拒绝结果）
