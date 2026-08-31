@@ -73,19 +73,21 @@ export async function ensureTables(
     ON vico_messages(thread_id)
   `);
 
-  // 迁移检测：旧版 vico_checkpoints 为单列主键 id + turn_id UNIQUE 单行制。
-  // SQLite 无法 ALTER 复合主键，检测到旧结构时 DROP 重建为多版本链（旧单行数据开发期丢弃）。
+  // 迁移检测：旧版 vico_checkpoints 为 (turn_id, version) 复合主键、无 id/parent_id 列。
+  // SQLite 无法 ALTER 主键，检测到旧结构时 DROP 重建为版本树（旧链数据开发期丢弃）。
   const ckptCols = await db.values<[string]>(sql`
     SELECT name FROM pragma_table_info('vico_checkpoints')
   `);
   const ckptColNames = ckptCols.map((r) => r[0]);
-  if (ckptColNames.length > 0 && !ckptColNames.includes('next_action')) {
+  if (ckptColNames.length > 0 && (!ckptColNames.includes('id') || !ckptColNames.includes('parent_id'))) {
     await db.run(sql`DROP TABLE vico_checkpoints`);
   }
 
-  // 检查点多版本链表
+  // 检查点版本树
   await db.run(sql`
     CREATE TABLE IF NOT EXISTS vico_checkpoints (
+      id TEXT PRIMARY KEY,
+      parent_id TEXT,
       turn_id TEXT NOT NULL,
       thread_id TEXT NOT NULL,
       version INTEGER NOT NULL,
@@ -93,7 +95,7 @@ export async function ensureTables(
       next_action TEXT NOT NULL,
       snapshot TEXT NOT NULL,
       created_at INTEGER NOT NULL,
-      PRIMARY KEY (turn_id, version)
+      UNIQUE (turn_id, version)
     )
   `);
 

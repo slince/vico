@@ -1,5 +1,5 @@
 // @vico/libsql-adapter — Drizzle table definitions for thread and memory persistence
-import { sqliteTable, text, integer, blob, index, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, blob, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 // --- Thread tables ---
 
@@ -39,8 +39,10 @@ export const messages = sqliteTable('vico_messages', {
 
 // --- Checkpoints ---
 
-/** turn 执行状态检查点 — 多版本链：(turn_id, version) 复合主键，一行一个版本快照 */
+/** turn 执行状态检查点 — 版本树：id 单列主键 + UNIQUE(turn_id, version)，一行一个版本快照，parent_id 表达血缘 */
 export const checkpoints = sqliteTable('vico_checkpoints', {
+  id: text('id').primaryKey(),
+  parentId: text('parent_id'),
   turnId: text('turn_id').notNull(),
   threadId: text('thread_id').notNull(),
   version: integer('version').notNull(),
@@ -49,7 +51,7 @@ export const checkpoints = sqliteTable('vico_checkpoints', {
   snapshot: text('snapshot').notNull(),
   createdAt: integer('created_at').notNull(),
 }, (t) => ({
-  pk: primaryKey({ columns: [t.turnId, t.version] }),
+  uniqTurnVersion: uniqueIndex('uniq_checkpoints_turn_version').on(t.turnId, t.version),
 }));
 
 // --- Memory tables ---
