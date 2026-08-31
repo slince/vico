@@ -354,6 +354,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // ── 防线② 消息链核对（仅非审批恢复路径）：未配对工具调用 → 截断到该 assistant 消息之前，模型重新决策 ──
     // 审批恢复（nextAction='tool-approval'）由 applyPauseInfoRecovery 全量恢复现场，不得截断已落链的 assistant tool-call。
+    // 不变量：pauseInfo（旧模型）存在 ⟺ nextAction === 'tool-approval'（新模型），两者在 executeModelStep 同一 pause 分支设置；故此处仅需判别 nextAction。
     if (checkpoint.nextAction !== 'tool-approval') {
       const unpaired = findUnpairedToolCalls(messages);
       if (unpaired) {

@@ -127,7 +127,9 @@ export class MysqlCheckpointStore implements CheckpointStore {
   private migrate(snapshot: Record<string, unknown>): Checkpoint {
     while ((snapshot.schemaVersion as number) < CHECKPOINT_CURRENT_VERSION) {
       const migrateFn = checkpointMigrations[snapshot.schemaVersion as number];
-      if (!migrateFn) break;
+      if (!migrateFn) {
+        throw new Error(`checkpoint schemaVersion ${snapshot.schemaVersion as number} 无迁移函数（CHECKPOINT_CURRENT_VERSION=${CHECKPOINT_CURRENT_VERSION}）`);
+      }
       snapshot = migrateFn(snapshot);
     }
     return snapshot as unknown as Checkpoint;
