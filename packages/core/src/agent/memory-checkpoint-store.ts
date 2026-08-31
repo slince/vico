@@ -1,10 +1,11 @@
-// @vico/core — In-memory CheckpointStore implementation（多版本链，append-only）
+// @vico/core — In-memory CheckpointStore implementation（版本树，append-only）
 import type { Checkpoint, CheckpointAppendPatch, CheckpointStore } from './checkpoint.js';
 import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint } from './checkpoint.js';
+import { randomUUID } from 'node:crypto';
 
 /**
- * In-memory 多版本 {@link CheckpointStore}。
- * 以 `${turnId}:${version}` 为 key 存一个 turn 的完整版本链，支持懒迁移。
+ * In-memory 版本树 {@link CheckpointStore}。
+ * 以 `${turnId}:${version}` 为 key 存一个 turn 的完整版本，血缘由 parentId 表达，支持懒迁移。
  */
 export class MemoryCheckpointStore implements CheckpointStore {
   private store = new Map<string, Checkpoint>();
@@ -13,24 +14,28 @@ export class MemoryCheckpointStore implements CheckpointStore {
     return `${turnId}:${version}`;
   }
 
-  /** 创建初始版本（version=1、stepIndex=0、nextAction=model），turn 开始时调用 */
+  /** 创建初始版本（id=uuid、parentId=null、version=1），turn 开始时调用 */
   async create(turnId: string, threadId: string): Promise<Checkpoint> {
     const checkpoint = createCheckpoint(turnId, threadId);
     this.store.set(this.key(turnId, checkpoint.version), checkpoint);
     return this.snapshot(checkpoint);
   }
 
-  /** 追加一个版本：版本号 = 当前最大版本 + 1，快照字段由 patch 全量覆盖 */
+  /** 追加一个版本：version = max+1，生成新 uuid id，parentId 由 patch 显式指定 */
   async append(turnId: string, patch: CheckpointAppendPatch): Promise<Checkpoint> {
     const latest = await this.getLatest(turnId);
     const checkpoint: Checkpoint = {
+      id: randomUUID(),
+      parentId: patch.parentId,
       turnId,
       threadId: latest?.threadId ?? '',
       version: (latest?.version ?? 0) + 1,
       stepIndex: patch.stepIndex,
       nextAction: patch.nextAction,
       approvedTools: patch.approvedTools,
-      pauseInfo: patch.pauseInfo,
+      pendingApprovalCalls: patch.pendingApprovalCalls,
+      approvedCalls: patch.approvedCalls,
+      deniedResults: patch.deniedResults,
       lastMessageId: patch.lastMessageId,
       schemaVersion: CHECKPOINT_CURRENT_VERSION,
       createdAt: Date.now(),
@@ -39,7 +44,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
     return this.snapshot(checkpoint);
   }
 
-  /** 读最新版本（版本号最大） */
+  /** 读最新版本（version 最大） */
   async getLatest(turnId: string): Promise<Checkpoint | undefined> {
     let latest: Checkpoint | undefined;
     for (const ckpt of this.store.values()) {
@@ -56,7 +61,15 @@ export class MemoryCheckpointStore implements CheckpointStore {
     return ckpt ? this.snapshot(this.migrate(ckpt)) : undefined;
   }
 
-  /** 按版本号升序返回完整版本链 */
+  /** 按 id 读版本 */
+  async getById(id: string): Promise<Checkpoint | undefined> {
+    for (const ckpt of this.store.values()) {
+      if (ckpt.id === id) return this.snapshot(this.migrate(ckpt));
+    }
+    return undefined;
+  }
+
+  /** 按 version 升序返回完整版本树 */
   async listVersions(turnId: string): Promise<Checkpoint[]> {
     const versions: Checkpoint[] = [];
     for (const ckpt of this.store.values()) {
@@ -66,21 +79,24 @@ export class MemoryCheckpointStore implements CheckpointStore {
     return versions;
   }
 
-  /** 从源 turn 的历史版本复制快照到新 turn 的初始版本（分叉起点） */
+  /** 从源版本复制快照到新 turn 初始版本，parentId = 源版本 id（跨 turn 边） */
   async fork(sourceTurnId: string, version: number, newTurnId: string, newThreadId: string): Promise<Checkpoint | undefined> {
     const source = await this.getVersion(sourceTurnId, version);
     if (!source) return undefined;
     const checkpoint = createCheckpoint(newTurnId, newThreadId);
+    checkpoint.parentId = source.id;
     checkpoint.stepIndex = source.stepIndex;
     checkpoint.nextAction = source.nextAction;
     checkpoint.approvedTools = { ...source.approvedTools };
-    checkpoint.pauseInfo = source.pauseInfo;
+    checkpoint.pendingApprovalCalls = [...source.pendingApprovalCalls];
+    checkpoint.approvedCalls = [...source.approvedCalls];
+    checkpoint.deniedResults = [...source.deniedResults];
     checkpoint.lastMessageId = source.lastMessageId;
     this.store.set(this.key(newTurnId, checkpoint.version), checkpoint);
     return this.snapshot(checkpoint);
   }
 
-  /** 删除整个 turn 的版本链 */
+  /** 删除整个 turn 的版本树 */
   async deleteByTurn(turnId: string): Promise<void> {
     for (const key of this.store.keys()) {
       if (key.startsWith(`${turnId}:`)) this.store.delete(key);
@@ -95,7 +111,6 @@ export class MemoryCheckpointStore implements CheckpointStore {
     for (const turnId of turnIds) {
       const versions = [...this.store.values()].filter((c) => c.turnId === turnId);
       const latestCreatedAt = Math.max(...versions.map((c) => c.createdAt));
-      // 整链最新版本都过期才删整链
       if (latestCreatedAt < cutoff) {
         expiredTurnIds.push(turnId);
         for (const v of versions) this.store.delete(this.key(turnId, v.version));
@@ -115,8 +130,14 @@ export class MemoryCheckpointStore implements CheckpointStore {
     return snapshot as unknown as Checkpoint;
   }
 
-  /** 返回防御性拷贝，避免调用方原地改动污染已存储版本（与 durable store 的 JSON 序列化语义一致） */
+  /** 返回防御性拷贝（含平铺数组），避免调用方原地改动污染已存储版本 */
   private snapshot(ckpt: Checkpoint): Checkpoint {
-    return { ...ckpt, approvedTools: { ...ckpt.approvedTools } };
+    return {
+      ...ckpt,
+      approvedTools: { ...ckpt.approvedTools },
+      pendingApprovalCalls: [...ckpt.pendingApprovalCalls],
+      approvedCalls: [...ckpt.approvedCalls],
+      deniedResults: [...ckpt.deniedResults],
+    };
   }
 }
