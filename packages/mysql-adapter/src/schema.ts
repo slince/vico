@@ -1,5 +1,5 @@
 // @vico/mysql-adapter — MySQL Drizzle table definitions for thread and memory persistence
-import { mysqlTable, varchar, text, bigint, int, json, primaryKey } from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, text, bigint, int, json, uniqueIndex } from 'drizzle-orm/mysql-core';
 
 // --- Thread tables ---
 
@@ -38,8 +38,10 @@ export const messages = mysqlTable('vico_messages', {
 
 // --- Checkpoints ---
 
-/** turn 执行状态检查点 — 多版本链：(turn_id, version) 复合主键，一行一个版本快照 */
+/** turn 执行状态检查点 — 版本树：id 单列主键 + UNIQUE(turn_id, version)，parent_id 表达血缘 */
 export const checkpoints = mysqlTable('vico_checkpoints', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  parentId: varchar('parent_id', { length: 36 }),
   turnId: varchar('turn_id', { length: 36 }).notNull(),
   threadId: varchar('thread_id', { length: 36 }).notNull(),
   version: int('version').notNull(),
@@ -48,7 +50,7 @@ export const checkpoints = mysqlTable('vico_checkpoints', {
   snapshot: text('snapshot').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),
 }, (t) => ({
-  pk: primaryKey({ columns: [t.turnId, t.version] }),
+  uniqTurnVersion: uniqueIndex('uniq_checkpoints_turn_version').on(t.turnId, t.version),
 }));
 
 // --- Memory tables ---

@@ -1,12 +1,13 @@
-// @vico/mysql-adapter — MySQL CheckpointStore implementation（多版本链，append-only）
+// @vico/mysql-adapter — MySQL CheckpointStore implementation（版本树，append-only）
 import { eq, sql, desc } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import type { Checkpoint, CheckpointAppendPatch, CheckpointStore } from '@vico/core';
 import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint } from '@vico/core';
 import { checkpoints } from './schema.js';
 import type * as schema from './schema.js';
+import { randomUUID } from 'node:crypto';
 
-/** MySQL 多版本 {@link CheckpointStore}，语义与 LibSql 版一致 */
+/** MySQL 版本树 {@link CheckpointStore}，语义与 LibSql 版一致 */
 export class MysqlCheckpointStore implements CheckpointStore {
   constructor(private db: MySql2Database<typeof schema>) {}
 
@@ -16,16 +17,21 @@ export class MysqlCheckpointStore implements CheckpointStore {
     return checkpoint;
   }
 
+  /** 追加一个版本：version = max+1，生成新 uuid id，parentId 由 patch 显式指定 */
   async append(turnId: string, patch: CheckpointAppendPatch): Promise<Checkpoint> {
     const latest = await this.getLatest(turnId);
     const checkpoint: Checkpoint = {
+      id: randomUUID(),
+      parentId: patch.parentId,
       turnId,
       threadId: latest?.threadId ?? '',
       version: (latest?.version ?? 0) + 1,
       stepIndex: patch.stepIndex,
       nextAction: patch.nextAction,
       approvedTools: patch.approvedTools,
-      pauseInfo: patch.pauseInfo,
+      pendingApprovalCalls: patch.pendingApprovalCalls,
+      approvedCalls: patch.approvedCalls,
+      deniedResults: patch.deniedResults,
       lastMessageId: patch.lastMessageId,
       schemaVersion: CHECKPOINT_CURRENT_VERSION,
       createdAt: Date.now(),
@@ -53,6 +59,12 @@ export class MysqlCheckpointStore implements CheckpointStore {
     return rows.length === 0 ? undefined : this.migrate(JSON.parse(rows[0].snapshot));
   }
 
+  /** 按 id 读版本（父引用解析、指定叶恢复） */
+  async getById(id: string): Promise<Checkpoint | undefined> {
+    const rows = await this.db.select().from(checkpoints).where(eq(checkpoints.id, id)).limit(1);
+    return rows.length === 0 ? undefined : this.migrate(JSON.parse(rows[0].snapshot));
+  }
+
   async listVersions(turnId: string): Promise<Checkpoint[]> {
     const rows = await this.db
       .select()
@@ -62,14 +74,18 @@ export class MysqlCheckpointStore implements CheckpointStore {
     return rows.map((r) => this.migrate(JSON.parse(r.snapshot)));
   }
 
+  /** 从源版本复制快照到新 turn 初始版本，parentId = 源版本 id（跨 turn 边） */
   async fork(sourceTurnId: string, version: number, newTurnId: string, newThreadId: string): Promise<Checkpoint | undefined> {
     const source = await this.getVersion(sourceTurnId, version);
     if (!source) return undefined;
     const checkpoint = createCheckpoint(newTurnId, newThreadId);
+    checkpoint.parentId = source.id;
     checkpoint.stepIndex = source.stepIndex;
     checkpoint.nextAction = source.nextAction;
     checkpoint.approvedTools = source.approvedTools;
-    checkpoint.pauseInfo = source.pauseInfo;
+    checkpoint.pendingApprovalCalls = source.pendingApprovalCalls;
+    checkpoint.approvedCalls = source.approvedCalls;
+    checkpoint.deniedResults = source.deniedResults;
     checkpoint.lastMessageId = source.lastMessageId;
     await this.db.insert(checkpoints).values(this.toRow(checkpoint));
     return checkpoint;
@@ -93,8 +109,11 @@ export class MysqlCheckpointStore implements CheckpointStore {
     return turnIds;
   }
 
+  /** Checkpoint → 行（snapshot 存完整 JSON） */
   private toRow(ckpt: Checkpoint) {
     return {
+      id: ckpt.id,
+      parentId: ckpt.parentId,
       turnId: ckpt.turnId,
       threadId: ckpt.threadId,
       version: ckpt.version,
