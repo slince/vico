@@ -11,9 +11,9 @@ export interface ModelStepResult {
   action: 'break' | 'pause' | 'continue';
   /** 待审批的 ToolCall（action 为 pause 时需要） */
   pendingApprovalCalls?: ToolCall[];
-  /** 审批阶段已自动批准的调用（action 为 pause 时需要，恢复时直接执行） */
+  /** 本轮审批通过待执行的调用（pause：恢复时差集补跑；continue：执行前落「计划版本」清单） */
   approvedCalls?: ToolCall[];
-  /** 已自动拒绝的结果（action 为 pause 时需要，恢复时直接落库） */
+  /** 本轮被拒绝的结果（pause：恢复时落库；continue：随执行结果一并落库） */
   deniedResults?: ToolResult[];
   /** 本 step 的 token 用量 */
   usage: UsageMetrics;

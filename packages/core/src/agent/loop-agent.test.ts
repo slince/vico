@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ModelMessage, ToolCallPart, ToolResultPart } from 'ai';
-import { findUnpairedToolCalls } from './loop-agent.js';
+import type { ToolCall } from '../tool/types.js';
+import { completedCallIds, diffRemaining, findUnpairedToolCalls } from './utils.js';
 import { KeyedMutex } from '../utils/async-keyed-lock.js';
 
 const toolCallMsg = (calls: { id: string; name: string }[]): ModelMessage => ({
@@ -33,6 +34,43 @@ describe('findUnpairedToolCalls（消息链核对）', () => {
   it('无 assistant tool-call 消息 → null', () => {
     const messages: ModelMessage[] = [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }];
     expect(findUnpairedToolCalls(messages)).toBeNull();
+  });
+});
+
+describe('diffRemaining / completedCallIds（执行清单 − 已完成 = 补跑剩余）', () => {
+  const tc = (id: string): ToolCall => ({ id, name: 't', args: {} });
+  const ids = (calls: ToolCall[]): string[] => calls.map((c) => c.id);
+
+  it('部分完成 → 只剩未完成补跑', () => {
+    const messages: ModelMessage[] = [
+      toolCallMsg([{ id: 'c1', name: 't' }, { id: 'c2', name: 't' }, { id: 'c3', name: 't' }]),
+      toolResultMsg(['c1']), // 仅 c1 有结果
+    ];
+    expect(ids(diffRemaining([tc('c1'), tc('c2'), tc('c3')], messages))).toEqual(['c2', 'c3']);
+  });
+
+  it('全部完成 → 空（绝不重跑已完成调用）', () => {
+    const messages: ModelMessage[] = [toolCallMsg([{ id: 'c1', name: 't' }]), toolResultMsg(['c1'])];
+    expect(diffRemaining([tc('c1')], messages)).toEqual([]);
+  });
+
+  it('无任何结果 → 全部补跑', () => {
+    expect(ids(diffRemaining([tc('c1'), tc('c2')], []))).toEqual(['c1', 'c2']);
+  });
+
+  it('completedCallIds 跨整条消息链收集（含前序轮次结果）', () => {
+    const messages: ModelMessage[] = [
+      toolCallMsg([{ id: 'c1', name: 't' }, { id: 'c2', name: 't' }]),
+      toolResultMsg(['c1', 'c2']),
+      toolCallMsg([{ id: 'c3', name: 't' }]),
+      toolResultMsg(['c3']),
+    ];
+    expect([...completedCallIds(messages)].sort()).toEqual(['c1', 'c2', 'c3']);
+  });
+
+  it('已完成 id 不参与结果，清单中不存在的 id 被忽略', () => {
+    const messages: ModelMessage[] = [toolCallMsg([{ id: 'c1', name: 't' }]), toolResultMsg(['c1'])];
+    expect(ids(diffRemaining([tc('c1'), tc('c2')], messages))).toEqual(['c2']);
   });
 });
 
