@@ -6,8 +6,8 @@ import {randomUUID} from 'node:crypto';
 /** checkpoint 快照（snapshot JSON）schema 当前版本 */
 export const CHECKPOINT_CURRENT_VERSION = 2;
 
-/** 下一步意图：模型调用 / 等待审批 / 已结束（原 PauseInfo.reason 并入） */
-export type NextAction = 'model' | 'tool-approval' | 'end';
+/** 下一步意图：进入模型循环 / 等待审批 / 执行工具 / 已结束（原 PauseInfo.reason 并入） */
+export type NextAction = 'model' | 'tool-approval' | 'tool-execution' | 'end';
 
 /**
  * vico_checkpoints 一行 = 一个版本（完整快照）。

@@ -318,11 +318,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const messages = toModelMessages(entries);
 
     // ── 统一差集恢复的入口判定 ──
-    // 有「待执行 / 待落库清单」（计划版本：工具执行中途中断；审批现场：tool-approval）→ 走差集补跑。
-    // 否则（推进版本：step 已正常完成）→ 防线② 消息链核对：未配对工具调用截断到该 assistant 消息之前，模型重新决策。
+    // nextAction 显式标注恢复阶段：tool-approval=审批现场（消费决策后补跑）；tool-execution=计划版本（工具执行中途中断，差集补跑）。
+    // 否则（model=推进版本：step 已正常完成）→ 防线② 消息链核对：未配对工具调用截断到该 assistant 消息之前，模型重新决策。
     const isApprovalResume = checkpoint.nextAction === 'tool-approval';
-    const isPlanResume =
-      !isApprovalResume && (checkpoint.approvedCalls.length > 0 || checkpoint.deniedResults.length > 0);
+    const isPlanResume = checkpoint.nextAction === 'tool-execution';
     if (!isApprovalResume && !isPlanResume) {
       const unpaired = findUnpairedToolCalls(messages);
       if (unpaired) {
@@ -548,7 +547,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         context.checkpoint = await this.checkpointStore.append(turn.id, {
           parentId: context.checkpoint.id,
           stepIndex: steps,
-          nextAction: 'model',
+          nextAction: 'tool-execution',
           approvedTools: Object.fromEntries(context.approvedTools),
           pendingApprovalCalls: [],
           approvedCalls: approvedCalls ?? [],
