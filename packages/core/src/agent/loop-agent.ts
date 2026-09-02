@@ -580,8 +580,18 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 执行一个 model step 的模型侧：压缩 → model 调用 → 审批分类。
-   * 工具执行与结果持久化由 runTurnLoop 在 append「计划版本」后进行（每 step 双写：计划 + 推进）。
+   * 执行一个 model step 的模型侧流程：压缩 → model 调用 → 审批分类。
+   *
+   * 职责边界：本方法只负责「生成 + 分类」，不直接执行工具。工具执行与结果持久化
+   * 由 runTurnLoop 在 append「计划版本」后进行（每 step 双写：计划 + 推进），以便工具
+   * 执行中途中断/崩溃时可按「checkpoint 清单 − 消息链已完成」差集恢复补跑。
+   *
+   * @param step 当前步骤对象（携带 index 与消息链）
+   * @param context 本 turn 的共享上下文（消息、审批状态、中断信号、流控制器、checkpoint）
+   * @returns 步骤结果，action 三态：
+   *   - `break`：token 耗尽 / 模型出错 / 已中止 / 无工具调用，终止循环
+   *   - `pause`：存在待审批工具，暂停 turn 等待客户端审批（附 pendingApprovalCalls）
+   *   - `continue`：工具已审批通过，交由 runTurnLoop 落「计划版本」后执行
    */
   private async executeModelStep(step: Step, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
@@ -630,12 +640,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     // 审批 + 执行 + 持久化
-    const { approvedCalls, deniedResults, pausedCalls } = await this.resolveToolApprovals(modelResult.toolCalls, context);
+    const { approvedCalls, deniedResults, pendingApprovalCalls } = await this.resolveToolApprovals(modelResult.toolCalls, context);
     // 有待审批的工具 → 暂停 turn
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
-    if (pausedCalls.length > 0) {
+    if (pendingApprovalCalls.length > 0) {
       this.emit({ type: 'step-end', step: step.index + 1 });
-      return { action: 'pause', pendingApprovalCalls: pausedCalls, approvedCalls, deniedResults, usage };
+      return { action: 'pause', pendingApprovalCalls, approvedCalls, deniedResults, usage };
     }
 
     // 已批准的调用不再在此执行——审批分类结果返回 runTurnLoop：先落「计划版本」清单再执行，
@@ -644,12 +654,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 解析工具审批：遍历 toolCalls，按策略分类为 approvedCalls / deniedResults / pausedCalls。
+   * 解析工具审批：遍历 toolCalls，按策略分类为 approvedCalls / deniedResults / pendingApprovalCalls。
    */
   private async resolveToolApprovals(toolCalls: ToolCall[], context: TurnContext<TToolSet>): Promise<ApprovalClassification> {
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
-    const pausedCalls: ToolCall[] = [];
+    const pendingApprovalCalls: ToolCall[] = [];
 
     for (const call of toolCalls) {
       const tool = this.toolExecutor.findTool(call.name);
@@ -702,7 +712,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
             toolName: call.name,
             input: call.args,
           });
-          pausedCalls.push(call);
+          pendingApprovalCalls.push(call);
           break;
         }
         case 'denied': {
@@ -717,7 +727,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
     }
 
-    return { approvedCalls, deniedResults, pausedCalls };
+    return { approvedCalls, deniedResults, pendingApprovalCalls };
   }
 
   /**

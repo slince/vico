@@ -23,9 +23,12 @@ export interface ModelStepResult {
 
 /** 审批分类结果 */
 export interface ApprovalClassification {
+  /** 审批通过、待执行的工具调用 */
   approvedCalls: ToolCall[];
+  /** 审批拒绝的调用所对应的结果（error 形式，随执行结果一并落库） */
   deniedResults: ToolResult[];
-  pausedCalls: ToolCall[];
+  /** 待审批的 ToolCall（需暂停 turn 等待客户端审批） */
+  pendingApprovalCalls: ToolCall[];
 }
 
 /** callModel 的返回值 */
