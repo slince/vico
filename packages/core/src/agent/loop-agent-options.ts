@@ -57,6 +57,7 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
   /** 本 turn 的 checkpoint 对象（startTurn/resumeTurn 创建，append-only 版本链：step 完成 / pause / 终态时由 loop-agent append 新版本） */
   checkpoint: Checkpoint;
+  usage: UsageMetrics;
 }
 
 

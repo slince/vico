@@ -277,21 +277,25 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const usage: UsageMetrics = { input: 0, output: 0 };
 
-    const approvedTools = new Map<string, ToolApproval>();
-    this.loadSessionApprovals(session, approvedTools);
-
-    const requestContext = new ModelRequestContext({agent: this, userMessages, tools: [...this.tools], session});
+    const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
     await this.pipeline.enter(requestContext);
 
     // turn 开始时显式创建 checkpoint 初始版本（version=1），后续子步骤以 append 追加版本
     const checkpoint = await this.checkpointStore.create(session.turn.id, session.thread.id);
 
     // 本轮次的上下文对象
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller, checkpoint };
+    const context: TurnContext<TToolSet> = {
+      ctx: requestContext,
+      messages: [...requestContext.messages],
+      approvedTools: new Map<string, ToolApproval>(),
+      session, signal, controller, checkpoint, usage
+    };
+
+    this.loadSessionApprovals(session, context);
 
     await this.persistMessages(context, userMessages);
 
-    return this.startTurnLoop( 0, context, usage);
+    return this.startTurnLoop( 0, context);
   }
 
   /** 从未完结的 turn 恢复执行，携带新的用户消息（审批决策从消息组中的原生 tool-approval-response part 解析） */
@@ -403,9 +407,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
    */
-  private async startTurnLoop(startStep: number, context: TurnContext<TToolSet>, usage: UsageMetrics): Promise<TurnResult> {
+  private async startTurnLoop(startStep: number, context: TurnContext<TToolSet>): Promise<TurnResult> {
 
-    const {session: {thread, turn}} = context
+    const {session: {thread, turn}, usage} = context
     const loopResult: StepLoopResult  = await this.runTurnLoop(startStep, context);
     usage.input += loopResult.usage.input;
     usage.output += loopResult.usage.output;
@@ -709,11 +713,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 从 thread.metadata 加载 session 级审批，预填入 approvedTools Map。
    */
-  private loadSessionApprovals(session: TurnSession, approvedTools: Map<string, ToolApproval>): void {
+  private loadSessionApprovals(session: TurnSession, context: TurnContext<TToolSet>): void {
     const sessionApproved = session.thread.metadata?.sessionApprovedTools;
     if (!sessionApproved) return;
     for (const [name, entry] of Object.entries(sessionApproved)) {
-      approvedTools.set(name, { approved: true, approvedAt: entry.approvedAt });
+      context.approvedTools.set(name, { approved: true, approvedAt: entry.approvedAt });
     }
   }
 
