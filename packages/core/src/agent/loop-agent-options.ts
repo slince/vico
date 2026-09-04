@@ -21,8 +21,8 @@ export interface ModelStepResult {
   error?: Error | string;
 }
 
-/** 审批分类结果 */
-export interface ApprovalClassification {
+/** 审批处置结果（通过 / 拒绝 / 待审批三组） */
+export interface ResolvedApprovals {
   /** 审批通过、待执行的工具调用 */
   approvedCalls: ToolCall[];
   /** 审批拒绝的调用所对应的结果（error 形式，随执行结果一并落库） */
@@ -88,7 +88,7 @@ export interface TurnResult {
  * Step — turn 内的一次 LLM 调用 + 可选工具执行。
  * 由 _run 在每轮迭代时创建，随 callModel / executeToolCalls / dispatchTools 流转。
  */
-export interface Step {
+export interface TurnStep {
   /** 当前步骤编号（0 起始） */
   index: number;
 

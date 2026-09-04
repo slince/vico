@@ -15,28 +15,27 @@ import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
 import type {ContextCompactor} from './context-compactor.js';
-import type {TokenEconomy} from './token-economy.js';
 import type {Checkpoint, CheckpointStore} from './checkpoint.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ProcessorPipeline} from './context-processors/context-processor.js';
 import type {
-  ApprovalClassification,
   CallModelResult,
   ModelStepResult,
+  ResolvedApprovals,
   RunOptions,
-  Step,
   StepLoopResult,
   ToolApproval,
   ToolCallApproval,
   TurnContext,
   TurnResult,
   TurnSession,
+  TurnStep,
 } from './loop-agent-options.js';
 
 import {ModelClient} from '../model/model-client.js';
 import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
-import {diffRemaining, findUnpairedToolCalls, normalizeUserMessage} from './utils.js';
-import {fromModelMessage, toModelMessages} from '../thread/utils.js';
+import {diffRemaining, normalizeUserMessage} from './utils.js';
+import {fromModelMessage} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
 import {buildAssistantMessage, buildToolResultMessage, extractApprovalResponses,} from '../model/message-utils.js';
@@ -86,7 +85,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly events: EventRecorder<TurnEvent>;
   readonly workspace?: string;
   readonly compactor?: ContextCompactor;
-  readonly tokenEconomy?: TokenEconomy;
   readonly checkpointStore: CheckpointStore;
   readonly logger: Logger;
 
@@ -114,7 +112,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.events = rest.events;
     this.workspace = rest.workspace;
     this.compactor = rest.compactor;
-    this.tokenEconomy = rest.tokenEconomy;
     this.checkpointStore = rest.checkpointStore;
     this.logger = rest.logger ?? pino();
 
@@ -313,25 +310,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
     const { decisions } = extractApprovalResponses(userMessages);
 
-    // 恢复历史消息
-    const entries = await this.thread.getEntriesByTurns([turn.id]);
-    const messages = toModelMessages(entries);
-
-    // ── 统一差集恢复的入口判定 ──
-    // nextAction 显式标注恢复阶段：tool-approval=审批现场（消费决策后补跑）；tool-execution=计划版本（工具执行中途中断，差集补跑）。
-    // 否则（model=推进版本：step 已正常完成）→ 防线② 消息链核对：未配对工具调用截断到该 assistant 消息之前，模型重新决策。
-    const isApprovalResume = checkpoint.nextAction === 'tool-approval';
-    const isPlanResume = checkpoint.nextAction === 'tool-execution';
-    if (!isApprovalResume && !isPlanResume) {
-      const unpaired = findUnpairedToolCalls(messages);
-      if (unpaired) {
-        this.log.info({ turnId: turn.id, unpaired: unpaired.unpairedCallIds }, 'unpaired tool calls, truncating chain for re-decision');
-        messages.splice(unpaired.assistantIndex);
-      }
-    }
-
     // 构建 request context, 补全必要信息
-    const requestContext = new ModelRequestContext({agent: this, messages, tools: this.tools, session});
+    const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
     await this.pipeline.enter(requestContext);
 
     // ——— checkpoint 统一差集恢复 ———
@@ -340,9 +320,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller, checkpoint };
 
     // 审批现场先消费 decisions：把暂停时的 pendingApprovalCalls 归类为「批准执行 / 拒绝落库」
-    const { approvedCalls: newlyApproved, deniedResults: newlyDenied } = isApprovalResume
-      ? await this.resolvePendingApprovals(checkpoint.pendingApprovalCalls, decisions, context)
-      : { approvedCalls: [], deniedResults: [] };
+    const { approvedCalls: newlyApproved, deniedResults: newlyDenied } = await this.resolvePendingApprovals(checkpoint.pendingApprovalCalls, decisions, context)
 
     const planned = [...checkpoint.approvedCalls, ...newlyApproved];
     const toPersist = [...checkpoint.deniedResults, ...newlyDenied];
@@ -511,7 +489,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const {session: {turn}, signal} = context
 
     while (steps < this.maxSteps && !signal.aborted) {
-      const step: Step = { index: steps, messages: context.messages };
+      const step: TurnStep = { index: steps, messages: context.messages };
       const { action, pendingApprovalCalls, approvedCalls, deniedResults, usage: stepUsage, error } = await this.executeModelStep(step, context);
       usage.input += stepUsage.input;
       usage.output += stepUsage.output;
@@ -592,22 +570,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    *   - `pause`：存在待审批工具，暂停 turn 等待客户端审批（附 pendingApprovalCalls）
    *   - `continue`：工具已审批通过，交由 runTurnLoop 落「计划版本」后执行
    */
-  private async executeModelStep(step: Step, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
+  private async executeModelStep(step: TurnStep, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
 
     const usage = { input: 0, output: 0 };
 
     await this.tryCompact(step, context.signal);
-
-    if (this.tokenEconomy?.isInputExhausted()) {
-      this.emit({ type: 'error', error: '输入 token 预算已耗尽' });
-      return { action: 'break', usage };
-    }
-
-    if (this.tokenEconomy?.isOutputExhausted()) {
-      this.emit({ type: 'error', error: '输出 token 预算已耗尽' });
-      return { action: 'break', usage };
-    }
 
     const modelResult = await this.callModel(step, context);
 
@@ -623,7 +591,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
-    this.tokenEconomy?.track(modelResult.usage.input, modelResult.usage.output);
 
     // 模型输出后的消息处理（text + tool-call parts 组装为原生 assistant 消息）
     if (modelResult.text || modelResult.toolCalls.length > 0) {
@@ -655,7 +622,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 解析工具审批：遍历 toolCalls，按策略分类为 approvedCalls / deniedResults / pendingApprovalCalls。
    */
-  private async resolveToolApprovals(toolCalls: ToolCall[], context: TurnContext<TToolSet>): Promise<ApprovalClassification> {
+  private async resolveToolApprovals(toolCalls: ToolCall[], context: TurnContext<TToolSet>): Promise<ResolvedApprovals> {
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
     const pendingApprovalCalls: ToolCall[] = [];
@@ -796,7 +763,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 压缩检查，按需原地替换 messages。
    */
-  private async tryCompact(step: Step, signal: AbortSignal): Promise<void> {
+  private async tryCompact(step: TurnStep, signal: AbortSignal): Promise<void> {
     if (!this.compactor) return;
     const result = await this.compactor.compactIfNeeded(step.messages, this.modelClient, signal);
     if (result.wasCompacted) {
@@ -810,7 +777,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 单次模型调用。messages 已由调用方预处理（含 ctx.before/after），
    * 不修改入参，结果通过 CallModelResult 返回。
    */
-  private async callModel(step: Step, context: TurnContext<TToolSet>): Promise<CallModelResult> {
+  private async callModel(step: TurnStep, context: TurnContext<TToolSet>): Promise<CallModelResult> {
     const { ctx, controller } = context;
 
     const request: ModelRequest = {

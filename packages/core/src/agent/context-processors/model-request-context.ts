@@ -3,7 +3,7 @@ import type {ModelMessage} from 'ai';
 import {getMessageText, pickPrimaryUserMessage} from '../../model/message-utils.js';
 import type {Tool} from '../../tool/types.js';
 import type {Thread} from '../../thread/thread-store.js';
-import {Step, TurnSession} from "../loop-agent-options.js";
+import {TurnSession, TurnStep} from "../loop-agent-options.js";
 
 /** 上下文中的 Agent 引用 — 提供处理器所需的配置字段 */
 export interface AgentRef {
@@ -28,7 +28,7 @@ export class ModelRequestContext {
   /** 当前 turn 会话（身份 + 线程引用） */
   readonly session?: TurnSession;
   /** 当前 step（一次 LLM 调用 + 可选工具执行） */
-  step?: Step;
+  step?: TurnStep;
   /** 系统提示词 — 仅通过 appendSystemPrompt 追加，读取用 getSystemPrompt() */
   private systemPrompt: string;
 
@@ -47,7 +47,7 @@ export class ModelRequestContext {
     systemPrompt?: string;
     tools?: Tool[];
     session?: TurnSession;
-    step?: Step;
+    step?: TurnStep;
   }) {
     this.agent = agent;
     this.userMessages = userMessages ?? [];

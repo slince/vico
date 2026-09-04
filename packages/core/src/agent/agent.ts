@@ -12,7 +12,6 @@ import type {TurnOutput} from './turn-output.js';
 import type {RunOptions, TurnResult} from './loop-agent-options.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ContextCompactor} from './context-compactor.js';
-import type {TokenEconomy} from './token-economy.js';
 import type {CheckpointStore} from './checkpoint.js';
 import type {Logger} from 'pino';
 
@@ -38,7 +37,6 @@ export interface AgentOptions {
   approvalResolver?: ApprovalDecider;
   events: EventRecorder<TurnEvent>;
   compactor?: ContextCompactor;
-  tokenEconomy?: TokenEconomy;
   checkpointStore: CheckpointStore;
   logger?: Logger;
 }
@@ -77,7 +75,6 @@ export interface Agent {
   readonly events: EventRecorder<TurnEvent>;
   readonly workspace?: string;
   readonly compactor?: ContextCompactor;
-  readonly tokenEconomy?: TokenEconomy;
   readonly checkpointStore: CheckpointStore;
   readonly logger: Logger;
 
