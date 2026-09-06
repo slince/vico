@@ -64,6 +64,7 @@ export async function seedDefaultAdmin() {
     userId,
     accountId: userId,
     providerId: 'credential',
+    issuer: 'local:credential',
     password: hash,
     createdAt: now,
     updatedAt: now,

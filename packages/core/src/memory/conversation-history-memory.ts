@@ -1,6 +1,6 @@
 // src/memory/conversation-history-memory.ts
 import type {ThreadStore} from '../thread/thread-store.js';
-import type { ModelMessage } from 'ai';
+import type {ModelMessage} from 'ai';
 import {toModelMessages} from '../thread/utils.js';
 
 
@@ -13,7 +13,7 @@ export class ConversationHistoryMemory {
   constructor(readonly threadStore: ThreadStore, readonly conversationWindow: number) {}
 
   async get(threadId: string): Promise<ModelMessage[]> {
-    const turns = await this.threadStore.getRecentTurns(threadId, this.conversationWindow, 'completed');
+    const turns = await this.threadStore.getRecentTurns(threadId, this.conversationWindow);
 
     if (turns.length === 0) return [];
 

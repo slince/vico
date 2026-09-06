@@ -32,6 +32,7 @@ export const account = sqliteTable('account', {
   userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
   accountId: text('accountId').notNull(),
   providerId: text('providerId').notNull(),
+  issuer: text('issuer').notNull(),
   accessToken: text('accessToken'),
   refreshToken: text('refreshToken'),
   idToken: text('idToken'),
