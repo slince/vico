@@ -64,13 +64,6 @@
       "when": 1783612800000,
       "tag": "0009_add_document_parent_id",
       "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "6",
-      "when": 1788706651000,
-      "tag": "0010_add_account_issuer",
-      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import {integer, sqliteTable, text} from 'drizzle-orm/sqlite-core';
 
 /** better-auth 核心用户表 — 替代原有 users 表 */
 export const user = sqliteTable('user', {
@@ -32,7 +32,6 @@ export const account = sqliteTable('account', {
   userId: text('userId').notNull().references(() => user.id, { onDelete: 'cascade' }),
   accountId: text('accountId').notNull(),
   providerId: text('providerId').notNull(),
-  issuer: text('issuer').notNull(),
   accessToken: text('accessToken'),
   refreshToken: text('refreshToken'),
   idToken: text('idToken'),
