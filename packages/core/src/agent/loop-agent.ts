@@ -379,11 +379,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const stepIndex = nextAction === 'model' ? checkpoint.stepIndex + 1 : checkpoint.stepIndex;
 
     // tool call 已经调用完结，不需要继承
-    const isCallEnd = nextAction === 'model' || nextAction === 'end' || nextAction === 'failed';
+    const withoutToolCall = nextAction === 'model' || nextAction === 'end' || nextAction === 'failed';
 
-    const pendingApprovalCalls = isCallEnd ? (partial?.pendingApprovalCalls ?? checkpoint.pendingApprovalCalls) : [];
-    const approvedCalls = isCallEnd ? (partial?.approvedCalls ?? checkpoint.approvedCalls) : [];
-    const deniedResults = isCallEnd ? (partial?.deniedResults ?? checkpoint.deniedResults) : [];
+    const pendingApprovalCalls = withoutToolCall ? [] : (partial?.pendingApprovalCalls ?? checkpoint.pendingApprovalCalls);
+    const approvedCalls = withoutToolCall ? [] : (partial?.approvedCalls ?? checkpoint.approvedCalls);
+    const deniedResults = withoutToolCall ? [] : (partial?.deniedResults ?? checkpoint.deniedResults);
 
     return context.checkpoint = await this.checkpointStore.append(turn.id, {
       parentId: checkpoint.id,
