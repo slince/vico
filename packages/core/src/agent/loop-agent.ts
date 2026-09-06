@@ -271,7 +271,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
     await this.pipeline.enter(requestContext);
 
-
     // 本轮次的上下文对象
     const context: TurnContext<TToolSet> = {
       ctx: requestContext,
@@ -306,7 +305,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
       context.controller.enqueue(finishPart('stop', usage));
       return {
-        status: 'paused', steps: loopResult.steps, usage, messages: context.messages, thread, turn,
+        status: 'paused',
+        steps: loopResult.steps,
+        usage,
+        messages: context.messages,
+        thread,
+        turn,
       };
     }
 
@@ -322,8 +326,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       this.emit({ type: 'error', error: err });
 
       return {
-        status: 'failed', steps: loopResult.steps, usage, messages: context.messages,
-        thread, turn, error: loopResult.error,
+        status: 'failed',
+        steps: loopResult.steps,
+        usage, messages:
+        context.messages,
+        thread,
+        turn,
+        error: loopResult.error,
       };
     }
 
@@ -504,13 +513,15 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    */
   private async executeToolCalls(context: TurnContext<TToolSet>, approvedCalls: ToolCall[], deniedResults: ToolResult[]){
     // 预先保存checkpoint
-    if (approvedCalls.length  > 0 || deniedResults.length > 0) {
-      await this.saveCheckpoint(context, 'tool-execution', {
-        pendingApprovalCalls: [],
-        approvedCalls: approvedCalls,
-        deniedResults: deniedResults,
-      })
+    if (approvedCalls.length  === 0 && deniedResults.length === 0) {
+      return
     }
+
+    await this.saveCheckpoint(context, 'tool-execution', {
+      pendingApprovalCalls: [],
+      approvedCalls: approvedCalls,
+      deniedResults: deniedResults,
+    })
 
     // 执行本轮 auto 批准的调用，拒绝结果一并落消息链（结果只落消息链，checkpoint 已留执行清单）
     const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context);
