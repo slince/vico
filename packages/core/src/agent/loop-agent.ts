@@ -240,12 +240,22 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 自动恢复所有未完成的 turn（paused/running/failed），前提是存在 checkpoint。
     // 整体包进 per-turn 锁，并在锁内重读最新版本，规避并发恢复 TOCTOU。
-    const latestTurn = await this.thread.getLatestTurn(thread.id);
+    let turn = await this.thread.getLatestTurn(thread.id);
+    let checkpoint;
+    if (turn) {
+        checkpoint = await this.checkpointStore.getLatest(turn.id)
+    } else {
+      // ── 正常新 turn ──
+      turn = await this.thread.createTurn(thread.id);
+    }
 
-    // ── 正常新 turn ──
-    const turn = await this.thread.createTurn(thread.id);
+    if (!checkpoint) {
+      // turn 开始时显式创建 checkpoint 初始版本（version=1），后续子步骤以 append 追加版本
+       checkpoint = await this.checkpointStore.create(turn.id, thread.id);
+    }
+
     const session: TurnSession = { workspace, thread, turn };
-    return this.startTurn({ session, userMessages, signal, controller });
+    return this.startTurn({ session, userMessages, signal, controller, checkpoint });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -254,14 +264,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     userMessages: ModelMessage[];
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
+    checkpoint: Checkpoint;
   }): Promise<TurnResult> {
-    const { session, userMessages, signal, controller } = params;
+    const { session, userMessages, signal, controller, checkpoint } = params;
 
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
     await this.pipeline.enter(requestContext);
 
-    // turn 开始时显式创建 checkpoint 初始版本（version=1），后续子步骤以 append 追加版本
-    const checkpoint = await this.checkpointStore.create(session.turn.id, session.thread.id);
 
     // 本轮次的上下文对象
     const context: TurnContext<TToolSet> = {
