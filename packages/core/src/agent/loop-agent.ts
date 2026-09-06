@@ -168,7 +168,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @returns turn 最终结果
    */
   async invoke(message: UserMessage, options: RunOptions): Promise<TurnResult> {
-    const output = await this.run(await normalizeUserMessage(message), options);
+    const output = this.run(await normalizeUserMessage(message), options);
     return output.result;
   }
 
