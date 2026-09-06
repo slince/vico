@@ -15,7 +15,7 @@ import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
 import type {ContextCompactor} from './context-compactor.js';
-import type {CheckpointStore} from './checkpoint.js';
+import type {Checkpoint, CheckpointStore, NextAction} from './checkpoint.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ProcessorPipeline} from './context-processors/context-processor.js';
 import type {
@@ -307,16 +307,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     if (loopResult.status === 'failed') {
       const err = loopResult.error!;
       await this.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
-      await this.checkpointStore.append(turn.id, {
-        parentId: context.checkpoint.id,
-        stepIndex: loopResult.steps,
-        nextAction: 'end',
-        approvedTools: Object.fromEntries(context.approvedTools),
-        pendingApprovalCalls: [],
-        approvedCalls: [],
-        deniedResults: [],
-        lastMessageId: context.checkpoint.lastMessageId,
-      });
+      await this.saveCheckpoint(context, 'failed')
+
       context.controller.enqueue(finishPart('error', usage));
       this.emit({ type: 'error', error: err });
 
@@ -326,38 +318,63 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       };
     }
 
-    const status = loopResult.status === 'aborted' ? 'aborted' : 'completed';
-    await this.thread.updateTurn(turn.id, { status, steps: loopResult.steps });
-
-    // 终态进版本链（nextAction='end'），审计可见；版本链全量保留，不再 deleteByTurn
-    await this.checkpointStore.append(turn.id, {
-      parentId: context.checkpoint.id,
-      stepIndex: loopResult.steps,
-      nextAction: 'end',
-      approvedTools: Object.fromEntries(context.approvedTools),
-      pendingApprovalCalls: [],
-      approvedCalls: [],
-      deniedResults: [],
-      lastMessageId: context.checkpoint.lastMessageId,
+    // 更新turn的完结态
+    await this.thread.updateTurn(turn.id, {
+      status: loopResult.status,
+      steps: loopResult.steps
     });
 
+    // 终态进版本链（nextAction='end'），审计可见；版本链全量保留
+    await this.saveCheckpoint(context, 'end')
+
     // 终态生命周期 part：中断先发 abort，再统一发 finish
-    if (status === 'aborted') {
+    if (loopResult.status === 'aborted') {
       context.controller.enqueue({ type: 'abort' });
     }
-    context.controller.enqueue(finishPart(status === 'aborted' ? 'other' : 'stop', usage));
+    context.controller.enqueue(finishPart(loopResult.status === 'aborted' ? 'other' : 'stop', usage));
     this.emit({ type: 'done', usage });
 
     return {
-      status: loopResult.status === 'aborted'
-        ? (context.signal.aborted ? 'interrupted' : 'aborted')
-        : 'completed',
+      status: loopResult.status,
       steps: loopResult.steps,
       usage,
       messages: context.messages,
       thread,
       turn,
     };
+  }
+
+  /**
+   * 保存checkpoint
+   * @param context
+   * @param nextAction
+   * @param partial
+   * @private
+   */
+  private async saveCheckpoint(context: TurnContext<TToolSet>, nextAction: NextAction, partial?: Pick<Checkpoint, 'pendingApprovalCalls' | 'approvedCalls' | 'deniedResults'>): Promise<Checkpoint> {
+
+    const {session: {turn}, checkpoint} = context
+
+    // 模型调用，stepIndex + 1
+    const stepIndex = nextAction === 'model' ? checkpoint.stepIndex + 1 : checkpoint.stepIndex;
+
+    // tool call 已经调用完结，不需要继承
+    const isCallEnd = nextAction === 'model' || nextAction === 'end' || nextAction === 'failed';
+
+    const pendingApprovalCalls = isCallEnd ? (partial?.pendingApprovalCalls ?? checkpoint.pendingApprovalCalls) : [];
+    const approvedCalls = isCallEnd ? (partial?.approvedCalls ?? checkpoint.approvedCalls) : [];
+    const deniedResults = isCallEnd ? (partial?.deniedResults ?? checkpoint.deniedResults) : [];
+
+    return context.checkpoint = await this.checkpointStore.append(turn.id, {
+      parentId: checkpoint.id,
+      stepIndex: stepIndex,
+      nextAction: nextAction,
+      approvedTools: Object.fromEntries(context.approvedTools),
+      pendingApprovalCalls: pendingApprovalCalls,
+      approvedCalls: approvedCalls,
+      deniedResults: deniedResults,
+      lastMessageId: checkpoint.lastMessageId,
+    });
   }
 
   /**
@@ -380,16 +397,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
       if (action === 'pause') {
         // 暂停现场进版本树（nextAction='tool-approval'）
-        context.checkpoint = await this.checkpointStore.append(turn.id, {
-          parentId: context.checkpoint.id,
-          stepIndex: steps,
-          nextAction: 'tool-approval',
-          approvedTools: Object.fromEntries(context.approvedTools),
+        await this.saveCheckpoint(context, 'tool-approval', {
           pendingApprovalCalls: pendingApprovalCalls ?? [],
           approvedCalls: approvedCalls ?? [],
           deniedResults: deniedResults ?? [],
-          lastMessageId: context.checkpoint.lastMessageId,
-        });
+        })
         await this.thread.updateTurn(turn.id, { status: 'paused', steps });
         return { status: 'paused', steps, usage };
       }
@@ -402,9 +414,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         break
       }
 
-      // action === 'continue'
+      // 接下来处理多轮循环， action === 'continue'
       // 执行本轮 auto 批准的调用，拒绝结果一并落消息链（结果只落消息链，checkpoint 已留执行清单）
-      await this.executeToolCalls(steps, context, approvedCalls ?? [], deniedResults ?? []);
+      await this.executeToolCalls(context, approvedCalls ?? [], deniedResults ?? []);
 
       this.emit({ type: 'step-end', step: step.index });
       // step 完成 → 推进版本：清单清空，标志本轮决策执行完毕
@@ -419,7 +431,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @private
    */
   private async loadCheckpoint(context: TurnContext<TToolSet>){
-
     const {checkpoint} = context
 
     // 已完结的忽略
@@ -427,7 +438,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       return
     }
 
-      // 已完成的 tool call ids
+    // 已完成的 tool call ids
     const completedToolCallIds = completedCallIds(context.messages)
 
     // 单次call 决策
@@ -471,37 +482,31 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const allApprovedCalls = [...checkpoint.approvedCalls, ...approvedCalls].filter(call => !completedToolCallIds.has(call.id))
     const allDeniedResults = [...checkpoint.deniedResults, ...deniedResults]
 
-    await this.executeToolCalls(checkpoint.stepIndex, context, allApprovedCalls, allDeniedResults);
+    await this.executeToolCalls(context, allApprovedCalls, allDeniedResults);
   }
 
-  private async executeToolCalls(steps: number, context: TurnContext<TToolSet>, approvedCalls: ToolCall[], deniedResults: ToolResult[]){
+  /**
+   * 执行工具调用
+   * @param context
+   * @param approvedCalls
+   * @param deniedResults
+   * @private
+   */
+  private async executeToolCalls(context: TurnContext<TToolSet>, approvedCalls: ToolCall[], deniedResults: ToolResult[]){
+    // 预先保存checkpoint
     if (approvedCalls.length  > 0 || deniedResults.length > 0) {
-      context.checkpoint = await this.checkpointStore.append(context.session.turn.id, {
-        parentId: context.checkpoint.id,
-        stepIndex: steps,
-        nextAction: 'tool-execution',
-        approvedTools: Object.fromEntries(context.approvedTools),
+      await this.saveCheckpoint(context, 'tool-execution', {
         pendingApprovalCalls: [],
         approvedCalls: approvedCalls,
         deniedResults: deniedResults,
-        lastMessageId: context.checkpoint.lastMessageId,
-      });
+      })
     }
 
     // 执行本轮 auto 批准的调用，拒绝结果一并落消息链（结果只落消息链，checkpoint 已留执行清单）
     const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context);
     await this.appendToolResults([...toolResults, ...deniedResults], context);
 
-    context.checkpoint = await this.checkpointStore.append(context.session.turn.id, {
-      parentId: context.checkpoint.id,
-      stepIndex: steps,
-      nextAction: 'model',
-      approvedTools: Object.fromEntries(context.approvedTools),
-      pendingApprovalCalls: [],
-      approvedCalls: [],
-      deniedResults: [],
-      lastMessageId: context.checkpoint.lastMessageId,
-    });
+    await this.saveCheckpoint(context, 'model')
   }
 
 
@@ -635,7 +640,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           deniedResults.push({
             callId: call.id, name: call.name,
             status: 'error', output: null,
-            error: decision.reason ?? '被策略阻止',
+            error: decision.reason ?? 'Blocked by policy',
           });
           context.controller.enqueue(toolOutputDeniedPart(call));
           break;

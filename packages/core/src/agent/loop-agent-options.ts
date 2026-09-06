@@ -61,9 +61,12 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
 }
 
 
+// turn staus
+type TurnStatus = 'running' | 'completed' | 'aborted' | 'paused' | 'failed'
+
 /** runStepLoop 返回的 loop 执行结果 */
 export interface StepLoopResult {
-  status: 'completed' | 'aborted' | 'paused' | 'failed';
+  status: TurnStatus;
   steps: number;
   usage: UsageMetrics;
   error?: Error | string;
@@ -71,7 +74,7 @@ export interface StepLoopResult {
 
 /** 一次 turn 的执行结果 */
 export interface TurnResult {
-  status: 'completed' | 'failed' | 'aborted' | 'interrupted' | 'paused';
+  status: TurnStatus;
   steps: number;
   usage: UsageMetrics;
   messages: ModelMessage[];
@@ -82,8 +85,6 @@ export interface TurnResult {
   /** 错误信息（status 为 failed 时） */
   error?: Error | string;
 }
-
-// ── 核心领域模型：Thread > Turn > Step ──
 
 /**
  * Step — turn 内的一次 LLM 调用 + 可选工具执行。

@@ -7,7 +7,7 @@ import {randomUUID} from 'node:crypto';
 export const CHECKPOINT_CURRENT_VERSION = 2;
 
 /** 下一步意图：进入模型循环 / 等待审批 / 执行工具 / 已结束（原 PauseInfo.reason 并入） */
-export type NextAction = 'model' | 'tool-approval' | 'tool-execution' | 'end';
+export type NextAction = 'model' | 'tool-approval' | 'tool-execution' | 'end' | 'failed';
 
 /**
  * vico_checkpoints 一行 = 一个版本（完整快照）。
