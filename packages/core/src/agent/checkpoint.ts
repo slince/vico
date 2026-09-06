@@ -50,7 +50,15 @@ export interface CheckpointAppendPatch {
   parentId: string | null;
   stepIndex: number;
   nextAction: NextAction;
-  approvedTools: Record<string, ToolApproval>;
+  /**
+   * tool call 决策
+   */
+  decisions: ToolCallApproval[];
+
+  /**
+   * 允许的 tool
+   */
+  approvedTools: ToolApproval[];
   pendingApprovalCalls: ToolCall[];
   approvedCalls: ToolCall[];
   deniedResults: ToolResult[];

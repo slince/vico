@@ -50,6 +50,7 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   ctx: ModelRequestContext
   messages: ModelMessage[]
   session: TurnSession;
+  decisions: Map<string, ToolCallApproval>;
   approvedTools: Map<string, ToolApproval>;
   /** turn 级中断信号，贯穿 model 调用和工具执行 */
   signal: AbortSignal;

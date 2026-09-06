@@ -157,7 +157,7 @@ export function buildApprovalResponseMessage(decisions: ToolCallApproval[]): Too
  * @param messages - 本轮输入消息组
  * @returns decisions（解析出的决策）+ rest（剔除审批 part 后的其余消息）
  */
-export function extractApprovalResponses(messages: ModelMessage[]): { decisions: ToolCallApproval[]; rest: ModelMessage[] } {
+export function extractApprovalResponses(messages: ModelMessage[]): { decisions: Map<string, ToolCallApproval>; rest: ModelMessage[] } {
   const decisionMap = new Map<string, ToolCallApproval>();
   const rest: ModelMessage[] = [];
 
@@ -185,7 +185,7 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
   }
 
   return {
-    decisions: [...decisionMap.values()],
+    decisions: decisionMap,
     rest,
   };
 }

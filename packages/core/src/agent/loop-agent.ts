@@ -37,7 +37,7 @@ import {completedCallIds, normalizeUserMessage} from './utils.js';
 import {fromModelMessage} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
-import {buildAssistantMessage, buildToolResultMessage,} from '../model/message-utils.js';
+import {buildAssistantMessage, buildToolResultMessage, extractApprovalResponses,} from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
@@ -270,6 +270,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }): Promise<TurnResult> {
     const { session, userMessages, signal, controller, checkpoint } = params;
 
+    const {decisions} = extractApprovalResponses(userMessages)
+
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
     await this.pipeline.enter(requestContext);
 
@@ -277,6 +279,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const context: TurnContext<TToolSet> = {
       ctx: requestContext,
       messages: [...requestContext.messages],
+      decisions: decisions,
       approvedTools: new Map<string, ToolApproval>(),
       session, signal, controller, checkpoint,
       usage: { input: 0, output: 0 }
@@ -389,7 +392,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       parentId: checkpoint.id,
       stepIndex: stepIndex,
       nextAction: nextAction,
-      approvedTools: Object.fromEntries(context.approvedTools),
+      decisions: Array.from(context.decisions.values()),
+      approvedTools: Array.from(context.approvedTools.values()),
       pendingApprovalCalls: pendingApprovalCalls,
       approvedCalls: approvedCalls,
       deniedResults: deniedResults,
@@ -459,26 +463,25 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       return
     }
 
+    // 还原到上下文
+    checkpoint.decisions.forEach(decision => {context.decisions.set(decision.toolCallId, decision)})
+    checkpoint.approvedTools.forEach(tool => {context.approvedTools.set(tool.toolName, tool)})
+
     // 已完成的 tool call ids
     const completedToolCallIds = completedCallIds(context.messages)
-
-    // 单次call 决策
-    const decisionMap = new Map(checkpoint.decisions.map((d) => [d.toolCallId, d]));
-    // 本会话历史决策
-    const approvedToolsMap = new Map(checkpoint.approvedTools.map((d) => [d.toolName, d]))
 
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
 
     // 待审批的call
     for (const pendingCall of checkpoint.pendingApprovalCalls) {
-      const decision = decisionMap.get(pendingCall.id);
+      const decision = context.decisions.get(pendingCall.id);
 
       const approved = decision?.approved ?? false;
       const scope = decision?.scope ?? 'turn';
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路）
       context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope }));
-      if (approved || approvedToolsMap.has(pendingCall.id)) {
+      if (approved || context.approvedTools.has(pendingCall.id)) {
         approvedCalls.push(pendingCall);
         // 追踪到 approvedTools，确保同一 turn 后续 step 中该工具自动放行
         context.approvedTools.set(pendingCall.name, {
