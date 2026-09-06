@@ -385,6 +385,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const {session: {turn}, signal, checkpoint} = context
 
+    // 加载最近的 CR，未完结的尝试恢复
     await this.loadCheckpoint(context)
 
     let steps = checkpoint.stepIndex;
