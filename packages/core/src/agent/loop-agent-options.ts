@@ -115,6 +115,8 @@ export interface ToolCallApproval {
 
 /** 单次工具审批在 turn 内的状态记录 */
 export interface ToolApproval {
+  /** 工具名称 */
+  toolName: string;
   /** 是否已批准 */
   approved: boolean;
   /** 批准/拒绝时间戳（Unix ms） */

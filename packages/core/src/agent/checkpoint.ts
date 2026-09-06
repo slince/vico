@@ -1,6 +1,6 @@
 // @vico/core - Checkpoint 版本树类型 + CheckpointStore 接口 + 版本迁移
 import type {ToolCall, ToolResult} from '../tool/types.js';
-import type {ToolApproval} from './loop-agent-options.js';
+import type {ToolApproval, ToolCallApproval} from './loop-agent-options.js';
 import {randomUUID} from 'node:crypto';
 
 /** checkpoint 快照（snapshot JSON）schema 当前版本 */
@@ -22,7 +22,17 @@ export interface Checkpoint {
   version: number;
   stepIndex: number;
   nextAction: NextAction;
-  approvedTools: Record<string, ToolApproval>;
+
+  /**
+   * tool call 决策
+   */
+  decisions: ToolCallApproval[];
+
+  /**
+   * 允许的 tool
+   */
+  approvedTools: ToolApproval[];
+
   // —— 原 PauseInfo 平铺（恒为数组）——
   pendingApprovalCalls: ToolCall[];
   approvedCalls: ToolCall[];

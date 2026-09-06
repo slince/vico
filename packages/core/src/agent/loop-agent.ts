@@ -6,7 +6,7 @@ import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import type {TurnEvent, UsageMetrics} from './types.js';
+import type {TurnEvent} from './types.js';
 import type {ApprovalDecider, Tool, ToolCall, ToolResult} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -15,7 +15,7 @@ import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
 import type {ContextCompactor} from './context-compactor.js';
-import type {Checkpoint, CheckpointStore} from './checkpoint.js';
+import type {CheckpointStore} from './checkpoint.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ProcessorPipeline} from './context-processors/context-processor.js';
 import type {
@@ -25,7 +25,6 @@ import type {
   RunOptions,
   StepLoopResult,
   ToolApproval,
-  ToolCallApproval,
   TurnContext,
   TurnResult,
   TurnSession,
@@ -34,11 +33,11 @@ import type {
 
 import {ModelClient} from '../model/model-client.js';
 import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
-import {diffRemaining, normalizeUserMessage} from './utils.js';
+import {completedCallIds, normalizeUserMessage} from './utils.js';
 import {fromModelMessage} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
-import {buildAssistantMessage, buildToolResultMessage, extractApprovalResponses,} from '../model/message-utils.js';
+import {buildAssistantMessage, buildToolResultMessage,} from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
@@ -242,23 +241,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 自动恢复所有未完成的 turn（paused/running/failed），前提是存在 checkpoint。
     // 整体包进 per-turn 锁，并在锁内重读最新版本，规避并发恢复 TOCTOU。
     const latestTurn = await this.thread.getLatestTurn(thread.id);
-    if (latestTurn && latestTurn.status !== 'completed') {
-      return this.resumeMutex.run(latestTurn.id, async () => {
-        // 锁内重读 turn 状态：等待排队的第二个 start() 可能已错过 turn 完成，
-        // 若已终态则降级为新建 turn，避免对已完成 turn 重复恢复执行。
-        const turnNow = await this.thread.getTurn(latestTurn.id);
-        const checkpoint = await this.checkpointStore.getLatest(latestTurn.id);
-        if (!turnNow || turnNow.status === 'completed' || !checkpoint) {
-          // 无 checkpoint 或已终态的 turn：降级为新建 turn
-          const turn = await this.thread.createTurn(thread.id);
-          const session: TurnSession = { workspace, thread, turn };
-          return this.startTurn({ session, userMessages, signal, controller });
-        }
-        this.log.info({ turnId: latestTurn.id, threadId: thread.id, status: turnNow.status }, 'resuming turn');
-        const session: TurnSession = { workspace, thread, turn: turnNow };
-        return this.resumeTurn({ session, checkpoint, userMessages, signal, controller });
-      });
-    }
 
     // ── 正常新 turn ──
     const turn = await this.thread.createTurn(thread.id);
@@ -275,8 +257,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }): Promise<TurnResult> {
     const { session, userMessages, signal, controller } = params;
 
-    const usage: UsageMetrics = { input: 0, output: 0 };
-
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
     await this.pipeline.enter(requestContext);
 
@@ -288,129 +268,26 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       ctx: requestContext,
       messages: [...requestContext.messages],
       approvedTools: new Map<string, ToolApproval>(),
-      session, signal, controller, checkpoint, usage
+      session, signal, controller, checkpoint,
+      usage: { input: 0, output: 0 }
     };
 
+    // 从 session 加载会话配置
     this.loadSessionApprovals(session, context);
 
+    // 保存本轮会话消息
     await this.persistMessages(context, userMessages);
 
-    return this.startTurnLoop( 0, context);
-  }
-
-  /** 从未完结的 turn 恢复执行，携带新的用户消息（审批决策从消息组中的原生 tool-approval-response part 解析） */
-  private async resumeTurn(params: {
-    session: TurnSession;
-    checkpoint: Checkpoint;
-    userMessages: ModelMessage[];
-    signal: AbortSignal;
-    controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
-  }): Promise<TurnResult> {
-    const { session, checkpoint, userMessages, signal, controller } = params;
-    const { turn } = session;
-
-    const usage: UsageMetrics = { input: 0, output: 0 };
-
-    // 从本轮消息组解析审批决策（in-band 协议）：审批消息由引擎消费，剔除后其余消息进消息链
-    const { decisions } = extractApprovalResponses(userMessages);
-
-    // 构建 request context, 补全必要信息
-    const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
-    await this.pipeline.enter(requestContext);
-
-    // ——— checkpoint 统一差集恢复 ———
-    const approvedTools = new Map<string, ToolApproval>(Object.entries(checkpoint.approvedTools));
-    this.loadSessionApprovals(session, approvedTools);
-    const context: TurnContext<TToolSet> = { ctx: requestContext, messages: [...requestContext.messages], session, approvedTools, signal, controller, checkpoint };
-
-    // 审批现场先消费 decisions：把暂停时的 pendingApprovalCalls 归类为「批准执行 / 拒绝落库」
-    const { approvedCalls: newlyApproved, deniedResults: newlyDenied } = await this.resolvePendingApprovals(checkpoint.pendingApprovalCalls, decisions, context)
-
-    const planned = [...checkpoint.approvedCalls, ...newlyApproved];
-    const toPersist = [...checkpoint.deniedResults, ...newlyDenied];
-    const hasRecovery = planned.length > 0 || toPersist.length > 0;
-
-    if (hasRecovery) {
-      // 待执行清单 − 消息链中已完成（有 tool-result）= 需补跑；已执行的绝不重跑（异常重试恢复核心）
-      const remaining = diffRemaining(planned, context.messages);
-      this.log.info(
-        { turnId: turn.id, planned: planned.map((c) => c.id), remaining: remaining.map((c) => c.id) },
-        'resume: diff checkpoint plan vs completed tool calls',
-      );
-      if (remaining.length > 0) {
-        const results = await this.toolExecutor.executeToolCalls(remaining, context);
-        await this.appendToolResults([...results, ...toPersist], context);
-      } else if (toPersist.length > 0) {
-        await this.appendToolResults(toPersist, context);
-      }
-      // 恢复完成 → 追加推进版本（清单清空，nextAction='model'），latest 不再指向待补跑的计划版本
-      context.checkpoint = await this.checkpointStore.append(turn.id, {
-        parentId: checkpoint.id,
-        stepIndex: checkpoint.stepIndex,
-        nextAction: 'model',
-        approvedTools: Object.fromEntries(context.approvedTools),
-        pendingApprovalCalls: [],
-        approvedCalls: [],
-        deniedResults: [],
-        lastMessageId: context.checkpoint.lastMessageId,
-      });
-    }
-
-    await this.thread.updateTurn(turn.id, { status: 'running' });
-    return this.startTurnLoop(context.checkpoint.stepIndex, context, usage);
-  }
-
-  /**
-   * 消费审批决策：把暂停时的 pendingApprovalCalls 按 decisions 归类为「批准执行 / 拒绝落库」。
-   * 回放审批决策到输出流（toolApprovalResponse / toolOutputDenied part），批准调用追踪 approvedTools（turn/session 级）。
-   * 返回新批准的调用与拒绝结果（不含 checkpoint 中已有的 approvedCalls/deniedResults —— 由统一差集恢复一并处理）。
-   */
-  private async resolvePendingApprovals(
-    pendingCalls: ToolCall[],
-    decisions: ToolCallApproval[],
-    context: TurnContext<TToolSet>,
-  ): Promise<{ approvedCalls: ToolCall[]; deniedResults: ToolResult[] }> {
-    const decisionMap = new Map(decisions.map((d) => [d.toolCallId, d]));
-    const approvedCalls: ToolCall[] = [];
-    const deniedResults: ToolResult[] = [];
-
-    for (const pendingCall of pendingCalls) {
-      const decision = decisionMap.get(pendingCall.id);
-      const approved = decision?.approved ?? false;
-      const scope = decision?.scope ?? 'turn';
-      // 回放审批决策到输出流（恢复后的新流可见完整审批链路）
-      context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope }));
-      if (approved) {
-        approvedCalls.push(pendingCall);
-        // 追踪到 approvedTools，确保同一 turn 后续 step 中该工具自动放行
-        context.approvedTools.set(pendingCall.name, {
-          approved: true,
-          approvedAt: Date.now(),
-        });
-        // session 级审批：持久化到 thread.metadata，跨 turn 生效
-        if (scope === 'session') {
-          await this.saveSessionApproval(context, pendingCall.name);
-        }
-      } else {
-        context.controller.enqueue(toolOutputDeniedPart(pendingCall));
-        deniedResults.push({
-          callId: pendingCall.id, name: pendingCall.name,
-          status: 'error', output: null,
-          error: 'Rejected by user',
-        });
-      }
-    }
-
-    return { approvedCalls, deniedResults };
+    return this.startTurnLoop(context);
   }
 
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
    */
-  private async startTurnLoop(startStep: number, context: TurnContext<TToolSet>): Promise<TurnResult> {
+  private async startTurnLoop(context: TurnContext<TToolSet>): Promise<TurnResult> {
 
     const {session: {thread, turn}, usage} = context
-    const loopResult: StepLoopResult  = await this.runTurnLoop(startStep, context);
+    const loopResult: StepLoopResult  = await this.runTurnLoop(context);
     usage.input += loopResult.usage.input;
     usage.output += loopResult.usage.output;
 
@@ -486,11 +363,14 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 执行 step loop，被 startLoop（新 turn）和 startResume（恢复）共用。
    */
-  private async runTurnLoop(startStep: number, context: TurnContext<TToolSet>): Promise<StepLoopResult> {
+  private async runTurnLoop(context: TurnContext<TToolSet>): Promise<StepLoopResult> {
     const usage = { input: 0, output: 0 };
-    let steps = startStep;
 
-    const {session: {turn}, signal} = context
+    const {session: {turn}, signal, checkpoint} = context
+
+    await this.loadCheckpoint(context)
+
+    let steps = checkpoint.stepIndex;
 
     while (steps < this.maxSteps && !signal.aborted) {
       const step: TurnStep = { index: steps, messages: context.messages };
@@ -523,42 +403,107 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
 
       // action === 'continue'
-      // 决策后先落「计划版本」：本轮待执行的 approvedCalls / 待落库的 deniedResults 进 checkpoint，
-      // 供工具执行中途中断/崩溃时按差集恢复补跑。确有内容才写，避免空清单版本冗余。
-      if ((approvedCalls?.length ?? 0) > 0 || (deniedResults?.length ?? 0) > 0) {
-        context.checkpoint = await this.checkpointStore.append(turn.id, {
-          parentId: context.checkpoint.id,
-          stepIndex: steps,
-          nextAction: 'tool-execution',
-          approvedTools: Object.fromEntries(context.approvedTools),
-          pendingApprovalCalls: [],
-          approvedCalls: approvedCalls ?? [],
-          deniedResults: deniedResults ?? [],
-          lastMessageId: context.checkpoint.lastMessageId,
-        });
-      }
-
       // 执行本轮 auto 批准的调用，拒绝结果一并落消息链（结果只落消息链，checkpoint 已留执行清单）
-      const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls ?? [], context);
-      await this.appendToolResults([...toolResults, ...(deniedResults ?? [])], context);
-      this.emit({ type: 'step-end', step: step.index + 1 });
+      await this.executeToolCalls(steps, context, approvedCalls ?? [], deniedResults ?? []);
 
+      this.emit({ type: 'step-end', step: step.index });
       // step 完成 → 推进版本：清单清空，标志本轮决策执行完毕
       steps++;
-      context.checkpoint = await this.checkpointStore.append(turn.id, {
+    }
+    return { status: signal.aborted ? 'aborted' : 'completed', steps, usage };
+  }
+
+  /**
+   * 从 checkpoint 中还原现场
+   * @param context
+   * @private
+   */
+  private async loadCheckpoint(context: TurnContext<TToolSet>){
+
+    const {checkpoint} = context
+
+    // 已完结的忽略
+    if (checkpoint.nextAction === 'end') {
+      return
+    }
+
+      // 已完成的 tool call ids
+    const completedToolCallIds = completedCallIds(context.messages)
+
+    // 单次call 决策
+    const decisionMap = new Map(checkpoint.decisions.map((d) => [d.toolCallId, d]));
+    // 本会话历史决策
+    const approvedToolsMap = new Map(checkpoint.approvedTools.map((d) => [d.toolName, d]))
+
+    const approvedCalls: ToolCall[] = [];
+    const deniedResults: ToolResult[] = [];
+
+    // 待审批的call
+    for (const pendingCall of checkpoint.pendingApprovalCalls) {
+      const decision = decisionMap.get(pendingCall.id);
+
+      const approved = decision?.approved ?? false;
+      const scope = decision?.scope ?? 'turn';
+      // 回放审批决策到输出流（恢复后的新流可见完整审批链路）
+      context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope }));
+      if (approved || approvedToolsMap.has(pendingCall.id)) {
+        approvedCalls.push(pendingCall);
+        // 追踪到 approvedTools，确保同一 turn 后续 step 中该工具自动放行
+        context.approvedTools.set(pendingCall.name, {
+          toolName: pendingCall.name,
+          approved: true,
+          approvedAt: Date.now(),
+        });
+        // session 级审批：持久化到 thread.metadata，跨 turn 生效
+        if (scope === 'session') {
+          await this.saveSessionApproval(context, pendingCall.name);
+        }
+      } else {
+        context.controller.enqueue(toolOutputDeniedPart(pendingCall));
+        deniedResults.push({
+          callId: pendingCall.id, name: pendingCall.name,
+          status: 'error', output: null,
+          error: 'Rejected by user',
+        });
+      }
+    }
+    // 本轮次要执行的 tool calls
+    const allApprovedCalls = [...checkpoint.approvedCalls, ...approvedCalls].filter(call => !completedToolCallIds.has(call.id))
+    const allDeniedResults = [...checkpoint.deniedResults, ...deniedResults]
+
+    await this.executeToolCalls(checkpoint.stepIndex, context, allApprovedCalls, allDeniedResults);
+  }
+
+  private async executeToolCalls(steps: number, context: TurnContext<TToolSet>, approvedCalls: ToolCall[], deniedResults: ToolResult[]){
+    if (approvedCalls.length  > 0 || deniedResults.length > 0) {
+      context.checkpoint = await this.checkpointStore.append(context.session.turn.id, {
         parentId: context.checkpoint.id,
         stepIndex: steps,
-        nextAction: 'model',
+        nextAction: 'tool-execution',
         approvedTools: Object.fromEntries(context.approvedTools),
         pendingApprovalCalls: [],
-        approvedCalls: [],
-        deniedResults: [],
+        approvedCalls: approvedCalls,
+        deniedResults: deniedResults,
         lastMessageId: context.checkpoint.lastMessageId,
       });
     }
 
-    return { status: signal.aborted ? 'aborted' : 'completed', steps, usage };
+    // 执行本轮 auto 批准的调用，拒绝结果一并落消息链（结果只落消息链，checkpoint 已留执行清单）
+    const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context);
+    await this.appendToolResults([...toolResults, ...deniedResults], context);
+
+    context.checkpoint = await this.checkpointStore.append(context.session.turn.id, {
+      parentId: context.checkpoint.id,
+      stepIndex: steps,
+      nextAction: 'model',
+      approvedTools: Object.fromEntries(context.approvedTools),
+      pendingApprovalCalls: [],
+      approvedCalls: [],
+      deniedResults: [],
+      lastMessageId: context.checkpoint.lastMessageId,
+    });
   }
+
 
   /**
    * 执行一个 model step 的模型侧流程：压缩 → model 调用 → 审批分类。
@@ -659,6 +604,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       switch (decision.status) {
         case 'approved': {
           context.approvedTools.set(call.name, {
+            toolName: call.name,
             approved: true,
             approvedAt: Date.now(),
           });
@@ -717,7 +663,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const sessionApproved = session.thread.metadata?.sessionApprovedTools;
     if (!sessionApproved) return;
     for (const [name, entry] of Object.entries(sessionApproved)) {
-      context.approvedTools.set(name, { approved: true, approvedAt: entry.approvedAt });
+      context.approvedTools.set(name, {
+        toolName: name,
+        approved: true,
+        approvedAt: entry.approvedAt });
     }
   }
 
