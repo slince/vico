@@ -240,10 +240,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 自动恢复所有未完成的 turn（paused/running/failed），前提是存在 checkpoint。
     // 整体包进 per-turn 锁，并在锁内重读最新版本，规避并发恢复 TOCTOU。
-    let turn = await this.thread.getLatestTurn(thread.id);
+    const latestTurn = await this.thread.getLatestTurn(thread.id);
+    let turn;
     let checkpoint;
-    if (turn) {
-        checkpoint = await this.checkpointStore.getLatest(turn.id)
+    if (latestTurn && latestTurn.status !== 'completed') {
+      turn = latestTurn;
+      checkpoint = await this.checkpointStore.getLatest(latestTurn.id)
     } else {
       // ── 正常新 turn ──
       turn = await this.thread.createTurn(thread.id);
