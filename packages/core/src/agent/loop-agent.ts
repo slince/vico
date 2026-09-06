@@ -388,7 +388,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const approvedCalls = withoutToolCall ? [] : (partial?.approvedCalls ?? checkpoint.approvedCalls);
     const deniedResults = withoutToolCall ? [] : (partial?.deniedResults ?? checkpoint.deniedResults);
 
-    return context.checkpoint = await this.checkpointStore.append(turn.id, {
+    return context.checkpoint = await this.checkpointStore.append(context.checkpoint, {
       parentId: checkpoint.id,
       stepIndex: stepIndex,
       nextAction: nextAction,

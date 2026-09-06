@@ -1,11 +1,11 @@
 // @vico/libsql-adapter — LibSQL CheckpointStore implementation（版本树，append-only）
-import { randomUUID } from 'node:crypto';
-import { eq, sql, desc } from 'drizzle-orm';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
-import type { Checkpoint, CheckpointAppendPatch, CheckpointStore } from '@vico/core';
-import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint } from '@vico/core';
-import { checkpoints } from './schema.js';
+import {randomUUID} from 'node:crypto';
+import {desc, eq, sql} from 'drizzle-orm';
+import type {LibSQLDatabase} from 'drizzle-orm/libsql';
+import type {Checkpoint, CheckpointAppendPatch, CheckpointStore} from '@vico/core';
+import {CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint} from '@vico/core';
 import type * as schema from './schema.js';
+import {checkpoints} from './schema.js';
 
 /**
  * LibSQL 版本树 {@link CheckpointStore}。
@@ -23,16 +23,16 @@ export class LibSqlCheckpointStore implements CheckpointStore {
   }
 
   /** 追加一个版本：version = max+1，生成新 uuid id，parentId 由 patch 显式指定 */
-  async append(turnId: string, patch: CheckpointAppendPatch): Promise<Checkpoint> {
-    const latest = await this.getLatest(turnId);
+  async append(latest: Checkpoint, patch: CheckpointAppendPatch): Promise<Checkpoint> {
     const checkpoint: Checkpoint = {
       id: randomUUID(),
       parentId: patch.parentId,
-      turnId,
-      threadId: latest?.threadId ?? '',
-      version: (latest?.version ?? 0) + 1,
+      turnId: latest.turnId,
+      threadId: latest.threadId ?? '',
+      version: latest.version + 1,
       stepIndex: patch.stepIndex,
       nextAction: patch.nextAction,
+      decisions: patch.decisions,
       approvedTools: patch.approvedTools,
       pendingApprovalCalls: patch.pendingApprovalCalls,
       approvedCalls: patch.approvedCalls,

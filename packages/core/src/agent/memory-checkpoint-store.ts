@@ -1,7 +1,7 @@
 // @vico/core — In-memory CheckpointStore implementation（版本树，append-only）
-import type { Checkpoint, CheckpointAppendPatch, CheckpointStore } from './checkpoint.js';
-import { CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint } from './checkpoint.js';
-import { randomUUID } from 'node:crypto';
+import type {Checkpoint, CheckpointAppendPatch, CheckpointStore} from './checkpoint.js';
+import {CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint} from './checkpoint.js';
+import {randomUUID} from 'node:crypto';
 
 /**
  * In-memory 版本树 {@link CheckpointStore}。
@@ -22,16 +22,16 @@ export class MemoryCheckpointStore implements CheckpointStore {
   }
 
   /** 追加一个版本：version = max+1，生成新 uuid id，parentId 由 patch 显式指定 */
-  async append(turnId: string, patch: CheckpointAppendPatch): Promise<Checkpoint> {
-    const latest = await this.getLatest(turnId);
+  async append(latest: Checkpoint, patch: CheckpointAppendPatch): Promise<Checkpoint> {
     const checkpoint: Checkpoint = {
       id: randomUUID(),
       parentId: patch.parentId,
-      turnId,
-      threadId: latest?.threadId ?? '',
-      version: (latest?.version ?? 0) + 1,
+      turnId: latest.turnId,
+      threadId: latest.threadId ?? '',
+      version: latest.version + 1,
       stepIndex: patch.stepIndex,
       nextAction: patch.nextAction,
+      decisions: patch.decisions,
       approvedTools: patch.approvedTools,
       pendingApprovalCalls: patch.pendingApprovalCalls,
       approvedCalls: patch.approvedCalls,
@@ -40,7 +40,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
       schemaVersion: CHECKPOINT_CURRENT_VERSION,
       createdAt: Date.now(),
     };
-    this.store.set(this.key(turnId, checkpoint.version), checkpoint);
+    this.store.set(this.key(latest.turnId, checkpoint.version), checkpoint);
     return this.snapshot(checkpoint);
   }
 

@@ -70,7 +70,7 @@ export interface CheckpointStore {
   /** 创建初始版本（id=uuid、parentId=null、version=1、stepIndex=0、nextAction=model），turn 开始时调用 */
   create(turnId: string, threadId: string): Promise<Checkpoint>;
   /** 追加一个版本：version = 该 turn 最大版本 + 1，生成新 uuid id，parentId 由 patch 显式指定 */
-  append(turnId: string, patch: CheckpointAppendPatch): Promise<Checkpoint>;
+  append(latest: Checkpoint, patch: CheckpointAppendPatch): Promise<Checkpoint>;
   /** 读最新版本（version 最大） */
   getLatest(turnId: string): Promise<Checkpoint | undefined>;
   /** 读指定版本 */
