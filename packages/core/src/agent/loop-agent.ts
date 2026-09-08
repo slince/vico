@@ -37,7 +37,7 @@ import {completedCallIds, normalizeUserMessage} from './utils.js';
 import {fromModelMessage} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
-import {buildAssistantMessage, buildToolResultMessage, extractApprovalResponses,} from '../model/message-utils.js';
+import {buildAssistantMessage, buildToolResultMessage, ensureToolCallConsistency, extractApprovalResponses,} from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
@@ -767,7 +767,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const request: ModelRequest = {
       system: ctx.getSystemPrompt(),
-      messages: step.messages,
+      messages: ensureToolCallConsistency(step.messages),
       tools: ctx.tools,
       maxOutputTokens: this.maxTokens,
       temperature: this.temperature,

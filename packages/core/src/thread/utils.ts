@@ -9,7 +9,7 @@ import {ToolCallPart} from "@ai-sdk/provider-utils";
  */
 export function toModelMessages(entries: Message[]): ModelMessage[] {
   return entries.map((e) => {
-    let content: unknown;
+    let content: ModelMessage['content'];
     try {
       content = JSON.parse(e.content);
     } catch {

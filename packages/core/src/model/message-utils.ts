@@ -82,6 +82,89 @@ export function getToolResultText(messages: ModelMessage[], toolCallId: string):
 }
 
 /**
+ * 防御性补全消息链，确保 assistant 的 tool-call 与 tool 消息的 tool-result 一一配对：
+ * - tool-call 一律保留（模型决策不可丢）；
+ * - 无对应 tool-result 的非 providerExecuted tool-call，补一条占位 error-text result
+ *   （插在下一个 user/system 消息之前或链尾），避免 convertToLanguageModelPrompt 抛 MissingToolResultsError；
+ * - 无对应 tool-call 的孤儿 tool-result 移除，避免 provider 校验报错。
+ * provider 端执行的 tool-call（providerExecuted）由 provider 自行返回结果，不参与配对。
+ * 返回新数组，不修改入参。
+ *
+ * @param messages - 待补全的消息链
+ * @returns 补全后的消息链
+ */
+export function ensureToolCallConsistency(messages: ModelMessage[]): ModelMessage[] {
+  // 第一遍：收集所有 tool-call id（含 providerExecuted），用于识别孤儿 tool-result
+  const allCallIds = new Set<string>();
+  for (const msg of messages) {
+    if (typeof msg.content === 'string') continue;
+    for (const part of msg.content) {
+      if (part.type === 'tool-call') allCallIds.add(part.toolCallId);
+    }
+  }
+
+  const cleaned: ModelMessage[] = [];
+  // 尚未配对到 tool-result 的非 providerExecuted tool-call（id → toolName），按顺序补齐
+  const pending = new Map<string, string>();
+
+  // 为所有未配对的 tool-call 补占位 tool-result（一条 tool 消息承载多个 result）
+  const flushPending = () => {
+    if (pending.size === 0) return;
+    const parts = [...pending.entries()].map(([toolCallId, toolName]) => ({
+      type: 'tool-result' as const,
+      toolCallId,
+      toolName,
+      output: { type: 'error-text' as const, value: 'Tool result missing' },
+    }));
+    cleaned.push({ role: 'tool', content: parts } as ModelMessage);
+    pending.clear();
+  };
+
+  for (const msg of messages) {
+    // 新的 user/system 消息前，先把前序未配对的 tool-call 补齐，避免跨轮配对断裂
+    if (msg.role === 'user' || msg.role === 'system') {
+      flushPending();
+      cleaned.push(msg);
+      continue;
+    }
+    if (typeof msg.content === 'string') {
+      cleaned.push(msg);
+      continue;
+    }
+
+    if (msg.role === 'assistant') {
+      for (const part of msg.content) {
+        if (part.type === 'tool-call' && !part.providerExecuted) {
+          pending.set(part.toolCallId, part.toolName);
+        }
+      }
+      cleaned.push(msg);
+      continue;
+    }
+
+    if (msg.role === 'tool') {
+      const remaining = msg.content.filter((part) => {
+        if (part.type === 'tool-result') {
+          if (!allCallIds.has(part.toolCallId)) return false; // 孤儿 tool-result 移除
+          pending.delete(part.toolCallId); // 配对成功，不再补占位
+          return true;
+        }
+        return true;
+      });
+      if (remaining.length > 0) {
+        cleaned.push({ ...msg, content: remaining } as ModelMessage);
+      }
+      continue;
+    }
+
+    cleaned.push(msg);
+  }
+
+  flushPending();
+  return cleaned;
+}
+
+/**
  * 构造原生 assistant 消息：推理 + 文本 + 工具调用 parts。content 数组不能为空，兜底空文本。
  *
  * @param text - 模型生成的文本内容
