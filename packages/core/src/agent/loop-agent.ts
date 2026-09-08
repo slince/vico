@@ -711,9 +711,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const threadId = context.session.thread.id;
     const turnId = context.session.turn.id;
-    const created = await this.thread.appendEntries(
-      messages.map(message => ({ threadId, turnId, ...fromModelMessage(message) })),
-    );
+
+    const converted = messages.map(message => ({ threadId, turnId, ...fromModelMessage(message) }))
+    const created = await this.thread.appendEntries(converted);
+
     // 记录最后一条消息 id，供 fork 时截断消息链精确定位
     const last = created.at(-1);
     if (last) {
