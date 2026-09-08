@@ -4,7 +4,7 @@ import type {ModelMessage, UIMessage} from 'ai';
 import {convertToModelMessages, validateUIMessages} from 'ai';
 import type {UserMessage} from '../stream/types.js';
 import type {ToolCall} from "../tool/types.js";
-import {getToolCalls} from "../model/message-utils.js";
+import {completedCallIds, getToolCalls} from "../model/message-utils.js";
 import {SkillSettings} from "./create-agent.js";
 import {resolve} from "node:path";
 import {homedir} from "node:os";
@@ -118,21 +118,6 @@ export function findUnpairedToolCalls(messages: ModelMessage[]): { assistantInde
     return unpaired.length > 0 ? { assistantIndex: i, unpairedCallIds: unpaired } : null;
   }
   return null;
-}
-
-/**
- * 从消息链收集所有「已完成」的 toolCallId（存在配对 tool-result）。
- * 配对口径与 findUnpairedToolCalls 一致：role==='tool' 的 tool-result part。
- */
-export function completedCallIds(messages: ModelMessage[]): Set<string> {
-  const ids = new Set<string>();
-  for (const msg of messages) {
-    if (msg.role !== 'tool') continue;
-    for (const part of msg.content) {
-      if (part.type === 'tool-result') ids.add(part.toolCallId);
-    }
-  }
-  return ids;
 }
 
 /**

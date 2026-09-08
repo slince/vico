@@ -33,11 +33,11 @@ import type {
 
 import {ModelClient} from '../model/model-client.js';
 import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
-import {completedCallIds, normalizeUserMessage} from './utils.js';
+import {normalizeUserMessage} from './utils.js';
 import {fromModelMessage} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
-import {buildAssistantMessage, buildToolResultMessage, ensureToolCallConsistency, extractApprovalResponses,} from '../model/message-utils.js';
+import {buildAssistantMessage, buildToolResultMessage, completedCallIds, ensureToolCallConsistency, extractApprovalResponses,} from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';

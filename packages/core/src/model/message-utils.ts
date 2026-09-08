@@ -82,6 +82,38 @@ export function getToolResultText(messages: ModelMessage[], toolCallId: string):
 }
 
 /**
+ * 从消息链收集所有 tool-call 的 id（含 providerExecuted 调用），用于识别孤儿 tool-result。
+ *
+ * @param messages - 待扫描的消息链
+ * @returns tool-call id 集合
+ */
+function collectToolCallIds(messages: ModelMessage[]): Set<string> {
+  const ids = new Set<string>();
+  for (const msg of messages) {
+    if (typeof msg.content === 'string') continue;
+    for (const part of msg.content) {
+      if (part.type === 'tool-call') ids.add(part.toolCallId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * 从消息链收集所有「已完成」的 toolCallId（存在配对 tool-result）。
+ * 配对口径与 findUnpairedToolCalls 一致：role==='tool' 的 tool-result part。
+ */
+export function completedCallIds(messages: ModelMessage[]): Set<string> {
+  const ids = new Set<string>();
+  for (const msg of messages) {
+    if (msg.role !== 'tool') continue;
+    for (const part of msg.content) {
+      if (part.type === 'tool-result') ids.add(part.toolCallId);
+    }
+  }
+  return ids;
+}
+
+/**
  * 防御性补全消息链，确保 assistant 的 tool-call 与 tool 消息的 tool-result 一一配对：
  * - tool-call 一律保留（模型决策不可丢）；
  * - 无对应 tool-result 的非 providerExecuted tool-call，补一条占位 error-text result
@@ -95,13 +127,7 @@ export function getToolResultText(messages: ModelMessage[], toolCallId: string):
  */
 export function ensureToolCallConsistency(messages: ModelMessage[]): ModelMessage[] {
   // 第一遍：收集所有 tool-call id（含 providerExecuted），用于识别孤儿 tool-result
-  const allCallIds = new Set<string>();
-  for (const msg of messages) {
-    if (typeof msg.content === 'string') continue;
-    for (const part of msg.content) {
-      if (part.type === 'tool-call') allCallIds.add(part.toolCallId);
-    }
-  }
+  const allCallIds = collectToolCallIds(messages);
 
   const cleaned: ModelMessage[] = [];
   // 尚未配对到 tool-result 的非 providerExecuted tool-call（id → toolName），按顺序补齐
