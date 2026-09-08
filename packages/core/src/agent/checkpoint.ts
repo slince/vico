@@ -42,6 +42,12 @@ export interface Checkpoint {
   createdAt: number;
 }
 
+/** 审批相关调用快照：待审批调用、已批准调用、已拒绝结果 */
+export type CheckpointApprovalCalls = Pick<
+  Checkpoint,
+  'pendingApprovalCalls' | 'approvedCalls' | 'deniedResults'
+>;
+
 /**
  * append 追加一个版本的增量 patch。全部必填 —— 合并语义为「patch 字段全量覆盖最新版本快照」。
  * parentId 显式传入（= 当前 context.checkpoint.id），支持从非最新叶续跑时正确挂接父版本。

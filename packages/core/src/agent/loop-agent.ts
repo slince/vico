@@ -15,7 +15,7 @@ import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
 import type {ContextCompactor} from './context-compactor.js';
-import type {Checkpoint, CheckpointStore, NextAction} from './checkpoint.js';
+import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from './checkpoint.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ProcessorPipeline} from './context-processors/context-processor.js';
 import type {
@@ -374,9 +374,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @param partial
    * @private
    */
-  private async saveCheckpoint(context: TurnContext<TToolSet>, nextAction: NextAction, partial?: Pick<Checkpoint, 'pendingApprovalCalls' | 'approvedCalls' | 'deniedResults'>): Promise<Checkpoint> {
+  private async saveCheckpoint(context: TurnContext<TToolSet>, nextAction: NextAction, partial?: CheckpointApprovalCalls): Promise<Checkpoint> {
 
-    const {session: {turn}, checkpoint} = context
+    const {checkpoint} = context
 
     // 模型调用，stepIndex + 1
     const stepIndex = nextAction === 'model' ? checkpoint.stepIndex + 1 : checkpoint.stepIndex;
