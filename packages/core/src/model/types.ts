@@ -18,6 +18,7 @@ export interface ModelRequest {
   temperature?: number;
   /** 推理力度，不传则 provider 默认 */
   reasoning?: ReasoningEffort;
+  /** 中断信号，透传 doStream 用于取消流式调用 */
   abortSignal?: AbortSignal;
 }
 

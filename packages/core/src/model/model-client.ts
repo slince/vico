@@ -16,11 +16,10 @@ export class ModelClient {
   /**
    * 流式调用模型。
    *
-   * @param request - 模型请求参数（原生消息、Vico 工具、采样与推理配置）
-   * @param abortSignal - 中断信号
+   * @param request - 模型请求参数（原生消息、Vico 工具、采样/推理配置、中断信号）
    * @returns provider 原生 V4 流
    */
-  async stream(request: ModelRequest, abortSignal?: AbortSignal): Promise<ModelStreamResult> {
+  async stream(request: ModelRequest): Promise<ModelStreamResult> {
     // 校验并标准化消息（system 合并进 instructions）
     const standardized = await standardizePrompt({ system: request.system, messages: request.messages });
 
@@ -41,7 +40,7 @@ export class ModelClient {
       temperature: request.temperature,
       // 不传 reasoning 字段时交给 provider 默认行为
       ...(request.reasoning ? { reasoning: request.reasoning } : {}),
-      abortSignal,
+      abortSignal: request.abortSignal,
     });
 
     const stream = result.stream;

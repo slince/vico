@@ -772,16 +772,21 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       maxOutputTokens: this.maxTokens,
       temperature: this.temperature,
       reasoning: this.reasoning,
+      abortSignal: context.signal,
     };
 
     const resolveError = (error: Error | string): CallModelResult => {
       this.emit({ type: 'error', error });
-      controller.enqueue({ type: 'error', error });
+      try {
+        controller.enqueue({ type: 'error', error });
+      } catch {
+        // controller 已关闭（客户端断开），enqueue 失败可忽略
+      }
       return { text: '', toolCalls: [], usage: { input: 0, output: 0 }, error };
     };
 
     try {
-      const {stream} = await this.modelClient.stream(request, context.signal);
+      const {stream} = await this.modelClient.stream(request);
       const reader = new ModelStreamReader<TToolSet>({
         controller,
         emit: this.emit,
