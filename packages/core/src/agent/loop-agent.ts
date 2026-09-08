@@ -504,7 +504,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
     // 本轮次要执行的 tool calls
     const allApprovedCalls = [...checkpoint.approvedCalls, ...approvedCalls].filter(call => !completedToolCallIds.has(call.id))
-    const allDeniedResults = [...checkpoint.deniedResults, ...deniedResults]
+    const allDeniedResults = [...checkpoint.deniedResults, ...deniedResults].filter(result => !completedToolCallIds.has(result.callId))
 
     await this.executeToolCalls(context, allApprovedCalls, allDeniedResults);
   }
