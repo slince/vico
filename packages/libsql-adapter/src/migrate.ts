@@ -1,6 +1,6 @@
 // @vico/libsql-adapter — 启动时按 schema 自动建表/更新索引
-import { sql } from 'drizzle-orm';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import {sql} from 'drizzle-orm';
+import type {LibSQLDatabase} from 'drizzle-orm/libsql';
 import type * as schema from './schema.js';
 
 /**
@@ -134,11 +134,4 @@ export async function ensureTables(
     CREATE INDEX IF NOT EXISTS idx_me_thread
     ON vico_memory_entries(thread_id)
   `);
-
-  // 迁移：记忆类型重命名（working→semantic 画像，semantic 向量→episodic 情景 / knowledge RAG）。
-  // 幂等 UPDATE，仅命中存量旧值，新库无匹配行时为零影响。
-  await db.run(sql`UPDATE vico_memory_entries SET type = 'semantic' WHERE type = 'working'`);
-  await db.run(sql`UPDATE vico_memory_entries SET type = 'episodic', scope_type = 'episodic' WHERE type = 'semantic' AND scope_type = 'memory'`);
-  await db.run(sql`UPDATE vico_memory_entries SET type = 'knowledge' WHERE type = 'semantic' AND scope_type LIKE 'kb_%'`);
-  await db.run(sql`UPDATE vico_index_config SET index_name = 'episodic' WHERE index_name = 'memory'`);
 }
