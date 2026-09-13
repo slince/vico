@@ -15,9 +15,10 @@ export interface LibSQLVectorStoreOptions {
  * - 精确检索: vector_distance_cos / vector_distance_l2
  * - 近似检索: vector_top_k + libsql_vector_idx 索引（可选）
  *
- * 后端表为 `vico_memory_entries`，与 WorkingMemory 共享：向量行固定 `type='semantic'`，
- * 用 `scope_type` 列存 `indexName` 作为向量索引命名空间（语义记忆为 'memory'，RAG 为 kb 索引名），
- * `scope_id` 存归属标识。查询时始终以 `scope_type = indexName AND type = 'semantic'` 分区。
+ * 后端表为 `vico_memory_entries`，与 SemanticMemory 共享：向量行按 `type` 参数标记
+ * （默认 'knowledge' 对应 RAG，情景记忆传 'episodic'），
+ * 用 `scope_type` 列存 `indexName` 作为向量索引命名空间（情景记忆为 'episodic'，RAG 为 kb 索引名），
+ * `scope_id` 存归属标识。查询时始终以 `scope_type = indexName AND type = ?` 分区。
  *
  * @example
  * ```ts
@@ -57,10 +58,15 @@ export class LibSQLVectorStore implements VectorStore {
     indexName: string;
     dimension: number;
     metric: DistanceMetric;
+    type?: string;
   }): Promise<void> {
     // 索引名会拼入 DDL，限制为安全标识符，防止 SQL 注入
     if (!/^[A-Za-z0-9_]+$/.test(params.indexName)) {
       throw new Error(`Invalid index name: ${params.indexName}`);
+    }
+    const type = params.type ?? 'knowledge';
+    if (!/^[A-Za-z0-9_]+$/.test(type)) {
+      throw new Error(`Invalid type: ${type}`);
     }
     this.metrics.set(params.indexName, params.metric);
 
@@ -72,7 +78,7 @@ export class LibSQLVectorStore implements VectorStore {
 
     try {
       await this.client.execute({
-        sql: `CREATE INDEX IF NOT EXISTS idx_vec_${params.indexName} ON vico_memory_entries (libsql_vector_idx(embedding, 'metric=${params.metric}')) WHERE type = 'semantic' AND scope_type = '${params.indexName}'`,
+        sql: `CREATE INDEX IF NOT EXISTS idx_vec_${params.indexName} ON vico_memory_entries (libsql_vector_idx(embedding, 'metric=${params.metric}')) WHERE type = '${type}' AND scope_type = '${params.indexName}'`,
         args: [],
       });
     } catch {
@@ -85,7 +91,9 @@ export class LibSQLVectorStore implements VectorStore {
     vectors: number[][];
     ids: string[];
     metadata: Record<string, unknown>[];
+    type?: string;
   }): Promise<void> {
+    const type = params.type ?? 'knowledge';
     const now = Date.now();
 
     // 先批量删除同 ID 旧记录
@@ -104,12 +112,13 @@ export class LibSQLVectorStore implements VectorStore {
       const scopeId = (meta.scopeId as string) ?? '';
 
       await this.client.execute({
-        sql: `INSERT INTO vico_memory_entries (id, thread_id, scope_type, scope_id, type, content, embedding, metadata, importance, created_at) VALUES (?, ?, ?, ?, 'semantic', ?, vector32(?), ?, 0, ?)`,
+        sql: `INSERT INTO vico_memory_entries (id, thread_id, scope_type, scope_id, type, content, embedding, metadata, importance, created_at) VALUES (?, ?, ?, ?, ?, ?, vector32(?), ?, 0, ?)`,
         args: [
           params.ids[i],
           (meta.threadId as string) ?? null,
           params.indexName,
           scopeId,
+          type,
           (meta.content as string) ?? '',
           vecStr,
           metaStr,
@@ -124,8 +133,10 @@ export class LibSQLVectorStore implements VectorStore {
     queryVector: number[];
     topK: number;
     filter?: Record<string, unknown>;
+    type?: string;
   }): Promise<VectorQueryResult[]> {
     await this.ensureLoaded();
+    const type = params.type ?? 'knowledge';
     const vecStr = JSON.stringify(params.queryVector);
     const metric = this.metrics.get(params.indexName) ?? 'cosine';
     const distFn = metric === 'euclidean'
@@ -138,8 +149,8 @@ export class LibSQLVectorStore implements VectorStore {
       ? Object.fromEntries(Object.entries(params.filter).filter(([k]) => k !== 'scopeId'))
       : undefined;
 
-    let sql = `SELECT id, content, metadata, thread_id, scope_type, created_at, ${distFn}(embedding, vector32(?)) AS _distance FROM vico_memory_entries WHERE scope_type = ? AND type = 'semantic' AND embedding IS NOT NULL`;
-    const args: any[] = [vecStr, params.indexName];
+    let sql = `SELECT id, content, metadata, thread_id, scope_type, created_at, ${distFn}(embedding, vector32(?)) AS _distance FROM vico_memory_entries WHERE scope_type = ? AND type = ? AND embedding IS NOT NULL`;
+    const args: any[] = [vecStr, params.indexName, type];
     if (scopeId !== undefined) {
       sql += ` AND scope_id = ?`;
       args.push(scopeId);

@@ -31,6 +31,8 @@ export interface VectorStore {
     indexName: string;
     dimension: number;
     metric: DistanceMetric;
+    /** 存储行类型标记，默认 'knowledge'（RAG）；情景记忆传 'episodic' */
+    type?: string;
   }): Promise<void>;
 
   /**
@@ -42,6 +44,8 @@ export interface VectorStore {
     vectors: number[][];
     ids: string[];
     metadata: Record<string, unknown>[];
+    /** 存储行类型标记，默认 'knowledge'（RAG）；情景记忆传 'episodic' */
+    type?: string;
   }): Promise<void>;
 
   /**
@@ -54,6 +58,8 @@ export interface VectorStore {
     queryVector: number[];
     topK: number;
     filter?: Record<string, unknown>;
+    /** 存储行类型标记，默认 'knowledge'（RAG）；情景记忆传 'episodic' */
+    type?: string;
   }): Promise<VectorQueryResult[]>;
 
   /** 删除指定向量 */

@@ -1,35 +1,35 @@
-// src/memory/file-working-memory.ts
+// @vico/core - FileSemanticMemory: 基于 Markdown 文件的语义记忆实现
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { WorkingMemory } from '../types.js';
-import { DEFAULT_WORKING_MEMORY_TEMPLATE } from './default-template.js';
+import type { SemanticMemory } from '../types.js';
+import { DEFAULT_SEMANTIC_MEMORY_TEMPLATE } from './default-template.js';
 import { KeyedMutex } from '../../utils/async-keyed-lock.js';
 
 /** 构造选项 */
-export interface FileWorkingMemoryOptions {
+export interface FileSemanticMemoryOptions {
   /** 文件存储目录 */
   dir: string;
   /** Markdown 模板，未提供时使用默认模板 */
   template?: string;
 }
 
-/** 基于 Markdown 文件的工作记忆 — 每个 userId 对应一个 user-{userId}.md 文件 */
-export class FileWorkingMemory implements WorkingMemory {
+/** 基于 Markdown 文件的语义记忆 — 每个 userId 对应一个 user-{userId}.md 文件 */
+export class FileSemanticMemory implements SemanticMemory {
   private dir: string;
   private template: string;
   /** 按 scopeId 分片的写锁 — 串行化同一用户的并发写，避免交错覆盖文件 */
   private readonly mutex = new KeyedMutex();
 
-  constructor(options: FileWorkingMemoryOptions) {
+  constructor(options: FileSemanticMemoryOptions) {
     this.dir = options.dir;
-    this.template = options.template ?? DEFAULT_WORKING_MEMORY_TEMPLATE;
+    this.template = options.template ?? DEFAULT_SEMANTIC_MEMORY_TEMPLATE;
   }
 
   /**
-   * 读取工作记忆内容
+   * 读取语义记忆内容
    *
    * @param scopeId - 作用域标识符
-   * @returns 工作记忆的 Markdown 内容，文件不存在时返回空字符串
+   * @returns 语义记忆的 Markdown 内容，文件不存在时返回空字符串
    */
   async get(scopeId: string): Promise<string> {
     try {
@@ -40,7 +40,7 @@ export class FileWorkingMemory implements WorkingMemory {
   }
 
   /**
-   * 全量覆盖写入工作记忆
+   * 全量覆盖写入语义记忆
    *
    * @param scopeId - 作用域标识符
    * @param content - 要写入的 Markdown 内容

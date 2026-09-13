@@ -133,8 +133,8 @@
       "noResult": "(No result)",
       "steps": "Steps: {{steps}}"
     },
-    "workingMemory": {
-      "title": "Update Working Memory",
+    "semanticMemory": {
+      "title": "Update Semantic Memory",
       "updated": "Updated",
       "empty": "(Empty)"
     },

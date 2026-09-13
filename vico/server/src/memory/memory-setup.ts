@@ -7,8 +7,8 @@
  * - getVector() — 基于 LibSQLVectorStore 的向量存储
  * - getCheckpointStore() — LibSqlCheckpointStore 单例
  */
-import {type CheckpointStore, ConversationHistoryMemory, MemoryStore, VectorSemanticRecall} from '@vico/core';
-import {LibSqlCheckpointStore, LibSqlThreadStore, LibSQLVectorStore, LibSqlWorkingMemory} from '@vico/libsql-adapter';
+import {type CheckpointStore, ConversationHistoryMemory, MemoryStore, VectorEpisodicRecall} from '@vico/core';
+import {LibSqlCheckpointStore, LibSqlThreadStore, LibSQLVectorStore, LibSqlSemanticMemory} from '@vico/libsql-adapter';
 import {createConfiguredEmbedder} from './embedder.js';
 import {getDb} from '../db/db.js';
 import {getClient} from '../db/init-libsql.js';
@@ -24,9 +24,9 @@ export function getMemory(): MemoryStore {
     const embedder = createConfiguredEmbedder();
     _memoryStore = new MemoryStore({
       conversation: new ConversationHistoryMemory(getThreadStore(), config.memory.stm_window),
-      working: new LibSqlWorkingMemory({ db: getDb() as any }),
-      // embedder 为 "none" 时禁用语义记忆
-      semantic: embedder ? new VectorSemanticRecall({ embedder, vectorStore: getVector() }) : undefined,
+      semantic: new LibSqlSemanticMemory({ db: getDb() as any }),
+      // embedder 为 "none" 时禁用情景记忆
+      episodic: embedder ? new VectorEpisodicRecall({ embedder, vectorStore: getVector() }) : undefined,
     });
   }
   return _memoryStore;

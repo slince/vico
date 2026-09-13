@@ -6,7 +6,7 @@ import type {ModelRef, TurnEvent} from './types.js';
 import type {ReasoningEffort} from '../model/types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
-import type {WorkingMemory} from '../memory/types.js';
+import type {SemanticMemory} from '../memory/types.js';
 import {createSkillTools} from "../skill/tool/index.js";
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
@@ -15,7 +15,7 @@ import {createLanguageModel} from "../model/factory.js";
 import {InMemoryThreadStore} from "../thread/memory-thread-store.js";
 import {MittEventRecorder} from "../events/event-recorder.js";
 import {basicTools, codingTools, filesystemTools} from "../tool/builtin/index.js";
-import {createUpdateWorkingMemoryTool} from "../memory/tool/working-memory-tool.js";
+import {createUpdateSemanticMemoryTool} from "../memory/tool/semantic-memory-tool.js";
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
 import {DEFAULT_CONVERSATION_WINDOW} from '../memory/constants.js';
 import {composeResolvers, defaultApprovalResolvers} from "../tool/policy-helpers.js";
@@ -35,17 +35,17 @@ type ToolSetting<T extends Tool[] = Tool[]> = {
 
 type ToolOptions = Tool[] | ToolSetting
 
-/** 组装工具列表：内置工具 + 额外工具 + working memory 工具 + skill 工具，支持按名称关闭 */
+/** 组装工具列表：内置工具 + 额外工具 + semantic memory 工具 + skill 工具，支持按名称关闭 */
 function buildTools(
   toolsOption: ToolOptions | undefined,
-  workingMemory: WorkingMemory | undefined,
+  semanticMemory: SemanticMemory | undefined,
   skills: Skill[] | undefined,
 ): Tool[] {
   const extraTools = Array.isArray(toolsOption) ? toolsOption : (toolsOption?.tools ?? []);
   const toolConfig = Array.isArray(toolsOption) ? undefined : toolsOption?.config;
   const allTools: Tool[] = [...basicTools, ...filesystemTools, ...codingTools, ...extraTools];
-  if (workingMemory) {
-    allTools.push(createUpdateWorkingMemoryTool(workingMemory));
+  if (semanticMemory) {
+    allTools.push(createUpdateSemanticMemoryTool(semanticMemory));
   }
   if (skills) {
     allTools.push(...createSkillTools(skills));
@@ -136,7 +136,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
   });
 
   const skills = await buildSkills(config.skills)
-  const tools = buildTools(config.tools, memory.working, skills);
+  const tools = buildTools(config.tools, memory.semantic, skills);
 
   // 顺序即优先级：never 保护 → 自定义 → workspace 放行 → 破坏性暂停 → 兜底
   const approvalResolvers: ApprovalResolver[] = [...defaultApprovalResolvers]

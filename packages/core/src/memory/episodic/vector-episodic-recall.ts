@@ -1,35 +1,38 @@
-// @vico/core - VectorSemanticRecall: 基于 @vico/rag Embedder + VectorStore 的语义召回实现
-import type {MemoryRecord, MemorySearchResult, SemanticRecallMemory} from '../types.js';
+// @vico/core - VectorEpisodicRecall: 基于 @vico/rag Embedder + VectorStore 的情景记忆实现
+import type {EpisodicMemory, MemoryRecord, MemorySearchResult} from '../types.js';
 import type {Embedder, VectorStore, VectorQueryResult} from '@vico/rag';
-import {MEMORY_INDEX_NAME} from '../constants.js';
+import {EPISODIC_INDEX_NAME, MEMORY_ENTRY_TYPE} from '../constants.js';
+
+/** 情景记忆向量行 type 标记 */
+const EPISODIC_TYPE = MEMORY_ENTRY_TYPE.episodic;
 
 /** 语义去重阈值 — 已有记忆相似度达到该值视为重复，跳过写入 */
 const DEDUP_THRESHOLD = 0.92;
 
-/** VectorSemanticRecall 构造选项 */
-export interface VectorSemanticRecallOptions {
+/** VectorEpisodicRecall 构造选项 */
+export interface VectorEpisodicRecallOptions {
   /** 批量嵌入器，将文本转换为向量 */
   embedder: Embedder;
   /** 向量存储 */
   vectorStore: VectorStore;
 }
 
-/** 基于 Embedder + VectorStore 的语义召回实现 */
-export class VectorSemanticRecall implements SemanticRecallMemory {
+/** 基于 Embedder + VectorStore 的情景记忆实现 */
+export class VectorEpisodicRecall implements EpisodicMemory {
   private readonly embedder: Embedder;
   private store: VectorStore;
   private ready = false;
   /** 内存缓存 — VectorStore 无单条读取能力，update 合并需依赖它 */
   private records = new Map<string, MemoryRecord>();
 
-  constructor(options: VectorSemanticRecallOptions) {
+  constructor(options: VectorEpisodicRecallOptions) {
     this.embedder = options.embedder;
     this.store = options.vectorStore;
   }
 
   private async ensureIndex(dimension: number): Promise<void> {
     if (!this.ready) {
-      await this.store.createIndex({ indexName: MEMORY_INDEX_NAME, dimension, metric: 'cosine' });
+      await this.store.createIndex({ indexName: EPISODIC_INDEX_NAME, dimension, metric: 'cosine', type: EPISODIC_TYPE });
       this.ready = true;
     }
   }
@@ -38,10 +41,11 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
     const { embeddings } = await this.embedder.doEmbed({ values: [query] });
     await this.ensureIndex(embeddings[0].length);
     const results = await this.store.query({
-      indexName: MEMORY_INDEX_NAME,
+      indexName: EPISODIC_INDEX_NAME,
       queryVector: embeddings[0],
       topK: limit,
       filter: scopeId ? { scopeId } : undefined,
+      type: EPISODIC_TYPE,
     });
     return results.map((r) => this.toRecord(r));
   }
@@ -56,20 +60,22 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
 
     // 语义去重 — 复用已算好的 embedding 查最近邻，避免重复堆积同一事实
     const dups = await this.store.query({
-      indexName: MEMORY_INDEX_NAME,
+      indexName: EPISODIC_INDEX_NAME,
       queryVector: embedding,
       topK: 1,
       filter: record.scopeId ? { scopeId: record.scopeId } : undefined,
+      type: EPISODIC_TYPE,
     });
     if (dups.length > 0 && dups[0].score >= DEDUP_THRESHOLD) {
       return;
     }
 
     await this.store.upsert({
-      indexName: MEMORY_INDEX_NAME,
+      indexName: EPISODIC_INDEX_NAME,
       vectors: [embedding],
       ids: [record.id],
       metadata: [this.toMetadata(record)],
+      type: EPISODIC_TYPE,
     });
     this.records.set(record.id, record);
   }
@@ -89,19 +95,20 @@ export class VectorSemanticRecall implements SemanticRecallMemory {
     embedding = embedding ?? prev.embedding;
     if (!embedding) return;
 
-    await this.store.deleteVectors({ indexName: MEMORY_INDEX_NAME, ids: [id] });
+    await this.store.deleteVectors({ indexName: EPISODIC_INDEX_NAME, ids: [id] });
     await this.ensureIndex(embedding.length);
     await this.store.upsert({
-      indexName: MEMORY_INDEX_NAME,
+      indexName: EPISODIC_INDEX_NAME,
       vectors: [embedding],
       ids: [id],
       metadata: [this.toMetadata(next)],
+      type: EPISODIC_TYPE,
     });
     this.records.set(id, next);
   }
 
   async delete(id: string): Promise<void> {
-    await this.store.deleteVectors({ indexName: MEMORY_INDEX_NAME, ids: [id] });
+    await this.store.deleteVectors({ indexName: EPISODIC_INDEX_NAME, ids: [id] });
     this.records.delete(id);
   }
 

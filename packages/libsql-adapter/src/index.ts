@@ -15,11 +15,11 @@ export {
   type LibSqlThreadStoreOptions,
 } from './libsql-thread-store.js';
 
-// WorkingMemory adapter
+// SemanticMemory adapter
 export {
-  LibSqlWorkingMemory,
-  type LibSqlWorkingMemoryOptions,
-} from './libsql-working-memory.js';
+  LibSqlSemanticMemory,
+  type LibSqlSemanticMemoryOptions,
+} from './libsql-semantic-memory.js';
 
 // VectorStore adapter
 export {

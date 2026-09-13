@@ -17,10 +17,10 @@ export interface MemorySearchResult extends MemoryRecord {
   score: number;
 }
 
-/** 语义召回记忆 — 基于向量检索的长期记忆 */
-export interface SemanticRecallMemory {
+/** 情景记忆 — 基于向量检索的用户经历/原文（episodic memory） */
+export interface EpisodicMemory {
   /**
-   * 按语义搜索记忆记录。
+   * 按语义搜索情景记忆记录。
    *
    * @param scopeId - 用户级隔离标识；提供时仅召回该用户的记忆
    */
@@ -33,12 +33,20 @@ export interface SemanticRecallMemory {
   delete(id: string): Promise<void>;
 }
 
-/** 工作记忆 — 模板驱动的用户事实存储，LLM 自主更新 */
-export interface WorkingMemory {
-  /** 获取当前工作记忆内容（Markdown） */
+/** 语义记忆 — 模板驱动的用户事实存储（semantic memory），LLM 自主更新 */
+export interface SemanticMemory {
+  /** 获取当前语义记忆内容（Markdown） */
   get(scopeId: string): Promise<string>;
-  /** 全量替换工作记忆内容 */
+  /** 全量替换语义记忆内容 */
   set(scopeId: string, content: string): Promise<void>;
   /** 获取模板（用于注入 system prompt） */
   getTemplate(): string;
+}
+
+/** 程序记忆 — 沉淀可复用的行为/流程指令（procedural memory，预留，暂无实现） */
+export interface ProceduralMemory {
+  /** 获取当前程序记忆内容 */
+  get(scopeId: string): Promise<string>;
+  /** 全量替换程序记忆内容 */
+  set(scopeId: string, content: string): Promise<void>;
 }

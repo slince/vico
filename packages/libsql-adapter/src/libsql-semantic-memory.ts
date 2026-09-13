@@ -1,31 +1,31 @@
-// @vico/libsql-adapter — Drizzle-backed WorkingMemory implementation
+// @vico/libsql-adapter — Drizzle-backed SemanticMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import {
-  DEFAULT_WORKING_MEMORY_TEMPLATE,
+  DEFAULT_SEMANTIC_MEMORY_TEMPLATE,
   MEMORY_ENTRY_TYPE,
-  WORKING_MEMORY_SCOPE_TYPE,
-  type WorkingMemory,
+  SEMANTIC_MEMORY_SCOPE_TYPE,
+  type SemanticMemory,
 } from '@vico/core';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
 
-/** LibSqlWorkingMemory 构造选项 */
-export interface LibSqlWorkingMemoryOptions {
+/** LibSqlSemanticMemory 构造选项 */
+export interface LibSqlSemanticMemoryOptions {
   /** Drizzle LibSQL 数据库实例（schema 需包含本包的表） */
   db: LibSQLDatabase<typeof schema>;
   /** Markdown 模板，未提供时使用默认模板 */
   template?: string;
 }
 
-/** LibSQL 版工作记忆实现 — 每个用户一行 */
-export class LibSqlWorkingMemory implements WorkingMemory {
+/** LibSQL 版语义记忆实现 — 每个用户一行 */
+export class LibSqlSemanticMemory implements SemanticMemory {
   private db: LibSQLDatabase<typeof schema>;
   private template: string;
 
-  constructor(options: LibSqlWorkingMemoryOptions) {
+  constructor(options: LibSqlSemanticMemoryOptions) {
     this.db = options.db;
-    this.template = options.template ?? DEFAULT_WORKING_MEMORY_TEMPLATE;
+    this.template = options.template ?? DEFAULT_SEMANTIC_MEMORY_TEMPLATE;
   }
 
   async get(scopeId: string): Promise<string> {
@@ -34,9 +34,9 @@ export class LibSqlWorkingMemory implements WorkingMemory {
       .from(memoryEntries)
       .where(
         and(
-          eq(memoryEntries.scope_type, WORKING_MEMORY_SCOPE_TYPE),
+          eq(memoryEntries.scope_type, SEMANTIC_MEMORY_SCOPE_TYPE),
           eq(memoryEntries.scope_id, scopeId),
-          eq(memoryEntries.type, MEMORY_ENTRY_TYPE.working),
+          eq(memoryEntries.type, MEMORY_ENTRY_TYPE.semantic),
         ),
       )
       .limit(1);
@@ -45,7 +45,7 @@ export class LibSqlWorkingMemory implements WorkingMemory {
 
   async set(scopeId: string, content: string): Promise<void> {
     // 使用确定性 id 实现 upsert（INSERT … ON CONFLICT DO UPDATE）
-    const id = `user:${scopeId}:working`;
+    const id = `user:${scopeId}:semantic`;
     const now = Date.now();
 
     await this.db
@@ -53,9 +53,9 @@ export class LibSqlWorkingMemory implements WorkingMemory {
       .values({
         id,
         thread_id: null,
-        scope_type: WORKING_MEMORY_SCOPE_TYPE,
+        scope_type: SEMANTIC_MEMORY_SCOPE_TYPE,
         scope_id: scopeId,
-        type: MEMORY_ENTRY_TYPE.working,
+        type: MEMORY_ENTRY_TYPE.semantic,
         content,
         embedding: null,
         metadata: '{}',

@@ -1,31 +1,31 @@
-// @vico/mysql-adapter — MySQL/Drizzle-backed WorkingMemory implementation
+// @vico/mysql-adapter — MySQL/Drizzle-backed SemanticMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import {
-  DEFAULT_WORKING_MEMORY_TEMPLATE,
+  DEFAULT_SEMANTIC_MEMORY_TEMPLATE,
   MEMORY_ENTRY_TYPE,
-  WORKING_MEMORY_SCOPE_TYPE,
-  type WorkingMemory,
+  SEMANTIC_MEMORY_SCOPE_TYPE,
+  type SemanticMemory,
 } from '@vico/core';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
 
-/** MysqlWorkingMemory construction options */
-export interface MysqlWorkingMemoryOptions {
+/** MysqlSemanticMemory construction options */
+export interface MysqlSemanticMemoryOptions {
   /** Drizzle MySQL database instance (schema must include this package's tables) */
   db: MySql2Database<typeof schema>;
   /** Markdown template, uses default template if not provided */
   template?: string;
 }
 
-/** MySQL-based working memory implementation — one row per user */
-export class MysqlWorkingMemory implements WorkingMemory {
+/** MySQL-based semantic memory implementation — one row per user */
+export class MysqlSemanticMemory implements SemanticMemory {
   private db: MySql2Database<typeof schema>;
   private template: string;
 
-  constructor(options: MysqlWorkingMemoryOptions) {
+  constructor(options: MysqlSemanticMemoryOptions) {
     this.db = options.db;
-    this.template = options.template ?? DEFAULT_WORKING_MEMORY_TEMPLATE;
+    this.template = options.template ?? DEFAULT_SEMANTIC_MEMORY_TEMPLATE;
   }
 
   async get(scopeId: string): Promise<string> {
@@ -34,9 +34,9 @@ export class MysqlWorkingMemory implements WorkingMemory {
       .from(memoryEntries)
       .where(
         and(
-          eq(memoryEntries.scope_type, WORKING_MEMORY_SCOPE_TYPE),
+          eq(memoryEntries.scope_type, SEMANTIC_MEMORY_SCOPE_TYPE),
           eq(memoryEntries.scope_id, scopeId),
-          eq(memoryEntries.type, MEMORY_ENTRY_TYPE.working),
+          eq(memoryEntries.type, MEMORY_ENTRY_TYPE.semantic),
         ),
       )
       .limit(1);
@@ -45,7 +45,7 @@ export class MysqlWorkingMemory implements WorkingMemory {
 
   async set(scopeId: string, content: string): Promise<void> {
     // Use deterministic id for upsert (INSERT … ON DUPLICATE KEY UPDATE)
-    const id = `user:${scopeId}:working`;
+    const id = `user:${scopeId}:semantic`;
     const now = Date.now();
 
     await this.db
@@ -53,9 +53,9 @@ export class MysqlWorkingMemory implements WorkingMemory {
       .values({
         id,
         thread_id: null,
-        scope_type: WORKING_MEMORY_SCOPE_TYPE,
+        scope_type: SEMANTIC_MEMORY_SCOPE_TYPE,
         scope_id: scopeId,
-        type: MEMORY_ENTRY_TYPE.working,
+        type: MEMORY_ENTRY_TYPE.semantic,
         content,
         embedding: null,
         metadata: {},

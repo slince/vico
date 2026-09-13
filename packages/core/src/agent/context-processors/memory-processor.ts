@@ -1,4 +1,4 @@
-// @vico/core - MemoryProcessor: injects conversation history, working memory, and semantic recall
+// @vico/core - MemoryProcessor: injects conversation history, semantic memory, and episodic recall
 import {randomUUID} from 'node:crypto';
 import type {ContextProcessor} from './context-processor.js';
 import {Priority} from './context-processor.js';
@@ -9,7 +9,7 @@ import type {MemoryStore} from '../../memory/memory-store.js';
 /** 语义召回最小相似度 — 低于该值的记忆视为不相关，不注入上下文 */
 const RECALL_MIN_SCORE = 0.5;
 
-/** 注入会话历史、工作记忆和语义召回结果（HIGH 优先级） */
+/** 注入会话历史、语义记忆和情景召回结果（HIGH 优先级） */
 export class MemoryProcessor implements ContextProcessor {
   readonly name = 'memory';
   readonly priority = Priority.HIGH;
@@ -18,18 +18,18 @@ export class MemoryProcessor implements ContextProcessor {
 
   async process(ctx: ModelRequestContext): Promise<void> {
     await this.injectConversationHistory(ctx);
-    await this.injectWorkingMemory(ctx);
-    await this.injectSemanticRecall(ctx);
+    await this.injectSemanticMemory(ctx);
+    await this.injectEpisodicRecall(ctx);
   }
 
   /**
-   * 循环结束后将本轮用户消息原文向量化存入语义记忆。
-   * 语义记忆只做「向量化 + 语义检索」，不做事实提取。
+   * 循环结束后将本轮用户消息原文向量化存入情景记忆。
+   * 情景记忆只做「向量化 + 语义检索」，不做事实提取。
    *
    * @param ctx - 模型请求上下文
    */
   async resolve(ctx: ModelRequestContext): Promise<void> {
-    if (!this.memoryStore.semantic) return;
+    if (!this.memoryStore.episodic) return;
     const now = Date.now();
     const threadId = ctx.threadId || undefined;
     const scopeId = ctx.scopeId || undefined;
@@ -39,7 +39,7 @@ export class MemoryProcessor implements ContextProcessor {
       const content = getMessageText(msg).trim();
       if (!content) continue;
 
-      await this.memoryStore.semantic.create({
+      await this.memoryStore.episodic.create({
         id: randomUUID(),
         threadId,
         scopeId,
@@ -64,38 +64,38 @@ export class MemoryProcessor implements ContextProcessor {
   }
 
   /**
-   * 注入工作记忆模板 + 当前数据，引导 LLM 自主更新。
+   * 注入语义记忆模板 + 当前数据，引导 LLM 自主更新。
    *
    * @param ctx - 模型请求上下文
    */
-  private async injectWorkingMemory(ctx: ModelRequestContext): Promise<void> {
-    if (!this.memoryStore.working || !ctx.scopeId) return;
-    const wm = this.memoryStore.working;
-    const template = wm.getTemplate();
-    const current = await wm.get(ctx.scopeId);
+  private async injectSemanticMemory(ctx: ModelRequestContext): Promise<void> {
+    if (!this.memoryStore.semantic || !ctx.scopeId) return;
+    const sm = this.memoryStore.semantic;
+    const template = sm.getTemplate();
+    const current = await sm.get(ctx.scopeId);
 
     const dataBlock = current || template;
 
     ctx.appendSystemPrompt(
-      `调用 update_working_memory 工具存储用户信息。如果信息可能被再次引用——存储它！\n\n` +
+      `调用 update_semantic_memory 工具存储用户信息。如果信息可能被再次引用——存储它！\n\n` +
       `使用指南：\n` +
       `1. 了解到用户新信息时主动更新\n` +
       `2. 仅替换变更部分，保持其他部分不变\n` +
       `3. 使用下方 Markdown 格式——不要直接输出模板文本，始终通过工具更新\n\n` +
-      `当前工作记忆：\n\`\`\`markdown\n${dataBlock}\n\`\`\``);
+      `当前语义记忆：\n\`\`\`markdown\n${dataBlock}\n\`\`\``);
   }
 
   /**
-   * 语义召回长期记忆。
+   * 情景召回长期记忆。
    *
    * @param ctx - 模型请求上下文
    */
-  private async injectSemanticRecall(ctx: ModelRequestContext): Promise<void> {
-    if (!this.memoryStore.semantic) return;
+  private async injectEpisodicRecall(ctx: ModelRequestContext): Promise<void> {
+    if (!this.memoryStore.episodic) return;
     const query = ctx.getLastUserMessage();
     if (!query) return;
 
-    const items = await this.memoryStore.semantic.search(query, 5, ctx.scopeId);
+    const items = await this.memoryStore.episodic.search(query, 5, ctx.scopeId);
     // 按相似度阈值过滤，避免低相关记忆污染上下文
     const relevant = items.filter((m) => m.score >= RECALL_MIN_SCORE);
     if (relevant.length === 0) return;

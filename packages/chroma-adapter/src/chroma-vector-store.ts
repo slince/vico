@@ -75,6 +75,7 @@ export class ChromaVectorStore implements VectorStore {
     indexName: string;
     dimension: number;
     metric: DistanceMetric;
+    type?: string;
   }): Promise<void> {
     const name = this.collectionName(params.indexName);
 
@@ -99,6 +100,7 @@ export class ChromaVectorStore implements VectorStore {
     vectors: number[][];
     ids: string[];
     metadata: Record<string, unknown>[];
+    type?: string;
   }): Promise<void> {
     const cached = this.indices.get(params.indexName);
     const collection = cached
@@ -117,6 +119,7 @@ export class ChromaVectorStore implements VectorStore {
     queryVector: number[];
     topK: number;
     filter?: Record<string, unknown>;
+    type?: string;
   }): Promise<VectorQueryResult[]> {
     const cached = this.indices.get(params.indexName);
     if (!cached) return [];

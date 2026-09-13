@@ -133,8 +133,8 @@
       "noResult": "（无结果）",
       "steps": "执行步数：{{steps}}"
     },
-    "workingMemory": {
-      "title": "更新工作记忆",
+    "semanticMemory": {
+      "title": "更新语义记忆",
       "updated": "已更新",
       "empty": "（空）"
     },

@@ -15,11 +15,11 @@ export {
   type MysqlThreadStoreOptions,
 } from './mysql-thread-store.js';
 
-// WorkingMemory adapter
+// SemanticMemory adapter
 export {
-  MysqlWorkingMemory,
-  type MysqlWorkingMemoryOptions,
-} from './mysql-working-memory.js';
+  MysqlSemanticMemory,
+  type MysqlSemanticMemoryOptions,
+} from './mysql-semantic-memory.js';
 
 // Auto-create tables at startup
 export { ensureTables } from './migrate.js';

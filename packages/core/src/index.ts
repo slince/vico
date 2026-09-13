@@ -57,8 +57,9 @@ export {
   type EmbedResult,
 } from '@vico/rag';
 export {
-  type SemanticRecallMemory,
-  type WorkingMemory,
+  type EpisodicMemory,
+  type SemanticMemory,
+  type ProceduralMemory,
 } from './memory/types.js';
 
 // Tool system
@@ -110,13 +111,13 @@ export {
 // Ports — MemoryStore
 export { MemoryStore, type MemoryStoreOptions } from './memory/memory-store.js';
 export { ConversationHistoryMemory } from './memory/conversation-history-memory.js';
-export { FileWorkingMemory, type FileWorkingMemoryOptions } from './memory/working/file-working-memory.js';
-export { DEFAULT_WORKING_MEMORY_TEMPLATE } from './memory/working/default-template.js';
-export { createUpdateWorkingMemoryTool } from './memory/tool/working-memory-tool.js';
-export { VectorSemanticRecall, type VectorSemanticRecallOptions } from './memory/semantic/vector-semantic-recall.js';
+export { FileSemanticMemory, type FileSemanticMemoryOptions } from './memory/semantic/file-semantic-memory.js';
+export { DEFAULT_SEMANTIC_MEMORY_TEMPLATE } from './memory/semantic/default-template.js';
+export { createUpdateSemanticMemoryTool } from './memory/tool/semantic-memory-tool.js';
+export { VectorEpisodicRecall, type VectorEpisodicRecallOptions } from './memory/episodic/vector-episodic-recall.js';
 export {
-  MEMORY_INDEX_NAME,
-  WORKING_MEMORY_SCOPE_TYPE,
+  EPISODIC_INDEX_NAME,
+  SEMANTIC_MEMORY_SCOPE_TYPE,
   MEMORY_ENTRY_TYPE,
   DEFAULT_CONVERSATION_WINDOW,
 } from './memory/constants.js';
