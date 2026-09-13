@@ -1,7 +1,7 @@
 // src/thread/utils.ts — ThreadStore Message 与原生 ModelMessage/UIMessage 的相互转换
 import type {Message} from './thread-store.js';
 import type {ModelMessage, ToolUIPart, UIMessage} from 'ai';
-import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart} from '@ai-sdk/provider-utils';
+import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart, ToolResultPart} from '@ai-sdk/provider-utils';
 
 /**
  * ThreadStore Message → 原生 ModelMessage（content 反序列化）。
@@ -79,6 +79,73 @@ function toApprovalRequestedUIPart(part: ToolApprovalRequest, toolCall?: ToolCal
 }
 
 /**
+ * 将 tool-result part 合并到目标 assistant 消息的对应 tool part：
+ * error-text → output-error，其余 → output-available。
+ *
+ * @param assistant - 目标 assistant 消息（原地改写 parts）
+ * @param raw - tool-result part
+ */
+function mergeToolResult(assistant: UIMessage, raw: ToolResultPart): void {
+  const output = raw.output as { type?: string; value?: unknown } | undefined;
+  assistant.parts = assistant.parts.map((ap) => {
+    if (!isToolUIPart(ap) || ap.toolCallId !== raw.toolCallId) return ap;
+    if (output?.type === 'error-text') {
+      return { ...ap, state: 'output-error', errorText: String(output.value) } as ToolUIPart;
+    }
+    return { ...ap, state: 'output-available', output: output?.value } as ToolUIPart;
+  });
+}
+
+/**
+ * 将 tool-approval-response part 合并到目标 assistant 消息的对应 tool part（approval-responded）。
+ * approvalId 复用 toolCallId（引擎约定），据此定位 tool part。
+ *
+ * @param assistant - 目标 assistant 消息（原地改写 parts）
+ * @param approval - 审批响应 part
+ */
+function mergeApprovalResponse(assistant: UIMessage, approval: ToolApprovalResponse): void {
+  assistant.parts = assistant.parts.map((ap) => {
+    if (!isToolUIPart(ap) || ap.toolCallId !== approval.approvalId) return ap;
+    return {
+      ...ap,
+      state: 'approval-responded',
+      approval: {
+        id: approval.approvalId,
+        approved: approval.approved,
+        ...(approval.reason != null ? { reason: approval.reason } : {}),
+      },
+    } as ToolUIPart;
+  });
+}
+
+/**
+ * user / assistant / system 消息的 content → UIMessage parts。
+ * 仅 assistant 消息可能携带 tool-call / tool-approval-request part，转成对应 tool part；
+ * 其余 part 及 user/system 消息的 part 原样透传。
+ *
+ * @param content - 反序列化后的消息 content（string 或 parts 数组）
+ * @param role - 消息角色
+ */
+function contentToParts(content: ModelMessage['content'], role: string): UIMessage['parts'] {
+  if (!Array.isArray(content)) {
+    return [{ type: 'text', text: String(content) }];
+  }
+  if (role !== 'assistant') {
+    return content.map((p) => p as UIMessage['parts'][number]);
+  }
+  // 先建立 toolCallId → tool-call part 映射，供 tool-approval-request 借取 toolName/input
+  const toolCallById = new Map<string, ToolCallPart>();
+  for (const p of content) {
+    if (p.type === 'tool-call') toolCallById.set(p.toolCallId, p);
+  }
+  return content.map((p) => {
+    if (p.type === 'tool-call') return toToolUIPart(p);
+    if (p.type === 'tool-approval-request') return toApprovalRequestedUIPart(p, toolCallById.get(p.toolCallId));
+    return p as UIMessage['parts'][number];
+  });
+}
+
+/**
  * ThreadStore Message → UIMessage（历史展示用）。
  *
  * - tool 角色消息不产出独立 UIMessage，其 part 按 toolCallId/approvalId 合并到最近一条
@@ -103,33 +170,10 @@ export function toUiMessages(entries: Message[]): UIMessage[] {
       if (lastAssistantIndex < 0 || !Array.isArray(content)) continue;
       const assistant = result[lastAssistantIndex]!;
       for (const raw of content) {
-        // tool-result → output-available / output-error
         if (raw.type === 'tool-result' && typeof raw.toolCallId === 'string') {
-          const output = raw.output as { type?: string; value?: unknown } | undefined;
-          assistant.parts = assistant.parts.map((ap) => {
-            if (!isToolUIPart(ap) || ap.toolCallId !== raw.toolCallId) return ap;
-            if (output?.type === 'error-text') {
-              return { ...ap, state: 'output-error', errorText: String(output.value) } as ToolUIPart;
-            }
-            return { ...ap, state: 'output-available', output: output?.value } as ToolUIPart;
-          });
-          continue;
-        }
-        // tool-approval-response → approval-responded（approvalId 复用 toolCallId 定位）
-        if (raw.type === 'tool-approval-response') {
-          const approval = raw as ToolApprovalResponse;
-          assistant.parts = assistant.parts.map((ap) => {
-            if (!isToolUIPart(ap) || ap.toolCallId !== approval.approvalId) return ap;
-            return {
-              ...ap,
-              state: 'approval-responded',
-              approval: {
-                id: approval.approvalId,
-                approved: approval.approved,
-                ...(approval.reason != null ? { reason: approval.reason } : {}),
-              },
-            } as ToolUIPart;
-          });
+          mergeToolResult(assistant, raw);
+        } else if (raw.type === 'tool-approval-response') {
+          mergeApprovalResponse(assistant, raw);
         }
       }
       continue;
@@ -138,28 +182,7 @@ export function toUiMessages(entries: Message[]): UIMessage[] {
     // 仅 user / assistant / system 产出 UIMessage，未知角色跳过
     if (entry.role !== 'user' && entry.role !== 'assistant' && entry.role !== 'system') continue;
 
-    let parts: UIMessage['parts'];
-    if (Array.isArray(content)) {
-      // 先建立 toolCallId → tool-call part 映射，供 tool-approval-request 借取 toolName/input
-      const toolCallById = new Map<string, ToolCallPart>();
-      for (const p of content) {
-        if (p.type === 'tool-call') toolCallById.set(p.toolCallId, p);
-      }
-      parts = content.map((p) => {
-        if (p.type === 'tool-call') {
-          return toToolUIPart(p);
-        }
-        // tool-approval-request → approval-requested（借对应 tool-call 的 toolName/input）
-        if (p.type === 'tool-approval-request') {
-          return toApprovalRequestedUIPart(p, toolCallById.get(p.toolCallId));
-        }
-        return p as UIMessage['parts'][number];
-      });
-    } else {
-      parts = [{ type: 'text', text: String(content) }];
-    }
-
-    result.push({ id: entry.id, role: entry.role, parts });
+    result.push({ id: entry.id, role: entry.role, parts: contentToParts(content, entry.role) });
     if (entry.role === 'assistant') lastAssistantIndex = result.length - 1;
   }
 
