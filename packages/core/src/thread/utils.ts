@@ -1,7 +1,7 @@
 // src/thread/utils.ts — ThreadStore Message 与原生 ModelMessage/UIMessage 的相互转换
 import type {Message} from './thread-store.js';
 import type {ModelMessage, ToolUIPart, UIMessage} from 'ai';
-import {ToolCallPart} from "@ai-sdk/provider-utils";
+import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart} from '@ai-sdk/provider-utils';
 
 /**
  * ThreadStore Message → 原生 ModelMessage（content 反序列化）。
@@ -11,7 +11,7 @@ export function toModelMessages(entries: Message[]): ModelMessage[] {
   return entries.map((e) => {
     let content: ModelMessage['content'];
     try {
-      content = JSON.parse(e.content);
+      content = JSON.parse(e.content) as ModelMessage['content'];
     } catch {
       content = e.content;
     }
@@ -56,11 +56,36 @@ function toToolUIPart(part: ToolCallPart): ToolUIPart {
 }
 
 /**
+ * ModelMessage tool-approval-request part → UIMessage approval-requested tool part。
+ *
+ * 审批请求 part 仅携带 approvalId/toolCallId，不含 toolName/input，
+ * 故从同条 assistant 消息的对应 tool-call part 借取（按 toolCallId 匹配）。
+ *
+ * @param part - 审批请求 part
+ * @param toolCall - 对应的 tool-call part（缺失时降级 unknown/空 input）
+ */
+function toApprovalRequestedUIPart(part: ToolApprovalRequest, toolCall?: ToolCallPart): ToolUIPart {
+  return {
+    type: `tool-${toolCall?.toolName ?? 'unknown'}`,
+    toolCallId: part.toolCallId,
+    input: toolCall?.input,
+    state: 'approval-requested',
+    approval: {
+      id: part.approvalId,
+      ...(part.isAutomatic != null ? { isAutomatic: part.isAutomatic } : {}),
+      ...(part.signature != null ? { signature: part.signature } : {}),
+    },
+  } as ToolUIPart;
+}
+
+/**
  * ThreadStore Message → UIMessage（历史展示用）。
  *
- * - tool 角色消息不产出独立 UIMessage，其 tool-result part 按 toolCallId 合并到最近一条
- *   assistant 消息的对应 tool part，将 state 置为 output-available（成功）或 output-error（失败）。
- * - assistant 消息的 tool-call part 类型由 ModelMessage 的 `tool-call` 转为 UIMessage 的 `tool-${toolName}`。
+ * - tool 角色消息不产出独立 UIMessage，其 part 按 toolCallId/approvalId 合并到最近一条
+ *   assistant 消息的对应 tool part：tool-result → output-available / output-error，
+ *   tool-approval-response → approval-responded。
+ * - assistant 消息的 tool-call part 转为 `tool-${toolName}`（初始 input-available）；
+ *   tool-approval-request part 转为 approval-requested（借对应 tool-call 的 toolName/input）。
  * - user / assistant / system 角色原样保留；未知角色静默跳过。
  *
  * @param entries - ThreadStore 消息记录
@@ -73,20 +98,39 @@ export function toUiMessages(entries: Message[]): UIMessage[] {
   for (const entry of entries) {
     const content = parseContent(entry.content);
 
-    // tool 消息 → 合并 tool-result 到最近 assistant 的 tool part
+    // tool 消息 → 合并 tool-result / tool-approval-response 到最近 assistant 的 tool part
     if (entry.role === 'tool') {
       if (lastAssistantIndex < 0 || !Array.isArray(content)) continue;
       const assistant = result[lastAssistantIndex]!;
       for (const raw of content) {
-        if (raw.type !== 'tool-result' || typeof raw.toolCallId !== 'string') continue;
-        const output = raw.output as { type?: string; value?: unknown } | undefined;
-        assistant.parts = assistant.parts.map((ap) => {
-          if (!isToolUIPart(ap) || ap.toolCallId !== raw.toolCallId) return ap;
-          if (output?.type === 'error-text') {
-            return { ...ap, state: 'output-error', errorText: String(output.value) } as ToolUIPart;
-          }
-          return { ...ap, state: 'output-available', output: output?.value } as ToolUIPart;
-        });
+        // tool-result → output-available / output-error
+        if (raw.type === 'tool-result' && typeof raw.toolCallId === 'string') {
+          const output = raw.output as { type?: string; value?: unknown } | undefined;
+          assistant.parts = assistant.parts.map((ap) => {
+            if (!isToolUIPart(ap) || ap.toolCallId !== raw.toolCallId) return ap;
+            if (output?.type === 'error-text') {
+              return { ...ap, state: 'output-error', errorText: String(output.value) } as ToolUIPart;
+            }
+            return { ...ap, state: 'output-available', output: output?.value } as ToolUIPart;
+          });
+          continue;
+        }
+        // tool-approval-response → approval-responded（approvalId 复用 toolCallId 定位）
+        if (raw.type === 'tool-approval-response') {
+          const approval = raw as ToolApprovalResponse;
+          assistant.parts = assistant.parts.map((ap) => {
+            if (!isToolUIPart(ap) || ap.toolCallId !== approval.approvalId) return ap;
+            return {
+              ...ap,
+              state: 'approval-responded',
+              approval: {
+                id: approval.approvalId,
+                approved: approval.approved,
+                ...(approval.reason != null ? { reason: approval.reason } : {}),
+              },
+            } as ToolUIPart;
+          });
+        }
       }
       continue;
     }
@@ -96,9 +140,18 @@ export function toUiMessages(entries: Message[]): UIMessage[] {
 
     let parts: UIMessage['parts'];
     if (Array.isArray(content)) {
+      // 先建立 toolCallId → tool-call part 映射，供 tool-approval-request 借取 toolName/input
+      const toolCallById = new Map<string, ToolCallPart>();
+      for (const p of content) {
+        if (p.type === 'tool-call') toolCallById.set(p.toolCallId, p);
+      }
       parts = content.map((p) => {
         if (p.type === 'tool-call') {
           return toToolUIPart(p);
+        }
+        // tool-approval-request → approval-requested（借对应 tool-call 的 toolName/input）
+        if (p.type === 'tool-approval-request') {
+          return toApprovalRequestedUIPart(p, toolCallById.get(p.toolCallId));
         }
         return p as UIMessage['parts'][number];
       });
