@@ -779,8 +779,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       this.emit({ type: 'error', error });
       try {
         controller.enqueue({ type: 'error', error });
-      } catch {
+      } catch (e) {
         // controller 已关闭（客户端断开），enqueue 失败可忽略
+        this.log.warn({ threadId: context.session.thread.id, err: e }, 'controller closed, error enqueue ignored');
       }
       return { text: '', toolCalls: [], usage: { input: 0, output: 0 }, error };
     };
