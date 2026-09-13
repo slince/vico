@@ -37,7 +37,13 @@ import {normalizeUserMessage} from './utils.js';
 import {fromModelMessage} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
-import {buildAssistantMessage, buildToolResultMessage, completedCallIds, ensureToolCallConsistency, extractApprovalResponses,} from '../model/message-utils.js';
+import {
+  buildAssistantMessage,
+  buildToolResultMessage,
+  completedCallIds,
+  ensureToolCallConsistency,
+  extractApprovalResponses,
+} from '../model/message-utils.js';
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
@@ -572,9 +578,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     usage.input += modelResult.usage.input;
     usage.output += modelResult.usage.output;
 
+    // 审批 + 执行 + 持久化
+    const { approvedCalls, deniedResults, pendingApprovalCalls } = await this.resolveToolApprovals(modelResult.toolCalls, context);
+
     // 模型输出后的消息处理（text + tool-call parts 组装为原生 assistant 消息）
     if (modelResult.text || modelResult.toolCalls.length > 0) {
-      const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning);
+      const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning, pendingApprovalCalls);
       context.messages.push(assistantMsg);
 
       await this.persistMessages(context, [assistantMsg]);
@@ -585,8 +594,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       return { action: 'break', usage };
     }
 
-    // 审批 + 执行 + 持久化
-    const { approvedCalls, deniedResults, pendingApprovalCalls } = await this.resolveToolApprovals(modelResult.toolCalls, context);
     // 有待审批的工具 → 暂停 turn
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pendingApprovalCalls.length > 0) {
@@ -783,7 +790,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         // controller 已关闭（客户端断开），enqueue 失败可忽略
         this.log.warn({ threadId: context.session.thread.id, err: e }, 'controller closed, error enqueue ignored');
       }
-      return { text: '', toolCalls: [], usage: { input: 0, output: 0 }, error };
+      return { text: '', reasoning: '', toolCalls: [], usage: { input: 0, output: 0 }, error };
     };
 
     try {

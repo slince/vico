@@ -5,6 +5,7 @@ import type {
   AssistantModelMessage,
   ReasoningPart,
   TextPart,
+  ToolApprovalRequest,
   ToolApprovalResponse,
   ToolCallPart,
   ToolModelMessage,
@@ -191,18 +192,36 @@ export function ensureToolCallConsistency(messages: ModelMessage[]): ModelMessag
 }
 
 /**
- * 构造原生 assistant 消息：推理 + 文本 + 工具调用 parts。content 数组不能为空，兜底空文本。
+ * 构造原生 assistant 消息：推理 + 文本 + 工具调用 parts，并为待审批调用追加审批请求 part。
+ * content 数组不能为空，兜底空文本。
+ *
+ * tool-approval-request part 是 tool-call part 的审批标记（二者共存，而非替代），
+ * approvalId 复用 toolCallId（与引擎审批请求/响应的约定一致）；provider 转换时该标记
+ * 会被剥离，仅用于与后续 tool-approval-response 配对，标记该调用无需 tool-result 即可通过校验。
  *
  * @param text - 模型生成的文本内容
  * @param toolCalls - 模型请求的工具调用
  * @param reasoning - 模型推理/思考内容（如 o1/DeepSeek-R1 的内部推理链）
+ * @param pendingApprovalCalls - 待客户端审批的工具调用（在对应 tool-call 后追加审批标记 part）
  */
-export function buildAssistantMessage(text: string, toolCalls: ToolCall[], reasoning?: string): AssistantModelMessage {
-  const parts: Array<ReasoningPart | TextPart | ToolCallPart> = [];
+export function buildAssistantMessage(
+  text: string,
+  toolCalls: ToolCall[],
+  reasoning: string,
+  pendingApprovalCalls: ToolCall[] = [],
+): AssistantModelMessage {
+  const parts: Array<ReasoningPart | TextPart | ToolCallPart | ToolApprovalRequest> = [];
   if (reasoning) parts.push({ type: 'reasoning', text: reasoning });
   if (text) parts.push({ type: 'text', text });
+
+  // 待审批调用 id 集合，用于在对应 tool-call 后追加审批标记 part
+  const pendingIds = new Set(pendingApprovalCalls.map((tc) => tc.id));
+
   for (const tc of toolCalls) {
     parts.push({ type: 'tool-call', toolCallId: tc.id, toolName: tc.name, input: tc.args });
+    if (pendingIds.has(tc.id)) {
+      parts.push({ type: 'tool-approval-request', approvalId: tc.id, toolCallId: tc.id });
+    }
   }
   if (parts.length === 0) parts.push({ type: 'text', text: '' });
   return { role: 'assistant', content: parts };

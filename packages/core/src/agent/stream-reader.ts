@@ -183,12 +183,12 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
 
           case 'error': {
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            return this.recordError(err, { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage });
+            return this.recordError(err, { text: fullText, reasoning: fullReasoning, toolCalls, usage: modelUsage });
           }
       }
     }
 
-    return { text: fullText, reasoning: fullReasoning || undefined, toolCalls, usage: modelUsage };
+    return { text: fullText, reasoning: fullReasoning, toolCalls, usage: modelUsage };
   }
 
   /**
