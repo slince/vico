@@ -62,13 +62,13 @@ function toToolUIPart(part: ToolCallPart): ToolUIPart {
  * 故从同条 assistant 消息的对应 tool-call part 借取（按 toolCallId 匹配）。
  *
  * @param part - 审批请求 part
- * @param toolCall - 对应的 tool-call part（缺失时降级 unknown/空 input）
+ * @param toolCall - 对应的 tool-call part
  */
-function toApprovalRequestedUIPart(part: ToolApprovalRequest, toolCall?: ToolCallPart): ToolUIPart {
+function toApprovalRequestedUIPart(part: ToolApprovalRequest, toolCall: ToolCallPart): ToolUIPart {
   return {
-    type: `tool-${toolCall?.toolName ?? 'unknown'}`,
+    type: `tool-${toolCall.toolName}`,
     toolCallId: part.toolCallId,
-    input: toolCall?.input,
+    input: toolCall.input,
     state: 'approval-requested',
     approval: {
       id: part.approvalId,
@@ -133,16 +133,36 @@ function contentToParts(content: ModelMessage['content'], role: string): UIMessa
   if (role !== 'assistant') {
     return content.map((p) => p as UIMessage['parts'][number]);
   }
-  // 先建立 toolCallId → tool-call part 映射，供 tool-approval-request 借取 toolName/input
+  // 建立 toolCallId → tool-call part 映射，供 tool-approval-request 借取 toolName/input
   const toolCallById = new Map<string, ToolCallPart>();
+  // 建立 toolCallId → tool-approval-request part 映射，判断 tool-call 是否伴随审批请求
+  const approvalRequestById = new Map<string, ToolApprovalRequest>();
   for (const p of content) {
     if (p.type === 'tool-call') toolCallById.set(p.toolCallId, p);
+    else if (p.type === 'tool-approval-request') approvalRequestById.set(p.toolCallId, p);
   }
-  return content.map((p) => {
-    if (p.type === 'tool-call') return toToolUIPart(p);
-    if (p.type === 'tool-approval-request') return toApprovalRequestedUIPart(p, toolCallById.get(p.toolCallId));
-    return p as UIMessage['parts'][number];
-  });
+
+  const parts: UIMessage['parts'] = [];
+  // 已产出的 toolCallId：同一工具调用若同时存在 tool-call 与 tool-approval-request，
+  // 只产出一条 tool part（合并为 approval-requested），避免重复构建。
+  const emitted = new Set<string>();
+  for (const p of content) {
+    if (p.type === 'tool-call') {
+      if (emitted.has(p.toolCallId)) continue;
+      const approval = approvalRequestById.get(p.toolCallId);
+      parts.push(approval ? toApprovalRequestedUIPart(approval, p) : toToolUIPart(p));
+      emitted.add(p.toolCallId);
+    } else if (p.type === 'tool-approval-request') {
+      if (emitted.has(p.toolCallId)) continue;
+      const toolCall = toolCallById.get(p.toolCallId);
+      if (!toolCall) continue; // 无对应 tool-call，无法构建有意义的 tool part
+      parts.push(toApprovalRequestedUIPart(p, toolCall));
+      emitted.add(p.toolCallId);
+    } else {
+      parts.push(p as UIMessage['parts'][number]);
+    }
+  }
+  return parts;
 }
 
 /**
