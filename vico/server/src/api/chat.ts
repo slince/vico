@@ -45,7 +45,15 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     c.req.raw.signal.addEventListener('abort', () => output.abort(), { once: true });
 
     return createUIMessageStreamResponse({
-      stream: toUIMessageStream({ stream: output.stream }),
+      stream: toUIMessageStream({
+        stream: output.stream,
+        onError: (err) => {
+          if (typeof err === 'string') {
+            return err
+          }
+          return err instanceof Error ? String(err.message) : JSON.stringify(err)
+        }
+      }),
       headers: {
         'x-thread-id': thread.id
       }
