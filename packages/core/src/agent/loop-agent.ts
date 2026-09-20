@@ -772,9 +772,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   private async callModel(step: TurnStep, context: TurnContext<TToolSet>): Promise<CallModelResult> {
     const { ctx, controller } = context;
 
+    const cleaned = ensureToolCallConsistency(step.messages);
+    
     const request: ModelRequest = {
       system: ctx.getSystemPrompt(),
-      messages: ensureToolCallConsistency(step.messages),
+      messages: cleaned,
       tools: ctx.tools,
       maxOutputTokens: this.maxTokens,
       temperature: this.temperature,
