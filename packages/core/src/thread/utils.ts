@@ -79,20 +79,39 @@ function toApprovalRequestedUIPart(part: ToolApprovalRequest, toolCall: ToolCall
 }
 
 /**
- * 将 tool-result part 合并到目标 assistant 消息的对应 tool part：
- * error-text → output-error，其余 → output-available。
+ * 将 tool-result part 合并到目标 assistant 消息的对应 tool part，按 ToolResultOutput
+ * 判别式做完整转换：
+ *
+ * - error-text / error-json → output-error（errorText 统一为 string）
+ * - execution-denied → output-denied（approval.approved = false）
+ * - text / json / content → output-available（output = value）
  *
  * @param assistant - 目标 assistant 消息（原地改写 parts）
  * @param raw - tool-result part
  */
 function mergeToolResult(assistant: UIMessage, raw: ToolResultPart): void {
-  const output = raw.output as { type?: string; value?: unknown } | undefined;
+  const output = raw.output;
   assistant.parts = assistant.parts.map((ap) => {
     if (!isToolUIPart(ap) || ap.toolCallId !== raw.toolCallId) return ap;
-    if (output?.type === 'error-text') {
-      return { ...ap, state: 'output-error', errorText: String(output.value) } as ToolUIPart;
+    switch (output.type) {
+      case 'error-text':
+        return { ...ap, state: 'output-error', errorText: output.value } as ToolUIPart;
+      case 'error-json':
+        return { ...ap, state: 'output-error', errorText: JSON.stringify(output.value) } as ToolUIPart;
+      case 'execution-denied':
+        return {
+          ...ap,
+          state: 'output-denied',
+          approval: {
+            id: ap.approval?.id ?? raw.toolCallId,
+            approved: false,
+            ...(output.reason != null && { reason: output.reason }),
+          },
+        } as ToolUIPart;
+      default:
+        // text / json / content 均携带 value，透传给 output-available
+        return { ...ap, state: 'output-available', output: output.value } as ToolUIPart;
     }
-    return { ...ap, state: 'output-available', output: output?.value } as ToolUIPart;
   });
 }
 
