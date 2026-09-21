@@ -105,7 +105,7 @@ function mergeToolResult(assistant: UIMessage, raw: ToolResultPart): void {
           approval: {
             id: ap.approval?.id ?? raw.toolCallId,
             approved: false,
-            ...(output.reason != null && { reason: output.reason }),
+            ...(output.reason != null ? { reason: output.reason } : {}),
           },
         } as ToolUIPart;
       default:
