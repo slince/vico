@@ -113,6 +113,8 @@ export interface ToolCallApproval {
   approved: boolean;
   /** 审批作用域：turn（本 turn 有效）| session（整个 thread 有效），默认 turn */
   scope?: 'turn' | 'session';
+  /** 用户随审批提交的文本回答（ask_user 等澄清工具），复用 tool-approval-response 的 reason 字段承载 */
+  answer?: string;
 }
 
 /** 单次工具审批在 turn 内的状态记录 */

@@ -125,6 +125,15 @@
       "humidity": "{{value}}% 濕度",
       "gust": "陣風 {{value}} km/h",
       "failed": "天氣查詢失敗"
+    },
+    "askUser": {
+      "title": "向使用者釐清",
+      "placeholder": "請輸入回答...",
+      "submit": "送出",
+      "deny": "拒絕回答",
+      "rejected": "已拒絕回答",
+      "answer": "回答：{{answer}}",
+      "waiting": "等待回答..."
     }
   },
   "modal": {

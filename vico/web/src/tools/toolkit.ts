@@ -11,6 +11,7 @@ import {knowledgeSearchTool} from './knowledge-search.tool';
 import {readTool, lsTool, findTool, grepTool, writeTool, editTool} from './filesystem.tool';
 import {browserNavigateTool, browserSnapshotTool, browserClickTool} from './browser.tool';
 import {todoWriteTool} from './simple.tool';
+import {askUserTool} from './ask-user.tool';
 import {webFetchTool} from './web-fetch.tool';
 import {lspTool} from './lsp.tool';
 import {delegateTool} from './delegate.tool';
@@ -36,6 +37,9 @@ export const toolkit = defineToolkit({
 
   // Simple
   todo_write: todoWriteTool,
+
+  // Ask user
+  ask_user: askUserTool,
 
   // Web fetch
   web_fetch: webFetchTool,

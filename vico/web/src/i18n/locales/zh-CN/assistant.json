@@ -125,6 +125,15 @@
       "humidity": "{{value}}% 湿度",
       "gust": "阵风 {{value}} km/h",
       "failed": "天气查询失败"
+    },
+    "askUser": {
+      "title": "向用户澄清",
+      "placeholder": "请输入回答...",
+      "submit": "提交",
+      "deny": "拒绝回答",
+      "rejected": "已拒绝回答",
+      "answer": "回答：{{answer}}",
+      "waiting": "等待回答..."
     }
   },
   "modal": {

@@ -4,6 +4,7 @@ export { resolveWorkspacePath } from './workspace.js';
 // Basic tools
 export { todoTool } from './basic/todo-tool.js';
 export { webFetchTool } from './basic/web-fetch-tool.js';
+export { askUserTool } from './basic/ask-user-tool.js';
 export { browserNavigateTool, browserSnapshotTool, browserClickTool } from './basic/browser-tool.js';
 
 // Filesystem tools
@@ -21,6 +22,7 @@ export { createDelegateTool } from './coding/delegate-tool.js';
 
 import { todoTool } from './basic/todo-tool.js';
 import { webFetchTool } from './basic/web-fetch-tool.js';
+import { askUserTool } from './basic/ask-user-tool.js';
 import {
   browserNavigateTool,
   browserSnapshotTool,
@@ -43,6 +45,7 @@ import type { Tool } from '../types.js';
 export const basicTools: Tool[] = [
   todoTool,
   webFetchTool,
+  askUserTool,
   browserNavigateTool,
   browserSnapshotTool,
   browserClickTool,

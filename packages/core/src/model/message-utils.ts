@@ -273,6 +273,7 @@ export function buildApprovalResponseMessage(decisions: ToolCallApproval[]): Too
       type: 'tool-approval-response',
       approvalId: d.toolCallId,
       approved: d.approved,
+      ...(d.answer !== undefined ? { reason: d.answer } : {}),
     })),
   };
 }
@@ -297,11 +298,12 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
     let hasApproval = false;
     const remaining = msg.content.filter((part) => {
       if (part.type === 'tool-approval-response') {
-        const p = part as { approvalId: string; approved: boolean; scope?: 'turn' | 'session' };
+        const p = part as { approvalId: string; approved: boolean; scope?: 'turn' | 'session'; reason?: string };
         decisionMap.set(p.approvalId, {
           toolCallId: p.approvalId,
           approved: p.approved,
           scope: p.scope,
+          answer: p.reason,
         });
         hasApproval = true;
         return false;

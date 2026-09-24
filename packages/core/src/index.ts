@@ -85,6 +85,7 @@ export {
   lspTool,
   webFetchTool,
   todoTool,
+  askUserTool,
   createDelegateTool,
   browserNavigateTool,
   browserSnapshotTool,

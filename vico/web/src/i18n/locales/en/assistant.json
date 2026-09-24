@@ -125,6 +125,15 @@
       "humidity": "{{value}}% humidity",
       "gust": "Gust {{value}} km/h",
       "failed": "Weather query failed"
+    },
+    "askUser": {
+      "title": "Clarify with user",
+      "placeholder": "Type your answer...",
+      "submit": "Submit",
+      "deny": "Decline",
+      "rejected": "Answer declined",
+      "answer": "Answer: {{answer}}",
+      "waiting": "Waiting for answer..."
     }
   },
   "modal": {
