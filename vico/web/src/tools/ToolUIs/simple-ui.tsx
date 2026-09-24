@@ -1,18 +1,14 @@
 /**
- * 简单工具 UI — 渲染 echo / now / todo_write 三个工具。
- *
- * 三者均为 auto（无需审批）：echo 回显文本、now 显示时间、todo_write 渲染任务清单。
+ * 简单工具 UI — 渲染 todo_write 工具（auto，无需审批）。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';
-import {Quote, Clock, ListChecks} from 'lucide-react';
+import {ListChecks} from 'lucide-react';
 import {ToolCard} from './tool-card';
-import type {EchoResult, NowResult, TodoWriteResult} from '../simple.tool';
+import type {TodoWriteResult} from '../simple.tool';
 
 /** 工具名 → 图标 */
 const TOOL_ICON: Record<string, React.ElementType> = {
-  echo: Quote,
-  now: Clock,
   todo_write: ListChecks,
 };
 
@@ -22,18 +18,6 @@ const TODO_STATUS_COLOR: Record<string, string> = {
   in_progress: 'text-amber-600 dark:text-amber-400',
   completed: 'text-green-600 dark:text-green-400',
 };
-
-/** echo 结果视图 */
-function EchoView({result}: {result: EchoResult}) {
-  return (
-    <p className="text-xs text-muted-foreground whitespace-pre-wrap break-all">{result.message}</p>
-  );
-}
-
-/** now 结果视图 */
-function NowView({result}: {result: NowResult}) {
-  return <p className="font-mono text-xs">{result.datetime}</p>;
-}
 
 /** todo_write 结果视图 — 任务列表 + 汇总 */
 function TodoView({result}: {result: TodoWriteResult}) {
@@ -63,7 +47,7 @@ function TodoView({result}: {result: TodoWriteResult}) {
 }
 
 /**
- * 简单工具渲染器 — 统一处理 echo/now/todo_write 三个工具。
+ * 简单工具渲染器 — 统一处理 simple 类工具（当前仅 todo_write）。
  */
 export const SimpleToolRenderer: ToolCallMessagePartComponent = ({
   toolName,
@@ -78,7 +62,7 @@ export const SimpleToolRenderer: ToolCallMessagePartComponent = ({
 }) => {
   const {t} = useTranslation('assistant');
   const title = t(`tool.simple.title.${toolName}`, {defaultValue: toolName});
-  const Icon = TOOL_ICON[toolName] ?? Quote;
+  const Icon = TOOL_ICON[toolName] ?? ListChecks;
 
   return (
     <ToolCard
@@ -94,10 +78,6 @@ export const SimpleToolRenderer: ToolCallMessagePartComponent = ({
       respondToApproval={respondToApproval}
       renderResult={(r) => {
         switch (toolName) {
-          case 'echo':
-            return <EchoView result={r as EchoResult} />;
-          case 'now':
-            return <NowView result={r as NowResult} />;
           case 'todo_write':
             return <TodoView result={r as TodoWriteResult} />;
           default:

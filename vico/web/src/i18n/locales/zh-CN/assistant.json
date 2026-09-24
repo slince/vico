@@ -68,21 +68,6 @@
       "rejected": "命令已拒绝",
       "executing": "正在执行命令..."
     },
-    "git": {
-      "title": {
-        "git_status": "Git 状态",
-        "git_diff": "Git 变更",
-        "git_log": "提交历史",
-        "git_branch": "Git 分支",
-        "git_commit": "Git 提交",
-        "git_checkout": "分支切换"
-      },
-      "status": { "M": "修改", "A": "新增", "D": "删除", "R": "重命名", "untracked": "未跟踪" },
-      "clean": "工作区干净，无变更",
-      "current": "当前",
-      "commitMessage": "提交信息：{{message}}",
-      "target": "目标：{{target}}"
-    },
     "fileRead": {
       "title": { "read": "读取文件", "ls": "列出目录", "find": "查找文件", "grep": "搜索内容" },
       "noMatch": "未找到匹配"
@@ -102,17 +87,8 @@
       "url": "URL：{{url}}",
       "selector": "选择器：{{selector}}"
     },
-    "package": {
-      "title": { "package_install": "安装依赖", "package_run": "运行脚本" },
-      "manager": "管理器：{{manager}}",
-      "noOutput": "（无输出）",
-      "exitCode": "退出码：{{code}}",
-      "install": "安装：{{packages}}",
-      "script": "脚本：{{script}}",
-      "allDeps": "全部依赖"
-    },
     "simple": {
-      "title": { "echo": "回显", "now": "当前时间", "todo_write": "任务清单" },
+      "title": { "todo_write": "任务清单" },
       "status": { "pending": "待处理", "in_progress": "进行中", "completed": "已完成" },
       "noTasks": "无任务"
     },

@@ -68,21 +68,6 @@
       "rejected": "Command rejected.",
       "executing": "Executing command..."
     },
-    "git": {
-      "title": {
-        "git_status": "Git Status",
-        "git_diff": "Git Diff",
-        "git_log": "Commit History",
-        "git_branch": "Git Branches",
-        "git_commit": "Git Commit",
-        "git_checkout": "Checkout Branch"
-      },
-      "status": { "M": "Modified", "A": "Added", "D": "Deleted", "R": "Renamed", "untracked": "Untracked" },
-      "clean": "Working tree clean",
-      "current": "Current",
-      "commitMessage": "Commit message: {{message}}",
-      "target": "Target: {{target}}"
-    },
     "fileRead": {
       "title": { "read": "Read File", "ls": "List Directory", "find": "Find Files", "grep": "Search Content" },
       "noMatch": "No matches found"
@@ -102,17 +87,8 @@
       "url": "URL: {{url}}",
       "selector": "Selector: {{selector}}"
     },
-    "package": {
-      "title": { "package_install": "Install Dependencies", "package_run": "Run Script" },
-      "manager": "Manager: {{manager}}",
-      "noOutput": "(No output)",
-      "exitCode": "Exit code: {{code}}",
-      "install": "Install: {{packages}}",
-      "script": "Script: {{script}}",
-      "allDeps": "all dependencies"
-    },
     "simple": {
-      "title": { "echo": "Echo", "now": "Current Time", "todo_write": "Todo List" },
+      "title": { "todo_write": "Todo List" },
       "status": { "pending": "Pending", "in_progress": "In Progress", "completed": "Completed" },
       "noTasks": "No tasks"
     },
