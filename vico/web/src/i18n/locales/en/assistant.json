@@ -128,6 +128,8 @@
     },
     "askUser": {
       "title": "Clarify with user",
+      "modeSingle": "Single choice",
+      "modeMultiple": "Multiple choice",
       "placeholder": "Type your answer...",
       "submit": "Submit",
       "deny": "Decline",

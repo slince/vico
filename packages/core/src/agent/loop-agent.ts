@@ -59,6 +59,24 @@ export interface LoopAgentOptions extends AgentOptions {
   processors?: ContextProcessor[];
 }
 
+/**
+ * 解析审批 reason 承载的用户回答为字符串数组。
+ *
+ * 前端约定 reason 为 JSON 字符串数组（单选为单元素数组，多选为多元素数组），
+ * 解析失败时回退为单元素数组，保证自由文本答案也能正常传递。
+ */
+function parseUserAnswers(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
+      return parsed;
+    }
+  } catch {
+    // 非 JSON 文本，按自由文本答案处理
+  }
+  return [raw];
+}
+
 /** 组装默认上下文处理器管道：系统提示词 + Skill 目录 + 工作区过滤 + 记忆 */
 function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextProcessor[] {
   return [
@@ -494,7 +512,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         if (answer !== undefined) {
           directResults.push({
             callId: pendingCall.id, name: pendingCall.name,
-            status: 'success', output: { answer },
+            status: 'success', output: { answers: parseUserAnswers(answer) },
           });
         } else {
           approvedCalls.push(pendingCall);
@@ -530,6 +548,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @param context
    * @param approvedCalls
    * @param deniedResults
+   * @param directResults
    * @private
    */
   private async executeToolCalls(context: TurnContext<TToolSet>, approvedCalls: ToolCall[], deniedResults: ToolResult[], directResults: ToolResult[] = []){
@@ -783,7 +802,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const { ctx, controller } = context;
 
     const cleaned = ensureToolCallConsistency(step.messages);
-    
+
     const request: ModelRequest = {
       system: ctx.getSystemPrompt(),
       messages: cleaned,

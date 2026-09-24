@@ -1,8 +1,12 @@
 /**
  * 向用户澄清工具 UI — 展示 LLM 提出的问题，收集用户回答并回传。
  *
+ * 交互模式由 args.multiple 决定：
+ * - 单选（缺省）：候选项以单选方式呈现，另提供文本输入框自由填写（文本优先）
+ * - 多选：候选项以多选方式呈现，可勾选多个
+ *
  * 状态机：
- * - requires-action → 渲染问题 + 候选项 + 文本输入框，提交时 respondToApproval({ approved: true, reason: answer })
+ * - requires-action → 渲染问题 + 候选项 + 输入，提交时 respondToApproval({ approved: true, reason: JSON.stringify(answers) })
  * - approval.approved === false → 展示已拒绝
  * - complete 且有 result → 展示用户回答
  * - running → 等待回答占位
@@ -20,13 +24,14 @@ export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserR
   status,
   args,
   result,
-  isError,
   approval,
   respondToApproval,
 }) => {
   const {t} = useTranslation('assistant');
-  // 用户正在编辑的回答文本（提交后由审批态接管渲染）
-  const [answer, setAnswer] = useState('');
+  // 已选中的候选项（单选至多 1 个，多选可多个）
+  const [selected, setSelected] = useState<string[]>([]);
+  // 自由文本回答（仅单选模式展示）
+  const [text, setText] = useState('');
   // 防重复提交
   const [submitted, setSubmitted] = useState(false);
 
@@ -34,14 +39,27 @@ export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserR
   const options = Array.isArray(args?.options)
     ? args.options.filter((o): o is string => typeof o === 'string')
     : [];
+  const multiple = args?.multiple === true;
 
-  // 提交回答：仅在未提交且处于待审批时生效
-  const submit = (value: string) => {
+  // 切换候选项选中态：单选互斥，多选叠加
+  const toggleOption = (option: string) => {
     if (submitted) return;
-    const trimmed = value.trim();
-    if (!trimmed || !respondToApproval) return;
+    setSelected((prev) => {
+      if (multiple) {
+        return prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option];
+      }
+      return prev.includes(option) ? [] : [option];
+    });
+  };
+
+  // 组装回答并提交：单选时自由文本优先，否则取选中项
+  const submit = () => {
+    if (submitted || !respondToApproval) return;
+    const trimmed = text.trim();
+    const answers = multiple ? selected : trimmed ? [trimmed] : selected;
+    if (answers.length === 0) return;
     setSubmitted(true);
-    respondToApproval({approved: true, reason: trimmed});
+    respondToApproval({approved: true, reason: JSON.stringify(answers)});
   };
 
   // 审批已裁决（被拒绝 / 已批准且有结果）
@@ -62,7 +80,8 @@ export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserR
       );
     }
 
-    // 已批准：优先展示服务端回传的 answer，回传前展示等待占位
+    // 已批准：优先展示服务端回传的 answers，回传前展示等待占位
+    const answersText = result?.answers?.length ? result.answers.join('、') : '';
     return (
       <div className="border rounded-lg p-4 my-2 bg-muted/30">
         <div className="flex items-center gap-2">
@@ -70,8 +89,8 @@ export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserR
           <span className="text-sm font-medium">{t('tool.askUser.title')}</span>
         </div>
         {question && <p className="mt-1.5 text-xs text-muted-foreground">{question}</p>}
-        {result?.answer ? (
-          <p className="mt-2 text-sm">{t('tool.askUser.answer', {answer: result.answer})}</p>
+        {answersText ? (
+          <p className="mt-2 text-sm">{t('tool.askUser.answer', {answer: answersText})}</p>
         ) : (
           <p className="mt-2 text-xs text-muted-foreground">{t('tool.askUser.waiting')}</p>
         )}
@@ -86,44 +105,55 @@ export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserR
         <div className="flex items-center gap-2">
           <HelpCircle size={14} className="text-muted-foreground" />
           <span className="text-sm font-medium">{t('tool.askUser.title')}</span>
+          <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
+            {multiple ? t('tool.askUser.modeMultiple') : t('tool.askUser.modeSingle')}
+          </span>
         </div>
 
         {question && <p className="text-sm">{question}</p>}
 
         {options.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {options.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => submit(option)}
-                disabled={submitted}
-                className={cn(
-                  'px-2.5 py-1 text-xs rounded-full border border-border bg-background',
-                  'hover:bg-muted transition-colors disabled:opacity-50',
-                )}
-              >
-                {option}
-              </button>
-            ))}
+            {options.map((option) => {
+              const isSelected = selected.includes(option);
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => toggleOption(option)}
+                  disabled={submitted}
+                  className={cn(
+                    'px-2.5 py-1 text-xs rounded-full border transition-colors disabled:opacity-50',
+                    isSelected
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background hover:bg-muted',
+                  )}
+                >
+                  {option}
+                </button>
+              );
+            })}
           </div>
         )}
 
-        <div className="flex gap-2">
+        {!multiple && (
           <Input
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') submit(answer);
+              if (e.key === 'Enter') submit();
             }}
             placeholder={t('tool.askUser.placeholder')}
             disabled={submitted}
           />
+        )}
+
+        <div className="flex gap-2">
           <Button
             size="sm"
             variant="default"
-            onClick={() => submit(answer)}
-            disabled={submitted || !answer.trim()}
+            onClick={submit}
+            disabled={submitted || (multiple ? selected.length === 0 : !text.trim() && selected.length === 0)}
           >
             {t('tool.askUser.submit')}
           </Button>
