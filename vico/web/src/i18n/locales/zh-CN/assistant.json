@@ -130,7 +130,7 @@
       "title": "向用户澄清",
       "modeSingle": "单选",
       "modeMultiple": "多选",
-      "placeholder": "请输入回答...",
+      "customPlaceholder": "或自由填写...",
       "submit": "提交",
       "deny": "拒绝回答",
       "rejected": "已拒绝回答",

@@ -8,6 +8,7 @@ import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
 import type {TurnEvent} from './types.js';
 import type {ApprovalDecider, Tool, ToolCall, ToolResult} from '../tool/types.js';
+import {parseAskUserAnswers} from '../tool/builtin/basic/ask-user-tool.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.js';
@@ -57,24 +58,6 @@ import {KeyedMutex} from '../utils/async-keyed-lock.js';
 export interface LoopAgentOptions extends AgentOptions {
   /** 上下文处理器，不传则使用默认管道 */
   processors?: ContextProcessor[];
-}
-
-/**
- * 解析审批 reason 承载的用户回答为字符串数组。
- *
- * 前端约定 reason 为 JSON 字符串数组（单选为单元素数组，多选为多元素数组），
- * 解析失败时回退为单元素数组，保证自由文本答案也能正常传递。
- */
-function parseUserAnswers(raw: string): string[] {
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
-      return parsed;
-    }
-  } catch {
-    // 非 JSON 文本，按自由文本答案处理
-  }
-  return [raw];
 }
 
 /** 组装默认上下文处理器管道：系统提示词 + Skill 目录 + 工作区过滤 + 记忆 */
@@ -509,12 +492,22 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路），reason 携带用户文本回答
       context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope, reason: answer }));
       if (approved || context.approvedTools.has(pendingCall.id)) {
-        if (answer !== undefined) {
-          directResults.push({
-            callId: pendingCall.id, name: pendingCall.name,
-            status: 'success', output: { answers: parseUserAnswers(answer) },
-          });
+        if (pendingCall.name === 'ask_user') {
+          // 澄清工具：用户回答直接注入为结构化结果，不执行 execute
+          if (answer === undefined) {
+            directResults.push({
+              callId: pendingCall.id, name: pendingCall.name,
+              status: 'error', output: null,
+              error: 'EMPTY_ANSWER: 用户批准但未提供回答',
+            });
+          } else {
+            const parsed = parseAskUserAnswers(answer);
+            directResults.push(parsed.ok
+              ? { callId: pendingCall.id, name: pendingCall.name, status: 'success' as const, output: { answers: parsed.answers } }
+              : { callId: pendingCall.id, name: pendingCall.name, status: 'error' as const, output: null, error: parsed.error });
+          }
         } else {
+          // 普通审批工具：批准后正常执行 execute
           approvedCalls.push(pendingCall);
         }
         // 追踪到 approvedTools，确保同一 turn 后续 step 中该工具自动放行

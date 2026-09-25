@@ -130,7 +130,7 @@
       "title": "向使用者釐清",
       "modeSingle": "單選",
       "modeMultiple": "多選",
-      "placeholder": "請輸入回答...",
+      "customPlaceholder": "或自由填寫...",
       "submit": "送出",
       "deny": "拒絕回答",
       "rejected": "已拒絕回答",

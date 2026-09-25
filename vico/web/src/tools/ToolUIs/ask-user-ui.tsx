@@ -1,12 +1,14 @@
 /**
- * 向用户澄清工具 UI — 展示 LLM 提出的问题，收集用户回答并回传。
+ * 向用户澄清工具 UI — 展示 LLM 提出的问题列表，收集用户回答并回传。
  *
- * 交互模式由 args.multiple 决定：
- * - 单选（缺省）：候选项以单选方式呈现，另提供文本输入框自由填写（文本优先）
- * - 多选：候选项以多选方式呈现，可勾选多个
+ * 支持一次回答多个问题（args.questions）；每个问题独立单选/多选（multiSelect）
+ * 并可自由填写文本。语义约定：
+ * - 单选：自由文本 custom 覆盖所选候选项
+ * - 多选：自由文本 custom 补充所选候选项
  *
  * 状态机：
- * - requires-action → 渲染问题 + 候选项 + 输入，提交时 respondToApproval({ approved: true, reason: JSON.stringify(answers) })
+ * - requires-action → 渲染问题列表 + 候选项 + 文本输入，提交时
+ *   respondToApproval({ approved: true, reason: JSON.stringify({answers}) })
  * - approval.approved === false → 展示已拒绝
  * - complete 且有 result → 展示用户回答
  * - running → 等待回答占位
@@ -20,6 +22,73 @@ import {Input} from '@/components/ui/input';
 import {cn} from '@/lib/utils';
 import type {AskUserArgs, AskUserResult} from '../ask-user.tool';
 
+/** 单个问题的编辑状态 */
+interface QuestionState {
+  selected: string[];
+  custom: string;
+}
+
+/** 单个问题的问题字段 */
+interface QuestionFieldProps {
+  question: AskUserArgs['questions'][number];
+  state: QuestionState;
+  disabled: boolean;
+  onToggle: (label: string) => void;
+  onCustom: (value: string) => void;
+}
+
+/** 渲染单个问题：标题、问题、补充说明、候选项、自由文本输入 */
+function QuestionField({question, state, disabled, onToggle, onCustom}: QuestionFieldProps) {
+  const {t} = useTranslation('assistant');
+  const multiSelect = question.multiSelect === true;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        {question.header && <span className="text-xs font-semibold">{question.header}</span>}
+        <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
+          {multiSelect ? t('tool.askUser.modeMultiple') : t('tool.askUser.modeSingle')}
+        </span>
+      </div>
+
+      <p className="text-sm">{question.question}</p>
+      {question.detail && <p className="text-xs text-muted-foreground">{question.detail}</p>}
+
+      {question.options && question.options.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {question.options.map((option) => {
+            const isSelected = state.selected.includes(option.label);
+            return (
+              <button
+                key={option.label}
+                type="button"
+                title={option.description}
+                onClick={() => onToggle(option.label)}
+                disabled={disabled}
+                className={cn(
+                  'px-2.5 py-1 text-xs rounded-full border transition-colors disabled:opacity-50',
+                  isSelected
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-background hover:bg-muted',
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <Input
+        value={state.custom}
+        onChange={(e) => onCustom(e.target.value)}
+        placeholder={t('tool.askUser.customPlaceholder')}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
 export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserResult> = ({
   status,
   args,
@@ -28,38 +97,48 @@ export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserR
   respondToApproval,
 }) => {
   const {t} = useTranslation('assistant');
-  // 已选中的候选项（单选至多 1 个，多选可多个）
-  const [selected, setSelected] = useState<string[]>([]);
-  // 自由文本回答（仅单选模式展示）
-  const [text, setText] = useState('');
+  const questions = Array.isArray(args?.questions) ? args.questions : [];
+  // 各问题编辑状态，key 为问题 id
+  const [state, setState] = useState<Record<string, QuestionState>>({});
   // 防重复提交
   const [submitted, setSubmitted] = useState(false);
 
-  const question = typeof args?.question === 'string' ? args.question : '';
-  const options = Array.isArray(args?.options)
-    ? args.options.filter((o): o is string => typeof o === 'string')
-    : [];
-  const multiple = args?.multiple === true;
+  const getState = (id: string): QuestionState => state[id] ?? {selected: [], custom: ''};
 
   // 切换候选项选中态：单选互斥，多选叠加
-  const toggleOption = (option: string) => {
+  const toggleOption = (id: string, multiSelect: boolean, label: string) => {
     if (submitted) return;
-    setSelected((prev) => {
-      if (multiple) {
-        return prev.includes(option) ? prev.filter((o) => o !== option) : [...prev, option];
-      }
-      return prev.includes(option) ? [] : [option];
+    setState((prev) => {
+      const cur = prev[id] ?? {selected: [], custom: ''};
+      const selected = multiSelect
+        ? (cur.selected.includes(label) ? cur.selected.filter((o) => o !== label) : [...cur.selected, label])
+        : (cur.selected.includes(label) ? [] : [label]);
+      return {...prev, [id]: {...cur, selected}};
     });
   };
 
-  // 组装回答并提交：单选时自由文本优先，否则取选中项
+  const setCustom = (id: string, custom: string) => {
+    if (submitted) return;
+    setState((prev) => ({...prev, [id]: {...getState(id), custom}}));
+  };
+
+  // 组装结构化答案：单选时 custom 覆盖 selected，多选时 custom 补充
+  const buildAnswers = () =>
+    questions.map((q) => {
+      const st = getState(q.id);
+      const custom = st.custom.trim();
+      if (q.multiSelect !== true && custom) {
+        return {id: q.id, selected: [], custom};
+      }
+      return {id: q.id, selected: st.selected, ...(custom ? {custom} : {})};
+    });
+
   const submit = () => {
     if (submitted || !respondToApproval) return;
-    const trimmed = text.trim();
-    const answers = multiple ? selected : trimmed ? [trimmed] : selected;
-    if (answers.length === 0) return;
+    const answers = buildAnswers();
+    if (!answers.some((a) => a.selected.length > 0 || a.custom)) return;
     setSubmitted(true);
-    respondToApproval({approved: true, reason: JSON.stringify(answers)});
+    respondToApproval({approved: true, reason: JSON.stringify({answers})});
   };
 
   // 审批已裁决（被拒绝 / 已批准且有结果）
@@ -73,22 +152,21 @@ export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserR
             <X size={16} className="text-destructive" />
             <span className="text-sm text-destructive">{t('tool.askUser.rejected')}</span>
           </div>
-          {question && (
-            <p className="mt-1.5 text-xs text-muted-foreground">{question}</p>
-          )}
         </div>
       );
     }
 
-    // 已批准：优先展示服务端回传的 answers，回传前展示等待占位
-    const answersText = result?.answers?.length ? result.answers.join('、') : '';
+    // 已批准：展示服务端回传的 answers，回传前展示等待占位
+    const answersText = result?.answers
+      ?.map((a) => a.custom || a.selected.join('、'))
+      .filter(Boolean)
+      .join('；');
     return (
       <div className="border rounded-lg p-4 my-2 bg-muted/30">
         <div className="flex items-center gap-2">
           <Check size={16} className="text-green-500" />
           <span className="text-sm font-medium">{t('tool.askUser.title')}</span>
         </div>
-        {question && <p className="mt-1.5 text-xs text-muted-foreground">{question}</p>}
         {answersText ? (
           <p className="mt-2 text-sm">{t('tool.askUser.answer', {answer: answersText})}</p>
         ) : (
@@ -101,60 +179,25 @@ export const AskUserRenderer: ToolCallMessagePartComponent<AskUserArgs, AskUserR
   // 需要用户回答
   if (status.type === 'requires-action') {
     return (
-      <div className="border rounded-lg p-4 my-2 bg-muted/30 space-y-3">
+      <div className="border rounded-lg p-4 my-2 bg-muted/30 space-y-4">
         <div className="flex items-center gap-2">
           <HelpCircle size={14} className="text-muted-foreground" />
           <span className="text-sm font-medium">{t('tool.askUser.title')}</span>
-          <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
-            {multiple ? t('tool.askUser.modeMultiple') : t('tool.askUser.modeSingle')}
-          </span>
         </div>
 
-        {question && <p className="text-sm">{question}</p>}
-
-        {options.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {options.map((option) => {
-              const isSelected = selected.includes(option);
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => toggleOption(option)}
-                  disabled={submitted}
-                  className={cn(
-                    'px-2.5 py-1 text-xs rounded-full border transition-colors disabled:opacity-50',
-                    isSelected
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-background hover:bg-muted',
-                  )}
-                >
-                  {option}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {!multiple && (
-          <Input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submit();
-            }}
-            placeholder={t('tool.askUser.placeholder')}
+        {questions.map((q) => (
+          <QuestionField
+            key={q.id}
+            question={q}
+            state={getState(q.id)}
             disabled={submitted}
+            onToggle={(label) => toggleOption(q.id, q.multiSelect === true, label)}
+            onCustom={(value) => setCustom(q.id, value)}
           />
-        )}
+        ))}
 
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="default"
-            onClick={submit}
-            disabled={submitted || (multiple ? selected.length === 0 : !text.trim() && selected.length === 0)}
-          >
+          <Button size="sm" variant="default" onClick={submit} disabled={submitted}>
             {t('tool.askUser.submit')}
           </Button>
           <Button

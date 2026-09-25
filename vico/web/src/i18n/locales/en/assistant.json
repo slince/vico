@@ -130,7 +130,7 @@
       "title": "Clarify with user",
       "modeSingle": "Single choice",
       "modeMultiple": "Multiple choice",
-      "placeholder": "Type your answer...",
+      "customPlaceholder": "Or type a custom answer...",
       "submit": "Submit",
       "deny": "Decline",
       "rejected": "Answer declined",
