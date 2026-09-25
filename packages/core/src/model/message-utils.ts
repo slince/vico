@@ -1,5 +1,5 @@
-// @vico/core - 原生 ModelMessage 工具函数：文本提取、消息构造、UIMessage 转换、ToolSet 转换
-import type {JSONValue, ModelMessage, ToolSet, UIMessage} from 'ai';
+// @vico/core - 原生 ModelMessage 工具函数：文本提取、消息构造、审批决策解析、ToolSet 转换
+import type {JSONValue, ModelMessage, ToolSet} from 'ai';
 import {tool} from 'ai';
 import type {
   AssistantModelMessage,
@@ -10,7 +10,6 @@ import type {
   ToolCallPart,
   ToolModelMessage,
   ToolResultOutput,
-  ToolResultPart,
 } from '@ai-sdk/provider-utils';
 import type {Tool, ToolCall, ToolResult} from '../tool/types.js';
 import type {ToolCallApproval} from '../agent/loop-agent-options.js';
@@ -41,45 +40,6 @@ export function pickPrimaryUserMessage(messages: ModelMessage[]): ModelMessage |
     if (messages[i].role === 'user') return messages[i];
   }
   return messages[messages.length - 1];
-}
-
-/**
- * 从 assistant 消息的 tool-call parts 提取 Vico ToolCall 列表。
- */
-export function getToolCalls(msg: ModelMessage): ToolCall[] {
-  if (msg.role !== 'assistant' || typeof msg.content === 'string') return [];
-  return msg.content
-    .filter((p): p is ToolCallPart => p.type === 'tool-call')
-    .map((p) => ({ id: p.toolCallId, name: p.toolName, args: (p.input ?? {}) as Record<string, unknown> }));
-}
-
-/** 在消息链中查找指定 toolCallId 的 tool-result part */
-function findToolResult(messages: ModelMessage[], toolCallId: string): ToolResultPart | undefined {
-  for (const m of messages) {
-    if (m.role !== 'tool') continue;
-    for (const p of m.content) {
-      if (p.type === 'tool-result' && p.toolCallId === toolCallId) return p;
-    }
-  }
-  return undefined;
-}
-
-/**
- * 消息链中是否已存在指定 toolCallId 的工具结果（幂等恢复用）。
- */
-export function hasToolResult(messages: ModelMessage[], toolCallId: string): boolean {
-  return findToolResult(messages, toolCallId) !== undefined;
-}
-
-/**
- * 提取指定 toolCallId 的工具结果文本（text/error-text 直接取值，其余 JSON 序列化）。
- */
-export function getToolResultText(messages: ModelMessage[], toolCallId: string): string | undefined {
-  const part = findToolResult(messages, toolCallId);
-  if (!part) return undefined;
-  const output = part.output;
-  if (output.type === 'text' || output.type === 'error-text') return output.value;
-  return JSON.stringify((output as { value?: unknown }).value ?? null);
 }
 
 /**
@@ -263,22 +223,6 @@ function resolveToolOutput(result: ToolResult): ToolResultOutput {
 }
 
 /**
- * 审批决策 → 原生 tool 消息（tool-approval-response parts）。
- * approvalId 复用 toolCallId（与引擎审批请求的约定一致），审批决策以 in-band 消息随对话下传。
- */
-export function buildApprovalResponseMessage(decisions: ToolCallApproval[]): ToolModelMessage {
-  return {
-    role: 'tool',
-    content: decisions.map((d): ToolApprovalResponse => ({
-      type: 'tool-approval-response',
-      approvalId: d.toolCallId,
-      approved: d.approved,
-      ...(d.reason !== undefined ? { reason: d.reason } : {}),
-    })),
-  };
-}
-
-/**
  * 从消息组解析原生 tool-approval-response part 为审批决策，并剔除审批 part。
  * 审批语义由引擎消费（checkpoint resume），不进入发给模型的消息链；
  * 同一 toolCallId 后出现的决策覆盖先前的；parts 清空的消息整条移除。
@@ -318,17 +262,6 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
     decisions: decisionMap,
     rest,
   };
-}
-
-/**
- * ModelMessage → UIMessage（历史展示用，仅保留有文本的 system/user/assistant 消息）。
- * ai 包无官方反向转换，此处只做文本级降级转换。
- */
-export function modelMessageToUIMessage(msg: ModelMessage, id: string): UIMessage | undefined {
-  if (msg.role === 'tool') return undefined;
-  const text = getMessageText(msg);
-  if (!text) return undefined;
-  return { id, role: msg.role, parts: [{ type: 'text', text }] };
 }
 
 /**

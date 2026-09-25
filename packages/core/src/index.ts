@@ -20,9 +20,9 @@ export { createLanguageModel } from './model/factory.js';
 export { ModelClient } from './model/model-client.js';
 export type { ModelRequest, ModelStreamResult, ReasoningEffort } from './model/types.js';
 export {
-  getMessageText, getToolCalls, hasToolResult, getToolResultText,
-  buildAssistantMessage, buildToolResultMessage, modelMessageToUIMessage, toToolSet,
-  buildApprovalResponseMessage, extractApprovalResponses, pickPrimaryUserMessage,
+  getMessageText,
+  buildAssistantMessage, buildToolResultMessage, toToolSet,
+  extractApprovalResponses, pickPrimaryUserMessage,
   type ContentPart,
 } from './model/message-utils.js';
 
