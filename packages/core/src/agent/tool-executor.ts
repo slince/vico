@@ -59,7 +59,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   }
 
   /** 执行单个工具调用 */
-  private async execute(call: ToolCall, ctx: ToolCallContext): Promise<ToolResult> {
+  private async execute(call: ToolCall, context: TurnContext<TToolSet>): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
@@ -73,6 +73,13 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
     if (storm.blocked) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被风暴检测阻止：重复调用次数过多` };
     }
+
+    // 逐 call 构建上下文：注入本 call 对应的审批决策（resume 恢复时才有），澄清类工具从中读取用户回答
+    const ctx: ToolCallContext = {
+      session: context.session,
+      signal: context.signal,
+      approval: context.decisions.get(call.id),
+    };
 
     try {
       const output = await tool.execute(call, ctx);
@@ -92,8 +99,6 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   async executeToolCalls(toolCalls: ToolCall[], context: TurnContext<TToolSet>): Promise<ToolResult[]> {
     if (toolCalls.length === 0) return [];
 
-    const toolCallContext: ToolCallContext = { session: context.session, signal: context.signal };
-
     const { readonlyCalls, sequentialCalls } = this.partitionCalls(toolCalls);
 
     const results: ToolResult[] = [];
@@ -106,7 +111,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
 
     // readonly：并行执行（无副作用），结果串行上流
     const executed = await Promise.all(
-      readonlyCalls.map(async (call) => ({ call, result: await this.execute(call, toolCallContext) })),
+      readonlyCalls.map(async (call) => ({ call, result: await this.execute(call, context) })),
     );
     for (const { call, result } of executed) {
       emitResult(call, result);
@@ -115,7 +120,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
 
     // sequential：串行逐条执行（mutation 有副作用，串行避免并发干扰）
     for (const call of sequentialCalls) {
-      const result = await this.execute(call, toolCallContext);
+      const result = await this.execute(call, context);
       emitResult(call, result);
       results.push(result);
     }

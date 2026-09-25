@@ -1,6 +1,6 @@
 // @vico/core - Tool module type definitions
 import type {z} from 'zod';
-import {TurnSession} from "../agent/loop-agent-options.js";
+import {ToolCallApproval, TurnSession} from "../agent/loop-agent-options.js";
 
 /** 工具审批策略 */
 export type ToolPolicy = 'auto' | 'on-request' | 'never';
@@ -44,6 +44,8 @@ export interface ToolResult<TOutput = unknown> {
 export interface ToolCallContext {
   session: TurnSession;
   signal: AbortSignal;
+  /** 本 call 的审批决策（resume 恢复时才有）；澄清类工具可从中读取用户回答 */
+  approval?: ToolCallApproval;
 }
 
 /** 审批状态：approved 直接执行，denied 拒绝，paused 等待用户审批后恢复 */

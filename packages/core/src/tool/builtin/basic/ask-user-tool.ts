@@ -69,12 +69,20 @@ export function parseAskUserAnswers(
 /**
  * 向用户提问。
  *
- * policy 为 on-request：首次调用即触发审批暂停，用户提交的结构化回答由引擎
- * 在 resume 时注入为工具结果（见 loop-agent.loadCheckpoint 的 answer 注入），
- * 因此本 execute 正常不会被调用，仅作为「用户批准但未提供回答」时的兜底。
+ * policy 为 on-request：首次调用即触发审批暂停，resume 时引擎把该 call 对应的
+ * ToolCallApproval（含用户在 reason 里提交的 JSON 回答）注入到 ctx.approval，
+ * 本 execute 从 ctx.approval.answer 读取并解析为结构化答案返回。
  */
-async function executeAskUser(_args: z.infer<typeof askUserParams>, _ctx: ToolCallContext) {
-  return { answers: [] };
+async function executeAskUser(_args: z.infer<typeof askUserParams>, ctx: ToolCallContext) {
+  const answer = ctx.approval?.answer;
+  if (answer === undefined) {
+    throw new Error('EMPTY_ANSWER: 用户批准但未提供回答');
+  }
+  const parsed = parseAskUserAnswers(answer);
+  if (!parsed.ok) {
+    throw new Error(parsed.error);
+  }
+  return { answers: parsed.answers };
 }
 
 export const askUserTool = createTool({

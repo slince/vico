@@ -8,7 +8,6 @@ import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
 import type {TurnEvent} from './types.js';
 import type {ApprovalDecider, Tool, ToolCall, ToolResult} from '../tool/types.js';
-import {parseAskUserAnswers} from '../tool/builtin/basic/ask-user-tool.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
 import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.js';
@@ -479,8 +478,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
-    // 澄清类工具（ask_user）的用户回答：直接注入为工具结果，不执行工具 execute
-    const directResults: ToolResult[] = [];
 
     // 待审批的call
     for (const pendingCall of checkpoint.pendingApprovalCalls) {
@@ -492,24 +489,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路），reason 携带用户文本回答
       context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope, reason: answer }));
       if (approved || context.approvedTools.has(pendingCall.id)) {
-        if (pendingCall.name === 'ask_user') {
-          // 澄清工具：用户回答直接注入为结构化结果，不执行 execute
-          if (answer === undefined) {
-            directResults.push({
-              callId: pendingCall.id, name: pendingCall.name,
-              status: 'error', output: null,
-              error: 'EMPTY_ANSWER: 用户批准但未提供回答',
-            });
-          } else {
-            const parsed = parseAskUserAnswers(answer);
-            directResults.push(parsed.ok
-              ? { callId: pendingCall.id, name: pendingCall.name, status: 'success' as const, output: { answers: parsed.answers } }
-              : { callId: pendingCall.id, name: pendingCall.name, status: 'error' as const, output: null, error: parsed.error });
-          }
-        } else {
-          // 普通审批工具：批准后正常执行 execute
-          approvedCalls.push(pendingCall);
-        }
+        // 批准后正常执行 execute（澄清类工具从 ctx.approval 读取用户回答）
+        approvedCalls.push(pendingCall);
         // 追踪到 approvedTools，确保同一 turn 后续 step 中该工具自动放行
         context.approvedTools.set(pendingCall.name, {
           toolName: pendingCall.name,
@@ -533,7 +514,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const allApprovedCalls = [...checkpoint.approvedCalls, ...approvedCalls].filter(call => !completedToolCallIds.has(call.id))
     const allDeniedResults = [...checkpoint.deniedResults, ...deniedResults].filter(result => !completedToolCallIds.has(result.callId))
 
-    await this.executeToolCalls(context, allApprovedCalls, allDeniedResults, directResults);
+    await this.executeToolCalls(context, allApprovedCalls, allDeniedResults);
   }
 
   /**
@@ -541,12 +522,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @param context
    * @param approvedCalls
    * @param deniedResults
-   * @param directResults
    * @private
    */
-  private async executeToolCalls(context: TurnContext<TToolSet>, approvedCalls: ToolCall[], deniedResults: ToolResult[], directResults: ToolResult[] = []){
+  private async executeToolCalls(context: TurnContext<TToolSet>, approvedCalls: ToolCall[], deniedResults: ToolResult[]){
     // 预先保存checkpoint
-    if (approvedCalls.length  === 0 && deniedResults.length === 0 && directResults.length === 0) {
+    if (approvedCalls.length  === 0 && deniedResults.length === 0) {
       return
     }
 
@@ -556,9 +536,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       deniedResults: deniedResults,
     })
 
-    // 执行本轮 auto 批准的调用；拒绝结果与直接注入结果（如 ask_user 的用户回答）一并落消息链
+    // 执行本轮批准的调用；拒绝结果一并落消息链
     const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context);
-    await this.appendToolResults([...toolResults, ...deniedResults, ...directResults], context);
+    await this.appendToolResults([...toolResults, ...deniedResults], context);
 
     await this.saveCheckpoint(context, 'model')
   }
