@@ -273,7 +273,7 @@ export function buildApprovalResponseMessage(decisions: ToolCallApproval[]): Too
       type: 'tool-approval-response',
       approvalId: d.toolCallId,
       approved: d.approved,
-      ...(d.answer !== undefined ? { reason: d.answer } : {}),
+      ...(d.reason !== undefined ? { reason: d.reason } : {}),
     })),
   };
 }
@@ -303,7 +303,7 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
           toolCallId: p.approvalId,
           approved: p.approved,
           scope: p.scope,
-          answer: p.reason,
+          reason: p.reason,
         });
         hasApproval = true;
         return false;

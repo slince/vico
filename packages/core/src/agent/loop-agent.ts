@@ -485,9 +485,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
       const approved = decision?.approved ?? false;
       const scope = decision?.scope ?? 'turn';
-      const answer = decision?.answer;
+      const reason = decision?.reason;
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路），reason 携带用户文本回答
-      context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope, reason: answer }));
+      context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope, reason }));
       if (approved || context.approvedTools.has(pendingCall.id)) {
         // 批准后正常执行 execute（澄清类工具从 ctx.approval 读取用户回答）
         approvedCalls.push(pendingCall);

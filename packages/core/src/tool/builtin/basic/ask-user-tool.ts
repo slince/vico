@@ -71,14 +71,14 @@ export function parseAskUserAnswers(
  *
  * policy 为 on-request：首次调用即触发审批暂停，resume 时引擎把该 call 对应的
  * ToolCallApproval（含用户在 reason 里提交的 JSON 回答）注入到 ctx.approval，
- * 本 execute 从 ctx.approval.answer 读取并解析为结构化答案返回。
+ * 本 execute 从 ctx.approval.reason 读取并解析为结构化答案返回。
  */
 async function executeAskUser(_args: z.infer<typeof askUserParams>, ctx: ToolCallContext) {
-  const answer = ctx.approval?.answer;
-  if (answer === undefined) {
+  const reason = ctx.approval?.reason;
+  if (reason === undefined) {
     throw new Error('EMPTY_ANSWER: 用户批准但未提供回答');
   }
-  const parsed = parseAskUserAnswers(answer);
+  const parsed = parseAskUserAnswers(reason);
   if (!parsed.ok) {
     throw new Error(parsed.error);
   }
