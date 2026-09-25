@@ -298,11 +298,11 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
     let hasApproval = false;
     const remaining = msg.content.filter((part) => {
       if (part.type === 'tool-approval-response') {
-        const p = part as { approvalId: string; approved: boolean; scope?: 'turn' | 'session'; reason?: string };
+        const p = part as ToolApprovalResponse;
         decisionMap.set(p.approvalId, {
           toolCallId: p.approvalId,
           approved: p.approved,
-          scope: p.scope,
+          scope: 'turn',
           reason: p.reason,
         });
         hasApproval = true;
