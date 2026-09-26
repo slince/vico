@@ -320,7 +320,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       messages: [...requestContext.messages],
       decisions: decisions,
       approvedTools: new Map<string, ToolApproval>(),
-      session, signal, controller, checkpoint,
+      session,
+      signal,
+      controller,
+      checkpoint,
       usage: { input: 0, output: 0 },
       reasoning,
       modelClient
