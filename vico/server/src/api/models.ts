@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
-import { getAuthContext } from './helpers.js';
+import { getAuthContext, requireAdmin } from './helpers.js';
 import { modelManager } from '../services/model/model-manager.js';
 import { maskApiKey } from '../lib/crypto.js';
 
@@ -15,14 +15,14 @@ export function modelRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.post('/api/v1/models', async (c) => {
-    const auth = await getAuthContext(c);
+    const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
     const body = await c.req.json();
     return c.json(await modelManager.create(body));
   });
 
   app.patch('/api/v1/models/:id', async (c) => {
-    const auth = await getAuthContext(c);
+    const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     const body = await c.req.json();
@@ -31,7 +31,7 @@ export function modelRoutes(app: Hono<{ Variables: Variables }>) {
   });
 
   app.delete('/api/v1/models/:id', async (c) => {
-    const auth = await getAuthContext(c);
+    const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
     const id = c.req.param('id');
     await modelManager.remove(id);

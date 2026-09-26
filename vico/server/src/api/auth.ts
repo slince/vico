@@ -15,7 +15,7 @@ export function authRoutes(app: Hono<{ Variables: Variables }>) {
       id: user.id,
       // better-auth username 插件类型推断在 zod v4 下不完整，运行时确保 username 字段存在
       username: (user as { username?: string }).username ?? user.name,
-      role: 'admin',
+      role: (user as { role?: string }).role ?? 'user',
     });
   });
 }
