@@ -1,12 +1,39 @@
 {
   "title": "设置",
   "general": {
-    "tab": "通用设置",
+    "tab": "常规设置",
     "language": "界面语言",
-    "languageDesc": "选择界面显示语言，更改后立即生效"
+    "languageDesc": "选择界面显示语言，更改后立即生效",
+    "theme": "界面主题",
+    "themeDesc": "选择界面主题配色，更改后立即生效",
+    "light": "浅色",
+    "dark": "深色"
+  },
+  "users": {
+    "tab": "用户管理",
+    "title": "用户管理",
+    "description": "管理平台成员账号和角色权限",
+    "addUser": "添加成员",
+    "username": "用户名",
+    "name": "姓名",
+    "email": "邮箱",
+    "password": "密码",
+    "role": "角色",
+    "roleAdmin": "管理员",
+    "roleUser": "普通用户",
+    "emptyTitle": "暂无成员",
+    "emptyDescription": "添加第一个成员账号，共同使用该平台",
+    "confirmDeleteTitle": "确认删除",
+    "confirmDeleteDesc": "确定要删除成员「{{name}}」吗？该操作不可撤销。",
+    "addDialogTitle": "添加成员",
+    "addDialogDesc": "填写新成员的基本信息和登录凭据",
+    "usernamePlaceholder": "登录用户名",
+    "namePlaceholder": "成员姓名",
+    "emailPlaceholder": "name@example.com",
+    "passwordPlaceholder": "至少 8 位"
   },
   "llm": {
-    "tab": "LLM 模型",
+    "tab": "模型管理",
     "title": "LLM 模型设置",
     "description": "管理 AI 模型提供商和 API 密钥，配置后可被 Agent 引用",
     "addModel": "添加模型",
