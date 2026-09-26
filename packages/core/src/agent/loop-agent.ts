@@ -33,7 +33,7 @@ import type {
 
 import {ModelClient} from '../model/model-client.js';
 import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
-import {normalizeUserMessage} from './utils.js';
+import {createDefaultProcessors, normalizeUserMessage} from './utils.js';
 import {fromModelMessage} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
@@ -47,26 +47,12 @@ import {
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
-import {SystemPromptProcessor} from './context-processors/system-prompt-processor.js';
-import {SkillProcessor} from './context-processors/skill-processor.js';
-import {MemoryProcessor} from './context-processors/memory-processor.js';
-import {WorkspaceToolProcessor} from './context-processors/workspace-tool-processor.js';
 import {KeyedMutex} from '../utils/async-keyed-lock.js';
 
 /** LoopAgent 构造选项 */
 export interface LoopAgentOptions extends AgentOptions {
   /** 上下文处理器，不传则使用默认管道 */
   processors?: ContextProcessor[];
-}
-
-/** 组装默认上下文处理器管道：系统提示词 + Skill 目录 + 工作区过滤 + 记忆 */
-function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextProcessor[] {
-  return [
-    new SystemPromptProcessor(),
-    new SkillProcessor(skills),
-    new WorkspaceToolProcessor(),
-    new MemoryProcessor(memory),
-  ];
 }
 
 /** LoopAgent — Agent 默认实现，编排 model→tool→repeat 循环 */

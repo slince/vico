@@ -6,6 +6,13 @@ import type {UserMessage} from '../stream/types.js';
 import {SkillSettings} from "./create-agent.js";
 import {resolve} from "node:path";
 import {homedir} from "node:os";
+import {MemoryStore} from "../memory/memory-store.js";
+import {ContextProcessor} from "./context-processors/context-processor.js";
+import {Skill} from "../skill/types.js";
+import {SystemPromptProcessor} from "./context-processors/system-prompt-processor.js";
+import {SkillProcessor} from "./context-processors/skill-processor.js";
+import {WorkspaceToolProcessor} from "./context-processors/workspace-tool-processor.js";
+import {MemoryProcessor} from "./context-processors/memory-processor.js";
 
 /**
  * UserMessage 归一化为本轮输入消息组（审批决策以原生 tool-approval-response 消息 in-band 携带）：
@@ -81,4 +88,14 @@ export function collectSkillDirs(settings: SkillSettings): string[] {
     }
   }
   return dirs;
+}
+
+/** 组装默认上下文处理器管道：系统提示词 + Skill 目录 + 工作区过滤 + 记忆 */
+export function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextProcessor[] {
+  return [
+    new SystemPromptProcessor(),
+    new SkillProcessor(skills),
+    new WorkspaceToolProcessor(),
+    new MemoryProcessor(memory),
+  ];
 }
