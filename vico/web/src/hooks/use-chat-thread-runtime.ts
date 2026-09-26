@@ -7,9 +7,20 @@
 import {useMemo, useRef} from 'react';
 import {useChatRuntime} from '@assistant-ui/react-ai-sdk';
 import {DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses} from 'ai';
+import {useTranslation} from 'react-i18next';
 
 import {createThreadHistoryAdapter} from '@/lib/thread-adapter';
-import {useAuiState} from "@assistant-ui/react";
+import {useAuiState, WebSpeechDictationAdapter} from "@assistant-ui/react";
+
+/**
+ * i18n 语言 → Web Speech API `SpeechRecognition.lang`（BCP-47）映射。
+ * i18n 的英文 key 是 `en`，而 Web Speech 识别英语需用更精确的 `en-US`。
+ */
+const SPEECH_LANG_MAP: Record<string, string> = {
+  en: 'en-US',
+  'zh-CN': 'zh-CN',
+  'zh-TW': 'zh-TW',
+};
 
 export interface UseChatThreadRuntimeOptions {
   /** Agent ID */
@@ -72,10 +83,21 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
     [agentId, threadId],
   );
 
+  // 语音听写适配器 — 识别语言跟随应用 i18n 设置，切换语言时重建
+  const { i18n } = useTranslation();
+  const dictation = useMemo(
+    () => new WebSpeechDictationAdapter({
+      language: SPEECH_LANG_MAP[i18n.language] ?? i18n.language,
+      continuous: true, // keep recording after pauses (default: true)
+      interimResults: true, // emit interim transcripts (default: true)
+    }),
+    [i18n.language],
+  );
+
   return useChatRuntime({
     transport,
     id: threadId,
-    adapters: { history },
+    adapters: { history, dictation },
     // 当所有审批决议就绪时自动发送（无需用户手动输入消息）
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onFinish: () => {
