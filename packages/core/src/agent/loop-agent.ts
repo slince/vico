@@ -222,13 +222,21 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 解析本次 run 使用的 ModelClient。
    *
    * 仅切换模型名，provider/apiKey/baseUrl 复用 agent 原始 ModelConfig；
-   * 未传模型名、或 agent 由 LanguageModelV4 实例构建（无法重建）时回退默认 modelClient。
+   * 未传模型名时回退默认 modelClient。
+   * agent 由 LanguageModelV4 实例构建时无法重建模型：切换到自身 modelId 视为不切换，
+   * 切换到其它模型名则直接报错。
    *
    * @param modelName - run 级模型名（可选）
    * @returns 本次 run 使用的模型客户端
    */
   private resolveModelClient(modelName?: string): ModelClient {
-    if (!modelName || isLanguageModelV4(this.model)) {
+    if (!modelName) {
+      return this.modelClient;
+    }
+    if (isLanguageModelV4(this.model)) {
+      if (modelName !== this.model.modelId) {
+        throw new Error(`Cannot switch to model "${modelName}": this agent was built from a LanguageModelV4 instance and only supports its own model "${this.model.modelId}"`);
+      }
       return this.modelClient;
     }
     const model = createLanguageModel({ ...this.model, model: modelName });
@@ -770,7 +778,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    */
   private async tryCompact(step: TurnStep, context: TurnContext<TToolSet>): Promise<void> {
     if (!this.compactor) return;
-    const result = await this.compactor.compactIfNeeded(step.messages, context.modelClient ?? this.modelClient, context.signal);
+    const result = await this.compactor.compactIfNeeded(step.messages, context.modelClient, context.signal);
     if (result.wasCompacted) {
       step.messages.length = 0;
       step.messages.push(...result.compacted);
@@ -809,7 +817,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     };
 
     try {
-      const {stream} = await (context.modelClient ?? this.modelClient).stream(request);
+      const {stream} = await context.modelClient.stream(request);
       const reader = new ModelStreamReader<TToolSet>({
         controller,
         emit: this.emit,

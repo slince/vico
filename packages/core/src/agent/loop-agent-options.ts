@@ -63,8 +63,8 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   usage: UsageMetrics;
   /** 本次运行的思考强度（覆盖 agent 级 reasoning），不传则回退 this.reasoning */
   reasoning?: ReasoningEffort;
-  /** 本次运行使用的模型客户端；不传则回退 agent 默认 modelClient */
-  modelClient?: ModelClient;
+  /** 本次运行使用的模型客户端 */
+  modelClient: ModelClient;
 }
 
 
