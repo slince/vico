@@ -1,34 +1,10 @@
-import {randomBytes, scrypt} from 'node:crypto';
 import {v4 as uuid} from 'uuid';
 import {eq} from 'drizzle-orm';
 import {getDb} from '../db/db.js';
 import {account, user} from '../db/auth-schema.js';
 import {agents} from '../db/schema.js';
+import {hashPassword} from '../lib/password.js';
 import logger from '../lib/logger.js';
-
-const scryptConfig = { N: 16384, r: 16, p: 1, dkLen: 64 } as const;
-
-/** 使用与 better-auth 一致的 scrypt 算法生成密码哈希 */
-function generateKey(password: string, salt: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    scrypt(
-      password.normalize('NFKC'),
-      salt,
-      scryptConfig.dkLen,
-      { N: scryptConfig.N, r: scryptConfig.r, p: scryptConfig.p, maxmem: 128 * scryptConfig.N * scryptConfig.r * 2 },
-      (err, key) => {
-        if (err) reject(err);
-        else resolve(key);
-      },
-    );
-  });
-}
-
-async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString('hex');
-  const key = await generateKey(password, salt);
-  return `${salt}:${key.toString('hex')}`;
-}
 
 /**
  * 首次运行时创建默认管理员用户
@@ -53,6 +29,7 @@ export async function seedDefaultAdmin() {
     emailVerified: false,
     username: 'admin',
     displayUsername: '管理员',
+    role: 'admin',
     createdAt: now,
     updatedAt: now,
   }).run();
@@ -64,7 +41,6 @@ export async function seedDefaultAdmin() {
     userId,
     accountId: userId,
     providerId: 'credential',
-    issuer: 'local:credential',
     password: hash,
     createdAt: now,
     updatedAt: now,
