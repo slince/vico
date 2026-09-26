@@ -2,6 +2,7 @@ import {UsageMetrics} from "./types.js";
 import {ToolCall, ToolResult} from "../tool/types.js";
 import type {Checkpoint} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
+import type {ReasoningEffort} from "../model/types.js";
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from "../thread/thread-store.js";
 
@@ -59,6 +60,8 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   /** 本 turn 的 checkpoint 对象（startTurn/resumeTurn 创建，append-only 版本链：step 完成 / pause / 终态时由 loop-agent append 新版本） */
   checkpoint: Checkpoint;
   usage: UsageMetrics;
+  /** 本次运行的思考强度（覆盖 agent 级 reasoning），不传则回退 this.reasoning */
+  reasoning?: ReasoningEffort;
 }
 
 
@@ -131,4 +134,6 @@ export interface ToolApproval {
 export interface RunOptions {
   /** 会话线程对象（必传，通过 agent.createThread() 创建） */
   thread: Thread;
+  /** 思考强度（推理力度），可选；不传则回退到 agent 构造时的 reasoning */
+  reasoning?: ReasoningEffort;
 }

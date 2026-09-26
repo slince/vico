@@ -4,6 +4,7 @@ import { authRoutes } from './auth.js';
 import { agentRoutes } from './agents.js';
 import { knowledgeRoutes } from './knowledge.js';
 import { modelRoutes } from './models.js';
+import { userRoutes } from './users.js';
 import { dashboardRoutes } from './dashboard.js';
 import { chatRoutes } from './chat.js';
 import { threadRoutes } from './threads.js';
@@ -15,6 +16,7 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   agentRoutes(app);
   knowledgeRoutes(app);
   modelRoutes(app);
+  userRoutes(app);
   dashboardRoutes(app);
   chatRoutes(app);
   threadRoutes(app);

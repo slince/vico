@@ -195,7 +195,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       start: async (controller) => {
         controller.enqueue({ type: 'start' });
         try {
-          const result = await this.start({userMessages, signal: internalAc.signal, controller, thread: options.thread});
+          const result = await this.start({userMessages, signal: internalAc.signal, controller, thread: options.thread, reasoning: options.reasoning});
           resolve(result);
         } catch (err) {
           const error = err instanceof Error ? err : String(err);
@@ -225,8 +225,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
     thread: Thread;
+    reasoning?: ReasoningEffort;
   }): Promise<TurnResult> {
-    const { userMessages, signal, controller, thread } = ctx;
+    const { userMessages, signal, controller, thread, reasoning } = ctx;
 
     const workspace = thread.metadata?.workspace ?? this.workspace;
 
@@ -249,7 +250,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     const session: TurnSession = { workspace, thread, turn };
-    return this.startTurn({ session, userMessages, signal, controller, checkpoint });
+    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -259,8 +260,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     signal: AbortSignal;
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
     checkpoint: Checkpoint;
+    reasoning?: ReasoningEffort;
   }): Promise<TurnResult> {
-    const { session, userMessages, signal, controller, checkpoint } = params;
+    const { session, userMessages, signal, controller, checkpoint, reasoning } = params;
 
     const {decisions} = extractApprovalResponses(userMessages)
 
@@ -274,7 +276,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       decisions: decisions,
       approvedTools: new Map<string, ToolApproval>(),
       session, signal, controller, checkpoint,
-      usage: { input: 0, output: 0 }
+      usage: { input: 0, output: 0 },
+      reasoning
     };
 
     // 从 session 加载会话配置
@@ -768,7 +771,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       tools: ctx.tools,
       maxOutputTokens: this.maxTokens,
       temperature: this.temperature,
-      reasoning: this.reasoning,
+      reasoning: context.reasoning ?? this.reasoning,
       abortSignal: context.signal,
     };
 
