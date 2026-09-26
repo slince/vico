@@ -12,6 +12,8 @@ export const user = sqliteTable('user', {
   // username 插件字段
   username: text('username').unique(),
   displayUsername: text('displayUsername'),
+  // 角色：'admin'（仅 seed 管理员）| 'user'（默认，所有新增成员）
+  role: text('role').notNull().default('user'),
 });
 
 /** better-auth 会话表 */
