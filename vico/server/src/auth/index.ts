@@ -32,6 +32,17 @@ export const auth: any = betterAuth({
     }),
   ],
 
+  /** 自定义用户字段 — 声明 role 以便 better-auth 在 session 输出中返回它 */
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        required: false,
+        defaultValue: 'user',
+      },
+    },
+  },
+
   /** Session 配置 — 7 天有效期，与旧 JWT token_expiry 一致 */
   session: {
     expiresIn: 60 * 60 * 24 * 7,
