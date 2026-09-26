@@ -199,7 +199,14 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       start: async (controller) => {
         controller.enqueue({ type: 'start' });
         try {
-          const result = await this.start({userMessages, signal: internalAc.signal, controller, thread: options.thread, reasoning: options.reasoning, modelClient: this.resolveModelClient(options.model)});
+          const result = await this.start({
+            userMessages,
+            signal: internalAc.signal,
+            controller,
+            thread: options.thread,
+            reasoning: options.reasoning,
+            modelClient: this.resolveModelClient(options.model)
+          });
           resolve(result);
         } catch (err) {
           const error = err instanceof Error ? err : String(err);
@@ -241,7 +248,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
       return this.modelClient;
     }
-    
+
     const cached = this.modelOverrides.get(modelName);
     if (cached) {
       return cached;
