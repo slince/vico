@@ -1,7 +1,8 @@
 // @vico/core - 模型模块类型定义（消息/流类型全部使用 AI SDK 原生类型）
-import type { ModelMessage } from 'ai';
-import type { LanguageModelV4StreamPart } from '@ai-sdk/provider';
-import type { Tool } from '../tool/types.js';
+import type {ModelMessage} from 'ai';
+import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
+import type {Tool} from '../tool/types.js';
+
 
 /** 推理力度（透传 LanguageModelV4CallOptions.reasoning） */
 export type ReasoningEffort = 'provider-default' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';

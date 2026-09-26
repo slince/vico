@@ -2,7 +2,7 @@
 import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {Agent} from './agent.js';
 import {LoopAgent} from './loop-agent.js';
-import type {ModelRef, TurnEvent} from './types.js';
+import type {ModelConfig, ModelRef, TurnEvent} from './types.js';
 import type {ReasoningEffort} from '../model/types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
@@ -11,7 +11,6 @@ import {createSkillTools} from "../skill/tool/index.js";
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
 import type {EventRecorder} from "../events/types.js";
-import {createLanguageModel} from "../model/factory.js";
 import {InMemoryThreadStore} from "../thread/memory-thread-store.js";
 import {MittEventRecorder} from "../events/event-recorder.js";
 import {basicTools, codingTools, filesystemTools} from "../tool/builtin/index.js";
@@ -26,7 +25,7 @@ import {collectSkillDirs} from "./utils.js";
 
 
 /** LanguageModel 工厂类型 */
-export type LanguageModelFactory = (ref: ModelRef) => LanguageModelV4;
+export type LanguageModelFactory = (config: ModelConfig) => LanguageModelV4;
 
 type ToolSetting<T extends Tool[] = Tool[]> = {
   tools: T;
@@ -100,7 +99,7 @@ export interface AgentConfig {
   id: string;
   name: string;
   systemPrompt: string;
-  model: ModelRef | LanguageModelV4;
+  model: ModelRef;
   temperature?: number;
   maxTokens?: number;
   maxSteps?: number;
@@ -125,12 +124,6 @@ export interface AgentConfig {
  * 独立创建 Agent 实例。
  */
 export async function createAgent(config: AgentConfig): Promise<Agent> {
-  // 保留原始 ModelRef，供 run 级仅切换模型名时重建模型（provider/secret 不变）
-  const modelRef = 'provider' in config.model ? config.model as ModelRef : undefined;
-  const model = modelRef
-    ? createLanguageModel(modelRef)
-    : config.model as LanguageModelV4;
-
   const events = config.events || new MittEventRecorder<TurnEvent>()
   const thread = config.thread || new InMemoryThreadStore()
   const memory = config.memory || new MemoryStore({
@@ -151,8 +144,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     id: config.id,
     name: config.name,
     systemPrompt: config.systemPrompt,
-    model: model,
-    modelRef: modelRef,
+    model: config.model,
     temperature: config.temperature ?? 0.7,
     reasoning: config.reasoning,
     maxTokens: config.maxTokens,

@@ -1,6 +1,6 @@
 // src/index.ts — @vico/core public API
 
-export { type ModelRef } from './agent/types.js';
+export { type ModelConfig, type ModelRef } from './agent/types.js';
 export { type LanguageModelFactory, type AgentConfig } from './agent/create-agent.js';
 export {
   type Tool,

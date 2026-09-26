@@ -1,5 +1,4 @@
 // @vico/core - Agent 对外契约（interface）与构造参数
-import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {ModelClient} from '../model/model-client.js';
 import type {ReasoningEffort} from '../model/types.js';
 import type {ModelRef, TurnEvent} from './types.js';
@@ -20,9 +19,8 @@ export interface AgentOptions {
   id: string;
   name: string;
   systemPrompt: string;
-  model: LanguageModelV4;
-  /** 原始模型引用（provider/apiKey/baseUrl），用于 run 级仅切换模型名时重建模型；由 LanguageModelV4 直接构建时为空 */
-  modelRef?: ModelRef;
+  /** 模型引用（LanguageModelV4 实例或 ModelConfig 配置），内部解析为 LanguageModelV4 */
+  model: ModelRef;
   temperature: number;
   /** 推理力度，不传则 provider 默认 */
   reasoning?: ReasoningEffort;
@@ -63,7 +61,6 @@ export interface Agent {
   readonly id: string;
   readonly name: string;
   readonly systemPrompt: string;
-  readonly model: LanguageModelV4;
   readonly modelClient: ModelClient;
   readonly temperature: number;
   readonly reasoning?: ReasoningEffort;

@@ -1,12 +1,25 @@
 // @vico/core - LoopAgent module type definitions
 
-/** 模型引用 */
-export interface ModelRef {
+import type {LanguageModelV4} from "@ai-sdk/provider";
+
+/** 模型配置：provider + 模型名 + 连接凭据，createLanguageModel 据此构建 LanguageModelV4 */
+export interface ModelConfig {
   provider: string;
   model: string;
   baseUrl?: string;
   apiKey: string;
 }
+
+/**
+ * 模型引用：已解析的 LanguageModelV4 实例，或待解析的 ModelConfig
+ */
+export type ModelRef = LanguageModelV4 | ModelConfig
+
+/** 判断 ModelRef 是否为已解析的 LanguageModelV4 实例（配置对象无 modelId 字段） */
+export function isLanguageModelV4(ref: ModelRef): ref is LanguageModelV4 {
+  return 'modelId' in ref;
+}
+
 
 /** Token 用量统计 */
 export interface UsageMetrics {

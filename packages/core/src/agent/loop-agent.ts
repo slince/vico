@@ -2,11 +2,10 @@
 import {randomUUID} from 'node:crypto';
 import type {Logger} from 'pino';
 import pino from 'pino';
-import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import type {ModelRef, TurnEvent} from './types.js';
+import {isLanguageModelV4, type ModelRef, type TurnEvent} from './types.js';
 import {createLanguageModel} from '../model/factory.js';
 import type {ApprovalDecider, Tool, ToolCall, ToolResult} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
@@ -62,10 +61,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly id: string;
   readonly name: string;
   readonly systemPrompt: string;
-  readonly model: LanguageModelV4;
   readonly modelClient: ModelClient;
-  /** 原始模型引用（provider/apiKey/baseUrl），run 级仅切换模型名时复用；由 LanguageModelV4 直接构建时为空 */
-  readonly modelRef?: ModelRef;
+  /** 原始模型引用（LanguageModelV4 实例或 ModelConfig 配置），run 级仅切换模型名时复用 */
+  readonly model: ModelRef;
   readonly temperature: number;
   readonly reasoning?: ReasoningEffort;
   readonly maxTokens?: number;
@@ -90,8 +88,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.name = rest.name;
     this.systemPrompt = rest.systemPrompt;
     this.model = rest.model;
-    this.modelClient = new ModelClient(rest.model);
-    this.modelRef = rest.modelRef;
+
+    // 构建大语言模型
+    const languageModel = isLanguageModelV4(rest.model) ? rest.model : createLanguageModel(rest.model)
+    this.modelClient = new ModelClient(languageModel);
+
     this.temperature = rest.temperature;
     this.reasoning = rest.reasoning;
     this.maxTokens = rest.maxTokens;
@@ -220,17 +221,17 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 解析本次 run 使用的 ModelClient。
    *
-   * 仅切换模型名，provider/apiKey/baseUrl 复用 agent 原始 ModelRef；
-   * 未传模型名或 agent 无原始 ModelRef（由 LanguageModelV4 直接构建）时回退默认 modelClient。
+   * 仅切换模型名，provider/apiKey/baseUrl 复用 agent 原始 ModelConfig；
+   * 未传模型名、或 agent 由 LanguageModelV4 实例构建（无法重建）时回退默认 modelClient。
    *
    * @param modelName - run 级模型名（可选）
    * @returns 本次 run 使用的模型客户端
    */
   private resolveModelClient(modelName?: string): ModelClient {
-    if (!modelName || !this.modelRef) {
+    if (!modelName || isLanguageModelV4(this.model)) {
       return this.modelClient;
     }
-    const model = createLanguageModel({ ...this.modelRef, model: modelName });
+    const model = createLanguageModel({ ...this.model, model: modelName });
     return new ModelClient(model);
   }
 
