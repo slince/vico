@@ -47,7 +47,6 @@ import {
 import {ToolExecutor} from './tool-executor.js';
 import {ModelStreamReader} from './stream-reader.js';
 import {ModelRequestContext} from './context-processors/model-request-context.js';
-import {KeyedMutex} from '../utils/async-keyed-lock.js';
 
 /** LoopAgent 构造选项 */
 export interface LoopAgentOptions extends AgentOptions {
@@ -81,8 +80,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
   private readonly toolExecutor: ToolExecutor<TToolSet>;
   private readonly pipeline: ProcessorPipeline;
-  /** per-turn 恢复执行锁（防线①）：同一 turn 的并发恢复串行排队 */
-  private readonly resumeMutex = new KeyedMutex();
 
   constructor(options: LoopAgentOptions) {
     const { processors, ...rest } = options;
