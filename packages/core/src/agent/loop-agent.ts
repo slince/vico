@@ -81,6 +81,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
   private readonly toolExecutor: ToolExecutor<TToolSet>;
   private readonly pipeline: ProcessorPipeline;
+  /** run 级覆盖模型客户端（key 为模型名），复用已构建实例，避免重复 createLanguageModel/new */
+  private readonly modelOverrides = new Map<string, ModelClient>();
 
   constructor(options: LoopAgentOptions) {
     const { processors, ...rest } = options;
@@ -239,8 +241,15 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
       return this.modelClient;
     }
+    
+    const cached = this.modelOverrides.get(modelName);
+    if (cached) {
+      return cached;
+    }
     const model = createLanguageModel({ ...this.model, model: modelName });
-    return new ModelClient(model);
+    const modelClient = new ModelClient(model);
+    this.modelOverrides.set(modelName, modelClient);
+    return modelClient;
   }
 
   /**
