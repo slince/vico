@@ -125,9 +125,11 @@ export interface AgentConfig {
  * 独立创建 Agent 实例。
  */
 export async function createAgent(config: AgentConfig): Promise<Agent> {
-  const model = 'provider' in config.model
-    ? createLanguageModel(config.model as ModelRef)
-    : config.model
+  // 保留原始 ModelRef，供 run 级仅切换模型名时重建模型（provider/secret 不变）
+  const modelRef = 'provider' in config.model ? config.model as ModelRef : undefined;
+  const model = modelRef
+    ? createLanguageModel(modelRef)
+    : config.model as LanguageModelV4;
 
   const events = config.events || new MittEventRecorder<TurnEvent>()
   const thread = config.thread || new InMemoryThreadStore()
@@ -150,6 +152,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     name: config.name,
     systemPrompt: config.systemPrompt,
     model: model,
+    modelRef: modelRef,
     temperature: config.temperature ?? 0.7,
     reasoning: config.reasoning,
     maxTokens: config.maxTokens,

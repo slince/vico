@@ -3,6 +3,7 @@ import {ToolCall, ToolResult} from "../tool/types.js";
 import type {Checkpoint} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
 import type {ReasoningEffort} from "../model/types.js";
+import type {ModelClient} from "../model/model-client.js";
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from "../thread/thread-store.js";
 
@@ -62,6 +63,8 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   usage: UsageMetrics;
   /** 本次运行的思考强度（覆盖 agent 级 reasoning），不传则回退 this.reasoning */
   reasoning?: ReasoningEffort;
+  /** 本次运行使用的模型客户端；不传则回退 agent 默认 modelClient */
+  modelClient?: ModelClient;
 }
 
 
@@ -136,4 +139,6 @@ export interface RunOptions {
   thread: Thread;
   /** 思考强度（推理力度），可选；不传则回退到 agent 构造时的 reasoning */
   reasoning?: ReasoningEffort;
+  /** 模型名，可选；仅切换模型，provider/apiKey/baseUrl 复用 agent 原始配置，不传则用 agent 默认模型 */
+  model?: string;
 }

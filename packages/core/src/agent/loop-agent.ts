@@ -6,7 +6,8 @@ import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import type {TurnEvent} from './types.js';
+import type {ModelRef, TurnEvent} from './types.js';
+import {createLanguageModel} from '../model/factory.js';
 import type {ApprovalDecider, Tool, ToolCall, ToolResult} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -63,6 +64,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly systemPrompt: string;
   readonly model: LanguageModelV4;
   readonly modelClient: ModelClient;
+  /** 原始模型引用（provider/apiKey/baseUrl），run 级仅切换模型名时复用；由 LanguageModelV4 直接构建时为空 */
+  readonly modelRef?: ModelRef;
   readonly temperature: number;
   readonly reasoning?: ReasoningEffort;
   readonly maxTokens?: number;
@@ -88,6 +91,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.systemPrompt = rest.systemPrompt;
     this.model = rest.model;
     this.modelClient = new ModelClient(rest.model);
+    this.modelRef = rest.modelRef;
     this.temperature = rest.temperature;
     this.reasoning = rest.reasoning;
     this.maxTokens = rest.maxTokens;
@@ -192,7 +196,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       start: async (controller) => {
         controller.enqueue({ type: 'start' });
         try {
-          const result = await this.start({userMessages, signal: internalAc.signal, controller, thread: options.thread, reasoning: options.reasoning});
+          const result = await this.start({userMessages, signal: internalAc.signal, controller, thread: options.thread, reasoning: options.reasoning, modelClient: this.resolveModelClient(options.model)});
           resolve(result);
         } catch (err) {
           const error = err instanceof Error ? err : String(err);
@@ -214,6 +218,23 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
+   * 解析本次 run 使用的 ModelClient。
+   *
+   * 仅切换模型名，provider/apiKey/baseUrl 复用 agent 原始 ModelRef；
+   * 未传模型名或 agent 无原始 ModelRef（由 LanguageModelV4 直接构建）时回退默认 modelClient。
+   *
+   * @param modelName - run 级模型名（可选）
+   * @returns 本次 run 使用的模型客户端
+   */
+  private resolveModelClient(modelName?: string): ModelClient {
+    if (!modelName || !this.modelRef) {
+      return this.modelClient;
+    }
+    const model = createLanguageModel({ ...this.modelRef, model: modelName });
+    return new ModelClient(model);
+  }
+
+  /**
    * runTurn 的核心逻辑，由 ReadableStream 的 start 回调调用。
    * 自动检测 thread 中是否存在 paused turn，有则恢复执行，无则创建新 turn。
    */
@@ -223,8 +244,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
     thread: Thread;
     reasoning?: ReasoningEffort;
+    modelClient: ModelClient;
   }): Promise<TurnResult> {
-    const { userMessages, signal, controller, thread, reasoning } = ctx;
+    const { userMessages, signal, controller, thread, reasoning, modelClient } = ctx;
 
     const workspace = thread.metadata?.workspace ?? this.workspace;
 
@@ -247,7 +269,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     const session: TurnSession = { workspace, thread, turn };
-    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning });
+    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning, modelClient });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -258,8 +280,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
     checkpoint: Checkpoint;
     reasoning?: ReasoningEffort;
+    modelClient: ModelClient;
   }): Promise<TurnResult> {
-    const { session, userMessages, signal, controller, checkpoint, reasoning } = params;
+    const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient } = params;
 
     const {decisions} = extractApprovalResponses(userMessages)
 
@@ -274,7 +297,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       approvedTools: new Map<string, ToolApproval>(),
       session, signal, controller, checkpoint,
       usage: { input: 0, output: 0 },
-      reasoning
+      reasoning,
+      modelClient
     };
 
     // 从 session 加载会话配置
@@ -549,7 +573,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const usage = { input: 0, output: 0 };
 
-    await this.tryCompact(step, context.signal);
+    await this.tryCompact(step, context);
 
     const modelResult = await this.callModel(step, context);
 
@@ -743,9 +767,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 压缩检查，按需原地替换 messages。
    */
-  private async tryCompact(step: TurnStep, signal: AbortSignal): Promise<void> {
+  private async tryCompact(step: TurnStep, context: TurnContext<TToolSet>): Promise<void> {
     if (!this.compactor) return;
-    const result = await this.compactor.compactIfNeeded(step.messages, this.modelClient, signal);
+    const result = await this.compactor.compactIfNeeded(step.messages, context.modelClient ?? this.modelClient, context.signal);
     if (result.wasCompacted) {
       step.messages.length = 0;
       step.messages.push(...result.compacted);
@@ -784,7 +808,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     };
 
     try {
-      const {stream} = await this.modelClient.stream(request);
+      const {stream} = await (context.modelClient ?? this.modelClient).stream(request);
       const reader = new ModelStreamReader<TToolSet>({
         controller,
         emit: this.emit,

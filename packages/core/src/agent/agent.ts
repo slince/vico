@@ -2,7 +2,7 @@
 import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {ModelClient} from '../model/model-client.js';
 import type {ReasoningEffort} from '../model/types.js';
-import type {TurnEvent} from './types.js';
+import type {ModelRef, TurnEvent} from './types.js';
 import type {ApprovalDecider, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -21,6 +21,8 @@ export interface AgentOptions {
   name: string;
   systemPrompt: string;
   model: LanguageModelV4;
+  /** 原始模型引用（provider/apiKey/baseUrl），用于 run 级仅切换模型名时重建模型；由 LanguageModelV4 直接构建时为空 */
+  modelRef?: ModelRef;
   temperature: number;
   /** 推理力度，不传则 provider 默认 */
   reasoning?: ReasoningEffort;
