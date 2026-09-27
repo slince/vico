@@ -32,6 +32,9 @@
     "emailPlaceholder": "name@example.com",
     "passwordPlaceholder": "At least 8 characters"
   },
+  "threads": {
+    "tab": "Threads"
+  },
   "llm": {
     "tab": "Models",
     "title": "LLM Model Settings",

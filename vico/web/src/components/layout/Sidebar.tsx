@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   LogOut,
   MessageCircle,
-  MessageSquare,
   PanelLeft,
   Puzzle,
   Settings,
@@ -44,7 +43,6 @@ export function Sidebar() {
     { to: '/agents', label: t('agents'), icon: Bot },
     { to: '/skills', label: t('skills'), icon: Puzzle },
     { to: '/knowledge', label: t('knowledge'), icon: Database },
-    { to: '/threads', label: t('threads'), icon: MessageSquare },
     { to: '/settings', label: t('settings'), icon: Settings },
   ], [t]);
 

@@ -52,12 +52,12 @@ export default function ThreadDetail() {
     mutationFn: () => api(`/threads/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['threads'] });
-      navigate('/threads');
+      navigate('/settings?section=threads');
     },
   });
 
   const handleBack = useCallback(() => {
-    navigate('/threads');
+    navigate('/settings?section=threads');
   }, [navigate]);
 
   if (isLoading) {

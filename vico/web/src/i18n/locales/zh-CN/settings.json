@@ -32,6 +32,9 @@
     "emailPlaceholder": "name@example.com",
     "passwordPlaceholder": "至少 8 位"
   },
+  "threads": {
+    "tab": "对话记录"
+  },
   "llm": {
     "tab": "模型管理",
     "title": "LLM 模型设置",

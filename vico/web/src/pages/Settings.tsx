@@ -1,7 +1,7 @@
 // 1. 第三方
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { Settings as SettingsIcon, Users, Cpu } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Cpu, MessageSquare } from 'lucide-react';
 
 // 2. Hooks
 import { useAuth } from '@/hooks/use-auth';
@@ -9,7 +9,10 @@ import { useAuth } from '@/hooks/use-auth';
 // 3. 工具
 import { cn } from '@/lib/utils';
 
-// 4. 页面子组件
+// 4. 页面
+import Threads from './Threads';
+
+// 5. 页面子组件
 import GeneralSettings from './settings/GeneralSettings';
 import UserManagement from './settings/UserManagement';
 import ModelManagement from './settings/ModelManagement';
@@ -32,6 +35,7 @@ export default function Settings() {
     { value: 'general', label: t('general.tab'), icon: SettingsIcon, adminOnly: false },
     { value: 'users', label: t('users.tab'), icon: Users, adminOnly: true },
     { value: 'models', label: t('llm.tab'), icon: Cpu, adminOnly: false },
+    { value: 'threads', label: t('threads.tab'), icon: MessageSquare, adminOnly: true },
   ].filter((i) => !i.adminOnly || isAdmin);
 
   const rawSection = searchParams.get('section') ?? 'general';
@@ -65,6 +69,7 @@ export default function Settings() {
           {section === 'general' && <GeneralSettings />}
           {section === 'users' && <UserManagement />}
           {section === 'models' && <ModelManagement isAdmin={isAdmin} />}
+          {section === 'threads' && <Threads />}
         </div>
       </div>
     </div>
