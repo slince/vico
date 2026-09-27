@@ -13,7 +13,7 @@
   "pnpm": {
     "overrides": {
       "zustand": "5.0.15",
-      "assistant-cloud": "0.1.41"
+      "assistant-cloud": "0.2.3"
     }
   }
 }

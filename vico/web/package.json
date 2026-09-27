@@ -12,7 +12,7 @@
   "dependencies": {
     "@assistant-ui/ai-sdk": "latest",
     "@assistant-ui/react": "latest",
-    "@assistant-ui/react-ai-sdk": "^1.4.7",
+    "@assistant-ui/react-ai-sdk": "^1.4.13",
     "@assistant-ui/react-devtools": "^1.2.15",
     "@assistant-ui/react-generative-ui": "^0.0.21",
     "@assistant-ui/react-markdown": "latest",
@@ -42,7 +42,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vico/core": "workspace:*",
     "ai": "^7.0.101",
-    "assistant-cloud": "0.1.41",
+    "assistant-cloud": "^0.2.3",
     "beautiful-mermaid": "^1.1.3",
     "better-auth": "^1.6.16",
     "class-variance-authority": "^0.7.1",
