@@ -71,18 +71,7 @@ const TokenUsageDisplay: FC = () => {
 function ThreadWithSuggestions({agent}: ChatPanelProps) {
   const aui = useAui();
   const config = AuiConfig({
-    suggestions: Suggestions([
-      {
-        title: "What's the weather",
-        label: "in Tokyo right now?",
-        prompt: "What's the weather in Tokyo?",
-      },
-      {
-        title: "Tell me a fun fact",
-        label: "about any topic",
-        prompt: "Tell me a fun fact about space.",
-      },
-    ]),
+    suggestions: Suggestions([]),
   });
   return (
     <AuiProvider extends={aui} config={config}>

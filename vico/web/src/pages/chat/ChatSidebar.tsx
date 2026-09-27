@@ -91,7 +91,7 @@ export function ChatSidebar({
       </div>
 
       {/* Content — 对话列表（ThreadList 需要 AuiProvider） */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pt-3">
         {onThreadChange ? (
           <ThreadList />
         ) : (
