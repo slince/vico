@@ -1,4 +1,5 @@
 // 1. React
+import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // 2. Third-party
@@ -51,10 +52,26 @@ interface Skill {
 export default function Skills() {
   const { t } = useTranslation('skills');
 
-  const { data: skills, isLoading, refetch, isFetching } = useQuery<Skill[]>({
+  const { data: skills, isLoading, refetch } = useQuery<Skill[]>({
     queryKey: ['skills'],
     queryFn: () => api('/skills'),
   });
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  /** 刷新 Skill 列表，并保证动画至少展示一小段时间，避免请求过快导致无反馈 */
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refetch(),
+        new Promise((resolve) => setTimeout(resolve, 500)),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, refetch]);
 
   const skillList: Skill[] = skills || [];
 
@@ -97,11 +114,11 @@ export default function Skills() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => refetch()}
-              disabled={isFetching}
+              onClick={handleRefresh}
+              disabled={refreshing}
               aria-label={t('refresh')}
             >
-              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             </Button>
             <Button asChild size="sm">
               <a href="https://www.skills.sh/" target="_blank" rel="noreferrer">
@@ -134,11 +151,11 @@ export default function Skills() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => refetch()}
-            disabled={isFetching}
+            onClick={handleRefresh}
+            disabled={refreshing}
             aria-label={t('refresh')}
           >
-            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
           </Button>
           <Button asChild size="sm">
             <a href="https://www.skills.sh/" target="_blank" rel="noreferrer">
