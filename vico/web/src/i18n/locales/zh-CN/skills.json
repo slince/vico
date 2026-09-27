@@ -4,6 +4,7 @@
   "emptyDescription": "请确保 skills 目录下有可用的 Skill 包，它们将自动出现在此处",
   "totalCount": "共 {{count}} 个 Skill",
   "installButton": "安装",
+  "refresh": "刷新",
   "userInvocable": "用户可调用",
   "references": "{{count}} 份参考",
   "scripts": "{{count}} 个脚本",

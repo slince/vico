@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 // 2. Third-party
 import { useQuery } from '@tanstack/react-query';
-import { PackageOpen, Puzzle, BookOpen, Code, Paperclip, Sparkles, Download } from 'lucide-react';
+import { PackageOpen, Puzzle, BookOpen, Code, Paperclip, Sparkles, Download, RefreshCw } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -51,7 +51,7 @@ interface Skill {
 export default function Skills() {
   const { t } = useTranslation('skills');
 
-  const { data: skills, isLoading } = useQuery<Skill[]>({
+  const { data: skills, isLoading, refetch, isFetching } = useQuery<Skill[]>({
     queryKey: ['skills'],
     queryFn: () => api('/skills'),
   });
@@ -93,12 +93,23 @@ export default function Skills() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
-          <Button asChild size="sm">
-            <a href="https://www.skills.sh/" target="_blank" rel="noreferrer">
-              <Download size={14} className="mr-1.5" />
-              {t('installButton')}
-            </a>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              aria-label={t('refresh')}
+            >
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            </Button>
+            <Button asChild size="sm">
+              <a href="https://www.skills.sh/" target="_blank" rel="noreferrer">
+                <Download size={14} className="mr-1.5" />
+                {t('installButton')}
+              </a>
+            </Button>
+          </div>
         </div>
         <Empty>
           <EmptyMedia variant="icon">
@@ -120,6 +131,15 @@ export default function Skills() {
           <Badge variant="secondary" className="text-sm">
             {t('totalCount', { count: skillList.length })}
           </Badge>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label={t('refresh')}
+          >
+            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+          </Button>
           <Button asChild size="sm">
             <a href="https://www.skills.sh/" target="_blank" rel="noreferrer">
               <Download size={14} className="mr-1.5" />

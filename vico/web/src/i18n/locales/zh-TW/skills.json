@@ -4,6 +4,7 @@
   "emptyDescription": "請確保 skills 目錄下有可用的 Skill 套件，它們將自動出現在此處",
   "totalCount": "共 {{count}} 個 Skill",
   "installButton": "安裝",
+  "refresh": "重新整理",
   "userInvocable": "使用者可呼叫",
   "references": "{{count}} 份參考",
   "scripts": "{{count}} 個腳本",
