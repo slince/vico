@@ -13,6 +13,7 @@ import {FileTabBar} from '@/components/file-explorer/FileTabBar';
 import {FileTabContent} from '@/components/file-explorer/FileTabContent';
 import {useFileExplorerStore} from '@/stores/fileExplorerStore';
 import {Button} from '@/components/ui/button';
+import {AuiConfig, AuiProvider, Suggestions, useAui} from "@assistant-ui/react";
 
 /** 格式化 token 数量为可读字符串 */
 function formatTokens(tokens: number): string {
@@ -66,6 +67,34 @@ const TokenUsageDisplay: FC = () => {
   );
 };
 
+
+function ThreadWithSuggestions({agent}: ChatPanelProps) {
+  const aui = useAui();
+  const config = AuiConfig({
+    suggestions: Suggestions([
+      {
+        title: "What's the weather",
+        label: "in Tokyo right now?",
+        prompt: "What's the weather in Tokyo?",
+      },
+      {
+        title: "Tell me a fun fact",
+        label: "about any topic",
+        prompt: "Tell me a fun fact about space.",
+      },
+    ]),
+  });
+  return (
+    <AuiProvider extends={aui} config={config}>
+      <Thread
+        components={{
+          Welcome: () => <Welcome agentName={agent.name} />,
+        }}
+      />
+    </AuiProvider>
+  );
+}
+
 export function ChatPanel({ agent, threadId }: ChatPanelProps) {
   const toggleFileExplorer = useFileExplorerStore((s) => s.toggleFileExplorer);
   const fileExplorerOpen = useFileExplorerStore((s) => s.fileExplorerOpen);
@@ -105,11 +134,7 @@ export function ChatPanel({ agent, threadId }: ChatPanelProps) {
           <FileTabContent threadId={threadId!} />
         ) : (
           <div className="flex-1 min-h-0">
-            <Thread
-              components={{
-                Welcome: () => <Welcome agentName={agent.name} />,
-              }}
-            />
+            <ThreadWithSuggestions agent={agent} threadId={threadId} />
           </div>
         )}
       </div>
