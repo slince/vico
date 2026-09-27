@@ -21,14 +21,17 @@ export interface AgentRow {
   max_steps: number;
   enabled: number;
   builtin_tools: string;  // JSON string of BuiltinToolsConfig
+  skills: string;  // JSON string of string[]（绑定的 Skill 名称列表）
   kb_id: string | null;
   is_default: number;
   created_at: number;
   updated_at: number;
 }
 
-/** Agent 详情/列表类型 */
-export interface AgentDetail extends AgentRow {}
+/** Agent 详情/列表类型 — skills 已解析为名称数组 */
+export interface AgentDetail extends Omit<AgentRow, 'skills'> {
+  skills: string[];
+}
 
 // ── 运行时配置 ──
 
@@ -73,6 +76,7 @@ export const createAgentSchema = z.object({
   max_steps: z.number().int().positive().optional().default(10),
   rag_mode: z.string().optional().default('auto'),
   builtin_tools: z.record(z.string(), builtinToolEntrySchema).optional().default({}),
+  skills: z.array(z.string()).optional().default([]),
 });
 
 export type CreateAgentInput = z.infer<typeof createAgentSchema>;
@@ -89,9 +93,17 @@ export const updateAgentSchema = z.object({
   kb_id: z.string().nullable().optional(),
   enabled: z.number().min(0).max(1).optional(),
   builtin_tools: z.record(z.string(), builtinToolEntrySchema).optional(),
+  skills: z.array(z.string()).optional(),
 });
 
 export type UpdateAgentInput = z.infer<typeof updateAgentSchema>;
+
+/** 设置/替换 Agent 绑定的 Skill（名称数组） */
+export const replaceSkillsSchema = z.object({
+  skills: z.array(z.string()),
+});
+
+export type ReplaceSkillsInput = z.infer<typeof replaceSkillsSchema>;
 
 /** 设置/替换 Agent 绑定的知识库（单 KB） */
 export const replaceKnowledgeSchema = z.object({

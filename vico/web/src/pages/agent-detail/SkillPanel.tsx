@@ -61,7 +61,7 @@ export default function SkillPanel({
                     />
                     <div className="min-w-0">
                       <p className="text-sm font-medium leading-none">
-                        {s.displayName}
+                        {s.name}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                         {s.description}

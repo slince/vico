@@ -87,7 +87,7 @@ export default function AgentDetail() {
   });
 
   const skillsMutation = useMutation({
-    mutationFn: (skills: { skill_name: string }[]) =>
+    mutationFn: (skills: string[]) =>
       api(`/agents/${id}/skills`, {
         method: 'PUT',
         body: JSON.stringify({ skills }),
@@ -142,7 +142,7 @@ export default function AgentDetail() {
       const next = isBound
         ? boundSkills.filter((n) => n !== skillName)
         : [...boundSkills, skillName];
-      skillsMutation.mutate(next.map((n) => ({ skill_name: n })));
+      skillsMutation.mutate(next);
     },
     [skillsMutation],
   );
@@ -202,9 +202,7 @@ export default function AgentDetail() {
 
   const a = agent;
 
-  const boundSkills: string[] = (a.skills || []).map(
-    (s: { skill_name: string }) => s.skill_name,
-  );
+  const boundSkills: string[] = a.skills || [];
 
   const skillsList = allSkills || [];
   const kbsList = allKbs || [];

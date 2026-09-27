@@ -9,8 +9,14 @@ import {vico} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
 
 /** 将 DB 运行时配置转换为 AgentConfig */
-function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): AgentConfig {
+async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<AgentConfig> {
   const { agent: a, model, workspace } = runtimeConfig;
+
+  // 解析 Agent 绑定的 skills：名字列表 → 全局 Skill 对象（仅启用已绑定的）
+  const allSkills = await vico.listSkills();
+  const boundNames = new Set(a.skills ?? []);
+  const skills = allSkills.filter((s) => boundNames.has(s.name));
+
   return {
     id: a.id,
     name: a.name,
@@ -24,7 +30,8 @@ function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): AgentConfig {
     temperature: a.temperature ?? 0.7,
     maxTokens: a.max_tokens ?? 4096,
     maxSteps: a.max_steps ?? 10,
-    workspace
+    workspace,
+    skills,
   };
 }
 

@@ -10,11 +10,23 @@ import {
   type CreateAgentInput,
   createAgentSchema,
   replaceKnowledgeSchema,
+  replaceSkillsSchema,
   type UpdateAgentInput,
   updateAgentSchema,
 } from './types.js';
 
 const { agents } = schema;
+
+/** 将 DB 中的 skills JSON 字符串解析为名称数组（容错） */
+function parseSkills(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const value = JSON.parse(raw);
+    return Array.isArray(value) ? value.filter((s): s is string => typeof s === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 class AgentManager {
   async countEnabled(): Promise<number> {
@@ -38,7 +50,7 @@ class AgentManager {
       .orderBy(desc(agents.updated_at))
       .all();
 
-    return rows.map((a) => ({ ...a }) as AgentDetail);
+    return rows.map((a) => ({ ...a, skills: parseSkills(a.skills) }) as AgentDetail);
   }
 
   async getById(id: string): Promise<AgentDetail | null> {
@@ -48,7 +60,7 @@ class AgentManager {
       .get();
 
     if (!agent) return null;
-    return { ...agent } as AgentDetail;
+    return { ...agent, skills: parseSkills(agent.skills) } as AgentDetail;
   }
 
   /**
@@ -88,7 +100,7 @@ class AgentManager {
     return {
       model,
       instructions,
-      agent,
+      agent: { ...agent, skills: parseSkills(agent.skills) } as AgentDetail,
       workspace: config.workspace.base_path,
       builtin_tools,
     };
@@ -110,6 +122,7 @@ class AgentManager {
       max_steps: data.max_steps,
       rag_mode: data.rag_mode,
       builtin_tools: JSON.stringify(data.builtin_tools ?? {}),
+      skills: JSON.stringify(data.skills ?? []),
       enabled: 1,
       created_at: now,
       updated_at: now,
@@ -142,6 +155,9 @@ class AgentManager {
 
     if (updateData.builtin_tools !== undefined) {
       updateData.builtin_tools = JSON.stringify(updateData.builtin_tools);
+    }
+    if (updateData.skills !== undefined) {
+      updateData.skills = JSON.stringify(updateData.skills);
     }
 
     updateData.updated_at = Date.now();
@@ -177,6 +193,17 @@ class AgentManager {
 
     await db.update(agents)
       .set({ kb_id: kb_id ?? null, updated_at: Date.now() })
+      .where(eq(agents.id, id))
+      .run();
+  }
+
+  /** 设置/替换 Agent 绑定的 Skill 名称列表 */
+  async replaceSkills(id: string, input: unknown): Promise<void> {
+    const { skills } = replaceSkillsSchema.parse(input);
+    const db = getDb();
+
+    await db.update(agents)
+      .set({ skills: JSON.stringify(skills), updated_at: Date.now() })
       .where(eq(agents.id, id))
       .run();
   }

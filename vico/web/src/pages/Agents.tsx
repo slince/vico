@@ -55,7 +55,7 @@ interface Agent {
   enabled: boolean;
   is_default?: number;
   system_prompt?: string;
-  skill_names?: string[];
+  skills?: string[];
   kb_id?: string | null;
 }
 
@@ -219,7 +219,7 @@ export default function Agents() {
                     </CardTitle>
                   </Link>
                   <CardDescription className="mt-1">
-                    {t('skillsCount', { count: agent.skill_names?.length || 0 })} &middot;{' '}
+                    {t('skillsCount', { count: agent.skills?.length || 0 })} &middot;{' '}
                     {t('knowledgeCount', { count: agent.kb_id ? 1 : 0 })}
                   </CardDescription>
                 </div>

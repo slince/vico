@@ -65,4 +65,12 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
     await agentManager.replaceKnowledge(c.req.param('id'), await c.req.json());
     return c.json({ message: 'updated' });
   });
+
+  // ── 替换绑定的 Skill ──
+  app.put('/api/v1/agents/:id/skills', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+    await agentManager.replaceSkills(c.req.param('id'), await c.req.json());
+    return c.json({ message: 'updated' });
+  });
 }

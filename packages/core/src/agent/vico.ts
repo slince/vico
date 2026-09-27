@@ -1,7 +1,8 @@
 // @vico/core - Vico: one-shot wiring for all Agent services
 import type {TurnEvent} from './types.js';
-import {createAgent, type AgentConfig, type LanguageModelFactory, type SkillOptions} from './create-agent.js';
+import {createAgent, buildSkills, type AgentConfig, type LanguageModelFactory, type SkillOptions} from './create-agent.js';
 import type {Tool} from '../tool/types.js';
+import type {Skill} from '../skill/types.js';
 import type {Agent} from './agent.js';
 import {AgentRuntime} from './agent-runtime.js';
 import {MemoryStore} from '../memory/memory-store.js';
@@ -80,6 +81,15 @@ export class Vico {
     const agent = await this.buildAgent(config);
     this.runtime.register(agent);
     return agent;
+  }
+
+  /**
+   * 列出当前可用的全部 Skill（依据全局 skills 配置扫描文件系统）。
+   * 每次调用重新扫描，保证返回最新的磁盘状态。
+   * @returns 解析后的 Skill 列表
+   */
+  async listSkills(): Promise<Skill[]> {
+    return buildSkills(this.options.skills);
   }
 
   /**

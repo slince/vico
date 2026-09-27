@@ -1,7 +1,6 @@
-/** Skill 数据形状 */
+/** Skill 数据形状（来自 GET /skills，SKILL.md 扫描结果） */
 export interface Skill {
   name: string;
-  displayName: string;
   description: string;
 }
 
@@ -30,6 +29,6 @@ export interface Agent {
   temperature?: number;
   max_tokens?: number;
   rag_mode?: string;
-  skills?: { skill_name: string }[];
+  skills?: string[];
   kb_id?: string | null;
 }
