@@ -24,7 +24,7 @@ const db = getDb();
 /** 全局 Vico 容器单例 */
 export const vico = new Vico({
   maxCached: 100,
-  skills: { skillDirs: config.skills.scan_paths },
+  skills: { skillDirs: config.skills.scan_paths, compatible: true },
   tools: [weatherTool],
   memory: getMemory(),
   thread: getThreadStore(),
