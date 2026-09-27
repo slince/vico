@@ -66,7 +66,7 @@ export type SkillSettings = {
 
 export type SkillOptions = Skill[] | SkillSettings
 
-async function buildSkills(skillsOptions?: SkillOptions): Promise<Skill[]>{
+export async function buildSkills(skillsOptions?: SkillOptions): Promise<Skill[]>{
   if (!skillsOptions) {
     return []
   }
