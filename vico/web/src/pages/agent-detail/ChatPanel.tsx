@@ -2,7 +2,7 @@ import {useTranslation} from 'react-i18next';
 import {AssistantRuntimeProvider} from '@assistant-ui/react';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {Separator} from '@/components/ui/separator';
-import {Thread} from '@/components/assistant-ui/thread';
+import {Thread} from '@/components/assistant-ui/elements/thread.aui';
 import {useAssistantRuntime} from '@/hooks/use-assistant-runtime';
 
 export interface ChatPanelProps {

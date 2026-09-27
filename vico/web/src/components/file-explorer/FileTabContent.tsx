@@ -1,12 +1,12 @@
 'use client';
 
-import { AlertCircle, Eye, Loader2, PenLine, RefreshCw, Save } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import {AlertCircle, Eye, Loader2, PenLine, RefreshCw, Save} from 'lucide-react';
+import {useEffect, useState} from 'react';
 
-import { Button } from '@/components/ui/button';
-import { useFileExplorerStore } from '@/stores/fileExplorerStore';
-import { SyntaxHighlighter } from '@/components/assistant-ui/shiki-highlighter';
-import { cn } from '@/lib/utils';
+import {Button} from '@/components/ui/button';
+import {useFileExplorerStore} from '@/stores/fileExplorerStore';
+import {SyntaxHighlighter} from '@/components/assistant-ui/elements/shiki-highlighter';
+import {cn} from '@/lib/utils';
 
 /**
  * 文件 tab 内容 — 浏览/编辑模式。

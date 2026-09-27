@@ -7,7 +7,7 @@ import {useThreadTokenUsage} from '@assistant-ui/react-ai-sdk';
 import {FolderTree} from 'lucide-react';
 
 // 3. Sub-components
-import {Thread} from '@/components/assistant-ui/thread';
+import {Thread} from '@/components/assistant-ui/elements/thread.aui';
 import {FileExplorerPanel} from '@/components/file-explorer/FileExplorerPanel';
 import {FileTabBar} from '@/components/file-explorer/FileTabBar';
 import {FileTabContent} from '@/components/file-explorer/FileTabContent';
