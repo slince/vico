@@ -224,7 +224,7 @@ export default function Threads() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button variant="link" size="sm" asChild>
-                          <Link to={`/threads/${thread.id}`}>
+                          <Link to={`/chat/${thread.id}`}>
                             {t('viewButton')}
                           </Link>
                         </Button>

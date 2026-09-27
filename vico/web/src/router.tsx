@@ -6,7 +6,6 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Agents from '@/pages/Agents';
 import AgentDetail from '@/pages/AgentDetail';
-import ThreadDetail from '@/pages/ThreadDetail';
 import KnowledgeBases from '@/pages/KnowledgeBases';
 import KnowledgeDetail from '@/pages/KnowledgeDetail';
 import Settings from '@/pages/Settings';
@@ -47,7 +46,6 @@ export const router = createBrowserRouter([
           { path: 'skills', element: <Skills /> },
           { path: 'knowledge', element: <KnowledgeBases /> },
           { path: 'knowledge/:id', element: <KnowledgeDetail /> },
-          { path: 'threads/:id', element: <ThreadDetail /> },
           { path: 'settings', element: <Settings /> },
         ],
       },
