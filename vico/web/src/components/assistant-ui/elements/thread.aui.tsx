@@ -5,10 +5,10 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/elements/attachment.aui";
-import { File } from "@/components/assistant-ui/elements/file";
-import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
-import { Image } from "@/components/assistant-ui/elements/image";
-import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import {File} from "@/components/assistant-ui/elements/file";
+import {ThreadFollowupSuggestions} from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
+import {Image} from "@/components/assistant-ui/elements/image";
+import {MarkdownText} from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
   ReasoningContent,
@@ -16,31 +16,26 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "@/components/assistant-ui/elements/tool-group.aui";
-import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import {ToolFallback} from "@/components/assistant-ui/elements/tool-fallback.aui";
+import {TooltipIconButton} from "@/components/assistant-ui/elements/tooltip-icon-button";
+import {Button} from "@/components/ui/button";
+import {Skeleton} from "@/components/ui/skeleton";
+import {cn} from "@/lib/utils";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
-  AuiIf,
   type AssistantState,
+  AuiIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
+  type FileMessagePartComponent,
   groupPartByType,
+  type ImageMessagePartComponent,
   MessagePrimitive,
   SuggestionPrimitive,
-  ThreadPrimitive,
-  type FileMessagePartComponent,
-  type ImageMessagePartComponent,
   type TextMessagePartComponent,
+  ThreadPrimitive,
   type ToolCallMessagePartComponent,
   useAuiState,
 } from "@assistant-ui/react";
@@ -62,13 +57,8 @@ import {
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from "lucide-react";
-import {
-  createContext,
-  useContext,
-  type ComponentType,
-  type FC,
-  type PropsWithChildren,
-} from "react";
+import {type ComponentType, createContext, type FC, type PropsWithChildren, useContext,} from "react";
+import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
@@ -577,13 +567,7 @@ const AssistantMessage: FC = () => {
                   return <ToolGroup group={part}>{children}</ToolGroup>;
                 }
                 return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={part.status.type === "running"}
-                    />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
+                  <AutoOpenToolGroup group={part}>{children}</AutoOpenToolGroup>
                 );
               case "group-reasoning": {
                 if (ReasoningGroup) {
