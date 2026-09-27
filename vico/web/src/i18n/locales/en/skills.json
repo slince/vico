@@ -3,6 +3,7 @@
   "emptyTitle": "No Skills Available",
   "emptyDescription": "Make sure skill packages are available in the skills directory; they will appear here automatically",
   "totalCount": "{{count}} skill(s) total",
+  "installButton": "Install",
   "userInvocable": "User invocable",
   "references": "{{count}} references",
   "scripts": "{{count}} scripts",

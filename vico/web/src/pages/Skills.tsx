@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 // 2. Third-party
 import { useQuery } from '@tanstack/react-query';
-import { PackageOpen, Puzzle, BookOpen, Code, Paperclip, Sparkles } from 'lucide-react';
+import { PackageOpen, Puzzle, BookOpen, Code, Paperclip, Sparkles, Download } from 'lucide-react';
 
 // 3. API
 import { api } from '@/api/client';
@@ -18,6 +18,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -92,6 +93,12 @@ export default function Skills() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
+          <Button asChild size="sm">
+            <a href="https://www.skills.sh/" target="_blank" rel="noreferrer">
+              <Download size={14} className="mr-1.5" />
+              {t('installButton')}
+            </a>
+          </Button>
         </div>
         <Empty>
           <EmptyMedia variant="icon">
@@ -109,9 +116,17 @@ export default function Skills() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
-        <Badge variant="secondary" className="text-sm">
-          {t('totalCount', { count: skillList.length })}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="secondary" className="text-sm">
+            {t('totalCount', { count: skillList.length })}
+          </Badge>
+          <Button asChild size="sm">
+            <a href="https://www.skills.sh/" target="_blank" rel="noreferrer">
+              <Download size={14} className="mr-1.5" />
+              {t('installButton')}
+            </a>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
