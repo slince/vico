@@ -81,20 +81,42 @@ export function Sidebar() {
         collapsed ? 'w-16' : 'w-60',
       )}
     >
-      {/* Header */}
+      {/* Header：logo 区 + 右侧折叠切换 */}
       <div className={cn(
         'flex items-center border-b border-sidebar-border',
-        collapsed ? 'justify-center p-3' : 'p-4',
+        collapsed ? 'justify-between p-2' : 'p-4',
       )}>
-        {!collapsed && (
+        {collapsed ? (
+          <h1 className="text-lg font-bold">V</h1>
+        ) : (
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold tracking-tight">Vico</h1>
             <p className="text-xs text-muted-foreground mt-1">{t('brandSubtitle')}</p>
           </div>
         )}
-        {collapsed && (
-          <h1 className="text-lg font-bold">V</h1>
-        )}
+
+        {/* Collapse toggle */}
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={toggle}
+              className="hover:bg-sidebar-accent rounded-md shrink-0 p-1.5"
+            >
+              <PanelLeft
+                size={16}
+                className={cn(
+                  'transition-transform duration-200',
+                  collapsed && 'rotate-180',
+                )}
+              />
+            </button>
+          </TooltipTrigger>
+          {collapsed && (
+            <TooltipContent side="right">
+              {t('expand') ?? '展开菜单'}
+            </TooltipContent>
+          )}
+        </Tooltip>
       </div>
 
       {/* Nav */}
@@ -194,53 +216,6 @@ export function Sidebar() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* Logout */}
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <button
-              onClick={logout}
-              className={cn(
-                'hover:bg-sidebar-accent rounded-md shrink-0',
-                collapsed ? 'p-2 flex items-center justify-center' : 'p-1.5',
-              )}
-              title={!collapsed ? t('logout') : undefined}
-            >
-              <LogOut size={16} />
-            </button>
-          </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right">
-              {t('logout')}
-            </TooltipContent>
-          )}
-        </Tooltip>
-
-        {/* Collapse toggle */}
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <button
-              onClick={toggle}
-              className={cn(
-                'hover:bg-sidebar-accent rounded-md shrink-0',
-                collapsed ? 'p-2' : 'p-1.5',
-              )}
-            >
-              <PanelLeft
-                size={16}
-                className={cn(
-                  'transition-transform duration-200',
-                  collapsed && 'rotate-180',
-                )}
-              />
-            </button>
-          </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right">
-              {t('expand') ?? '展开菜单'}
-            </TooltipContent>
-          )}
-        </Tooltip>
       </div>
     </aside>
   );
