@@ -7,6 +7,7 @@ import Dashboard from '@/pages/Dashboard';
 import AgentDetail from '@/pages/AgentDetail';
 import KnowledgeDetail from '@/pages/KnowledgeDetail';
 import Settings from '@/pages/Settings';
+import SettingsLayout from '@/pages/settings/SettingsLayout';
 import Chat from '@/pages/Chat';
 
 function AuthWrapper() {
@@ -38,8 +39,8 @@ export const router = createBrowserRouter([
           { path: 'dashboard', element: <Dashboard /> },
           { path: 'chat', element: <Chat /> },
           { path: 'chat/:threadId', element: <Chat /> },
-          { path: 'agents/:id', element: <AgentDetail /> },
-          { path: 'knowledge/:id', element: <KnowledgeDetail /> },
+          { path: 'agents/:id', element: <SettingsLayout activeSection="agents"><AgentDetail /></SettingsLayout> },
+          { path: 'knowledge/:id', element: <SettingsLayout activeSection="knowledge"><KnowledgeDetail /></SettingsLayout> },
           { path: 'settings', element: <Settings /> },
         ],
       },
