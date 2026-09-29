@@ -2,10 +2,7 @@
   "brandSubtitle": "AI Agent 管理平台",
   "dashboard": "仪表盘",
   "chat": "对话",
-  "agents": "Agent 管理",
   "teams": "Agent 团队",
-  "skills": "Skill 管理",
-  "knowledge": "知识库",
   "settings": "设置",
   "logout": "退出登录",
   "expand": "展开菜单"

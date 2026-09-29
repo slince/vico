@@ -117,7 +117,7 @@ export default function AgentDetail() {
     mutationFn: () => api(`/agents/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
-      navigate('/agents');
+      navigate('/settings?section=agents');
     },
   });
 
@@ -193,7 +193,7 @@ export default function AgentDetail() {
         <EmptyDescription>
           {t('agentNotFoundDesc')}
         </EmptyDescription>
-        <Button variant="outline" onClick={() => navigate('/agents')}>
+        <Button variant="outline" onClick={() => navigate('/settings?section=agents')}>
           {t('backToList')}
         </Button>
       </Empty>
@@ -214,7 +214,7 @@ export default function AgentDetail() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate('/agents')}
+          onClick={() => navigate('/settings?section=agents')}
           aria-label={t('backToList')}
         >
           <ArrowLeft size={20} />

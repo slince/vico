@@ -180,7 +180,7 @@ export default function KnowledgeDetail() {
       // 无法确定父级时回到根目录
       setSearchParams({});
     } else {
-      navigate('/knowledge');
+      navigate('/settings?section=knowledge');
     }
   }, [currentFolderId, ancestors, navigate, setSearchParams]);
 

@@ -35,6 +35,15 @@
   "threads": {
     "tab": "Threads"
   },
+  "agents": {
+    "tab": "Agents"
+  },
+  "skills": {
+    "tab": "Skills"
+  },
+  "knowledge": {
+    "tab": "Knowledge"
+  },
   "llm": {
     "tab": "Models",
     "title": "LLM Model Settings",

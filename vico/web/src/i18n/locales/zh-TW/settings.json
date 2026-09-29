@@ -35,6 +35,15 @@
   "threads": {
     "tab": "對話記錄"
   },
+  "agents": {
+    "tab": "Agent 管理"
+  },
+  "skills": {
+    "tab": "Skill 管理"
+  },
+  "knowledge": {
+    "tab": "知識庫"
+  },
   "llm": {
     "tab": "模型管理",
     "title": "LLM 模型設定",

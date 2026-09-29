@@ -4,12 +4,9 @@ import { AuthProvider, useAuth } from '@/hooks/use-auth';
 // 新版页面（shadcn/ui 重写）
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
-import Agents from '@/pages/Agents';
 import AgentDetail from '@/pages/AgentDetail';
-import KnowledgeBases from '@/pages/KnowledgeBases';
 import KnowledgeDetail from '@/pages/KnowledgeDetail';
 import Settings from '@/pages/Settings';
-import Skills from '@/pages/Skills';
 import Chat from '@/pages/Chat';
 
 function AuthWrapper() {
@@ -41,10 +38,7 @@ export const router = createBrowserRouter([
           { path: 'dashboard', element: <Dashboard /> },
           { path: 'chat', element: <Chat /> },
           { path: 'chat/:threadId', element: <Chat /> },
-          { path: 'agents', element: <Agents /> },
           { path: 'agents/:id', element: <AgentDetail /> },
-          { path: 'skills', element: <Skills /> },
-          { path: 'knowledge', element: <KnowledgeBases /> },
           { path: 'knowledge/:id', element: <KnowledgeDetail /> },
           { path: 'settings', element: <Settings /> },
         ],

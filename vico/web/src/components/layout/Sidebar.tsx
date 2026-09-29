@@ -4,13 +4,10 @@ import {useTranslation} from 'react-i18next';
 import {useAuth} from '@/hooks/use-auth';
 import {cn} from '@/lib/utils';
 import {
-  Bot,
-  Database,
   LayoutDashboard,
   LogOut,
   MessageCircle,
   PanelLeft,
-  Puzzle,
   Settings,
 } from 'lucide-react';
 import {Tooltip, TooltipContent, TooltipTrigger,} from '@/components/ui/tooltip';
@@ -40,9 +37,6 @@ export function Sidebar() {
   const navItems = useMemo(() => [
     { to: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
     { to: '/chat', label: t('chat'), icon: MessageCircle },
-    { to: '/agents', label: t('agents'), icon: Bot },
-    { to: '/skills', label: t('skills'), icon: Puzzle },
-    { to: '/knowledge', label: t('knowledge'), icon: Database },
     { to: '/settings', label: t('settings'), icon: Settings },
   ], [t]);
 
