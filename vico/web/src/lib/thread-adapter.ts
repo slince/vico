@@ -57,8 +57,10 @@ interface ThreadItem {
 export function createThreadListAdapter(agentId: string): RemoteThreadListAdapter {
   return {
     async list() {
+      // 无 agentId 时不发起请求（未选择 Agent 或非 Chat 路由），避免全量线程查询
+      if (!agentId) return { threads: [] };
       const params = new URLSearchParams();
-      if (agentId) params.set('agent_id', agentId);
+      params.set('agent_id', agentId);
       const data = await api<ThreadItem[]>(`/threads?${params.toString()}`);
       const threads = Array.isArray(data) ? data : [];
       return {

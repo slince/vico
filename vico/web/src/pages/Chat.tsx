@@ -1,134 +1,36 @@
 // 1. React
-import {useCallback, useEffect, useState} from 'react';
+// （无本地状态，Agent 选择与线程路由均已提升至 ChatProvider）
 
-// 2. Third-party
-import {useQuery, useQueryClient} from '@tanstack/react-query';
-import {useNavigate, useParams} from 'react-router-dom';
-import {AssistantRuntimeProvider, Tools, useAui} from '@assistant-ui/react';
-import {DevToolsModal} from "@assistant-ui/react-devtools";
+// 2. Hooks
+import {useChat} from '@/providers/chat-provider';
 
-// 3. API
-import {api} from '@/api/client';
-
-// 4. Sub-components
-import {ChatSidebar} from './chat/ChatSidebar';
+// 3. 页面子组件
 import {ChatPanel} from './chat/ChatPanel';
 import {ChatEmpty} from './chat/ChatEmpty';
 import {ChatSkeleton} from './chat/ChatSkeleton';
-import {useAssistantRuntime} from '@/hooks/use-assistant-runtime';
-import {useThread} from '@/hooks/use-thread';
-import type {Agent} from '@/types/models';
-import {toolkit} from "@/tools/toolkit";
 
 /**
  * Chat — 聊天页面。
  *
- * AssistantRuntimeProvider 包裹左侧 Sidebar（ThreadListSidebar 风格）和右侧 ChatPanel，
- * 两者共享同一个 AssistantRuntime，ThreadList 和 Thread 通过上下文通信。
+ * Agent 选择、线程路由、AssistantRuntime 均已提升至 ChatProvider（Layout 层），
+ * 会话列表由全局 Sidebar 渲染，本页面仅负责右侧聊天区（ChatPanel / 空态）。
  *
  * URL 路由：/chat 或 /chat/:threadId
  */
 export default function Chat() {
-  const { threadId } = useParams<{ threadId?: string }>();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [activeThreadId, setActiveThreadId] = useState<string>(threadId || '');
-
-  // 首次对话创建 thread 后回写 URL
-  const handleThreadCreated = useCallback(
-    (newThreadId: string) => {
-      setActiveThreadId(newThreadId);
-      navigate(`/chat/${newThreadId}`, { replace: true });
-      queryClient.invalidateQueries({ queryKey: ['threads', selectedAgent?.id] });
-    },
-    [navigate, queryClient, selectedAgent?.id],
-  );
-
-  const runtime = useAssistantRuntime({
-    agentId: selectedAgent?.id ?? '',
-    threadId: activeThreadId || undefined,
-    onThreadCreated: handleThreadCreated,
-  });
-
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
-  // 获取 Agent 列表
-  const { data: agents, isLoading: agentsLoading } = useQuery<Agent[]>({
-    queryKey: ['agents'],
-    queryFn: () => api('/agents'),
-  });
-
-  // 页面刷新时，从 URL threadId 查询对应 Agent 以恢复状态
-  const { data: thread } = useThread(threadId);
-  const threadAgentId = thread?.agentId;
-
-  const agentList: Agent[] = agents ?? [];
-
-  // 自动选中 URL 中 thread 对应的 Agent
-  useEffect(() => {
-    if (threadAgentId && agentList.length > 0 && selectedAgent?.id !== threadAgentId) {
-      const agent = agentList.find((a) => a.id === threadAgentId);
-      if (agent) setSelectedAgent(agent);
-    }
-  }, [threadAgentId, agentList, selectedAgent]);
-
-  // 进入 Chat 页面（无 threadId）时默认选中 main agent
-  useEffect(() => {
-    if (!threadId && agentList.length > 0 && !selectedAgent) {
-      const defaultAgent = agentList.find((a) => a.is_default === 1);
-      if (defaultAgent) setSelectedAgent(defaultAgent);
-    }
-  }, [threadId, agentList, selectedAgent]);
-
-  /** ThreadList 选中线程时同步 URL */
-  const handleThreadChange = useCallback((tid: string) => {
-      if (tid === activeThreadId) return;
-      setActiveThreadId(tid);
-      navigate(`/chat/${tid}`, { replace: true });
-    },
-    [activeThreadId, navigate],
-  );
-
-  /** 选择 Agent — 清除线程并回到 /chat */
-  const handleSelectAgent = useCallback(
-    (agent: Agent) => {
-      setSelectedAgent(agent);
-      setActiveThreadId('');
-      navigate('/chat', { replace: true });
-    },
-    [navigate],
-  );
+  const { agents, agentsLoading, selectedAgent, threadId, selectFirstAgent } = useChat();
 
   if (agentsLoading) return <ChatSkeleton />;
 
   return (
-    <div className="flex h-[calc(100vh-0px)] -my-6 -mr-6">
-      {selectedAgent && runtime ? (
-        <AssistantRuntimeProvider runtime={runtime} aui={aui} i18nIsDynamicList>
-          <DevToolsModal />
-          <ChatSidebar
-            agents={agentList}
-            selectedAgent={selectedAgent}
-            onSelectAgent={handleSelectAgent}
-            onThreadChange={handleThreadChange}
-          />
-
-          <ChatPanel agent={selectedAgent} threadId={activeThreadId || undefined} />
-        </AssistantRuntimeProvider>
+    <div className="flex h-[calc(100vh-0px)] -m-6">
+      {selectedAgent ? (
+        <ChatPanel agent={selectedAgent} threadId={threadId || undefined} />
       ) : (
-        <>
-          <ChatSidebar
-            agents={agentList}
-            selectedAgent={selectedAgent}
-            onSelectAgent={handleSelectAgent}
-          />
-          <ChatEmpty
-            hasAgents={agentList.length > 0}
-            onSelectFirstAgent={() => setSelectedAgent(agentList[0])}
-          />
-        </>
+        <ChatEmpty
+          hasAgents={agents.length > 0}
+          onSelectFirstAgent={selectFirstAgent}
+        />
       )}
     </div>
   );
