@@ -155,18 +155,15 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className={cn(
-        'border-t border-sidebar-border',
-        collapsed ? 'flex flex-col items-center gap-2 p-2' : 'flex items-center gap-1 p-3',
-      )}>
+      <div className="border-t border-sidebar-border">
         {/* User menu：点击用户区弹出设置菜单列表 */}
         <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               className={cn(
-                'flex items-center rounded-md text-left hover:bg-sidebar-accent shrink-0',
-                collapsed ? 'p-1' : 'flex-1 min-w-0 gap-2 p-1.5',
+                'flex items-center w-full text-left cursor-pointer hover:bg-sidebar-accent',
+                collapsed ? 'justify-center p-2' : 'gap-2 px-3 py-3',
               )}
             >
               <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium shrink-0">
