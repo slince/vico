@@ -64,27 +64,31 @@ export default function SettingsLayout({ activeSection, children }: SettingsLayo
   );
 
   return (
-    <div className="flex gap-6">
-      <nav className="w-48 shrink-0 space-y-1">
-        {navItems.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => navigate(`/settings?section=${item.value}`)}
-            className={cn(
-              'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-              activeSection === item.value
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-          >
-            <item.icon size={14} />
-            {t(item.labelKey)}
-          </button>
-        ))}
-      </nav>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold tracking-tight">{t('title')}</h2>
 
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="flex gap-6">
+        <nav className="w-48 shrink-0 space-y-1">
+          {navItems.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => navigate(`/settings?section=${item.value}`)}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                activeSection === item.value
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              <item.icon size={14} />
+              {t(item.labelKey)}
+            </button>
+          ))}
+        </nav>
+
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }

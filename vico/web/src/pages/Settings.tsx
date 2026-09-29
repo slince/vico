@@ -1,5 +1,4 @@
 // 1. 第三方
-import {useTranslation} from 'react-i18next';
 import {useSearchParams} from 'react-router-dom';
 
 // 2. Hooks
@@ -24,7 +23,6 @@ import SettingsLayout, {SETTINGS_SECTIONS} from './settings/SettingsLayout';
  * 角色门控：非 admin 隐藏「用户管理」nav 项。
  */
 export default function Settings() {
-  const { t } = useTranslation('settings');
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
 
@@ -40,18 +38,14 @@ export default function Settings() {
     : 'general';
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold tracking-tight">{t('title')}</h2>
-
-      <SettingsLayout activeSection={section}>
-        {section === 'general' && <GeneralSettings />}
-        {section === 'users' && <UserManagement />}
-        {section === 'models' && <ModelManagement isAdmin={isAdmin} />}
-        {section === 'threads' && <Threads />}
-        {section === 'agents' && <Agents />}
-        {section === 'skills' && <Skills />}
-        {section === 'knowledge' && <KnowledgeBases />}
-      </SettingsLayout>
-    </div>
+    <SettingsLayout activeSection={section}>
+      {section === 'general' && <GeneralSettings />}
+      {section === 'users' && <UserManagement />}
+      {section === 'models' && <ModelManagement isAdmin={isAdmin} />}
+      {section === 'threads' && <Threads />}
+      {section === 'agents' && <Agents />}
+      {section === 'skills' && <Skills />}
+      {section === 'knowledge' && <KnowledgeBases />}
+    </SettingsLayout>
   );
 }
