@@ -32,17 +32,18 @@ import {
   type FC,
 } from "react";
 
-export const ThreadList: FC = () => {
+/** ThreadList 顶层组件 — searchable 控制是否渲染搜索框（默认 true） */
+export const ThreadList: FC<{ searchable?: boolean }> = ({ searchable = true }) => {
   const [search, setSearch] = useState("");
   const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
 
   return (
     <ThreadListRoot>
       <ThreadListNew />
-      {hasThreads && (
+      {searchable && hasThreads && (
         <ThreadListSearch value={search} onValueChange={setSearch} />
       )}
-      <ThreadListItems searchQuery={hasThreads ? search : ""} />
+      <ThreadListItems searchQuery={searchable && hasThreads ? search : ""} />
     </ThreadListRoot>
   );
 };
