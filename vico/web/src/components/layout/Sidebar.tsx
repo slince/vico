@@ -1,22 +1,37 @@
 import {useEffect, useMemo, useState} from 'react';
-import {NavLink} from 'react-router-dom';
+import {NavLink, useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {useAuth} from '@/hooks/use-auth';
 import {cn} from '@/lib/utils';
 import {
+  Bot,
+  Cpu,
+  Database,
   LayoutDashboard,
   LogOut,
   MessageCircle,
+  MessageSquare,
   PanelLeft,
-  Settings,
+  Puzzle,
+  Settings as SettingsIcon,
+  Users,
 } from 'lucide-react';
 import {Tooltip, TooltipContent, TooltipTrigger,} from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const STORAGE_KEY = 'sidebar_collapsed';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
   const { t } = useTranslation('sidebar');
+  const { t: tSettings } = useTranslation('settings');
+  const navigate = useNavigate();
 
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -25,6 +40,7 @@ export function Sidebar() {
       return false;
     }
   });
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -34,11 +50,29 @@ export function Sidebar() {
 
   const toggle = () => setCollapsed((prev) => !prev);
 
+  const handleLogout = () => {
+    setUserMenuOpen(false);
+    logout();
+  };
+
+  // role 为自增列，不在 better-auth 的 User 类型里，此处做窄化断言
+  const isAdmin = (user as { role?: string } | null)?.role === 'admin';
+
   const navItems = useMemo(() => [
     { to: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
     { to: '/chat', label: t('chat'), icon: MessageCircle },
-    { to: '/settings', label: t('settings'), icon: Settings },
   ], [t]);
+
+  // 设置子项列表，与 Settings 页左侧 nav 保持一致，admin 项按角色过滤
+  const settingsItems = useMemo(() => [
+    { value: 'general', label: tSettings('general.tab'), icon: SettingsIcon, adminOnly: false },
+    { value: 'users', label: tSettings('users.tab'), icon: Users, adminOnly: true },
+    { value: 'models', label: tSettings('llm.tab'), icon: Cpu, adminOnly: false },
+    { value: 'threads', label: tSettings('threads.tab'), icon: MessageSquare, adminOnly: true },
+    { value: 'agents', label: tSettings('agents.tab'), icon: Bot, adminOnly: true },
+    { value: 'skills', label: tSettings('skills.tab'), icon: Puzzle, adminOnly: true },
+    { value: 'knowledge', label: tSettings('knowledge.tab'), icon: Database, adminOnly: true },
+  ].filter((i) => !i.adminOnly || isAdmin), [tSettings, isAdmin]);
 
   return (
     <aside
@@ -103,18 +137,63 @@ export function Sidebar() {
         'border-t border-sidebar-border',
         collapsed ? 'flex flex-col items-center gap-2 p-2' : 'flex items-center gap-1 p-3',
       )}>
-        {/* User info */}
-        {!collapsed && (
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium shrink-0">
-              {user?.name?.[0]?.toUpperCase()}
+        {/* User menu：点击用户区弹出设置菜单列表 */}
+        <DropdownMenu open={userMenuOpen} onOpenChange={setUserMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                'flex items-center rounded-md text-left hover:bg-sidebar-accent shrink-0',
+                collapsed ? 'p-1' : 'flex-1 min-w-0 gap-2 p-1.5',
+              )}
+            >
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium shrink-0">
+                {user?.name?.[0]?.toUpperCase()}
+              </div>
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{(user as any)?.username ?? user?.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="top"
+            align={collapsed ? 'center' : 'start'}
+            sideOffset={8}
+            className="min-w-52"
+          >
+            {/* 头部：头像 + 用户信息 + 退出 */}
+            <div className="flex items-center gap-2 px-2 py-2">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium shrink-0">
+                {user?.name?.[0]?.toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{(user as any)?.username ?? user?.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title={t('logout')}
+                className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{(user as any)?.username ?? user?.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-            </div>
-          </div>
-        )}
+            <DropdownMenuSeparator />
+            {settingsItems.map((item) => (
+              <DropdownMenuItem
+                key={item.value}
+                onClick={() => navigate(`/settings?section=${item.value}`)}
+              >
+                <item.icon />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Logout */}
         <Tooltip delayDuration={300}>
