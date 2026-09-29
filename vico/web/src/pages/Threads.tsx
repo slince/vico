@@ -136,7 +136,7 @@ export default function Threads() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
+      <h3 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h3>
 
       <div className="flex gap-3 items-center">
         <div className="relative flex-1 max-w-sm">

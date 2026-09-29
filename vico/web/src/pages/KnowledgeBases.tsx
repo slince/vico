@@ -167,7 +167,7 @@ export default function KnowledgeBases() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
+        <h3 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h3>
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>

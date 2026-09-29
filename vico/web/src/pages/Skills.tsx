@@ -80,7 +80,7 @@ export default function Skills() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
+          <h3 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h3>
           <Skeleton className="h-6 w-20 rounded-md" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -109,7 +109,7 @@ export default function Skills() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
+          <h3 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h3>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -143,7 +143,7 @@ export default function Skills() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h2>
+        <h3 className="text-2xl font-bold tracking-tight">{t('pageTitle')}</h3>
         <div className="flex items-center gap-3">
           <Badge variant="secondary" className="text-sm">
             {t('totalCount', { count: skillList.length })}
