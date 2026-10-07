@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {NavLink, useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {useAuth} from '@/hooks/use-auth';
@@ -25,13 +25,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {ThreadList} from '@/components/assistant-ui/elements/thread-list.aui';
 
 const STORAGE_KEY = 'sidebar_collapsed';
@@ -44,7 +37,7 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   // Chat 全局状态 — 用于在 Chat 路由下渲染会话列表
-  const { agents, selectedAgent, isChatRoute, selectAgent } = useChat();
+  const { selectedAgent, isChatRoute } = useChat();
 
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -89,15 +82,6 @@ export function Sidebar() {
 
   // 会话列表仅在 Chat 路由且未折叠时展示
   const showChatSection = isChatRoute && !collapsed;
-
-  /** 切换 Agent — 通过 id 找到对应 Agent 后回调 selectAgent */
-  const handleAgentChange = useCallback(
-    (value: string) => {
-      const agent = agents.find((a) => a.id === value);
-      if (agent) selectAgent(agent);
-    },
-    [agents, selectAgent],
-  );
 
   return (
     <aside
@@ -179,25 +163,9 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Chat 会话区 — 仅在 Chat 路由下展示 Agent 选择器 + 会话列表 */}
+      {/* Chat 会话区 — 仅在 Chat 路由下展示会话列表 */}
       {showChatSection && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-sidebar-border">
-          {/* Agent 选择器 */}
-          <div className="p-2 border-b border-sidebar-border">
-            <Select value={selectedAgent?.id ?? ''} onValueChange={handleAgentChange}>
-              <SelectTrigger className="h-8 w-full">
-                <SelectValue placeholder={tThreads('selectAgent')} />
-              </SelectTrigger>
-              <SelectContent>
-                {agents.map((agent) => (
-                  <SelectItem key={agent.id} value={agent.id}>
-                    {agent.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* 会话列表（含「新建对话」按钮，需 AssistantRuntimeProvider 上下文） */}
           <div className="flex-1 min-h-0 overflow-y-auto p-2">
             {selectedAgent ? (

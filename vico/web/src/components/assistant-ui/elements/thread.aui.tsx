@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import {type ComponentType, createContext, type FC, type PropsWithChildren, useContext,} from "react";
 import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
+import {AgentSelectorAction} from "@/components/assistant-ui/agent-selector-action";
 import {ModelSelectorAction} from "@/components/assistant-ui/model-selector-action";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
@@ -442,7 +443,10 @@ const ComposerAction: FC = () => {
 
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-      <ComposerAddAttachment />
+      <div className="flex items-center gap-1.5">
+        <AgentSelectorAction />
+        <ComposerAddAttachment />
+      </div>
       <ModelSelectorAction />
       <div className="flex items-center gap-1.5">
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
