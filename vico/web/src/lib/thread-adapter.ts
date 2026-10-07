@@ -84,11 +84,16 @@ export function createThreadListAdapter(agentId: string): RemoteThreadListAdapte
     },
 
     /**
-     * 新线程初始化 — 线程在 Mastra 首次消息发送时才创建，
-     * 因此直接使用本地 ID 作为 remoteId，后续 onFinish 再回写真实 ID。
+     * 新线程初始化 — 首次发送消息前由 assistant-ui 调用（发送前会 await 本方法），
+     * 这里先请求后端创建会话拿到真实 thread id，再作为 remoteId 返回，
+     * assistant-ui 会自动把真实 id 应用到本地线程映射，随后才发起真正的 chat 请求。
      */
-    async initialize(threadId: string) {
-      return { remoteId: threadId, externalId: undefined };
+    async initialize(_threadId: string) {
+      const thread = await api<{ id: string }>('/threads', {
+        method: 'POST',
+        body: JSON.stringify({ agentId }),
+      });
+      return { remoteId: thread.id, externalId: undefined };
     },
 
     async delete(remoteId: string) {

@@ -68,7 +68,9 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
           return {
             body: {
               ...body,
-              threadId,
+              // AssistantChatTransport 在发送前已 await initialize 拿到真实 remoteId，
+              // 这里用 id（remoteId）而非本地 threadId，服务端据此复用已创建的线程。
+              threadId: id,
               messages: lastMsg ? [lastMsg] : [],
             },
           };

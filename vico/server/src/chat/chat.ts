@@ -63,6 +63,12 @@ async function resolveThread(
     const existing = await agent.thread.getThread(threadId);
     // 仅复用归属当前用户的线程，防止跨用户恢复他人会话
     if (existing && (!existing.userId || existing.userId === userId)) {
+      // 线程由前端提交前预先创建，标题为默认值；此处用首条消息补全标题
+      const title = deriveTitle(message);
+      if (title && (!existing.title || existing.title === 'New thread')) {
+        await agent.thread.updateThread(existing.id, { title });
+        existing.title = title;
+      }
       return existing;
     }
   }
