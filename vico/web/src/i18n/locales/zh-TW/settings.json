@@ -91,6 +91,8 @@
       "asr": "語音"
     },
     "typeEmptyTitle": "尚無{{type}}模型",
-    "typeEmptyDescription": "新增該類型的第一個模型，供對應能力使用"
+    "typeEmptyDescription": "新增該類型的第一個模型，供對應能力使用",
+    "searchProvider": "搜尋提供商...",
+    "noProviderFound": "找不到相符的提供商"
   }
 }

@@ -91,6 +91,8 @@
       "asr": "Speech"
     },
     "typeEmptyTitle": "No {{type}} models",
-    "typeEmptyDescription": "Add the first model of this type for its corresponding capability"
+    "typeEmptyDescription": "Add the first model of this type for its corresponding capability",
+    "searchProvider": "Search provider...",
+    "noProviderFound": "No provider found"
   }
 }

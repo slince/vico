@@ -91,6 +91,8 @@
       "asr": "语音"
     },
     "typeEmptyTitle": "暂无{{type}}模型",
-    "typeEmptyDescription": "添加该类型的第一个模型，供对应能力使用"
+    "typeEmptyDescription": "添加该类型的第一个模型，供对应能力使用",
+    "searchProvider": "搜索提供商...",
+    "noProviderFound": "未找到匹配的提供商"
   }
 }

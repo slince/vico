@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { RotateCcw } from 'lucide-react';
 import { MODEL_TYPES, type ModelType, type ProviderEntry } from './providers';
+import { ProviderCombobox } from './ProviderCombobox';
 
 /** AddModelDialog 组件属性 */
 interface AddModelDialogProps {
@@ -131,19 +132,13 @@ export default function AddModelDialog(props: AddModelDialogProps) {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="model-provider">{t('llm.providerLabel')}</Label>
-            <Select value={provider} onValueChange={onProviderChange}>
-              <SelectTrigger id="model-provider" className="w-full">
-                <SelectValue placeholder={t('llm.providerPlaceholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                {providers.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>{t('llm.providerLabel')}</Label>
+            <ProviderCombobox
+              providers={providers}
+              value={provider}
+              onChange={onProviderChange}
+              placeholder={t('llm.providerPlaceholder')}
+            />
           </div>
         </div>
 
