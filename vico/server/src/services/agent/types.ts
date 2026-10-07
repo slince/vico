@@ -31,6 +31,8 @@ export interface AgentRow {
 /** Agent 详情/列表类型 — skills 已解析为名称数组 */
 export interface AgentDetail extends Omit<AgentRow, 'skills'> {
   skills: string[];
+  /** 解析后的 LLM 模型信息（provider + model），由 list() 填充；详情等其它场景可能为空 */
+  llm?: { provider: string; model: string };
 }
 
 // ── 运行时配置 ──

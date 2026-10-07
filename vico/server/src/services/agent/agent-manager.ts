@@ -50,7 +50,19 @@ class AgentManager {
       .orderBy(desc(agents.updated_at))
       .all();
 
-    return rows.map((a) => ({ ...a, skills: parseSkills(a.skills) }) as AgentDetail);
+    const result: AgentDetail[] = [];
+    for (const a of rows) {
+      const detail = { ...a, skills: parseSkills(a.skills) } as AgentDetail;
+      // 解析模型配置，供前端模型选择器读取 provider + model
+      if (a.model_id) {
+        const model = await modelManager.getById(a.model_id);
+        if (model) {
+          detail.llm = { provider: model.provider, model: model.model_name };
+        }
+      }
+      result.push(detail);
+    }
+    return result;
   }
 
   async getById(id: string): Promise<AgentDetail | null> {

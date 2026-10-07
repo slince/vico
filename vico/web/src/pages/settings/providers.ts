@@ -32,6 +32,8 @@ export interface CatalogModel {
   name: string;
   /** 仅 embedding/rerank/asr 模型携带；chat/vllm 模型缺省 */
   model_type?: string;
+  /** 是否支持 reasoning effort（true=支持，false=不支持） */
+  reasoning?: boolean;
 }
 
 /** 单个厂商条目 */
