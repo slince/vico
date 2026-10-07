@@ -80,6 +80,17 @@
     "isDefaultLabel": "Set as default model",
     "defaultBadge": "Default",
     "setDefault": "Set as default",
-    "customProvider": "Custom"
+    "customProvider": "Custom",
+    "typeLabel": "Model Type",
+    "typePlaceholder": "Select Type",
+    "types": {
+      "chat": "Chat",
+      "embedding": "Embedding",
+      "rerank": "Rerank",
+      "vllm": "Vision",
+      "asr": "Speech"
+    },
+    "typeEmptyTitle": "No {{type}} models",
+    "typeEmptyDescription": "Add the first model of this type for its corresponding capability"
   }
 }

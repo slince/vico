@@ -9,6 +9,7 @@ export const model_configs = sqliteTable('model_configs', {
   model_name: text('model_name').notNull(),
   api_key: text('api_key_encrypted').notNull(),
   base_url: text('base_url'),
+  model_type: text('model_type').notNull().default('chat'),
   is_default: integer('is_default').notNull().default(0),
   created_at: integer('created_at').notNull(),
 });

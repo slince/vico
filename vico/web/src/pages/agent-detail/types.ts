@@ -16,6 +16,7 @@ export interface Model {
   id: string;
   provider: string;
   model_name: string;
+  model_type: string;
 }
 
 /** Agent 完整数据形状 */

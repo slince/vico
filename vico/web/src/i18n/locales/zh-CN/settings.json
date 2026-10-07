@@ -80,6 +80,17 @@
     "isDefaultLabel": "设为默认模型",
     "defaultBadge": "默认",
     "setDefault": "设为默认",
-    "customProvider": "自定义"
+    "customProvider": "自定义",
+    "typeLabel": "模型类型",
+    "typePlaceholder": "选择类型",
+    "types": {
+      "chat": "对话",
+      "embedding": "向量",
+      "rerank": "重排",
+      "vllm": "视觉",
+      "asr": "语音"
+    },
+    "typeEmptyTitle": "暂无{{type}}模型",
+    "typeEmptyDescription": "添加该类型的第一个模型，供对应能力使用"
   }
 }

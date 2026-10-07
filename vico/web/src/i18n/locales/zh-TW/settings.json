@@ -80,6 +80,17 @@
     "isDefaultLabel": "設為預設模型",
     "defaultBadge": "預設",
     "setDefault": "設為預設",
-    "customProvider": "自訂"
+    "customProvider": "自訂",
+    "typeLabel": "模型類型",
+    "typePlaceholder": "選擇類型",
+    "types": {
+      "chat": "對話",
+      "embedding": "向量",
+      "rerank": "重排",
+      "vllm": "視覺",
+      "asr": "語音"
+    },
+    "typeEmptyTitle": "尚無{{type}}模型",
+    "typeEmptyDescription": "新增該類型的第一個模型，供對應能力使用"
   }
 }

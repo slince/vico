@@ -206,7 +206,8 @@ export default function AgentDetail() {
 
   const skillsList = allSkills || [];
   const kbsList = allKbs || [];
-  const modelsList = models || [];
+  // Agent 模型选择仅应出现「对话」类型模型
+  const modelsList = (models || []).filter((m) => m.model_type === 'chat');
 
   return (
     <div className="space-y-6">

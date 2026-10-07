@@ -78,6 +78,13 @@
       "when": 1789574400000,
       "tag": "0011_agent_skills",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791392599193,
+      "tag": "0012_add_model_type",
+      "breakpoints": true
     }
   ]
 }

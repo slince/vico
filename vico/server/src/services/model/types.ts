@@ -5,6 +5,8 @@ export interface ModelConfigRow {
   model_name: string;
   api_key: string;
   base_url?: string;
+  /** 模型类型：chat / embedding / rerank / vllm / asr */
+  model_type: string;
   is_default: number;
   created_at: number;
 }
