@@ -519,14 +519,20 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 待审批的call
     for (const pendingCall of checkpoint.pendingApprovalCalls) {
-      const decision = context.decisions.get(pendingCall.id);
+      const decision = context.decisions.get(pendingCall.id)
+      const approvedTool = context.approvedTools.get(pendingCall.name);
 
-      const approved = decision?.approved ?? false;
+      if (!decision && !approvedTool) {
+        continue
+      }
+
+      // 有显式决策时以决策为准；否则说明工具已被自动放行（approvedTools 恒为 approved: true）
+      const approved = decision ? decision.approved : (approvedTool?.approved ?? false);
       const scope = decision?.scope ?? 'turn';
       const reason = decision?.reason;
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路），reason 携带用户文本回答
       context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope, reason }));
-      if (approved || context.approvedTools.has(pendingCall.id)) {
+      if (approved) {
         // 批准后正常执行 execute（澄清类工具从 ctx.approval 读取用户回答）
         approvedCalls.push(pendingCall);
         // 追踪到 approvedTools，确保同一 turn 后续 step 中该工具自动放行
