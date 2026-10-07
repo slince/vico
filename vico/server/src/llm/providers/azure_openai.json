@@ -1,0 +1,177 @@
+{
+  "id": "azure_openai",
+  "name": "Azure OpenAI",
+  "name_en": "Azure OpenAI",
+  "order": 31,
+  "api": "openai-completions",
+  "auth": "api-key header",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://{resource}.openai.azure.com",
+    "embedding": "https://{resource}.openai.azure.com",
+    "vllm": "https://{resource}.openai.azure.com"
+  },
+  "website": "https://ai.azure.com",
+  "thinking": "reasoning_effort; max_completion_tokens",
+  "note": "需填 api_version：留空走 /openai/v1 新路径，填写走 deployments 旧路径",
+  "model_types": [
+    "chat",
+    "embedding",
+    "vllm"
+  ],
+  "model_type_labels": [
+    "对话",
+    "向量",
+    "VLM"
+  ],
+  "model_count": 3,
+  "pattern_count": 8,
+  "models": [
+    {
+      "kind": "pattern",
+      "match": "gpt-6*",
+      "name": "GPT-6 deployments (reasoning, thinking always on)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "supports_temperature": false
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "gpt-5*",
+      "name": "GPT-5 deployments (reasoning, no sampling parameters)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "supports_temperature": false
+      }
+    },
+    {
+      "kind": "model",
+      "id": "gpt-5",
+      "name": "GPT-5 deployment (thinking cannot be disabled)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "thinking_levels": {
+        "off": null,
+        "xhigh": "high",
+        "max": "high"
+      },
+      "compat": {
+        "supports_temperature": false
+      }
+    },
+    {
+      "kind": "model",
+      "id": "gpt-5-mini",
+      "name": "GPT-5 Mini deployment (thinking cannot be disabled)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "thinking_levels": {
+        "off": null,
+        "xhigh": "high",
+        "max": "high"
+      },
+      "compat": {
+        "supports_temperature": false
+      }
+    },
+    {
+      "kind": "model",
+      "id": "gpt-5-nano",
+      "name": "GPT-5 Nano deployment (thinking cannot be disabled)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "thinking_levels": {
+        "off": null,
+        "xhigh": "high",
+        "max": "high"
+      },
+      "compat": {
+        "supports_temperature": false
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "o1*",
+      "name": "o1 deployments (always-on reasoning)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "supports_temperature": false
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "o3*",
+      "name": "o3 deployments (always-on reasoning)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "supports_temperature": false
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "o4*",
+      "name": "o4 deployments (always-on reasoning)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "supports_temperature": false
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "gpt-4o*",
+      "name": "GPT-4o deployments",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "kind": "pattern",
+      "match": "gpt-4.1*",
+      "name": "GPT-4.1 deployments",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "kind": "pattern",
+      "match": "text-embedding-3*",
+      "name": "text-embedding-3 deployments",
+      "reasoning": false,
+      "input": []
+    }
+  ]
+}

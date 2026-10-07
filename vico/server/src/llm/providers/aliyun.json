@@ -1,0 +1,950 @@
+{
+  "id": "aliyun",
+  "name": "阿里云 DashScope",
+  "name_en": "Alibaba Cloud DashScope",
+  "order": 10,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "embedding": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "rerank": "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank",
+    "vllm": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "anthropic": "https://dashscope.aliyuncs.com/apps/anthropic"
+  },
+  "website": "https://bailian.console.aliyun.com",
+  "thinking": "enable_thinking + thinking_budget; max_completion_tokens",
+  "note": "",
+  "model_types": [
+    "chat",
+    "embedding",
+    "rerank",
+    "vllm",
+    "asr"
+  ],
+  "model_type_labels": [
+    "对话",
+    "向量",
+    "重排",
+    "VLM",
+    "语音"
+  ],
+  "model_count": 33,
+  "pattern_count": 21,
+  "models": [
+    {
+      "kind": "pattern",
+      "match": "qwen3*",
+      "name": "Qwen3 family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen3.5*",
+      "name": "Qwen3.5 family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen3.6*",
+      "name": "Qwen3.6 family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen3.7*",
+      "name": "Qwen3.7 family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen3.8*",
+      "name": "Qwen3.8 family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true,
+        "supports_reasoning_effort": true,
+        "thinking_budget_excludes_effort": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen-plus*",
+      "name": "qwen-plus family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen-max*",
+      "name": "qwen-max family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen-turbo*",
+      "name": "qwen-turbo family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen-flash*",
+      "name": "qwen-flash family (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "deepseek-v3*",
+      "name": "DeepSeek V3 family on DashScope (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "deepseek-v4*",
+      "name": "DeepSeek V4 family on DashScope (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "kimi-k2*",
+      "name": "Kimi K2 family on DashScope (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "glm-5*",
+      "name": "GLM-5 family on DashScope (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.8-max",
+      "name": "Qwen3.8 Max",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 131072,
+      "cost": {
+        "input": 1.77744,
+        "output": 5.33231,
+        "cache_read": 0.22218,
+        "cache_write": 2.22179
+      },
+      "thinking_levels": {
+        "minimal": "low",
+        "low": "low",
+        "medium": "medium",
+        "high": "medium",
+        "xhigh": "xhigh",
+        "max": "xhigh"
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true,
+        "supports_reasoning_effort": true,
+        "thinking_budget_excludes_effort": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.8-flash",
+      "name": "Qwen3.8 Flash",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 131072,
+      "cost": {
+        "input": 0.11875,
+        "output": 0.40073,
+        "cache_read": 0.01187,
+        "cache_write": 0.14844
+      },
+      "thinking_levels": {
+        "minimal": "low",
+        "low": "low",
+        "medium": "medium",
+        "high": "medium",
+        "xhigh": "xhigh",
+        "max": "xhigh"
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true,
+        "supports_reasoning_effort": true,
+        "thinking_budget_excludes_effort": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.7-max",
+      "name": "Qwen3.7 Max",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 65536,
+      "cost": {
+        "input": 2.5,
+        "output": 7.5,
+        "cache_read": 0.5,
+        "cache_write": 3.125
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.7-plus",
+      "name": "Qwen3.7 Plus",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 64000,
+      "cost": {
+        "input": 0.5,
+        "output": 3,
+        "cache_read": 0.05,
+        "cache_write": 0.625
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.7-flash",
+      "name": "Qwen3.7 Flash",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 65536,
+      "cost": {
+        "input": 0.02962,
+        "output": 0.1185,
+        "cache_read": 0.002962,
+        "cache_write": 0.03703
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.6-plus",
+      "name": "Qwen3.6 Plus",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 65536,
+      "cost": {
+        "input": 0.5,
+        "output": 3,
+        "cache_read": 0.05,
+        "cache_write": 0.625
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.6-flash",
+      "name": "Qwen3.6 Flash",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 65536,
+      "cost": {
+        "input": 0.1875,
+        "output": 1.125,
+        "cache_write": 0.234375
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.5-plus",
+      "name": "Qwen3.5 Plus",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 65536,
+      "cost": {
+        "input": 0.287,
+        "output": 1.722
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.5-flash",
+      "name": "Qwen3.5 Flash",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 65536,
+      "cost": {
+        "input": 0.172,
+        "output": 1.033
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3-max",
+      "name": "Qwen3 Max",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 65536,
+      "cost": {
+        "input": 1.291,
+        "output": 7.749
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3-vl-plus",
+      "name": "Qwen3 VL Plus",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 32768,
+      "cost": {
+        "input": 0.143353,
+        "output": 1.433525
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen-plus",
+      "name": "Qwen Plus",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 32768,
+      "cost": {
+        "input": 0.115,
+        "output": 0.287,
+        "cache_read": 0.012,
+        "cache_write": 0.144
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen-max",
+      "name": "Qwen Max",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 8192,
+      "cost": {
+        "input": 0.345,
+        "output": 1.377
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen-turbo",
+      "name": "Qwen Turbo",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 16384,
+      "cost": {
+        "input": 0.044,
+        "output": 0.087
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen-flash",
+      "name": "Qwen Flash",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 32768,
+      "cost": {
+        "input": 0.022,
+        "output": 0.216
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen-vl-max",
+      "name": "Qwen VL Max",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 8192,
+      "cost": {
+        "input": 0.23,
+        "output": 0.574
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen-vl-plus",
+      "name": "Qwen VL Plus",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 8192,
+      "cost": {
+        "input": 0.115,
+        "output": 0.287
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwq-plus",
+      "name": "QwQ Plus",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 8192,
+      "cost": {
+        "input": 0.23,
+        "output": 0.574
+      },
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwq-32b",
+      "name": "QwQ 32B",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 8192,
+      "cost": {
+        "input": 0.287,
+        "output": 0.861
+      },
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v4-pro",
+      "name": "DeepSeek V4 Pro",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 393216,
+      "cost": {
+        "input": 0.435,
+        "output": 0.87,
+        "cache_read": 0.003625
+      },
+      "thinking_levels": {
+        "minimal": "high",
+        "low": "high",
+        "medium": "high",
+        "high": "high",
+        "xhigh": "max",
+        "max": "max"
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true,
+        "supports_reasoning_effort": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v4-flash",
+      "name": "DeepSeek V4 Flash",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 393216,
+      "cost": {
+        "input": 0.14,
+        "output": 0.28,
+        "cache_read": 0.0028
+      },
+      "thinking_levels": {
+        "minimal": "high",
+        "low": "high",
+        "medium": "high",
+        "high": "high",
+        "xhigh": "max",
+        "max": "max"
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true,
+        "supports_reasoning_effort": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-r1",
+      "name": "DeepSeek R1",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "cost": {
+        "input": 0.574,
+        "output": 2.294
+      },
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "kimi-k3",
+      "name": "Kimi K3",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 1048576,
+      "max_output_tokens": 1048576,
+      "cost": {
+        "input": 2.827,
+        "output": 14.133,
+        "cache_read": 0.283
+      },
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "kimi-k2.6",
+      "name": "Kimi K2.6",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 16384,
+      "cost": {
+        "input": 0.929,
+        "output": 3.858
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "glm-5.3",
+      "name": "GLM-5.3",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 131072,
+      "cost": {
+        "input": 1.1,
+        "output": 3.851,
+        "cache_read": 0.275
+      },
+      "thinking_levels": {
+        "off": null,
+        "minimal": "low",
+        "low": "low",
+        "medium": "high",
+        "high": "high",
+        "xhigh": "max",
+        "max": "max"
+      },
+      "compat": {
+        "thinking_always_send": true,
+        "thinking_disable_on_non_stream": true,
+        "supports_reasoning_effort": true
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.7-text-embedding",
+      "name": "Qwen3.7 Text Embedding",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "max_batch_size": 20
+      },
+      "dimension": 1024,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "qwen3.7-text-embedding-flash",
+      "name": "Qwen3.7 Text Embedding Flash",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "max_batch_size": 20
+      },
+      "dimension": 1024,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "text-embedding-v4",
+      "name": "Tongyi text-embedding-v4",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "max_batch_size": 10
+      },
+      "dimension": 1024,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "text-embedding-v3",
+      "name": "Tongyi text-embedding-v3",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "max_batch_size": 10
+      },
+      "dimension": 1024,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "pattern",
+      "match": "text-embedding-v2",
+      "name": "text-embedding-v2 (fixed 1536 dimensions)",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "dimensions_field": "",
+        "max_batch_size": 25
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "text-embedding-v1",
+      "name": "text-embedding-v1 (fixed 1536 dimensions)",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "dimensions_field": "",
+        "max_batch_size": 25
+      }
+    },
+    {
+      "kind": "model",
+      "id": "tongyi-embedding-vision-plus",
+      "name": "Tongyi Embedding Vision Plus",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "api": "dashscope-embeddings",
+        "dimensions_field": ""
+      },
+      "dimension": 1152,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "pattern",
+      "match": "tongyi-embedding-vision-flash",
+      "name": "tongyi-embedding-vision-flash (fixed 768 dimensions)",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "api": "dashscope-embeddings",
+        "dimensions_field": ""
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "tongyi-embedding-vision*",
+      "name": "tongyi-embedding-vision snapshots",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "api": "dashscope-embeddings",
+        "dimensions_field": "dimension",
+        "max_batch_size": 20
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen3-vl-embedding*",
+      "name": "qwen3-vl-embedding (independent vectors by default)",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "api": "dashscope-embeddings",
+        "dimensions_field": "dimension",
+        "max_batch_size": 20
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "qwen2.5-vl-embedding*",
+      "name": "qwen2.5-vl-embedding (fused vectors only)",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "api": "dashscope-embeddings",
+        "dimensions_field": "dimension",
+        "max_batch_size": 1
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "multimodal-embedding*",
+      "name": "multimodal-embedding-v1",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "api": "dashscope-embeddings",
+        "dimensions_field": "",
+        "max_batch_size": 20
+      }
+    },
+    {
+      "kind": "model",
+      "id": "qwen3-rerank",
+      "name": "Qwen3 Rerank (separate endpoint, not implemented)",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "unsupported_reason": "qwen3-rerank speaks a different protocol (/compatible-api/v1/reranks, flat request, results at the top level) that no protocol package implements yet"
+      },
+      "deprecated": true,
+      "model_type": "Rerank"
+    },
+    {
+      "kind": "model",
+      "id": "gte-rerank-v2",
+      "name": "GTE Rerank v2",
+      "reasoning": false,
+      "input": [],
+      "model_type": "Rerank"
+    },
+    {
+      "kind": "model",
+      "id": "qwen3-asr-flash",
+      "name": "Qwen3 ASR Flash",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "api": "openai-chat-audio",
+        "max_encoded_bytes": 10485760,
+        "language_param": "asr_options"
+      },
+      "model_type": "ASR"
+    },
+    {
+      "kind": "pattern",
+      "match": "*",
+      "name": "Other Alibaba recognition models (not callable with the audio in the request)",
+      "reasoning": false,
+      "input": [],
+      "compat": {
+        "unsupported_reason": "Alibaba's other recognition models take a public file URL or run as asynchronous tasks; only qwen3-asr-flash accepts the audio in the request"
+      }
+    }
+  ]
+}

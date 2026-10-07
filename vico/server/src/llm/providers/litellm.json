@@ -1,0 +1,35 @@
+{
+  "id": "litellm",
+  "name": "LiteLLM",
+  "name_en": "LiteLLM",
+  "order": 41,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "http://your_litellm_proxy/v1",
+    "embedding": "http://your_litellm_proxy/v1",
+    "rerank": "http://your_litellm_proxy",
+    "vllm": "http://your_litellm_proxy/v1"
+  },
+  "website": "https://docs.litellm.ai",
+  "thinking": "reasoning_effort; max_completion_tokens",
+  "note": "自建代理，一个 OpenAI 兼容入口对接 100+ 服务",
+  "model_types": [
+    "chat",
+    "embedding",
+    "rerank",
+    "vllm",
+    "asr"
+  ],
+  "model_type_labels": [
+    "对话",
+    "向量",
+    "重排",
+    "VLM",
+    "语音"
+  ],
+  "model_count": 0,
+  "pattern_count": 0,
+  "models": []
+}

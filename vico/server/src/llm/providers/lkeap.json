@@ -1,0 +1,137 @@
+{
+  "id": "lkeap",
+  "name": "腾讯云 LKEAP",
+  "name_en": "Tencent Cloud LKEAP",
+  "order": 23,
+  "api": "openai-completions",
+  "auth": "bearer (chat) / SecretId-SecretKey (rerank)",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://api.lkeap.cloud.tencent.com/v1",
+    "rerank": "https://lkeap.tencentcloudapi.com"
+  },
+  "website": "https://cloud.tencent.com/product/lkeap",
+  "thinking": "thinking.type enabled/disabled; max_tokens",
+  "note": "rerank 需 CAM 密钥对 + region",
+  "model_types": [
+    "chat",
+    "rerank"
+  ],
+  "model_type_labels": [
+    "对话",
+    "重排"
+  ],
+  "model_count": 8,
+  "pattern_count": 2,
+  "models": [
+    {
+      "kind": "pattern",
+      "match": "*deepseek-r1*",
+      "name": "DeepSeek R1 family (always-on reasoning)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ]
+    },
+    {
+      "kind": "pattern",
+      "match": "*deepseek-v3*",
+      "name": "DeepSeek V3 family (thinking switch)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ]
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v3.2",
+      "name": "DeepSeek V3.2",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 32768
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v3.1-terminus",
+      "name": "DeepSeek V3.1 Terminus",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 32768
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-r1-0528",
+      "name": "DeepSeek R1 (0528)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 16384,
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v3-0324",
+      "name": "DeepSeek V3 (0324)",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 16384
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-r1",
+      "name": "DeepSeek R1",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 65536,
+      "max_output_tokens": 16384,
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v3",
+      "name": "DeepSeek V3",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 65536,
+      "max_output_tokens": 16384
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v3.1",
+      "name": "DeepSeek V3.1",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 32768
+    },
+    {
+      "kind": "model",
+      "id": "lke-reranker-base",
+      "name": "LKE Reranker Base",
+      "reasoning": false,
+      "input": [],
+      "model_type": "Rerank"
+    }
+  ]
+}

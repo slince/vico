@@ -1,0 +1,13 @@
+{
+  "project": "Vico",
+  "version": "0.8.0",
+  "description": "内置模型厂商目录全量配置：27 家厂商 + 完整模型清单（来自 internal/models/vendors/*/vendor.go 与 models.json）",
+  "model_type_labels": {
+    "chat": "对话",
+    "embedding": "向量",
+    "rerank": "重排",
+    "vllm": "VLM",
+    "asr": "语音"
+  },
+  "generated_at": "2026-09-27"
+}

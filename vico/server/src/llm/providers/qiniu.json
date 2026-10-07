@@ -1,0 +1,148 @@
+{
+  "id": "qiniu",
+  "name": "七牛云",
+  "name_en": "Qiniu Cloud",
+  "order": 21,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://api.qnaigc.com/v1"
+  },
+  "website": "https://portal.qiniu.com/ai-inference",
+  "thinking": "thinking.type enabled/disabled + reasoning_effort; max_tokens",
+  "note": "",
+  "model_types": [
+    "chat"
+  ],
+  "model_type_labels": [
+    "对话"
+  ],
+  "model_count": 10,
+  "pattern_count": 0,
+  "models": [
+    {
+      "kind": "model",
+      "id": "qwen3.5-397b-a17b",
+      "name": "Qwen3.5 397B-A17B",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 256000,
+      "max_output_tokens": 64000
+    },
+    {
+      "kind": "model",
+      "id": "z-ai/glm-5",
+      "name": "GLM-5",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 200000,
+      "max_output_tokens": 128000
+    },
+    {
+      "kind": "model",
+      "id": "z-ai/glm-4.7",
+      "name": "GLM-4.7",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 200000,
+      "max_output_tokens": 200000
+    },
+    {
+      "kind": "model",
+      "id": "minimax/minimax-m2.5",
+      "name": "MiniMax M2.5",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 204800,
+      "max_output_tokens": 128000
+    },
+    {
+      "kind": "model",
+      "id": "doubao-seed-2.0-pro",
+      "name": "Doubao Seed 2.0 Pro",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 256000,
+      "max_output_tokens": 128000
+    },
+    {
+      "kind": "model",
+      "id": "moonshotai/kimi-k2.5",
+      "name": "Kimi K2.5",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 256000,
+      "max_output_tokens": 256000
+    },
+    {
+      "kind": "model",
+      "id": "xiaomi/mimo-v2-flash",
+      "name": "MiMo V2 Flash",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 256000,
+      "max_output_tokens": 256000,
+      "cost": {
+        "input": 0.1,
+        "output": 0.3,
+        "cache_read": 0.01
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek/deepseek-v3.2-251201",
+      "name": "DeepSeek V3.2 (251201)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 128000,
+      "max_output_tokens": 32000
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-r1",
+      "name": "DeepSeek R1",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 128000,
+      "max_output_tokens": 32000,
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v3",
+      "name": "DeepSeek V3",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 128000,
+      "max_output_tokens": 16000
+    }
+  ]
+}

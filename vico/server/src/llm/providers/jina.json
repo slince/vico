@@ -1,0 +1,150 @@
+{
+  "id": "jina",
+  "name": "Jina AI",
+  "name_en": "Jina AI",
+  "order": 50,
+  "api": "openai-completions (仅向量/重排)",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "embedding": "https://api.jina.ai/v1",
+    "rerank": "https://api.jina.ai/v1"
+  },
+  "website": "https://jina.ai",
+  "thinking": "—",
+  "note": "无对话模型",
+  "model_types": [
+    "embedding",
+    "rerank"
+  ],
+  "model_type_labels": [
+    "向量",
+    "重排"
+  ],
+  "model_count": 12,
+  "pattern_count": 0,
+  "models": [
+    {
+      "kind": "model",
+      "id": "jina-embeddings-v5-omni-small",
+      "name": "Jina Embeddings v5 Omni Small (multimodal)",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 32768,
+      "dimension": 1024,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "jina-embeddings-v5-omni-nano",
+      "name": "Jina Embeddings v5 Omni Nano (multimodal)",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 8192,
+      "dimension": 768,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "jina-embeddings-v5-text-small",
+      "name": "Jina Embeddings v5 Text Small",
+      "reasoning": false,
+      "input": [],
+      "context_window": 32768,
+      "dimension": 1024,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "jina-embeddings-v5-text-nano",
+      "name": "Jina Embeddings v5 Text Nano",
+      "reasoning": false,
+      "input": [],
+      "context_window": 8192,
+      "dimension": 768,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "jina-embeddings-v4",
+      "name": "Jina Embeddings v4",
+      "reasoning": false,
+      "input": [],
+      "context_window": 32768,
+      "dimension": 2048,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "jina-embeddings-v3",
+      "name": "Jina Embeddings v3",
+      "reasoning": false,
+      "input": [],
+      "context_window": 8192,
+      "dimension": 1024,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "jina-code-embeddings-1.5b",
+      "name": "Jina Code Embeddings 1.5B",
+      "reasoning": false,
+      "input": [],
+      "context_window": 32768,
+      "dimension": 1536,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "jina-code-embeddings-0.5b",
+      "name": "Jina Code Embeddings 0.5B",
+      "reasoning": false,
+      "input": [],
+      "context_window": 32768,
+      "dimension": 896,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "jina-reranker-v3.5",
+      "name": "Jina Reranker v3.5",
+      "reasoning": false,
+      "input": [],
+      "context_window": 131072,
+      "model_type": "Rerank"
+    },
+    {
+      "kind": "model",
+      "id": "jina-reranker-v3",
+      "name": "Jina Reranker v3",
+      "reasoning": false,
+      "input": [],
+      "context_window": 131072,
+      "model_type": "Rerank"
+    },
+    {
+      "kind": "model",
+      "id": "jina-reranker-m0",
+      "name": "Jina Reranker m0 (multimodal)",
+      "reasoning": false,
+      "input": [],
+      "context_window": 10000,
+      "model_type": "Rerank"
+    },
+    {
+      "kind": "model",
+      "id": "jina-reranker-v2-base-multilingual",
+      "name": "Jina Reranker v2 Base Multilingual",
+      "reasoning": false,
+      "input": [],
+      "context_window": 1024,
+      "model_type": "Rerank"
+    }
+  ]
+}

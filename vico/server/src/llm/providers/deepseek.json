@@ -1,0 +1,112 @@
+{
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "name_en": "DeepSeek",
+  "order": 30,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://api.deepseek.com/v1",
+    "anthropic": "https://api.deepseek.com/anthropic"
+  },
+  "website": "https://platform.deepseek.com",
+  "thinking": "thinking.type enabled/disabled + reasoning_effort(none|low|high|max); max_tokens",
+  "note": "",
+  "model_types": [
+    "chat"
+  ],
+  "model_type_labels": [
+    "对话"
+  ],
+  "model_count": 5,
+  "pattern_count": 0,
+  "models": [
+    {
+      "kind": "model",
+      "id": "deepseek-v4-pro",
+      "name": "DeepSeek V4 Pro",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 384000,
+      "cost": {
+        "input": 0.66,
+        "output": 1.98,
+        "cache_read": 0.022
+      },
+      "thinking_levels": {
+        "minimal": "high",
+        "low": "high",
+        "medium": "high",
+        "high": "high",
+        "xhigh": "max",
+        "max": "max"
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-flash",
+      "name": "DeepSeek V4.1 Flash",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 384000,
+      "cost": {
+        "input": 0.15,
+        "output": 0.6,
+        "cache_read": 0.003
+      }
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-v4-flash",
+      "name": "DeepSeek V4 Flash (retired name, served by V4.1 Flash)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 1000000,
+      "max_output_tokens": 384000,
+      "cost": {
+        "input": 0.15,
+        "output": 0.6,
+        "cache_read": 0.003
+      },
+      "deprecated": true
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-chat",
+      "name": "DeepSeek Chat (retired 2026-07-24, non-thinking alias)",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 128000,
+      "max_output_tokens": 8192,
+      "deprecated": true
+    },
+    {
+      "kind": "model",
+      "id": "deepseek-reasoner",
+      "name": "DeepSeek Reasoner (retired 2026-07-24, thinking alias)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 128000,
+      "max_output_tokens": 65536,
+      "thinking_levels": {
+        "off": null
+      },
+      "deprecated": true
+    }
+  ]
+}

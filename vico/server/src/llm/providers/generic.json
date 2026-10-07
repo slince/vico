@@ -1,0 +1,83 @@
+{
+  "id": "generic",
+  "name": "自定义 (OpenAI兼容)",
+  "name_en": "Custom (OpenAI-compatible)",
+  "order": 0,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": false,
+  "base_urls": {},
+  "website": "",
+  "thinking": "chat_template_kwargs.enable_thinking; max_tokens",
+  "note": "任意 OpenAI 兼容接口（vLLM、SGLang、Xinference、Ollama 等），无默认 URL，必须填 base_url",
+  "model_types": [
+    "chat",
+    "embedding",
+    "rerank",
+    "vllm",
+    "asr"
+  ],
+  "model_type_labels": [
+    "对话",
+    "向量",
+    "重排",
+    "VLM",
+    "语音"
+  ],
+  "model_count": 0,
+  "pattern_count": 4,
+  "models": [
+    {
+      "kind": "pattern",
+      "match": "gpt-5*",
+      "name": "gpt-5*",
+      "reasoning": true,
+      "input": [],
+      "compat": {
+        "max_tokens_field": "max_completion_tokens",
+        "supports_temperature": false,
+        "thinking_format": "openai",
+        "supports_reasoning_effort": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "o1*",
+      "name": "o1*",
+      "reasoning": true,
+      "input": [],
+      "compat": {
+        "max_tokens_field": "max_completion_tokens",
+        "supports_temperature": false,
+        "thinking_format": "openai",
+        "supports_reasoning_effort": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "o3*",
+      "name": "o3*",
+      "reasoning": true,
+      "input": [],
+      "compat": {
+        "max_tokens_field": "max_completion_tokens",
+        "supports_temperature": false,
+        "thinking_format": "openai",
+        "supports_reasoning_effort": true
+      }
+    },
+    {
+      "kind": "pattern",
+      "match": "o4*",
+      "name": "o4*",
+      "reasoning": true,
+      "input": [],
+      "compat": {
+        "max_tokens_field": "max_completion_tokens",
+        "supports_temperature": false,
+        "thinking_format": "openai",
+        "supports_reasoning_effort": true
+      }
+    }
+  ]
+}

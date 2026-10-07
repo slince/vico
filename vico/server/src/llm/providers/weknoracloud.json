@@ -1,0 +1,33 @@
+{
+  "id": "weknoracloud",
+  "name": "WeKnora 云服务",
+  "name_en": "WeKnora Cloud",
+  "order": 1,
+  "api": "openai-completions",
+  "auth": "signed (AppID/AppSecret)",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://weknora.weixin.qq.com",
+    "embedding": "https://weknora.weixin.qq.com",
+    "rerank": "https://weknora.weixin.qq.com",
+    "vllm": "https://weknora.weixin.qq.com"
+  },
+  "website": "https://weknora.weixin.qq.com/docs",
+  "thinking": "—",
+  "note": "AppID/AppSecret 签名鉴权，模型由平台下发",
+  "model_types": [
+    "chat",
+    "embedding",
+    "rerank",
+    "vllm"
+  ],
+  "model_type_labels": [
+    "对话",
+    "向量",
+    "重排",
+    "VLM"
+  ],
+  "model_count": 0,
+  "pattern_count": 0,
+  "models": []
+}

@@ -1,0 +1,171 @@
+{
+  "id": "hunyuan",
+  "name": "腾讯混元",
+  "name_en": "Tencent Hunyuan",
+  "order": 13,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://api.hunyuan.cloud.tencent.com/v1",
+    "embedding": "https://api.hunyuan.cloud.tencent.com/v1",
+    "anthropic": "https://api.hunyuan.cloud.tencent.com/anthropic"
+  },
+  "website": "https://cloud.tencent.com/product/hunyuan",
+  "thinking": "enable_thinking (仅 a13b); max_tokens",
+  "note": "",
+  "model_types": [
+    "chat",
+    "embedding"
+  ],
+  "model_type_labels": [
+    "对话",
+    "向量"
+  ],
+  "model_count": 11,
+  "pattern_count": 1,
+  "models": [
+    {
+      "kind": "pattern",
+      "match": "hunyuan-t1*",
+      "name": "Hunyuan T1 family (always-on reasoning)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ]
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-t1-latest",
+      "name": "Hunyuan T1",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 32000,
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-t1-vision-20250916",
+      "name": "Hunyuan T1 Vision (deep thinking)",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 28000,
+      "max_output_tokens": 20000,
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-turbos-latest",
+      "name": "Hunyuan TurboS",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 32000,
+      "max_output_tokens": 8000,
+      "cost": {
+        "input": 0.11,
+        "output": 0.28
+      }
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-a13b",
+      "name": "Hunyuan A13B (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 224000,
+      "max_output_tokens": 32000
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-2.0-thinking-20251109",
+      "name": "Hunyuan 2.0 Thinking",
+      "reasoning": true,
+      "input": [
+        "text"
+      ]
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-2.0-instruct-20251111",
+      "name": "Hunyuan 2.0 Instruct",
+      "reasoning": false,
+      "input": [
+        "text"
+      ]
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-vision-1.5-instruct",
+      "name": "Hunyuan Vision 1.5 Instruct (fast thinking)",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 24000,
+      "max_output_tokens": 16000
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-turbos-vision-video",
+      "name": "Hunyuan TurboS Vision Video",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image",
+        "video"
+      ],
+      "context_window": 24000,
+      "max_output_tokens": 8000
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-turbos-vision",
+      "name": "Hunyuan TurboS Vision",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 32000,
+      "max_output_tokens": 8000
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-lite",
+      "name": "Hunyuan Lite",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 256000,
+      "max_output_tokens": 6000,
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "kind": "model",
+      "id": "hunyuan-embedding",
+      "name": "Hunyuan Embedding",
+      "reasoning": false,
+      "input": [],
+      "dimension": 1024,
+      "model_type": "Embedding"
+    }
+  ]
+}

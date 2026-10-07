@@ -1,0 +1,192 @@
+{
+  "id": "modelscope",
+  "name": "魔搭 ModelScope",
+  "name_en": "ModelScope",
+  "order": 19,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://api-inference.modelscope.cn/v1",
+    "embedding": "https://api-inference.modelscope.cn/v1",
+    "vllm": "https://api-inference.modelscope.cn/v1",
+    "anthropic": "https://api-inference.modelscope.cn/anthropic/v1"
+  },
+  "website": "https://modelscope.cn",
+  "thinking": "enable_thinking; max_tokens",
+  "note": "免费体验，魔粒计费",
+  "model_types": [
+    "chat",
+    "embedding",
+    "vllm"
+  ],
+  "model_type_labels": [
+    "对话",
+    "向量",
+    "VLM"
+  ],
+  "model_count": 11,
+  "pattern_count": 0,
+  "models": [
+    {
+      "kind": "model",
+      "id": "ZhipuAI/GLM-4.6",
+      "name": "GLM-4.6",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 202752,
+      "max_output_tokens": 98304,
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "kind": "model",
+      "id": "ZhipuAI/GLM-4.5",
+      "name": "GLM-4.5",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 98304,
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+      "name": "Qwen3 235B-A22B Instruct 2507",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 131072,
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+      "name": "Qwen3 235B-A22B Thinking 2507",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 131072,
+      "cost": {
+        "input": 0,
+        "output": 0
+      },
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+      "name": "Qwen3 30B-A3B Instruct 2507",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 16384,
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-30B-A3B-Thinking-2507",
+      "name": "Qwen3 30B-A3B Thinking 2507",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 32768,
+      "cost": {
+        "input": 0,
+        "output": 0
+      },
+      "thinking_levels": {
+        "off": null
+      }
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+      "name": "Qwen3 Coder 30B-A3B Instruct",
+      "reasoning": false,
+      "input": [
+        "text"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 65536,
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-8B",
+      "name": "Qwen3 8B (hybrid thinking)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 131072,
+      "max_output_tokens": 32768,
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-VL-235B-A22B-Instruct",
+      "name": "Qwen3 VL 235B-A22B Instruct",
+      "reasoning": false,
+      "input": [
+        "text",
+        "image"
+      ],
+      "context_window": 262144,
+      "max_output_tokens": 32768,
+      "cost": {
+        "input": 0,
+        "output": 0
+      }
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-Embedding-8B",
+      "name": "Qwen3 Embedding 8B",
+      "reasoning": false,
+      "input": [],
+      "dimension": 4096,
+      "model_type": "Embedding"
+    },
+    {
+      "kind": "model",
+      "id": "Qwen/Qwen3-Embedding-0.6B",
+      "name": "Qwen3 Embedding 0.6B",
+      "reasoning": false,
+      "input": [],
+      "dimension": 1024,
+      "model_type": "Embedding"
+    }
+  ]
+}

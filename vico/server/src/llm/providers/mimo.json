@@ -1,0 +1,104 @@
+{
+  "id": "mimo",
+  "name": "小米 MiMo",
+  "name_en": "Xiaomi MiMo",
+  "order": 18,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "https://api.xiaomimimo.com/v1",
+    "anthropic": "https://api.xiaomimimo.com/anthropic"
+  },
+  "website": "https://platform.xiaomimimo.com",
+  "thinking": "thinking.type enabled/disabled; max_completion_tokens",
+  "note": "",
+  "model_types": [
+    "chat",
+    "asr"
+  ],
+  "model_type_labels": [
+    "对话",
+    "语音"
+  ],
+  "model_count": 5,
+  "pattern_count": 0,
+  "models": [
+    {
+      "kind": "model",
+      "id": "mimo-v2.5-pro",
+      "name": "MiMo V2.5 Pro",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1048576,
+      "max_output_tokens": 131072,
+      "cost": {
+        "input": 0.435,
+        "output": 0.87,
+        "cache_read": 0.0036
+      }
+    },
+    {
+      "kind": "model",
+      "id": "mimo-v2.5",
+      "name": "MiMo V2.5",
+      "reasoning": true,
+      "input": [
+        "text",
+        "image",
+        "audio",
+        "video"
+      ],
+      "context_window": 1048576,
+      "max_output_tokens": 131072,
+      "cost": {
+        "input": 0.14,
+        "output": 0.28,
+        "cache_read": 0.0028
+      }
+    },
+    {
+      "kind": "model",
+      "id": "mimo-v2.5-pro-ultraspeed",
+      "name": "MiMo V2.5 Pro Ultraspeed",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 1048576,
+      "max_output_tokens": 131072,
+      "cost": {
+        "input": 1.305,
+        "output": 2.61,
+        "cache_read": 0.0108
+      }
+    },
+    {
+      "kind": "model",
+      "id": "mimo-v2-flash",
+      "name": "MiMo V2 Flash (retired 2026-06-30)",
+      "reasoning": true,
+      "input": [
+        "text"
+      ],
+      "context_window": 256000,
+      "max_output_tokens": 256000,
+      "cost": {
+        "input": 0.1,
+        "output": 0.3,
+        "cache_read": 0.01
+      },
+      "deprecated": true
+    },
+    {
+      "kind": "model",
+      "id": "mimo-v2.5-asr",
+      "name": "MiMo V2.5 ASR",
+      "reasoning": false,
+      "input": [],
+      "model_type": "ASR"
+    }
+  ]
+}

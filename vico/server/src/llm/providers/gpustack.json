@@ -1,0 +1,36 @@
+{
+  "id": "gpustack",
+  "name": "GPUStack",
+  "name_en": "GPUStack",
+  "order": 60,
+  "api": "openai-completions",
+  "auth": "bearer",
+  "requires_auth": true,
+  "base_urls": {
+    "chat": "http://your_gpustack_server_url/v1",
+    "embedding": "http://your_gpustack_server_url/v1",
+    "rerank": "http://your_gpustack_server_url/v1",
+    "vllm": "http://your_gpustack_server_url/v1",
+    "asr": "http://your_gpustack_server_url/v1"
+  },
+  "website": "https://gpustack.ai",
+  "thinking": "chat_template_kwargs.enable_thinking; max_tokens",
+  "note": "选择你在 GPUStack 上部署的模型",
+  "model_types": [
+    "chat",
+    "embedding",
+    "rerank",
+    "vllm",
+    "asr"
+  ],
+  "model_type_labels": [
+    "对话",
+    "向量",
+    "重排",
+    "VLM",
+    "语音"
+  ],
+  "model_count": 0,
+  "pattern_count": 0,
+  "models": []
+}
