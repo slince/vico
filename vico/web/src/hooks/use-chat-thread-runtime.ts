@@ -6,7 +6,8 @@
  */
 import {useMemo, useRef} from 'react';
 import {useChatRuntime} from '@assistant-ui/react-ai-sdk';
-import {DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses} from 'ai';
+import {AssistantChatTransport} from '@assistant-ui/ai-sdk';
+import {lastAssistantMessageIsCompleteWithApprovalResponses} from 'ai';
 import {useTranslation} from 'react-i18next';
 
 import {createThreadHistoryAdapter} from '@/lib/thread-adapter';
@@ -55,7 +56,9 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
   const newThreadIdRef = useRef<string | null>(null);
 
   // 为此线程创建 transport — threadId 为对话 ID（新线程则为本地 ID）
-  const transport = useMemo(() => new DefaultChatTransport({
+  // 使用 AssistantChatTransport（而非 DefaultChatTransport）以自动把
+  // modelContext（ModelSelector 等注册的 config/modelName）注入请求 body。
+  const transport = useMemo(() => new AssistantChatTransport({
         api: '/api/v1/chat',
         credentials: 'include',
         body: () => ({ agentId }),

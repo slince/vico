@@ -1,5 +1,6 @@
 import {Hono} from 'hono';
 import {createUIMessageStreamResponse, toUIMessageStream, UIMessage} from 'ai';
+import type {ReasoningEffort} from '@vico/core';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
@@ -9,6 +10,19 @@ function extractLastMessage(body: Record<string, unknown>): UIMessage | undefine
   const messages = body.messages as UIMessage[] | undefined;
   if (!messages?.length) return undefined;
   return messages[messages.length - 1];
+}
+
+/** 合法的推理力度取值（与 @vico/core 的 ReasoningEffort 一致） */
+const REASONING_EFFORTS: readonly ReasoningEffort[] = [
+  'provider-default', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh',
+];
+
+/** 校验客户端下发的 reasoningEffort，非法值回退 undefined（走 agent 默认） */
+function toReasoningEffort(value: unknown): ReasoningEffort | undefined {
+  if (typeof value !== 'string') return undefined;
+  return (REASONING_EFFORTS as readonly string[]).includes(value)
+    ? (value as ReasoningEffort)
+    : undefined;
 }
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
@@ -21,6 +35,8 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const agentId: string = body.agentId as string;
     const lastMessage = extractLastMessage(body);
     const requestedThreadId = body.threadId as string | undefined;
+    // 前端 ModelSelector 通过 modelContext 注入的 config（{ modelName, reasoningEffort }）
+    const config = body.config as { modelName?: string; reasoningEffort?: string } | undefined;
 
     // 前端本地临时 ID（如 __LOCALID_xxx）视为无真实线程，交由服务端新建
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;
@@ -39,6 +55,8 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       message: lastMessage,
       threadId: isLocalThreadId ? undefined : requestedThreadId,
       userId: auth.userId,
+      model: config?.modelName,
+      reasoning: toReasoningEffort(config?.reasoningEffort),
     });
 
     // 桥接 HTTP 请求生命周期到 agent 执行：客户端断开时自动终止 LLM 调用

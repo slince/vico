@@ -1,7 +1,7 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：getAgent 拿到实例，解析/创建 thread 后 stream 执行。
  */
-import type {Agent, Thread, TurnOutput} from '@vico/core';
+import type {Agent, ReasoningEffort, Thread, TurnOutput} from '@vico/core';
 import {getAgent} from '../agent/get-agent.js';
 import type {UIMessage} from 'ai';
 
@@ -12,6 +12,10 @@ export interface ExecuteChatParams {
   /** 客户端传入的真实线程 ID；为空时新建线程 */
   threadId?: string;
   userId?: string;
+  /** 客户端模型选择器下发的模型名，覆盖 agent 默认模型（provider/apiKey/baseUrl 复用） */
+  model?: string;
+  /** 客户端下发的推理力度，覆盖 agent 默认 reasoning */
+  reasoning?: ReasoningEffort;
 }
 
 /** executeAgentChat 返回结果：流输出 + 解析后的线程（新建时含服务端生成的 ID） */
@@ -69,12 +73,12 @@ async function resolveThread(
 export async function executeAgentChat(
   params: ExecuteChatParams,
 ): Promise<ExecuteChatResult> {
-  const { agentId, message, threadId, userId } = params;
+  const { agentId, message, threadId, userId, model, reasoning } = params;
 
   const agent = await getAgent(agentId);
   const thread = await resolveThread(agent, threadId, userId, message);
 
-  const output = await agent.stream(message ? [message] : [], { thread });
+  const output = await agent.stream(message ? [message] : [], { thread, model, reasoning });
 
   return { output, thread };
 }
