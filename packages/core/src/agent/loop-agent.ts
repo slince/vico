@@ -527,7 +527,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
 
       // 有显式决策时以决策为准；否则说明工具已被自动放行（approvedTools 恒为 approved: true）
-      const approved = decision ? decision.approved : (approvedTool?.approved ?? false);
+      const approved = decision?.approved ?? approvedTool?.approved ?? false;
       const scope = decision?.scope ?? 'turn';
       const reason = decision?.reason;
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路），reason 携带用户文本回答

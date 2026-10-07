@@ -1,18 +1,20 @@
 // @vico/core - LoopAgent 输出流协议（TextStreamPart）的 part 构造与 V4 映射辅助
-import type {
-  CallWarning,
-  FinishReason,
-  ModelMessage,
-  StepResultPerformance,
-  TextStreamPart,
-  ToolSet,
-  TypedToolCall
-} from 'ai';
 //
 // 分层约定：ModelClient 输出 provider 层协议（LanguageModelV4StreamPart），
 // LoopAgent 将其转换为引擎层协议（TextStreamPart<TToolSet>）后对外输出，
 // turn-stream 再转换为 UI 层协议（UIMessageChunk）。本模块承载引擎层 part 的构造逻辑。
-import {DefaultGeneratedFile} from 'ai';
+import {
+  CallWarning,
+  DefaultGeneratedFile,
+  FinishReason,
+  ModelMessage,
+  StepResultPerformance,
+  TextStreamPart,
+  ToolApprovalRequestOutput,
+  ToolApprovalResponseOutput,
+  ToolSet,
+  TypedToolCall
+} from 'ai';
 import {asLanguageModelUsage, createNullLanguageModelUsage} from 'ai/internal';
 import type {
   LanguageModelV4File,
@@ -119,8 +121,8 @@ export function toolOutputDeniedPart<TToolSet extends ToolSet = ToolSet>(call: T
 }
 
 /** 引擎审批请求 part（approvalId 复用 toolCallId，客户端审批响应可直接映射） */
-export function toolApprovalRequestPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall): TextStreamPart<TToolSet> {
-  return { type: 'tool-approval-request', approvalId: call.id, toolCall: createToolCall<TToolSet>(call) } as TextStreamPart<TToolSet>;
+export function toolApprovalRequestPart<TToolSet extends ToolSet = ToolSet>(call: ToolCall): ToolApprovalRequestOutput<TToolSet> {
+  return { type: 'tool-approval-request', approvalId: call.id, toolCall: createToolCall<TToolSet>(call) };
 }
 
 /** 审批决策结果 part（恢复执行时回放决策） */
@@ -128,8 +130,8 @@ export function toolApprovalResponsePart<TToolSet extends ToolSet = ToolSet>(
   call: ToolCall,
   approved: boolean,
   opts?: { reason?: string; scope?: 'turn' | 'session' },
-): TextStreamPart<TToolSet> {
-  return { type: 'tool-approval-response', approvalId: call.id, toolCall: createToolCall<TToolSet>(call), approved, ...opts } as TextStreamPart<TToolSet>;
+): ToolApprovalResponseOutput<TToolSet> {
+  return { type: 'tool-approval-response', approvalId: call.id, toolCall: createToolCall<TToolSet>(call), approved, ...opts };
 }
 
 /**
