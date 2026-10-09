@@ -1,11 +1,19 @@
 import {existsSync, readFileSync} from 'node:fs';
 import {parse} from 'yaml';
-import {dirname, resolve} from 'node:path';
+import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {homedir} from 'node:os';
 import type {EmbedderConfig} from '@vico/rag';
 
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** 展开路径开头的 `~` 为用户主目录（YAML 里 `~/xxx` 不会自动展开） */
+function expandHome(p: string): string {
+  if (p === '~') return homedir();
+  if (p.startsWith('~/')) return join(homedir(), p.slice(2));
+  return p;
+}
 
 interface AppConfig {
   server: {
@@ -108,6 +116,7 @@ function loadConfig(): AppConfig {
       workspace: { ...defaultConfig.workspace, ...parsed.workspace },
       checkpoint: { ...defaultConfig.checkpoint, ...parsed.checkpoint },
     };
+    merged.workspace.base_path = expandHome(merged.workspace.base_path);
     return merged;
   }
 
