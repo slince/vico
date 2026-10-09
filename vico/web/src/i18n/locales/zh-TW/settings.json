@@ -7,7 +7,9 @@
     "theme": "介面主題",
     "themeDesc": "選擇介面主題配色，變更後立即生效",
     "light": "淺色",
-    "dark": "深色"
+    "dark": "深色",
+    "fontSize": "會話字型大小",
+    "fontSizeDesc": "調整聊天會話區域的文字大小（單位 px），變更後立即生效"
   },
   "users": {
     "tab": "使用者管理",

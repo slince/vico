@@ -5,6 +5,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {TooltipProvider} from '@/components/ui/tooltip';
 import {Toaster} from '@/components/ui/sonner';
 import {ThemeProvider} from '@/hooks/use-theme';
+import {FontSizeProvider} from '@/hooks/use-font-size';
 import {router} from './router';
 import './i18n';
 import './globals.css';
@@ -21,8 +22,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider>
-          <RouterProvider router={router} />
-          <Toaster />
+          <FontSizeProvider>
+            <RouterProvider router={router} />
+            <Toaster />
+          </FontSizeProvider>
         </ThemeProvider>
       </TooltipProvider>
     </QueryClientProvider>

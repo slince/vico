@@ -7,7 +7,9 @@
     "theme": "Interface Theme",
     "themeDesc": "Select the theme color scheme. Changes take effect immediately.",
     "light": "Light",
-    "dark": "Dark"
+    "dark": "Dark",
+    "fontSize": "Chat Font Size",
+    "fontSizeDesc": "Adjust the text size of the chat conversation area (in px). Changes take effect immediately."
   },
   "users": {
     "tab": "Users",

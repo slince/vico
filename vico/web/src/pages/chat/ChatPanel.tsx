@@ -10,6 +10,7 @@ import {FolderTree} from 'lucide-react';
 import {Thread} from '@/components/assistant-ui/elements/thread.aui';
 import {FileExplorerPanel} from '@/pages/chat/FileExplorerPanel';
 import {useFileExplorerStore} from '@/stores/fileExplorerStore';
+import {BASE_FONT_SIZE, useFontSize} from '@/hooks/use-font-size';
 import {Button} from '@/components/ui/button';
 import {AuiConfig, AuiProvider, Suggestions, useAui} from "@assistant-ui/react";
 
@@ -85,6 +86,7 @@ function ThreadWithSuggestions({agent}: ChatPanelProps) {
 export function ChatPanel({ agent, threadId }: ChatPanelProps) {
   const toggleFileExplorer = useFileExplorerStore((s) => s.toggleFileExplorer);
   const fileExplorerOpen = useFileExplorerStore((s) => s.fileExplorerOpen);
+  const { fontSize } = useFontSize();
 
   return (
     <div className="flex-1 flex bg-background min-w-0">
@@ -107,8 +109,8 @@ export function ChatPanel({ agent, threadId }: ChatPanelProps) {
           )}
         </div>
 
-        {/* 内容区：纯对话 */}
-        <div className="flex-1 min-h-0">
+        {/* 内容区：纯对话 — zoom 只作用于会话区文字，不影响右侧面板 */}
+        <div className="flex-1 min-h-0" style={{ zoom: fontSize / BASE_FONT_SIZE }}>
           <ThreadWithSuggestions agent={agent} threadId={threadId} />
         </div>
       </div>
