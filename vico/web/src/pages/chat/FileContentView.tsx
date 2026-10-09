@@ -1,122 +1,21 @@
 'use client';
 
-import {AlertCircle, Eye, FileText, Loader2, PenLine, RefreshCw, Save, X} from 'lucide-react';
+import {AlertCircle, Eye, Loader2, PenLine, RefreshCw, Save} from 'lucide-react';
 import {useEffect, useState} from 'react';
 
 import {Button} from '@/components/ui/button';
-import {getFileIcon} from '@/components/file-explorer/FileExplorer';
 import {SyntaxHighlighter} from '@/components/assistant-ui/elements/shiki-highlighter';
 import {cn} from '@/lib/utils';
 import {useFileExplorerStore, type OpenFileTab} from '@/stores/fileExplorerStore';
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu';
 
 /**
- * 文件预览视图 — 右侧边栏「预览」tab 的内容。
+ * 单个已打开文件的预览/编辑内容区。
  *
- * 顶部为已打开文件 tabs（可关闭、右键批量关闭），下方为当前文件的预览/编辑区
- * （Shiki 语法高亮浏览 + 编辑保存）。原 FileTabBar / FileTabContent 的能力合并于此。
+ * 顶部为文件路径 + 操作按钮（重载 / 编辑切换 / 保存），下方为内容区：
+ * 浏览态用 Shiki 语法高亮渲染，编辑态用 textarea 直接编辑并支持 Cmd/Ctrl+S 保存。
+ * 原 FilePreviewView 的 PreviewContent 逻辑迁移至此（去掉 tab 条与空态）。
  */
-
-/** 无打开 tab 时的稳定空数组 — 避免 selector 每次返回新引用触发无限渲染 */
-const EMPTY_TABS: OpenFileTab[] = [];
-
-export function FilePreviewView({ threadId }: { threadId: string }) {
-  const openTabs = useFileExplorerStore((s) => s.openTabsByThread[threadId] ?? EMPTY_TABS);
-  const activeTab = useFileExplorerStore((s) => s.activeTabByThread[threadId] ?? null);
-  const setActiveTab = useFileExplorerStore((s) => s.setActiveTab);
-  const closeTab = useFileExplorerStore((s) => s.closeTab);
-  const closeTabsToLeft = useFileExplorerStore((s) => s.closeTabsToLeft);
-  const closeTabsToRight = useFileExplorerStore((s) => s.closeTabsToRight);
-  const closeAllTabs = useFileExplorerStore((s) => s.closeAllTabs);
-
-  const activeFile = openTabs.find((t) => t.filePath === activeTab);
-
-  if (openTabs.length === 0) {
-    return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
-        <FileText className="size-6" />
-        <div className="text-sm">点击文件树中的文件以预览</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* 文件 tabs 条 */}
-      <div className="flex shrink-0 items-center overflow-x-auto overflow-y-hidden border-b bg-muted/30">
-        {openTabs.map((tab, idx) => {
-          const isActive = tab.filePath === activeTab;
-          const { Icon, cls } = getFileIcon(tab.fileName);
-          const hasLeft = idx > 0;
-          const hasRight = idx < openTabs.length - 1;
-
-          return (
-            <ContextMenu key={tab.filePath}>
-              <ContextMenuTrigger asChild>
-                <div
-                  className={cn(
-                    'flex shrink-0 cursor-pointer items-center gap-1 border-r px-3 py-1.5 text-xs transition-colors max-w-[180px]',
-                    isActive
-                      ? 'bg-background border-b-2 border-b-primary -mb-[1px]'
-                      : 'hover:bg-accent/50 text-muted-foreground',
-                  )}
-                  onClick={() => setActiveTab(threadId, tab.filePath)}
-                >
-                  <Icon className={cn('size-3 shrink-0', cls)} />
-                  <span className="truncate">{tab.fileName}</span>
-                  {tab.isLoading && (
-                    <span className="size-2 shrink-0 rounded-full bg-amber-500 animate-pulse" />
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      closeTab(threadId, tab.filePath);
-                    }}
-                    className="ml-0.5 shrink-0 rounded-sm p-0.5 hover:bg-accent"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
-              </ContextMenuTrigger>
-              <ContextMenuContent className="w-36">
-                <ContextMenuItem onClick={() => closeTab(threadId, tab.filePath)}>
-                  关闭当前
-                </ContextMenuItem>
-                <ContextMenuItem
-                  disabled={!hasLeft}
-                  onClick={() => closeTabsToLeft(threadId, tab.filePath)}
-                >
-                  关闭左侧
-                </ContextMenuItem>
-                <ContextMenuItem
-                  disabled={!hasRight}
-                  onClick={() => closeTabsToRight(threadId, tab.filePath)}
-                >
-                  关闭右侧
-                </ContextMenuItem>
-                <ContextMenuItem onClick={() => closeAllTabs(threadId)}>
-                  关闭全部
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
-          );
-        })}
-      </div>
-
-      {/* 当前文件内容 */}
-      {activeFile && <PreviewContent threadId={threadId} tab={activeFile} />}
-    </div>
-  );
-}
-
-/** 单个文件的预览/编辑内容区 */
-function PreviewContent({ threadId, tab }: { threadId: string; tab: OpenFileTab }) {
+export function FileContentView({ threadId, tab }: { threadId: string; tab: OpenFileTab }) {
   const setFileContent = useFileExplorerStore((s) => s.setFileContent);
   const setFileError = useFileExplorerStore((s) => s.setFileError);
   const setFileLoading = useFileExplorerStore((s) => s.setFileLoading);
@@ -125,11 +24,13 @@ function PreviewContent({ threadId, tab }: { threadId: string; tab: OpenFileTab 
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // 切换文件时退出编辑态并清空草稿
   useEffect(() => {
     setEditing(false);
     setDraft('');
   }, [tab.filePath]);
 
+  /** 重新从后端读取文件内容 */
   const reload = () => {
     setFileLoading(threadId, tab.filePath, true);
     fetch(
@@ -146,6 +47,7 @@ function PreviewContent({ threadId, tab }: { threadId: string; tab: OpenFileTab 
       });
   };
 
+  /** 保存草稿到后端，成功后同步进 store 并退出编辑态 */
   const save = async () => {
     if (saving) return;
     setSaving(true);

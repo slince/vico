@@ -6,16 +6,24 @@ import '@xterm/xterm/css/xterm.css';
 import { useEffect, useRef } from 'react';
 
 /**
- * Web 终端视图 — 右侧边栏「终端」tab 的内容。
+ * Web 终端视图 — 右侧边栏单个「终端」tab 的内容。
  *
- * 基于 xterm 渲染，通过 WebSocket 连接后端 pty：
+ * 基于 xterm 渲染，通过 WebSocket 连接后端 pty（每个终端由 `terminalId` 区分）：
  * - 用户输入 → ws 发送原始字符串；xterm 尺寸变化 → ws 发送 `{"type":"resize",cols,rows}`
  * - 后端 pty 输出 → ws 消息 → term.write 渲染
  *
- * 三个视图在面板内同时挂载、CSS 切换可见性，因此 xterm 实例只在挂载时创建一次；
+ * 所有终端视图在面板内同时挂载、CSS 切换可见性，因此 xterm 实例只在挂载时创建一次；
  * WebSocket 延迟到首次激活该 tab 时才建立，避免未使用终端也派生 shell 进程。
  */
-export function TerminalView({ threadId, active }: { threadId: string; active: boolean }) {
+export function TerminalView({
+  threadId,
+  terminalId,
+  active,
+}: {
+  threadId: string;
+  terminalId: string;
+  active: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -59,7 +67,7 @@ export function TerminalView({ threadId, active }: { threadId: string; active: b
       termRef.current = null;
       fitRef.current = null;
     };
-  }, [threadId]);
+  }, [threadId, terminalId]);
 
   // 激活时：首次建立 WS 连接，或从隐藏恢复时重新 fit
   useEffect(() => {
@@ -70,7 +78,7 @@ export function TerminalView({ threadId, active }: { threadId: string; active: b
 
     if (!wsRef.current) {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const url = `${proto}//${location.host}/api/v1/threads/${threadId}/terminal`;
+      const url = `${proto}//${location.host}/api/v1/threads/${threadId}/terminal/${terminalId}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -104,7 +112,7 @@ export function TerminalView({ threadId, active }: { threadId: string; active: b
       });
     }
     term.focus();
-  }, [active, threadId]);
+  }, [active, threadId, terminalId]);
 
   return <div ref={containerRef} className="min-h-0 flex-1" />;
 }
