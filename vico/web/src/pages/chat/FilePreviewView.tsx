@@ -21,8 +21,12 @@ import {
  * 顶部为已打开文件 tabs（可关闭、右键批量关闭），下方为当前文件的预览/编辑区
  * （Shiki 语法高亮浏览 + 编辑保存）。原 FileTabBar / FileTabContent 的能力合并于此。
  */
+
+/** 无打开 tab 时的稳定空数组 — 避免 selector 每次返回新引用触发无限渲染 */
+const EMPTY_TABS: OpenFileTab[] = [];
+
 export function FilePreviewView({ threadId }: { threadId: string }) {
-  const openTabs = useFileExplorerStore((s) => s.openTabsByThread[threadId] ?? []);
+  const openTabs = useFileExplorerStore((s) => s.openTabsByThread[threadId] ?? EMPTY_TABS);
   const activeTab = useFileExplorerStore((s) => s.activeTabByThread[threadId] ?? null);
   const setActiveTab = useFileExplorerStore((s) => s.setActiveTab);
   const closeTab = useFileExplorerStore((s) => s.closeTab);
