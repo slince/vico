@@ -1,9 +1,34 @@
 'use client';
 
-import { Terminal } from '@xterm/xterm';
+import { Terminal, type ITheme } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useEffect, useRef } from 'react';
+
+/** 终端浅色主题 — 白底深字，贴合管理后台的明亮风格 */
+const LIGHT_THEME: ITheme = {
+  background: '#ffffff',
+  foreground: '#24292e',
+  cursor: '#24292e',
+  cursorAccent: '#ffffff',
+  selectionBackground: '#b3d4fc',
+  black: '#24292e',
+  red: '#d73a49',
+  green: '#22863a',
+  yellow: '#b08800',
+  blue: '#0366d6',
+  magenta: '#6f42c1',
+  cyan: '#1b7c83',
+  white: '#d1d5da',
+  brightBlack: '#586069',
+  brightRed: '#d73a49',
+  brightGreen: '#22863a',
+  brightYellow: '#b08800',
+  brightBlue: '#0366d6',
+  brightMagenta: '#6f42c1',
+  brightCyan: '#1b7c83',
+  brightWhite: '#f6f8fa',
+};
 
 /**
  * Web 终端视图 — 右侧边栏单个「终端」tab 的内容。
@@ -38,6 +63,7 @@ export function TerminalView({
       cursorBlink: true,
       fontSize: 12,
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+      theme: LIGHT_THEME,
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
