@@ -140,5 +140,5 @@ export function TerminalView({
     term.focus();
   }, [active, threadId, terminalId]);
 
-  return <div ref={containerRef} className="min-h-0 flex-1" />;
+  return <div ref={containerRef} className="min-h-0 flex-1 pl-1.5 pt-1.5" />;
 }

@@ -161,7 +161,7 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
                 <ContextMenuTrigger asChild>
                   <div
                     className={cn(
-                      'flex shrink-0 cursor-pointer items-center gap-1 border-r px-3 py-1.5 text-xs transition-colors max-w-[180px]',
+                      'group flex shrink-0 cursor-pointer items-center gap-1 border-r px-3 py-1.5 text-xs transition-colors max-w-[180px]',
                       isActive
                         ? 'bg-background border-b-2 border-b-primary -mb-[1px]'
                         : 'hover:bg-accent/50 text-muted-foreground',
@@ -176,7 +176,10 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
                         e.stopPropagation();
                         closeTab(threadId, tab);
                       }}
-                      className="ml-0.5 shrink-0 rounded-sm p-0.5 hover:bg-accent"
+                      className={cn(
+                        'ml-0.5 shrink-0 rounded-sm p-0.5 transition-opacity hover:bg-accent',
+                        isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+                      )}
                     >
                       <X className="size-3" />
                     </button>
@@ -240,10 +243,12 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
 
         {/* 文件树视图 — 始终挂载，隐藏以保留展开态 */}
         <div className={cn('min-h-0 flex-1 flex-col', active?.kind === 'files' ? 'flex' : 'hidden')}>
-          {/* 工具条：切换目录 / 刷新 */}
+          {/* 工具条：工作目录路径 + 切换目录 / 刷新 */}
           <div className="flex shrink-0 items-center gap-0.5 border-b px-2 py-1">
-            <span className="truncate text-xs font-medium">文件</span>
-            <div className="ml-auto flex shrink-0 items-center gap-0.5">
+            <span className="min-w-0 flex-1 truncate px-1 font-mono text-[10px] text-muted-foreground/70">
+              {cwd}
+            </span>
+            <div className="flex shrink-0 items-center gap-0.5">
               <Button
                 size="icon"
                 variant="ghost"
@@ -289,13 +294,6 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
               >
                 <Check className="size-3.5" />
               </Button>
-            </div>
-          )}
-
-          {/* 当前工作目录路径 */}
-          {cwd && (
-            <div className="shrink-0 truncate border-b px-3 py-1 font-mono text-[10px] text-muted-foreground/70">
-              {cwd}
             </div>
           )}
 
