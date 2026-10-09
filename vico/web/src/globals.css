@@ -828,3 +828,23 @@
     background-color: color-mix(in oklab, var(--destructive) 15%, transparent);
     color: var(--destructive);
 }
+
+/* 聊天视口细滚动条 — macOS 默认滚动条太粗，压缩到 6px */
+[data-slot="aui_thread-viewport"] {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--border) 70%, transparent) transparent;
+}
+[data-slot="aui_thread-viewport"]::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+[data-slot="aui_thread-viewport"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-slot="aui_thread-viewport"]::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--border) 70%, transparent);
+  border-radius: 9999px;
+}
+[data-slot="aui_thread-viewport"]::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--border) 100%, transparent);
+}
