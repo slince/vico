@@ -3,7 +3,7 @@
 import { MessageSquare, X } from 'lucide-react';
 
 import { useFileExplorerStore } from '@/stores/fileExplorerStore';
-import { getFileIcon } from './FileExplorerPanel';
+import { getFileIcon } from './FileExplorer';
 import { cn } from '@/lib/utils';
 import {
   ContextMenu,

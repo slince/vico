@@ -8,7 +8,7 @@ import {FolderTree} from 'lucide-react';
 
 // 3. Sub-components
 import {Thread} from '@/components/assistant-ui/elements/thread.aui';
-import {FileExplorerPanel} from '@/components/file-explorer/FileExplorerPanel';
+import {FileExplorerPanel} from '@/pages/chat/FileExplorerPanel';
 import {FileTabBar} from '@/components/file-explorer/FileTabBar';
 import {FileTabContent} from '@/components/file-explorer/FileTabContent';
 import {useFileExplorerStore} from '@/stores/fileExplorerStore';
