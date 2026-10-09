@@ -136,14 +136,14 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
 
   return (
     <>
-      {/* 分隔条 — 拖动调节右侧面板与聊天区之间的宽度分配 */}
+      {/* 分隔条 — 1px 细线，伪元素向两侧外扩命中区，保持拖动易用 */}
       <div
         role="separator"
         aria-orientation="vertical"
         aria-label="调节文件浏览器宽度"
         onPointerDown={onPointerDown}
         className={cn(
-          'w-1.5 shrink-0 cursor-col-resize transition-colors',
+          'relative w-px shrink-0 cursor-col-resize transition-colors after:absolute after:inset-y-0 after:-left-1 after:-right-1 after:content-[""]',
           dragging ? 'bg-primary/40' : 'hover:bg-primary/30',
         )}
       />
