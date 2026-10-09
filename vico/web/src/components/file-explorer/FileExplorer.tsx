@@ -2,7 +2,6 @@
 
 import {
   BookOpen,
-  Check,
   ChevronDown,
   ChevronRight,
   Database,
@@ -22,17 +21,19 @@ import {
   FileVideo,
   Folder,
   FolderOpen,
-  FolderSync,
   Loader2,
-  RefreshCw,
-  X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 
-import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 /** 目录中的一个条目（文件或子目录） */
@@ -58,165 +59,133 @@ export interface FileIconSpec {
 }
 
 /**
- * 可复用的文件浏览器面板组件。
+ * FileExplorer 的 props。
  *
- * 纯展示组件：负责渲染左侧分隔条、面板头部（标题 / 切换目录 / 刷新 / 关闭）、
- * 当前工作目录路径、以及递归文件树。目录数据、展开状态、工作目录、宽度等
- * 全部由调用方通过 props 传入，组件自身不持有业务状态。
+ * 组件自身负责调用服务端 listdir 接口查询目录内容，调用方只需给出目录标识
+ * 和打开文件回调，无需关心节点状态与数据加载。
  */
 export interface FileExplorerProps {
-  /** 面板宽度（px） */
-  width: number;
-  /** 是否正在拖动分隔条（用于高亮） */
-  dragging: boolean;
-  /** 分隔条 pointerdown 回调（绑定到 useResizableWidth 的 onPointerDown） */
-  onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => void;
-  /** 文件树节点状态：relPath -> DirNode */
-  nodes: Record<string, DirNode>;
-  /** 展开/收起目录回调 */
-  onToggleDir: (path: string) => void;
-  /** 打开文件回调（路径 + 文件名） */
+  /**
+   * 目录参数 — 线程 ID（workspace 标识）。
+   * 组件据此调用 `GET /api/v1/threads/:directory/fs/listdir` 列出目录下的条目。
+   */
+  directory: string;
+  /** 打开文件回调（相对路径 + 文件名） */
   onOpenFile: (path: string, name: string) => void;
-  /** 当前工作目录，null 时不显示路径栏 */
-  cwd?: string | null;
-  /** 是否显示「切换目录」输入区 */
-  chdirOpen: boolean;
-  /** 切换目录输入值 */
-  chdirInput: string;
-  /** 切换目录请求中 */
-  chdirLoading?: boolean;
-  /** 切换目录输入值变化回调 */
-  onChdirInputChange: (value: string) => void;
-  /** 提交切换目录 */
-  onChdirSubmit: () => void;
-  /** 打开/关闭切换目录输入区（并回填当前 cwd） */
-  onToggleChdir: () => void;
-  /** 刷新文件树 */
-  onRefresh: () => void;
-  /** 是否正在刷新（加载根目录） */
-  refreshing?: boolean;
-  /** 关闭面板 */
-  onClose: () => void;
-  /** 面板标题，默认「文件」 */
-  title?: string;
+  /** 工作目录变化回调（listdir 返回 cwd 时上报，供上层展示/回填） */
+  onCwdChange?: (cwd: string) => void;
+}
+
+/** FileExplorer 暴露给父组件的命令式句柄 */
+export interface FileExplorerRef {
+  /** 清空并重新加载根目录，返回加载完成的 Promise */
+  reload: () => Promise<void>;
 }
 
 /**
- * 文件浏览器面板 — 通用能力组件。
+ * 文件目录树组件 — 可复用通用能力。
  *
- * 渲染可拖拽分隔条 + 文件树面板外壳，目录树与图标选择逻辑内聚于此。
- * 具体的数据来源（线程 workspace 的 listdir/chdir 等）由上层适配组件提供。
+ * 仅负责目录树的递归渲染与懒加载：展开目录时调用 listdir 查询其子条目，
+ * 点击文件触发 onOpenFile。面板头部、宽度调节、工作目录切换等均不属于本组件，
+ * 由上层适配组件负责。
  */
-export function FileExplorer({
-  width,
-  dragging,
-  onPointerDown,
-  nodes,
-  onToggleDir,
-  onOpenFile,
-  cwd,
-  chdirOpen,
-  chdirInput,
-  chdirLoading = false,
-  onChdirInputChange,
-  onChdirSubmit,
-  onToggleChdir,
-  onRefresh,
-  refreshing = false,
-  onClose,
-  title = '文件',
-}: FileExplorerProps) {
-  return (
-    <>
-      {/* 分隔条 — 拖动调节文件浏览器与相邻区域之间的宽度分配 */}
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="调节文件浏览器宽度"
-        onPointerDown={onPointerDown}
-        className={cn(
-          'w-1.5 shrink-0 cursor-col-resize transition-colors',
-          dragging ? 'bg-primary/40' : 'hover:bg-primary/30',
-        )}
-      />
-      <aside className="flex shrink-0 flex-col border-l bg-card" style={{ width }}>
-        <header className="flex shrink-0 items-center justify-between border-b px-3 py-2">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <Folder className="size-4 shrink-0 text-muted-foreground" />
-            <span className="truncate text-sm font-medium">{title}</span>
-          </div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onToggleChdir}
-              title="切换目录"
-            >
-              <FolderSync className="size-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onRefresh}
-              title="刷新"
-              disabled={refreshing}
-            >
-              <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
-            </Button>
-            <Button size="icon" variant="ghost" onClick={onClose} title="关闭">
-              <X className="size-4" />
-            </Button>
-          </div>
-        </header>
+export const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
+  function FileExplorer({ directory, onOpenFile, onCwdChange }, ref) {
+    const [nodes, setNodes] = useState<Record<string, DirNode>>({});
 
-        {/* 切换工作目录输入区 */}
-        {chdirOpen && (
-          <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
-            <Input
-              value={chdirInput}
-              onChange={(e) => onChdirInputChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onChdirSubmit();
-                if (e.key === 'Escape') onToggleChdir();
-              }}
-              placeholder="输入目录路径，如 ~/project"
-              className="h-7 flex-1 font-mono text-xs"
-              autoFocus
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onChdirSubmit}
-              disabled={chdirLoading || !chdirInput.trim()}
-              className="size-7 shrink-0"
-            >
-              <Check className="size-3.5" />
-            </Button>
-          </div>
-        )}
+    // ref 持有最新 onCwdChange，避免 loadDir 闭包捕获旧引用
+    const onCwdChangeRef = useRef(onCwdChange);
+    onCwdChangeRef.current = onCwdChange;
 
-        {/* 当前工作目录路径 */}
-        {cwd && (
-          <div className="shrink-0 truncate border-b px-3 py-1 font-mono text-[10px] text-muted-foreground/70">
-            {cwd}
-          </div>
-        )}
+    /** 加载指定目录（相对路径），空串 = 根目录 */
+    const loadDir = useCallback(
+      async (relPath: string) => {
+        setNodes((prev) => ({
+          ...prev,
+          [relPath]: {
+            ...(prev[relPath] ?? { relPath }),
+            relPath,
+            expanded: true,
+            loaded: false,
+          },
+        }));
+        try {
+          const qs = relPath ? `?path=${encodeURIComponent(relPath)}` : '';
+          const res = await fetch(
+            `/api/v1/threads/${directory}/fs/listdir${qs}`,
+            { credentials: 'include' },
+          );
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          if (!relPath && data.cwd) onCwdChangeRef.current?.(data.cwd);
+          setNodes((prev) => ({
+            ...prev,
+            [relPath]: {
+              relPath,
+              loaded: true,
+              expanded: true,
+              entries: data.entries,
+            },
+          }));
+        } catch (err) {
+          setNodes((prev) => ({
+            ...prev,
+            [relPath]: {
+              relPath,
+              loaded: true,
+              expanded: true,
+              error: err instanceof Error ? err.message : String(err),
+            },
+          }));
+        }
+      },
+      [directory],
+    );
 
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="py-1">
-            <DirTreeNode
-              relPath=""
-              indent={0}
-              nodes={nodes}
-              onToggleDir={onToggleDir}
-              onOpenFile={onOpenFile}
-            />
-          </div>
-        </ScrollArea>
-      </aside>
-    </>
-  );
-}
+    /** 展开/收起目录：收起直接折叠，未加载则懒加载 */
+    const toggleDir = useCallback(
+      (relPath: string) => {
+        const cur = nodes[relPath];
+        if (cur?.expanded) {
+          setNodes((prev) => ({ ...prev, [relPath]: { ...prev[relPath], expanded: false } }));
+        } else if (!cur || !cur.loaded) {
+          void loadDir(relPath);
+        } else {
+          setNodes((prev) => ({ ...prev, [relPath]: { ...prev[relPath], expanded: true } }));
+        }
+      },
+      [nodes, loadDir],
+    );
+
+    /** 清空并重新加载根目录 */
+    const reload = useCallback(() => {
+      setNodes({});
+      return loadDir('');
+    }, [loadDir]);
+
+    // 暴露 reload 给父组件（刷新 / 切换目录后重载）
+    useImperativeHandle(ref, () => ({ reload }), [reload]);
+
+    // 挂载或目录变化时加载根目录
+    useEffect(() => {
+      void reload();
+    }, [reload]);
+
+    return (
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="py-1">
+          <DirTreeNode
+            relPath=""
+            indent={0}
+            nodes={nodes}
+            onToggleDir={toggleDir}
+            onOpenFile={onOpenFile}
+          />
+        </div>
+      </ScrollArea>
+    );
+  },
+);
 
 /** 递归渲染文件树节点：目录可展开/收起，文件点击触发打开回调 */
 function DirTreeNode({
