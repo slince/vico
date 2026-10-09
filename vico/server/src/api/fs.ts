@@ -15,31 +15,9 @@ import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { resolveWorkspacePath } from '@vico/core';
 import { vico } from '../vico.js';
-import { getAgent } from '../agent/get-agent.js';
+import { getThreadWorkspace } from '../lib/workspace.js';
 
 const MAX_READ_BYTES = 1_048_576; // 1 MB
-
-/**
- * 获取线程当前的工作目录。
- *
- * 优先返回 thread.metadata.workspace；未绑定时回退到 agent.workspace；
- * 若 agent 也无 workspace 则返回空字符串。
- */
-async function getThreadWorkspace(threadId: string): Promise<string> {
-  const store = vico.thread;
-  if (!store) return '';
-
-  const thread = await store.getThread(threadId);
-  const bound = thread?.metadata?.workspace as string | undefined;
-  if (bound) return bound;
-
-  if (thread?.agentId) {
-    const agent = await getAgent(thread.agentId);
-    if (agent?.workspace) return agent.workspace;
-  }
-
-  return '';
-}
 
 /**
  * 检测文件是否为二进制（null byte 启发式）。

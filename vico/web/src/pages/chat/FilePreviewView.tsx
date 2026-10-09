@@ -1,27 +1,121 @@
 'use client';
 
-import {AlertCircle, Eye, Loader2, PenLine, RefreshCw, Save} from 'lucide-react';
+import {AlertCircle, Eye, FileText, Loader2, PenLine, RefreshCw, Save, X} from 'lucide-react';
 import {useEffect, useState} from 'react';
 
 import {Button} from '@/components/ui/button';
-import {useFileExplorerStore} from '@/stores/fileExplorerStore';
+import {getFileIcon} from '@/components/file-explorer/FileExplorer';
 import {SyntaxHighlighter} from '@/components/assistant-ui/elements/shiki-highlighter';
 import {cn} from '@/lib/utils';
+import {useFileExplorerStore, type OpenFileTab} from '@/stores/fileExplorerStore';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 
 /**
- * 文件 tab 内容 — 浏览/编辑模式。
+ * 文件预览视图 — 右侧边栏「预览」tab 的内容。
  *
- * 浏览模式使用 Shiki 语法高亮；编辑模式使用 textarea。
- * 保存调 POST /api/v1/threads/:threadId/fs/write。
+ * 顶部为已打开文件 tabs（可关闭、右键批量关闭），下方为当前文件的预览/编辑区
+ * （Shiki 语法高亮浏览 + 编辑保存）。原 FileTabBar / FileTabContent 的能力合并于此。
  */
-export function FileTabContent({ threadId }: { threadId: string }) {
-  const activeTab = useFileExplorerStore((s) => s.activeTabByThread[threadId] ?? null);
+export function FilePreviewView({ threadId }: { threadId: string }) {
   const openTabs = useFileExplorerStore((s) => s.openTabsByThread[threadId] ?? []);
+  const activeTab = useFileExplorerStore((s) => s.activeTabByThread[threadId] ?? null);
+  const setActiveTab = useFileExplorerStore((s) => s.setActiveTab);
+  const closeTab = useFileExplorerStore((s) => s.closeTab);
+  const closeTabsToLeft = useFileExplorerStore((s) => s.closeTabsToLeft);
+  const closeTabsToRight = useFileExplorerStore((s) => s.closeTabsToRight);
+  const closeAllTabs = useFileExplorerStore((s) => s.closeAllTabs);
+
+  const activeFile = openTabs.find((t) => t.filePath === activeTab);
+
+  if (openTabs.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
+        <FileText className="size-6" />
+        <div className="text-sm">点击文件树中的文件以预览</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* 文件 tabs 条 */}
+      <div className="flex shrink-0 items-center overflow-x-auto overflow-y-hidden border-b bg-muted/30">
+        {openTabs.map((tab, idx) => {
+          const isActive = tab.filePath === activeTab;
+          const { Icon, cls } = getFileIcon(tab.fileName);
+          const hasLeft = idx > 0;
+          const hasRight = idx < openTabs.length - 1;
+
+          return (
+            <ContextMenu key={tab.filePath}>
+              <ContextMenuTrigger asChild>
+                <div
+                  className={cn(
+                    'flex shrink-0 cursor-pointer items-center gap-1 border-r px-3 py-1.5 text-xs transition-colors max-w-[180px]',
+                    isActive
+                      ? 'bg-background border-b-2 border-b-primary -mb-[1px]'
+                      : 'hover:bg-accent/50 text-muted-foreground',
+                  )}
+                  onClick={() => setActiveTab(threadId, tab.filePath)}
+                >
+                  <Icon className={cn('size-3 shrink-0', cls)} />
+                  <span className="truncate">{tab.fileName}</span>
+                  {tab.isLoading && (
+                    <span className="size-2 shrink-0 rounded-full bg-amber-500 animate-pulse" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeTab(threadId, tab.filePath);
+                    }}
+                    className="ml-0.5 shrink-0 rounded-sm p-0.5 hover:bg-accent"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-36">
+                <ContextMenuItem onClick={() => closeTab(threadId, tab.filePath)}>
+                  关闭当前
+                </ContextMenuItem>
+                <ContextMenuItem
+                  disabled={!hasLeft}
+                  onClick={() => closeTabsToLeft(threadId, tab.filePath)}
+                >
+                  关闭左侧
+                </ContextMenuItem>
+                <ContextMenuItem
+                  disabled={!hasRight}
+                  onClick={() => closeTabsToRight(threadId, tab.filePath)}
+                >
+                  关闭右侧
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => closeAllTabs(threadId)}>
+                  关闭全部
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          );
+        })}
+      </div>
+
+      {/* 当前文件内容 */}
+      {activeFile && <PreviewContent threadId={threadId} tab={activeFile} />}
+    </div>
+  );
+}
+
+/** 单个文件的预览/编辑内容区 */
+function PreviewContent({ threadId, tab }: { threadId: string; tab: OpenFileTab }) {
   const setFileContent = useFileExplorerStore((s) => s.setFileContent);
   const setFileError = useFileExplorerStore((s) => s.setFileError);
   const setFileLoading = useFileExplorerStore((s) => s.setFileLoading);
-
-  const tab = openTabs.find((t) => t.filePath === activeTab);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -30,12 +124,9 @@ export function FileTabContent({ threadId }: { threadId: string }) {
   useEffect(() => {
     setEditing(false);
     setDraft('');
-  }, [activeTab]);
-
-  if (!tab) return null;
+  }, [tab.filePath]);
 
   const reload = () => {
-    if (!tab) return;
     setFileLoading(threadId, tab.filePath, true);
     fetch(
       `/api/v1/threads/${threadId}/fs/read?path=${encodeURIComponent(tab.filePath)}`,
@@ -76,7 +167,7 @@ export function FileTabContent({ threadId }: { threadId: string }) {
 
   if (tab.isLoading) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-muted-foreground py-8">
+      <div className="flex min-h-0 flex-1 items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
         加载 {tab.fileName}...
       </div>

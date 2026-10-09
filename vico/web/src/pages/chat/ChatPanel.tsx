@@ -9,8 +9,6 @@ import {FolderTree} from 'lucide-react';
 // 3. Sub-components
 import {Thread} from '@/components/assistant-ui/elements/thread.aui';
 import {FileExplorerPanel} from '@/pages/chat/FileExplorerPanel';
-import {FileTabBar} from '@/components/file-explorer/FileTabBar';
-import {FileTabContent} from '@/components/file-explorer/FileTabContent';
 import {useFileExplorerStore} from '@/stores/fileExplorerStore';
 import {Button} from '@/components/ui/button';
 import {AuiConfig, AuiProvider, Suggestions, useAui} from "@assistant-ui/react";
@@ -53,7 +51,7 @@ const Welcome: FC<{ agentName: string }> = ({ agentName }) => {
  * 使用 assistant-ui 的 Thread 组件替代手动组装的 ThreadPrimitive + ComposerPrimitive。
  * AssistantRuntimeProvider 由父组件 Chat 提供，此组件仅注册工具并渲染 Thread。
  *
- * 右侧可切换文件浏览器面板（FileExplorerPanel）；打开的文件以 tab 形式展示。
+ * 聊天区只负责纯对话；右侧为多视图面板（FileExplorerPanel，含文件树 / 预览 / 终端）。
  */
 /** 顶部标题栏内的 Token 用量显示 */
 const TokenUsageDisplay: FC = () => {
@@ -87,18 +85,12 @@ function ThreadWithSuggestions({agent}: ChatPanelProps) {
 export function ChatPanel({ agent, threadId }: ChatPanelProps) {
   const toggleFileExplorer = useFileExplorerStore((s) => s.toggleFileExplorer);
   const fileExplorerOpen = useFileExplorerStore((s) => s.fileExplorerOpen);
-  const hasOpenTabs = useFileExplorerStore(
-    (s) => (s.openTabsByThread[threadId ?? ''] ?? []).length > 0,
-  );
-  const activeTab = useFileExplorerStore(
-    (s) => s.activeTabByThread[threadId ?? ''] ?? null,
-  );
 
   return (
     <div className="flex-1 flex bg-background min-w-0">
-      {/* 左侧：topbar + tab 栏 + 内容区 */}
+      {/* 左侧：topbar + 对话内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 第一排：顶部工具栏 — 始终显示 */}
+        {/* 顶部工具栏 — 始终显示 */}
         <div className="h-12 flex items-center px-4 border-b shrink-0 gap-2">
           <span className="text-sm font-medium">{agent.name}</span>
           <TokenUsageDisplay />
@@ -115,20 +107,13 @@ export function ChatPanel({ agent, threadId }: ChatPanelProps) {
           )}
         </div>
 
-        {/* 第二排：tab 栏 — 仅在有文件 tab 时显示（含会话 tab 用于切换） */}
-        {threadId && hasOpenTabs && <FileTabBar threadId={threadId} />}
-
-        {/* 内容区：文件 tab 激活时显示文件预览，否则显示会话 */}
-        {activeTab ? (
-          <FileTabContent threadId={threadId!} />
-        ) : (
-          <div className="flex-1 min-h-0">
-            <ThreadWithSuggestions agent={agent} threadId={threadId} />
-          </div>
-        )}
+        {/* 内容区：纯对话 */}
+        <div className="flex-1 min-h-0">
+          <ThreadWithSuggestions agent={agent} threadId={threadId} />
+        </div>
       </div>
 
-      {/* 右侧文件浏览器 — 顶住窗口最顶部 */}
+      {/* 右侧多视图面板（文件树 / 预览 / 终端） — 顶住窗口最顶部 */}
       {threadId && <FileExplorerPanel threadId={threadId} />}
     </div>
   );
