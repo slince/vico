@@ -35,6 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useFileExplorerStore } from '@/stores/fileExplorerStore';
+import { useResizableWidth } from '@/hooks/use-resizable-width';
 
 interface DirEntry {
   name: string;
@@ -56,6 +57,7 @@ interface DirNode {
  * - 列出当前 thread workspace 的文件树
  * - 点击文件夹展开 / 收起；点击文件打开为中间 tab
  * - 通过 zustand store 与 FileTabBar/FileTabContent 通信
+ * - 左侧分隔条可拖动调节宽度，宽度持久化到 localStorage（刷新后还原）
  */
 export function FileExplorerPanel({ threadId }: { threadId: string }) {
   const open = useFileExplorerStore((s) => s.fileExplorerOpen);
@@ -69,6 +71,14 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
   const [chdirInput, setChdirInput] = useState('');
   const [chdirLoading, setChdirLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 面板宽度可拖动调节，并持久化到 localStorage（刷新后还原）
+  const { width, dragging, onPointerDown } = useResizableWidth({
+    storageKey: 'chat_file_explorer_width',
+    defaultWidth: 320,
+    minWidth: 260,
+    maxWidth: 800,
+  });
 
   const loadDir = useCallback(
     async (relPath: string) => {
@@ -167,82 +177,98 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
   if (!open) return null;
 
   return (
-    <aside className="flex w-80 min-w-[260px] shrink-0 flex-col border-l bg-card">
-      <header className="flex shrink-0 items-center justify-between border-b px-3 py-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Folder className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate text-sm font-medium">文件</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => { setChdirOpen((v) => !v); setChdirInput(cwd ?? ''); }}
-            title="切换目录"
-          >
-            <FolderSync className="size-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={refresh}
-            title="刷新"
-            disabled={loadingRoot}
-          >
-            <RefreshCw className={cn('size-4', loadingRoot && 'animate-spin')} />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={toggle} title="关闭">
-            <X className="size-4" />
-          </Button>
-        </div>
-      </header>
+    <>
+      {/* 分隔条 — 拖动调节文件浏览器与聊天区之间的宽度分配 */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调节文件浏览器宽度"
+        onPointerDown={onPointerDown}
+        className={cn(
+          'w-1.5 shrink-0 cursor-col-resize transition-colors',
+          dragging ? 'bg-primary/40' : 'hover:bg-primary/30',
+        )}
+      />
+      <aside
+        className="flex shrink-0 flex-col border-l bg-card"
+        style={{ width }}
+      >
+        <header className="flex shrink-0 items-center justify-between border-b px-3 py-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Folder className="size-4 shrink-0 text-muted-foreground" />
+            <span className="truncate text-sm font-medium">文件</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => { setChdirOpen((v) => !v); setChdirInput(cwd ?? ''); }}
+              title="切换目录"
+            >
+              <FolderSync className="size-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={refresh}
+              title="刷新"
+              disabled={loadingRoot}
+            >
+              <RefreshCw className={cn('size-4', loadingRoot && 'animate-spin')} />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={toggle} title="关闭">
+              <X className="size-4" />
+            </Button>
+          </div>
+        </header>
 
-      {/* 切换工作目录输入区 */}
-      {chdirOpen && (
-        <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
-          <Input
-            ref={inputRef}
-            value={chdirInput}
-            onChange={(e) => setChdirInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleChdir();
-              if (e.key === 'Escape') setChdirOpen(false);
-            }}
-            placeholder="输入目录路径，如 ~/project"
-            className="h-7 flex-1 font-mono text-xs"
-            autoFocus
-          />
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => void handleChdir()}
-            disabled={chdirLoading || !chdirInput.trim()}
-            className="size-7 shrink-0"
-          >
-            <Check className="size-3.5" />
-          </Button>
-        </div>
-      )}
+        {/* 切换工作目录输入区 */}
+        {chdirOpen && (
+          <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
+            <Input
+              ref={inputRef}
+              value={chdirInput}
+              onChange={(e) => setChdirInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleChdir();
+                if (e.key === 'Escape') setChdirOpen(false);
+              }}
+              placeholder="输入目录路径，如 ~/project"
+              className="h-7 flex-1 font-mono text-xs"
+              autoFocus
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => void handleChdir()}
+              disabled={chdirLoading || !chdirInput.trim()}
+              className="size-7 shrink-0"
+            >
+              <Check className="size-3.5" />
+            </Button>
+          </div>
+        )}
 
-      {/* 当前工作目录路径 */}
-      {cwd && (
-        <div className="shrink-0 truncate border-b px-3 py-1 font-mono text-[10px] text-muted-foreground/70">
-          {cwd}
-        </div>
-      )}
+        {/* 当前工作目录路径 */}
+        {cwd && (
+          <div className="shrink-0 truncate border-b px-3 py-1 font-mono text-[10px] text-muted-foreground/70">
+            {cwd}
+          </div>
+        )}
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="py-1">
-          <DirTreeNode
-            relPath=""
-            indent={0}
-            nodes={nodes}
-            onToggleDir={toggleDir}
-            onOpenFile={(p, name) => openFile(threadId, p, name)}
-          />
-        </div>
-      </ScrollArea>
-    </aside>
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="py-1">
+            <DirTreeNode
+              relPath=""
+              indent={0}
+              nodes={nodes}
+              onToggleDir={toggleDir}
+              onOpenFile={(p, name) => openFile(threadId, p, name)}
+            />
+          </div>
+        </ScrollArea>
+      </aside>
+    </>
   );
 }
 
