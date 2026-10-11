@@ -106,65 +106,73 @@ export function TerminalView({
     if (!term || !fit) return;
 
     if (!wsRef.current) {
-      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const url = `${proto}//${location.host}/api/v1/threads/${threadId}/terminal/${terminalId}`;
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
+      // 延迟到下一帧建立连接：React StrictMode 双挂载会先执行 cleanup 取消本 rAF，
+      // 避免在 CONNECTING 状态下调用 close() 触发浏览器「closed before established」报错
+      const raf = requestAnimationFrame(() => {
+        // cleanup 后 wsRef 可能已被置空/重建，二次确认避免重复连接
+        if (wsRef.current) return;
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const url = `${proto}//${location.host}/api/v1/threads/${threadId}/terminal/${terminalId}`;
+        const ws = new WebSocket(url);
+        wsRef.current = ws;
 
-      ws.onmessage = (ev) => {
-        const data = ev.data;
-        // 后端统一发送 JSON 帧：snapshot（完整屏幕）/ output（增量）/ exit（进程退出）
-        if (typeof data === 'string') {
-          let frame: { type?: string; data?: string } | null = null;
-          try {
-            frame = JSON.parse(data);
-          } catch { /* 兼容旧后端：非 JSON 按原始输出处理 */ }
-          if (frame?.type === 'snapshot' && typeof frame.data === 'string') {
-            term.reset();
-            term.write(frame.data);
+        ws.onmessage = (ev) => {
+          const data = ev.data;
+          // 后端统一发送 JSON 帧：snapshot（完整屏幕）/ output（增量）/ exit（进程退出）
+          if (typeof data === 'string') {
+            let frame: { type?: string; data?: string } | null = null;
+            try {
+              frame = JSON.parse(data);
+            } catch { /* 兼容旧后端：非 JSON 按原始输出处理 */ }
+            if (frame?.type === 'snapshot' && typeof frame.data === 'string') {
+              term.reset();
+              term.write(frame.data);
+              return;
+            }
+            if (frame?.type === 'output' && typeof frame.data === 'string') {
+              term.write(frame.data);
+              return;
+            }
+            if (frame?.type === 'exit') {
+              term.write('\r\n[进程已退出]\r\n');
+              return;
+            }
+            term.write(data);
             return;
           }
-          if (frame?.type === 'output' && typeof frame.data === 'string') {
-            term.write(frame.data);
-            return;
+          // 二进制兜底（当前后端不会发送）
+          if (data instanceof ArrayBuffer) {
+            term.write(new Uint8Array(data));
+          } else if (data instanceof Blob) {
+            void data.arrayBuffer().then((buf) => term.write(new Uint8Array(buf)));
           }
-          if (frame?.type === 'exit') {
-            term.write('\r\n[进程已退出]\r\n');
-            return;
+        };
+        ws.onclose = () => {
+          // 仅在「非主动关闭」时提示；主动关闭（卸载/StrictMode 清理）已先把 wsRef 置空
+          if (wsRef.current === ws) {
+            wsRef.current = null;
+            term.write('\r\n[终端已断开]\r\n');
           }
-          term.write(data);
-          return;
-        }
-        // 二进制兜底（当前后端不会发送）
-        if (data instanceof ArrayBuffer) {
-          term.write(new Uint8Array(data));
-        } else if (data instanceof Blob) {
-          void data.arrayBuffer().then((buf) => term.write(new Uint8Array(buf)));
-        }
-      };
-      ws.onclose = () => {
-        // 仅在「非主动关闭」时提示；主动关闭（卸载/StrictMode 清理）已先把 wsRef 置空
-        if (wsRef.current === ws) {
-          wsRef.current = null;
-          term.write('\r\n[终端已断开]\r\n');
-        }
-      };
-      // 连接成功后 fit，让 xterm 拿到正确尺寸并触发 resize 消息
-      ws.onopen = () => {
-        requestAnimationFrame(() => {
-          try {
-            fit.fit();
-          } catch { /* 容器不可见时忽略 */ }
-        });
-      };
-    } else {
-      // 从隐藏恢复 → 重新校准尺寸
-      requestAnimationFrame(() => {
-        try {
-          fit.fit();
-        } catch { /* ignore */ }
+        };
+        // 连接成功后 fit，让 xterm 拿到正确尺寸并触发 resize 消息
+        ws.onopen = () => {
+          requestAnimationFrame(() => {
+            try {
+              fit.fit();
+            } catch { /* 容器不可见时忽略 */ }
+          });
+        };
       });
+      term.focus();
+      return () => cancelAnimationFrame(raf);
     }
+
+    // 从隐藏恢复 → 重新校准尺寸
+    requestAnimationFrame(() => {
+      try {
+        fit.fit();
+      } catch { /* ignore */ }
+    });
     term.focus();
   }, [active, threadId, terminalId]);
 
