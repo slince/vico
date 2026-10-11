@@ -9,11 +9,5 @@
     "db:migrate": "pnpm --filter @vico/server db:migrate",
     "skill:install": "pnpm --filter @vico/server skill:install"
   },
-  "packageManager": "pnpm@9.15.0",
-  "pnpm": {
-    "overrides": {
-      "zustand": "5.0.15",
-      "assistant-cloud": "0.2.3"
-    }
-  }
+  "packageManager": "pnpm@12.11.2"
 }
