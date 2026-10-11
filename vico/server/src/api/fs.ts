@@ -8,7 +8,7 @@
  */
 import { Hono } from 'hono';
 import { readdirSync, statSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import { homedir } from 'node:os';
 import type { Variables } from '../index.js';
@@ -116,6 +116,53 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
       const msg = err instanceof Error ? err.message : 'Failed to list directory';
       const status = msg.includes('outside') ? 403 : msg.includes('Not a') ? 400 : 500;
       return c.json({ error: msg }, status);
+    }
+  });
+
+  /**
+   * GET /api/v1/threads/:threadId/fs/browse?path=
+   *
+   * 浏览服务器文件系统中的目录，供前端文件夹选择器使用。
+   * path 为绝对路径（支持 ~ 前缀）；省略时默认当前 workspace，无则回退到 home。
+   * 仅返回子目录，隐藏点文件，用于逐级下钻选择目录。
+   */
+  app.get('/api/v1/threads/:threadId/fs/browse', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+
+    const threadId = c.req.param('threadId');
+    const rawPath = c.req.query('path');
+
+    // 解析目标目录：显式 path（支持 ~ / 相对 home）优先，否则回退当前 workspace / home
+    let absPath: string;
+    if (rawPath) {
+      absPath = rawPath.startsWith('~')
+        ? join(homedir(), rawPath.slice(1))
+        : rawPath.startsWith('/')
+          ? rawPath
+          : join(homedir(), rawPath);
+    } else {
+      const workspace = await getThreadWorkspace(threadId);
+      absPath = workspace || homedir();
+    }
+    absPath = resolve(absPath);
+
+    try {
+      const stat = statSync(absPath);
+      if (!stat.isDirectory()) {
+        return c.json({ error: 'Not a directory' }, 400);
+      }
+
+      const raw = readdirSync(absPath, { withFileTypes: true });
+      const entries = raw
+        .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+        .map((e) => ({ name: e.name, isDirectory: true }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      return c.json({ path: absPath, parent: dirname(absPath), entries });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to browse directory';
+      return c.json({ error: msg }, 500);
     }
   });
 

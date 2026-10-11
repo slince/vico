@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, FolderSync, FolderTree, Plus, RefreshCw, Terminal, X } from 'lucide-react';
+import { FolderSync, FolderTree, Plus, RefreshCw, Terminal, X } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
 import {
@@ -8,8 +8,8 @@ import {
   getFileIcon,
   type FileExplorerRef,
 } from '@/components/file-explorer/FileExplorer';
+import { FolderPickerDialog } from '@/components/file-explorer/FolderPickerDialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/context-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { sameTab, useFileExplorerStore, type OpenFileTab, type PanelTab } from '@/stores/fileExplorerStore';
+import { MAX_TERMINALS, sameTab, useFileExplorerStore, type OpenFileTab, type PanelTab } from '@/stores/fileExplorerStore';
 import { useResizableWidth } from '@/hooks/use-resizable-width';
 import { FileContentView } from '@/pages/chat/FileContentView';
 import { TerminalView } from '@/pages/chat/TerminalView';
@@ -61,8 +61,6 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
   const [cwd, setCwd] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [chdirOpen, setChdirOpen] = useState(false);
-  const [chdirInput, setChdirInput] = useState('');
-  const [chdirLoading, setChdirLoading] = useState(false);
 
   // 面板宽度可拖动调节，并持久化到 localStorage（刷新后还原）
   const { width, dragging, onPointerDown } = useResizableWidth({
@@ -93,36 +91,32 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
     }
   }, []);
 
-  /** 切换工作目录（workspace 绑定），成功后重载目录树 */
-  const handleChdir = useCallback(async () => {
-    const p = chdirInput.trim();
-    if (!p) return;
-    setChdirLoading(true);
-    try {
-      const res = await fetch(`/api/v1/threads/${threadId}/fs/chdir`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ path: p }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setCwd(data.cwd);
-      setChdirOpen(false);
-      setChdirInput('');
-      await explorerRef.current?.reload();
-    } catch {
-      // 保持输入区打开，便于用户修正
-    } finally {
-      setChdirLoading(false);
-    }
-  }, [threadId, chdirInput]);
+  /** 选中目录后切换工作目录（workspace 绑定），成功后重载目录树 */
+  const handleSelectDir = useCallback(
+    async (path: string) => {
+      try {
+        const res = await fetch(`/api/v1/threads/${threadId}/fs/chdir`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ path }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        setCwd(data.cwd);
+        setChdirOpen(false);
+        await explorerRef.current?.reload();
+      } catch {
+        // 保持弹窗打开，便于用户重新选择
+      }
+    },
+    [threadId],
+  );
 
-  /** 打开/关闭切换目录输入区，打开时回填当前 cwd */
+  /** 打开/关闭目录选择弹窗 */
   const toggleChdir = useCallback(() => {
     setChdirOpen((v) => !v);
-    setChdirInput(cwd ?? '');
-  }, [cwd]);
+  }, []);
 
   /** 点击文件树中的文件：打开 tab（store 内部会激活该文件 tab） */
   const handleOpenFile = useCallback(
@@ -230,8 +224,10 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
                 )}
                 <button
                   type="button"
+                  disabled={terminalIds.length >= MAX_TERMINALS}
                   onClick={() => createTerminal(threadId)}
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent"
+                  title={terminalIds.length >= MAX_TERMINALS ? `最多 ${MAX_TERMINALS} 个终端` : undefined}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Terminal className="size-3.5" />
                   终端
@@ -271,32 +267,6 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
             </div>
           </div>
 
-          {/* 切换工作目录输入区 */}
-          {chdirOpen && (
-            <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
-              <Input
-                value={chdirInput}
-                onChange={(e) => setChdirInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleChdir();
-                  if (e.key === 'Escape') setChdirOpen(false);
-                }}
-                placeholder="输入目录路径，如 ~/project"
-                className="h-7 flex-1 font-mono text-xs"
-                autoFocus
-              />
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => void handleChdir()}
-                disabled={chdirLoading || !chdirInput.trim()}
-                className="size-7 shrink-0"
-              >
-                <Check className="size-3.5" />
-              </Button>
-            </div>
-          )}
-
           {/* 目录树 — 由可复用 FileExplorer 自行查询目录内容 */}
           <FileExplorer
             ref={explorerRef}
@@ -305,6 +275,15 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
             onCwdChange={setCwd}
           />
         </div>
+
+        {/* 目录选择弹窗 — 浏览服务器文件系统切换工作目录 */}
+        <FolderPickerDialog
+          threadId={threadId}
+          open={chdirOpen}
+          onOpenChange={setChdirOpen}
+          initialPath={cwd}
+          onSelect={handleSelectDir}
+        />
 
         {/* 文件内容视图 — 仅渲染活跃文件（内容缓存在 store） */}
         {activeFile && (

@@ -104,6 +104,8 @@ export class TerminalManager {
       cols: DEFAULT_COLS,
       rows: DEFAULT_ROWS,
       scrollback: SCROLLBACK,
+      // SerializeAddon.serialize() 需读取 terminal.buffer（proposed API），必须显式启用
+      allowProposedApi: true,
     });
     const serializer = new SerializeAddon();
     screen.loadAddon(serializer);

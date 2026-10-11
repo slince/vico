@@ -7,6 +7,9 @@
  */
 import { create } from 'zustand';
 
+/** 每个线程允许的最大终端 tab 数 */
+export const MAX_TERMINALS = 3;
+
 export interface OpenFileTab {
   threadId: string;
   filePath: string;
@@ -194,8 +197,11 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
     set((state) => rebuildTabs(state, threadId, []));
   },
 
-  /** 新建终端 tab 并激活 */
+  /** 新建终端 tab 并激活；达到上限（MAX_TERMINALS）时不创建 */
   createTerminal: (threadId) => {
+    // 每个线程最多 MAX_TERMINALS 个终端，超限直接忽略
+    const terminals = get().terminalTabsByThread[threadId] ?? [];
+    if (terminals.length >= MAX_TERMINALS) return;
     const terminalId = crypto.randomUUID();
     set((state) => ({
       terminalTabsByThread: {
