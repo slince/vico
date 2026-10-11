@@ -1,5 +1,6 @@
 import {UsageMetrics} from "./types.js";
-import {ToolCall, ToolResult} from "../tool/types.js";
+import {type ApprovalDecider, ToolCall, ToolResult} from "../tool/types.js";
+import type {ApprovalMode} from "../tool/policy-helpers.js";
 import type {Checkpoint} from "./checkpoint.js";
 import {ModelRequestContext} from "./context-processors/model-request-context.js";
 import type {ReasoningEffort} from "../model/types.js";
@@ -65,6 +66,8 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   reasoning?: ReasoningEffort;
   /** 本次运行使用的模型客户端 */
   modelClient: ModelClient;
+  /** run 级审批判定覆盖（审批政策模式解析而来），不传则回退 this.approvalResolver */
+  approvalResolver?: ApprovalDecider;
 }
 
 
@@ -141,4 +144,6 @@ export interface RunOptions {
   reasoning?: ReasoningEffort;
   /** 模型名，可选；仅切换模型，provider/apiKey/baseUrl 复用 agent 原始配置，不传则用 agent 默认模型 */
   model?: string;
+  /** 审批政策模式，可选；不传则使用 agent 默认审批策略 */
+  approvalMode?: ApprovalMode;
 }
