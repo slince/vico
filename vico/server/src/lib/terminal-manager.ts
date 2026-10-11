@@ -7,13 +7,20 @@
  * 全部会话维护逻辑收敛于此。
  */
 import {homedir} from 'node:os';
+import {createRequire} from 'node:module';
 
 import {type IPty, spawn} from '@lydell/node-pty';
-import type {Terminal as HeadlessTerminal} from '@xterm/headless'
-import {SerializeAddon} from '@xterm/addon-serialize';
+import type {Terminal as HeadlessTerminal} from '@xterm/headless';
+import type {SerializeAddon as SerializeAddonType} from '@xterm/addon-serialize';
 
 import {getThreadWorkspace} from './workspace.js';
 import logger from './logger.js';
+
+// @xterm/headless 与 @xterm/addon-serialize 是 CJS 模块且无 exports 字段，
+// Node 的 ESM 命名导入无法静态识别其导出，运行时改用 createRequire 拿 CJS 对象
+const require = createRequire(import.meta.url);
+const {Terminal} = require('@xterm/headless') as typeof import('@xterm/headless');
+const {SerializeAddon} = require('@xterm/addon-serialize') as typeof import('@xterm/addon-serialize');
 
 /** 默认终端列数/行数（连接后由前端 resize 消息校准） */
 const DEFAULT_COLS = 80;
@@ -38,7 +45,7 @@ export type TerminalFrame =
 interface TerminalSession {
   pty: IPty;
   screen: HeadlessTerminal;
-  serializer: SerializeAddon;
+  serializer: SerializeAddonType;
   followers: Set<TerminalFollower>;
   idleTimer?: ReturnType<typeof setTimeout>;
 }
@@ -93,7 +100,7 @@ export class TerminalManager {
     }
 
     // headless 屏幕是会话内容的真身，serializer 负责在重连时序列化完整屏幕
-    const screen = new HeadlessTerminal({
+    const screen = new Terminal({
       cols: DEFAULT_COLS,
       rows: DEFAULT_ROWS,
       scrollback: SCROLLBACK,
