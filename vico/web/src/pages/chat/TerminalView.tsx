@@ -35,7 +35,8 @@ const LIGHT_THEME: ITheme = {
  *
  * 基于 xterm 渲染，通过 WebSocket 连接后端 pty（每个终端由 `terminalId` 区分）：
  * - 用户输入 → ws 发送原始字符串；xterm 尺寸变化 → ws 发送 `{"type":"resize",cols,rows}`
- * - 后端 pty 输出 → ws 消息 → term.write 渲染
+ * - 后端统一推送 JSON 帧：`snapshot`（完整屏幕回放）/ `output`（增量输出）/ `exit`（进程退出），
+ *   非 JSON 兜底按原始输出 `term.write` 处理
  *
  * 所有终端视图在面板内同时挂载、CSS 切换可见性，因此 xterm 实例只在挂载时创建一次；
  * WebSocket 延迟到首次激活该 tab 时才建立，避免未使用终端也派生 shell 进程。
@@ -86,8 +87,10 @@ export function TerminalView({
     });
 
     return () => {
-      wsRef.current?.close();
+      // 先置空再关闭：让 ws.onclose 识别为主动关闭（避免 StrictMode 双挂载误报「终端已断开」）
+      const ws = wsRef.current;
       wsRef.current = null;
+      ws?.close();
       term.dispose();
       fit.dispose();
       termRef.current = null;
@@ -109,17 +112,42 @@ export function TerminalView({
       wsRef.current = ws;
 
       ws.onmessage = (ev) => {
-        if (typeof ev.data === 'string') {
-          term.write(ev.data);
-        } else if (ev.data instanceof ArrayBuffer) {
-          term.write(new Uint8Array(ev.data));
-        } else if (ev.data instanceof Blob) {
-          void ev.data.arrayBuffer().then((buf) => term.write(new Uint8Array(buf)));
+        const data = ev.data;
+        // 后端统一发送 JSON 帧：snapshot（完整屏幕）/ output（增量）/ exit（进程退出）
+        if (typeof data === 'string') {
+          let frame: { type?: string; data?: string } | null = null;
+          try {
+            frame = JSON.parse(data);
+          } catch { /* 兼容旧后端：非 JSON 按原始输出处理 */ }
+          if (frame?.type === 'snapshot' && typeof frame.data === 'string') {
+            term.reset();
+            term.write(frame.data);
+            return;
+          }
+          if (frame?.type === 'output' && typeof frame.data === 'string') {
+            term.write(frame.data);
+            return;
+          }
+          if (frame?.type === 'exit') {
+            term.write('\r\n[进程已退出]\r\n');
+            return;
+          }
+          term.write(data);
+          return;
+        }
+        // 二进制兜底（当前后端不会发送）
+        if (data instanceof ArrayBuffer) {
+          term.write(new Uint8Array(data));
+        } else if (data instanceof Blob) {
+          void data.arrayBuffer().then((buf) => term.write(new Uint8Array(buf)));
         }
       };
       ws.onclose = () => {
-        if (wsRef.current === ws) wsRef.current = null;
-        term.write('\r\n[终端已断开]\r\n');
+        // 仅在「非主动关闭」时提示；主动关闭（卸载/StrictMode 清理）已先把 wsRef 置空
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+          term.write('\r\n[终端已断开]\r\n');
+        }
       };
       // 连接成功后 fit，让 xterm 拿到正确尺寸并触发 resize 消息
       ws.onopen = () => {
