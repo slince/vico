@@ -134,7 +134,9 @@ export class TerminalManager {
       if (msg?.type === 'resize' && typeof msg.cols === 'number' && typeof msg.rows === 'number') {
         try {
           session.pty.resize(msg.cols, msg.rows);
-        } catch { /* ignore */ }
+        } catch (err) {
+          logger.warn({ err, threadId, terminalId, cols: msg.cols, rows: msg.rows }, 'Failed to resize terminal');
+        }
         session.screen.resize(msg.cols, msg.rows);
         return;
       }
@@ -151,11 +153,13 @@ export class TerminalManager {
     if (session.followers.size === 0) this.scheduleIdleReclaim(session, key);
   }
 
-  /** 向单个连接发送一帧（忽略已关闭 socket） */
+  /** 向单个连接发送一帧（socket 已关闭时告警） */
   private send(follower: TerminalFollower, frame: TerminalFrame): void {
     try {
       follower.send(JSON.stringify(frame));
-    } catch { /* socket 已关闭 */ }
+    } catch (err) {
+      logger.warn({ err, frame: frame.type }, 'Failed to send terminal frame');
+    }
   }
 
   /** 向会话的所有连接广播一帧 */
@@ -171,7 +175,9 @@ export class TerminalManager {
       this.sessions.delete(key);
       try {
         session.pty.kill();
-      } catch { /* ignore */ }
+      } catch (err) {
+        logger.warn({ err, key }, 'Failed to kill terminal pty');
+      }
       session.screen.dispose();
     }, IDLE_TIMEOUT_MS);
   }
