@@ -6,13 +6,13 @@
  * 新连接接入时回放当前屏幕快照，之后增量推送输出。路由层只做参数提取，
  * 全部会话维护逻辑收敛于此。
  */
-import { homedir } from 'node:os';
+import {homedir} from 'node:os';
 
-import { spawn, type IPty } from '@lydell/node-pty';
-import { Terminal as HeadlessTerminal } from '@xterm/headless';
-import { SerializeAddon } from '@xterm/addon-serialize';
+import {type IPty, spawn} from '@lydell/node-pty';
+import type {Terminal as HeadlessTerminal} from '@xterm/headless'
+import {SerializeAddon} from '@xterm/addon-serialize';
 
-import { getThreadWorkspace } from './workspace.js';
+import {getThreadWorkspace} from './workspace.js';
 import logger from './logger.js';
 
 /** 默认终端列数/行数（连接后由前端 resize 消息校准） */
