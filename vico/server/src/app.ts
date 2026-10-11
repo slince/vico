@@ -1,10 +1,17 @@
 import {Hono} from 'hono';
 import {cors} from 'hono/cors';
+import {upgradeWebSocket} from '@hono/node-server';
+import {WebSocketServer} from 'ws';
+
 import {auth} from './auth';
 import {registerRoutes} from './api/router.js';
+import {registerWsRoutes} from './api/ws/router.js';
 import {config} from './config.js';
 import logger from './lib/logger.js';
 import type {Variables} from './index.js';
+
+/** WebSocket 升级服务器（noServer 模式，通过 serve({ websocket }) 注入 HTTP server） */
+export const wss = new WebSocketServer({ noServer: true });
 
 /** 创建并配置 Hono app，注册所有中间件和路由 */
 export function createApp(): Hono<{ Variables: Variables }> {
@@ -123,6 +130,9 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
   /** 注册业务路由 */
   registerRoutes(app);
+
+  /** 注册 WebSocket 路由（终端等） */
+  registerWsRoutes(app, upgradeWebSocket);
 
   return app;
 }

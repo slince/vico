@@ -11,14 +11,11 @@
  */
 import {Vico} from '@vico/core';
 import {ensureTables} from '@vico/libsql-adapter';
-import {upgradeWebSocket} from '@hono/node-server';
-import {WebSocketServer} from 'ws';
 import {startCheckpointPurge} from './checkpoint-purge.js';
 import {config} from './config.js';
 import {getDb} from './db/db.js';
 import {getCheckpointStore, getMemory, getThreadStore} from './memory/memory-setup.js';
 import {createApp} from './app.js';
-import {registerWsRoutes} from './api/ws/router.js';
 import logger from './lib/logger.js';
 import {weatherTool} from "./agent/tools/weather-tool";
 
@@ -34,14 +31,8 @@ export const vico = new Vico({
   checkpointStore: getCheckpointStore(),
 });
 
-/** 创建 Hono app 实例 */
+/** 创建 Hono app 实例（含 WebSocket 路由注册） */
 export const app = createApp();
-
-// WebSocket 终端：升级助手用于注册路由，wss 通过 serve({ websocket }) 注入到 HTTP server
-const wss = new WebSocketServer({ noServer: true });
-registerWsRoutes(app, upgradeWebSocket);
-
-export { wss };
 
 /** 系统初始化 */
 export async function initVico(): Promise<void> {

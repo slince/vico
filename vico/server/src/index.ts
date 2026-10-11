@@ -2,7 +2,8 @@ import {serve} from '@hono/node-server';
 import {config} from './config.js';
 import {runMigrations} from './db/run-migrations.js';
 import {seedDefaultAdmin, seedMainAgent} from './auth/seed.js';
-import {app, initVico, wss} from './vico.js';
+import {app, initVico} from './vico.js';
+import {wss} from './app.js';
 import {auth} from './auth';
 import logger from './lib/logger.js';
 
