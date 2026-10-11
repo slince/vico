@@ -1,7 +1,7 @@
 /**
  * Web 终端 API — 基于 xterm(headless) + pty 的线程工作目录终端。
  *
- * 通过 WebSocket（@hono/node-ws 的 upgradeWebSocket）建立连接，服务端用
+ * 通过 WebSocket（@hono/node-server 的 upgradeWebSocket + ws）建立连接，服务端用
  * node-pty 派生一个 shell（cwd = 线程 workspace），把 pty 输出转发给前端，
  * 把前端输入写入 pty；resize 通过 JSON 消息 `{"type":"resize",cols,rows}` 控制。
  *
@@ -15,7 +15,7 @@
  * 会话按 `${threadId}:${terminalId}` 粒度保存。
  */
 import { Hono } from 'hono';
-import type { NodeWebSocket } from '@hono/node-ws';
+import type { UpgradeWebSocket } from 'hono/ws';
 import { spawn, type IPty } from '@lydell/node-pty';
 import { Terminal as HeadlessTerminal } from '@xterm/headless';
 import { SerializeAddon } from '@xterm/addon-serialize';
@@ -33,8 +33,8 @@ const SCROLLBACK = 1000;
 /** 无连接时进程保留时长（ms），超时回收避免泄漏 */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
-/** createNodeWebSocket 返回的 upgradeWebSocket 类型 */
-type UpgradeWebSocketFn = NodeWebSocket['upgradeWebSocket'];
+/** upgradeWebSocket 助手类型（@hono/node-server 导出，底层为 hono/ws 的 UpgradeWebSocket） */
+type UpgradeWebSocketFn = UpgradeWebSocket;
 /** 单个 WebSocket 连接（follower），只暴露广播所需的最小能力 */
 interface Follower {
   send(data: string): void;
@@ -63,11 +63,11 @@ function sessionKey(threadId: string, terminalId: string): string {
 /**
  * 注册终端 WebSocket 路由。
  *
- * 终端路由需要 `upgradeWebSocket`（由 createNodeWebSocket 产生），故不在
+ * 终端路由需要 `upgradeWebSocket`（由 @hono/node-server 提供），故不在
  * `api/router.ts` 的 registerRoutes 中注册，而由 `vico.ts` 单独调用。
  *
  * @param app - Hono 应用实例
- * @param upgradeWebSocket - createNodeWebSocket 返回的升级助手
+ * @param upgradeWebSocket - @hono/node-server 提供的升级助手
  */
 export function terminalRoutes(
   app: Hono<{ Variables: Variables }>,

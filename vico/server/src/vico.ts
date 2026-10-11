@@ -11,7 +11,8 @@
  */
 import {Vico} from '@vico/core';
 import {ensureTables} from '@vico/libsql-adapter';
-import {createNodeWebSocket} from '@hono/node-ws';
+import {upgradeWebSocket} from '@hono/node-server';
+import {WebSocketServer} from 'ws';
 import {startCheckpointPurge} from './checkpoint-purge.js';
 import {config} from './config.js';
 import {getDb} from './db/db.js';
@@ -36,11 +37,11 @@ export const vico = new Vico({
 /** 创建 Hono app 实例 */
 export const app = createApp();
 
-// WebSocket 终端：升级助手用于注册路由，injectWebSocket 在 index.ts 中注入到 HTTP server
-const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
+// WebSocket 终端：升级助手用于注册路由，wss 通过 serve({ websocket }) 注入到 HTTP server
+const wss = new WebSocketServer({ noServer: true });
 terminalRoutes(app, upgradeWebSocket);
 
-export { injectWebSocket };
+export { wss };
 
 /** 系统初始化 */
 export async function initVico(): Promise<void> {
