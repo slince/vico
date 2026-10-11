@@ -18,7 +18,7 @@ import {config} from './config.js';
 import {getDb} from './db/db.js';
 import {getCheckpointStore, getMemory, getThreadStore} from './memory/memory-setup.js';
 import {createApp} from './app.js';
-import {terminalRoutes} from './api/terminal.js';
+import {registerWsRoutes} from './api/ws/router.js';
 import logger from './lib/logger.js';
 import {weatherTool} from "./agent/tools/weather-tool";
 
@@ -39,7 +39,7 @@ export const app = createApp();
 
 // WebSocket 终端：升级助手用于注册路由，wss 通过 serve({ websocket }) 注入到 HTTP server
 const wss = new WebSocketServer({ noServer: true });
-terminalRoutes(app, upgradeWebSocket);
+registerWsRoutes(app, upgradeWebSocket);
 
 export { wss };
 

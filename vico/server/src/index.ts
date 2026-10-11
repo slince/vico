@@ -19,7 +19,12 @@ async function main() {
   await initVico();
 
   // websocket.server 注入 wss：@hono/node-server 在 HTTP upgrade 时把连接交给 WebSocketServer 处理
-  serve({ fetch: app.fetch, port: config.server.port, hostname: '0.0.0.0', websocket: { server: wss } }, (info) => {
+  serve({
+    fetch: app.fetch,
+    port: config.server.port,
+    hostname: '0.0.0.0',
+    websocket: { server: wss }
+  }, (info) => {
     logger.info({ port: info.port, deployMode: config.server.deploy_mode }, 'Server started');
   });
 }

@@ -8,8 +8,8 @@
 import { Hono } from 'hono';
 import type { UpgradeWebSocket } from 'hono/ws';
 
-import type { Variables } from '../index.js';
-import { terminalManager } from '../lib/terminal-manager.js';
+import type { Variables } from '../../index.js';
+import { terminalManager } from '../../lib/terminal-manager.js';
 
 /** upgradeWebSocket 助手类型（@hono/node-server 导出，底层为 hono/ws 的 UpgradeWebSocket） */
 type UpgradeWebSocketFn = UpgradeWebSocket;
