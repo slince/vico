@@ -81,6 +81,11 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
   const activeFile =
     active?.kind === 'file' ? openTabs.find((t) => t.filePath === active.filePath) : undefined;
 
+  // 是否还能新建终端（未达上限）
+  const canCreateTerminal = terminalIds.length < MAX_TERMINALS;
+  // 「+」菜单是否有可选项：文件树未打开，或还能新建终端；都不可用时隐藏整个「+」按钮
+  const showAddMenu = !filesOpen || canCreateTerminal;
+
   /** 刷新目录树 */
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -203,38 +208,40 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
             );
           })}
 
-          {/* 右上角「+」菜单 — 新建终端 / 重新打开文件树 */}
-          <div className="ml-auto flex shrink-0 items-center pr-1">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button size="icon" variant="ghost" title="新建" className="size-7">
-                  <Plus className="size-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-40 p-1">
-                {!filesOpen && (
-                  <button
-                    type="button"
-                    onClick={() => openFilesTab(threadId)}
-                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent"
-                  >
-                    <FolderTree className="size-3.5" />
-                    文件树
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={terminalIds.length >= MAX_TERMINALS}
-                  onClick={() => createTerminal(threadId)}
-                  title={terminalIds.length >= MAX_TERMINALS ? `最多 ${MAX_TERMINALS} 个终端` : undefined}
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Terminal className="size-3.5" />
-                  终端
-                </button>
-              </PopoverContent>
-            </Popover>
-          </div>
+          {/* 右上角「+」菜单 — 新建终端 / 重新打开文件树；无可选项时隐藏整个按钮 */}
+          {showAddMenu && (
+            <div className="ml-auto flex shrink-0 items-center pr-1">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button size="icon" variant="ghost" title="新建" className="size-7">
+                    <Plus className="size-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-40 p-1">
+                  {!filesOpen && (
+                    <button
+                      type="button"
+                      onClick={() => openFilesTab(threadId)}
+                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent"
+                    >
+                      <FolderTree className="size-3.5" />
+                      文件树
+                    </button>
+                  )}
+                  {canCreateTerminal && (
+                    <button
+                      type="button"
+                      onClick={() => createTerminal(threadId)}
+                      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent"
+                    >
+                      <Terminal className="size-3.5" />
+                      终端
+                    </button>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
 
         {/* 文件树视图 — 始终挂载，隐藏以保留展开态 */}
