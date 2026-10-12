@@ -64,7 +64,7 @@ export interface ApprovalDecision {
 /**
  * 审批政策模式 — 用户在 composer 选择、随请求下发的全局审批策略。
  *
- * - `approve-all`：全部审批，任何工具调用都需要用户审批
+ * - `approve-all`：审查模式，任何工具调用都需要用户审批
  * - `readonly`：只读模式，只读工具自动通过，修改/更新/删除需审批
  * - `workspace`：工作区内修改，workspace 内完全权限，越界需审批
  * - `full-access`：完全权限，不做任何审批直接通过

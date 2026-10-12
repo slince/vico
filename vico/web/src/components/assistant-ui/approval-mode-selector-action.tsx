@@ -45,7 +45,7 @@ interface ApprovalModeOption {
 const APPROVAL_MODES: ApprovalModeOption[] = [
   {
     id: "approve-all",
-    label: "全部审批",
+    label: "审查模式",
     description: "任何工具都需要审批",
     icon: ShieldCheckIcon,
   },
