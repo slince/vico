@@ -70,8 +70,6 @@ export type ApprovalMode = 'approve-all' | 'readonly' | 'workspace' | 'full-acce
 
 /** 审批策略上下文 */
 export interface PolicyContext<TInput = unknown> {
-  firstUse: boolean;
-  previousApproved: boolean;
   /** 工具调用参数，供自定义 resolver 做细粒度决策 */
   toolArgs?: TInput;
   /** 当前 session 的工作目录 */

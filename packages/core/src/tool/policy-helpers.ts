@@ -44,21 +44,18 @@ export const ApprovalPriority = {
  * tool.policy 通用 resolver：只处理 `never` 与 `always`，`auto` 交予其它 resolver。
  *
  * - `never`：硬拒绝，优先级最高、不可被覆盖；
- * - `always`：必审批（同一 turn 内已审批通过的工具，后续调用自动放行）。
+ * - `always`：必审批。
  */
 export const toolPolicyResolver: ApprovalResolver = {
   order: () => ApprovalPriority.HIGH,
   support: tool => tool.policy === 'never' || tool.policy === 'always',
-  resolve: (call, _tool, policy, ctx) => {
+  resolve: (call, _tool, policy) => {
     // never 硬拒绝，不可被 workspace 等后续 resolver 覆盖
     if (policy === 'never') {
       return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
     }
-    // always 必审批；同一 turn 内已审批通过的工具，后续调用自动放行
-    if (!ctx.firstUse && ctx.previousApproved) {
-      return { status: 'approved' };
-    }
-    return { status: 'paused', reason: `工具 ${call.name} 首次使用需要用户审批` };
+    // always 必审批
+    return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
   },
 };
 
@@ -139,10 +136,9 @@ export function createApprovalModeResolver(mode: ApprovalMode): ApprovalResolver
             if (allInWorkspace) return { status: 'approved' };
             return { status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径` };
           }
-          // 非工作区工具（浏览器/网络等）：auto 放行，always 首次需审批
+          // 非工作区工具（浏览器/网络等）：auto 放行，always 需审批
           if (policy === 'always') {
-            if (!ctx.firstUse && ctx.previousApproved) return { status: 'approved' };
-            return { status: 'paused', reason: `工具 ${call.name} 首次使用需要用户审批` };
+            return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
           }
           return { status: 'approved' };
         }

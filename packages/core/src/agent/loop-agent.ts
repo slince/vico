@@ -676,9 +676,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       const tool = this.toolExecutor.findTool(call.name);
       const policy = tool?.policy ?? 'auto';
 
-      const isFirstUse = !context.approvedTools.has(call.name);
-      const wasApproved = context.approvedTools.get(call.name)?.approved ?? false;
-
       // 工具未注册 → 直接拒绝
       if (!tool) {
         deniedResults.push({
@@ -691,8 +688,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
 
       const decision = await (context.approvalResolver ?? this.approvalResolver)(call, tool, policy, {
-        firstUse: isFirstUse,
-        previousApproved: wasApproved,
         toolArgs: call.args,
         workspace: context.session.workspace,
         approvalMode: context.approvalMode,
