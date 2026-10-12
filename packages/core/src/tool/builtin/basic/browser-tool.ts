@@ -71,7 +71,7 @@ export const browserNavigateTool = createTool({
   inputSchema: navigateParams,
   outputSchema: navigateOutput,
   policy: 'auto',
-  kind: 'mutation',
+  kind: 'readonly',
   execute: executeNavigate,
 });
 
@@ -167,6 +167,6 @@ export const browserClickTool = createTool({
   inputSchema: clickParams,
   outputSchema: clickOutput,
   policy: 'auto',
-  kind: 'mutation',
+  kind: 'readonly',
   execute: executeClick,
 });

@@ -76,6 +76,6 @@ export const webFetchTool = createTool({
   inputSchema: webFetchParams,
   outputSchema: webFetchOutput,
   policy: 'auto',
-  kind: 'mutation',
+  kind: 'readonly',
   execute: executeWebFetch,
 });

@@ -92,6 +92,6 @@ export const askUserTool = createTool({
   inputSchema: askUserParams,
   outputSchema: askUserOutputSchema,
   policy: 'always',
-  kind: 'mutation',
+  kind: 'readonly',
   execute: executeAskUser,
 });
