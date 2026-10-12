@@ -63,7 +63,7 @@ export const toolPolicyResolver: ApprovalResolver = {
  * 审批政策模式通用 resolver：读取 PolicyContext.approvalMode 决策 auto 工具。
  *
  * never/always 已由 toolPolicyResolver（更高优先级）先行决策，本 resolver 仅承接 auto 工具；
- * 未指定 approvalMode 时不参与（support 返回 false），交由 workspaceResolver 走默认 workspace 边界。
+ * 未显式指定 approvalMode 时回退到默认的 workspace 模式。
  */
 export const approvalModeResolver: ApprovalResolver = {
   order: () => ApprovalPriority.MEDIUM,
@@ -92,28 +92,29 @@ export const approvalModeResolver: ApprovalResolver = {
         };
 
       case 'workspace': {
-        // 工作区文件工具：路径全在工作区内（或无路径，如 bash）放行，越界暂停
-        if (tool.tags.includes('requires-workspace')) {
-          const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
-          const paths = extractPaths(args);
-
-          if (paths.length === 0) {
-            return { status: 'approved' };
-          }
-
-          const allInWorkspace = paths.every((p) => isPathInWorkspace(p, ctx.workspace));
-          if (allInWorkspace) {
-            return { status: 'approved' };
-          }
-
-          return {
-            status: 'paused',
-            reason: `工具 ${call.name} 尝试访问 workspace 外路径`,
-          };
+        // workspace = readonly 的宽松版：只读工具放行，变更工具仅限 workspace 内
+        if (tool.kind === 'readonly') {
+          return { status: 'approved' };
         }
 
-        // 非工作区工具（浏览器/网络等）：放行
-        return { status: 'approved' };
+        // 变更工具：提取路径参数，检查是否全部落在 workspace 内
+        const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
+        const paths = extractPaths(args);
+
+        // 无路径参数的变更工具（如 todo、记忆写入等）不涉及文件边界，放行
+        if (paths.length === 0) {
+          return { status: 'approved' };
+        }
+
+        const allInWorkspace = paths.every((p) => isPathInWorkspace(p, ctx.workspace));
+        if (allInWorkspace) {
+          return { status: 'approved' };
+        }
+
+        return {
+          status: 'paused',
+          reason: `工具 ${call.name} 尝试访问 workspace 外路径`,
+        };
       }
 
       case 'full-access':
