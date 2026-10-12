@@ -131,6 +131,6 @@ export const readTool = createTool({
   outputSchema: readOutputSchema,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'read', 'requires-workspace'],
+  tags: ['requires-workspace'],
   execute: executeRead,
 });

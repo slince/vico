@@ -8,6 +8,7 @@ export {
   type ToolResult,
   type ToolPolicy,
   type ToolKind,
+  type ToolTag,
 } from './tool/types.js';
 export { type MemoryRecord, type MemorySearchResult } from './memory/types.js';
 

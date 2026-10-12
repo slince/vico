@@ -77,8 +77,7 @@ export function createDelegateTool(parentConfig: { getConfig(): AgentConfig}) {
     inputSchema: delegateParams,
     outputSchema: delegateOutput,
     policy: 'auto',
-    kind: 'delegate',
-    tags: ['builtin', 'delegate'],
+    kind: 'mutation',
     execute,
   });
 }

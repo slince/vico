@@ -26,7 +26,6 @@ export function createSkillLoadTool(manager: SkillRegistry) {
     }),
     policy: 'auto',
     kind: 'readonly',
-    tags: ['skill'],
     async execute(args) {
       const { name } = args;
       const skill = manager.get(name);

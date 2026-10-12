@@ -1,6 +1,6 @@
 // @vico/core - createTool: factory for building Tool objects with Zod validation
 import type {z} from 'zod';
-import type {Tool, ToolCallContext, ToolKind, ToolPolicy} from './types.js';
+import type {Tool, ToolCallContext, ToolKind, ToolPolicy, ToolTag} from './types.js';
 
 /** createTool 的配置选项 */
 export interface ToolOptions<TInput = any, TOutput = any> {
@@ -14,10 +14,10 @@ export interface ToolOptions<TInput = any, TOutput = any> {
   outputSchema?: z.ZodType<TOutput, any>;
   /** 审批策略，默认 'auto' */
   policy?: ToolPolicy;
-  /** 工具类别，默认 'command' */
+  /** 工具类别，默认 'mutation' */
   kind?: ToolKind;
-  /** 来源标签 */
-  tags?: string[];
+  /** 工具标签 */
+  tags?: ToolTag[];
   /** 执行逻辑，args 已通过 inputSchema 校验并推导类型，返回值受 outputSchema 约束 */
   execute: (args: TInput, ctx: ToolCallContext) => Promise<TOutput>;
 }
@@ -47,7 +47,7 @@ export function createTool<TInput = any, TOutput = any>(options: ToolOptions<TIn
     inputSchema: options.inputSchema,
     outputSchema: options.outputSchema,
     policy: options.policy ?? 'auto',
-    kind: options.kind ?? 'command',
+    kind: options.kind ?? 'mutation',
     tags: options.tags ?? [],
     async execute(call, ctx) {
       const args = options.inputSchema.parse(call.args);

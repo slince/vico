@@ -5,8 +5,11 @@ import {ToolCallApproval, TurnSession} from "../agent/loop-agent-options.js";
 /** 工具审批策略 */
 export type ToolPolicy = 'auto' | 'always' | 'never';
 
-/** 工具类别 */
-export type ToolKind = 'readonly' | 'command' | 'file_change' | 'delegate' | 'mutation';
+/** 工具类别：只读 or 变更 */
+export type ToolKind = 'readonly' | 'mutation';
+
+/** 工具标签：绑定工作目录 */
+export type ToolTag = 'requires-workspace';
 
 /** 工具 — 规格定义 + 执行逻辑 */
 export interface Tool<TInput = any, TOutput = any> {
@@ -18,8 +21,8 @@ export interface Tool<TInput = any, TOutput = any> {
   outputSchema?: z.ZodType<TOutput, any>;
   policy: ToolPolicy;
   kind: ToolKind;
-  /** 来源标签（如 "builtin", "skill", "agent:xxx"） */
-  tags: string[];
+  /** 工具标签（如绑定工作目录 "requires-workspace"） */
+  tags: ToolTag[];
   /** 执行工具调用 */
   execute(call: ToolCall<TInput>, ctx: ToolCallContext): Promise<TOutput>;
 }

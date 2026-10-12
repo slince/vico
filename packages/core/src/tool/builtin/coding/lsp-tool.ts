@@ -254,6 +254,6 @@ export const lspTool = createTool({
   outputSchema: lspOutput,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'read', 'requires-workspace'],
+  tags: ['requires-workspace'],
   execute: executeLsp,
 });

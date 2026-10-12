@@ -40,6 +40,5 @@ export const todoTool = createTool({
   outputSchema: todoOutput,
   policy: 'auto',
   kind: 'mutation',
-  tags: ['builtin', 'planning'],
   execute: executeTodo,
 });

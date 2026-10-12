@@ -173,7 +173,7 @@ export const editTool = createTool({
   inputSchema: editParams,
   outputSchema: editOutputSchema,
   policy: 'auto',
-  kind: 'file_change',
-  tags: ['builtin', 'edit', 'requires-workspace'],
+  kind: 'mutation',
+  tags: ['requires-workspace'],
   execute: executeEdit,
 });

@@ -73,8 +73,7 @@ export function createSkillExecuteTool(options: SkillExecuteOptions) {
     inputSchema: params,
     outputSchema,
     policy: 'auto',
-    kind: 'command',
-    tags: ['skill', 'command'],
+    kind: 'mutation',
     execute,
   });
 }

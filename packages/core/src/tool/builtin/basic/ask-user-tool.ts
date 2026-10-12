@@ -93,6 +93,5 @@ export const askUserTool = createTool({
   outputSchema: askUserOutputSchema,
   policy: 'always',
   kind: 'mutation',
-  tags: ['builtin', 'human-in-the-loop'],
   execute: executeAskUser,
 });

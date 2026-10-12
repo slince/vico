@@ -71,8 +71,7 @@ export const browserNavigateTool = createTool({
   inputSchema: navigateParams,
   outputSchema: navigateOutput,
   policy: 'auto',
-  kind: 'command',
-  tags: ['builtin', 'browser'],
+  kind: 'mutation',
   execute: executeNavigate,
 });
 
@@ -117,7 +116,6 @@ export const browserSnapshotTool = createTool({
   outputSchema: snapshotOutput,
   policy: 'auto',
   kind: 'readonly',
-  tags: ['builtin', 'browser', 'read'],
   execute: executeSnapshot,
 });
 
@@ -169,7 +167,6 @@ export const browserClickTool = createTool({
   inputSchema: clickParams,
   outputSchema: clickOutput,
   policy: 'auto',
-  kind: 'command',
-  tags: ['builtin', 'browser'],
+  kind: 'mutation',
   execute: executeClick,
 });

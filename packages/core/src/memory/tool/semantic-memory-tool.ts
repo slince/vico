@@ -28,7 +28,6 @@ export function createUpdateSemanticMemoryTool(sm: SemanticMemory) {
     }),
     policy: 'auto',
     kind: 'mutation',
-    tags: ['builtin'],
     async execute(args: { memory: string }, ctx: ToolCallContext) {
       const userId = ctx.session.thread.userId;
       if (!userId) {

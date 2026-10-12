@@ -95,9 +95,9 @@ export const defaultApprovalResolvers: ApprovalResolver[] = [
  * 依据审批政策模式构建自包含 resolver（support 恒真、resolve 覆盖全部决策）。
  *
  * 该 resolver 会作为 run 级审批判定的唯一来源（替换默认 resolver 链），
- * 因此需自行处理三类前置规则：
+ * 因此需自行处理前置规则：
  * - `policy: 'never'` 在所有模式下保持硬阻断（denied）；
- * - `human-in-the-loop` 澄清工具（ask_user）需要用户输入，任何模式都不自动放行（paused）。
+ * - `policy: 'always'`（澄清工具 ask_user）需要用户输入，任何模式都不自动放行（paused）。
  *
  * @param mode - 审批政策模式
  * @returns 自包含的 ApprovalResolver，可直接 compose 为 ApprovalDecider
@@ -112,9 +112,9 @@ export function createApprovalModeResolver(mode: ApprovalMode): ApprovalResolver
       if (policy === 'never') {
         return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
       }
-      // 澄清类工具（ask_user）依赖审批 reason 读取用户回答，放行会直接报错，始终暂停
-      if (tool.tags.includes('human-in-the-loop')) {
-        return { status: 'paused', reason: `工具 ${call.name} 需要用户输入` };
+      // always（澄清工具 ask_user）依赖审批 reason 读取用户回答，任何模式都不自动放行
+      if (policy === 'always') {
+        return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
       }
 
       switch (mode) {
@@ -136,10 +136,7 @@ export function createApprovalModeResolver(mode: ApprovalMode): ApprovalResolver
             if (allInWorkspace) return { status: 'approved' };
             return { status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径` };
           }
-          // 非工作区工具（浏览器/网络等）：auto 放行，always 需审批
-          if (policy === 'always') {
-            return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
-          }
+          // 非工作区工具（浏览器/网络等）：auto 放行
           return { status: 'approved' };
         }
 

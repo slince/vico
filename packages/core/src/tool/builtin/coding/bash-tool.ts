@@ -196,7 +196,7 @@ export const bashTool = createTool({
   inputSchema: bashParams,
   outputSchema: z.string(),
   policy: 'auto',
-  kind: 'command',
-  tags: ['builtin', 'command', 'requires-workspace'],
+  kind: 'mutation',
+  tags: ['requires-workspace'],
   execute: executeBash,
 });

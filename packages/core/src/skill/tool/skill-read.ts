@@ -23,7 +23,6 @@ export function createSkillReadTool(manager: SkillRegistry) {
     }),
     policy: 'auto',
     kind: 'readonly',
-    tags: ['skill'],
     async execute(args) {
       const { skillName, filePath } = args;
       const skill = manager.get(skillName);
