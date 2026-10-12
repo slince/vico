@@ -1,6 +1,6 @@
 // @vico/core - 审批策略：support/resolve 两段式 resolver 及内置规则集
 import {resolve} from 'node:path';
-import type {ApprovalDecider, ApprovalResolver} from './types.js';
+import type {ApprovalDecider, ApprovalMode, ApprovalResolver} from './types.js';
 
 /** 路径参数常用名称 */
 const PATH_ARG_NAMES = new Set(['path', 'filePath', 'file', 'target', 'directory', 'dir']);
@@ -105,16 +105,6 @@ export const defaultApprovalResolvers: ApprovalResolver[] = [
   workspaceResolver,
   defaultResolver,
 ];
-
-/**
- * 审批政策模式 — 用户在 composer 选择、随请求下发的全局审批策略。
- *
- * - `approve-all`：全部审批，任何工具调用都需要用户审批
- * - `readonly`：只读模式，只读工具自动通过，修改/更新/删除需审批
- * - `workspace`：工作区内修改，workspace 内完全权限，越界需审批
- * - `full-access`：完全权限，不做任何审批直接通过
- */
-export type ApprovalMode = 'approve-all' | 'readonly' | 'workspace' | 'full-access';
 
 /**
  * 依据审批政策模式构建自包含 resolver（support 恒真、resolve 覆盖全部决策）。
