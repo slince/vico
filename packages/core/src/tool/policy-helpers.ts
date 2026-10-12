@@ -60,29 +60,6 @@ export const toolPolicyResolver: ApprovalResolver = {
 };
 
 /**
- * workspace 放行（默认兜底）：未指定 approvalMode 时，requires-workspace 工具只要路径都在
- * workspace 内（或无路径）即放行，越界暂停。位于 toolPolicyResolver / approvalModeResolver 之后。
- */
-export const workspaceResolver: ApprovalResolver = {
-  order: () => ApprovalPriority.LOW,
-  support: tool => tool.tags.includes('requires-workspace'),
-  resolve: (call, _tool, _policy, ctx) => {
-    const workspace = ctx.workspace;
-    // WorkspaceToolProcessor 已保证 requires-workspace 工具必有 workspace，此处防御
-    if (!workspace) {
-      return {status: 'paused', reason: `工具 ${call.name} 需要 workspace 但未配置`};
-    }
-    const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
-    const paths = extractPaths(args);
-    // 无路径参数的工具（如 bash、git-commit）视为在 workspace 内执行
-    if (paths.length === 0) return {status: 'approved'};
-    const allInWorkspace = paths.every(p => isPathInWorkspace(p, workspace));
-    if (allInWorkspace) return {status: 'approved'};
-    return {status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径`};
-  },
-};
-
-/**
  * 审批政策模式通用 resolver：读取 PolicyContext.approvalMode 决策 auto 工具。
  *
  * never/always 已由 toolPolicyResolver（更高优先级）先行决策，本 resolver 仅承接 auto 工具；
@@ -90,9 +67,12 @@ export const workspaceResolver: ApprovalResolver = {
  */
 export const approvalModeResolver: ApprovalResolver = {
   order: () => ApprovalPriority.MEDIUM,
-  support: (_tool, ctx) => ctx.approvalMode !== undefined,
+  support: (_tool, ctx) => true,
   resolve: (call, tool, _policy, ctx) => {
-    switch (ctx.approvalMode) {
+
+    const approvalMode = ctx.approvalMode ?? 'workspace';
+
+    switch (approvalMode) {
       case 'approve-all':
         return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
 
@@ -130,7 +110,6 @@ export const approvalModeResolver: ApprovalResolver = {
 export const defaultApprovalResolvers: ApprovalResolver[] = [
   toolPolicyResolver,
   approvalModeResolver,
-  workspaceResolver,
 ];
 
 /**
