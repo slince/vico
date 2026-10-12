@@ -72,7 +72,7 @@ export function createSkillExecuteTool(options: SkillExecuteOptions) {
       '执行 Skill scripts 目录下的脚本。需提供 Skill 名称和脚本文件名（必须在 Skill 声明的 scripts 列表中）。脚本在 workspace 目录中执行。',
     inputSchema: params,
     outputSchema,
-    policy: 'always',
+    policy: 'auto',
     kind: 'command',
     tags: ['skill', 'command'],
     execute,

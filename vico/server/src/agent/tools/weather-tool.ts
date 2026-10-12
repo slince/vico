@@ -23,7 +23,7 @@ interface WeatherResponse {
 export const weatherTool = createTool({
   name: 'get-weather',
   description: 'Get current weather for a location',
-  policy: "always",
+  policy: "auto",
   inputSchema: z.object({
     location: z.string().describe('City name'),
   }),
