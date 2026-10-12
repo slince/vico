@@ -32,7 +32,7 @@ import type {
 } from './loop-agent-options.js';
 
 import {ModelClient} from '../model/model-client.js';
-import {composeResolvers, createApprovalModeResolver, defaultApprovalResolvers} from '../tool/policy-helpers.js';
+import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
 import {createDefaultProcessors, normalizeUserMessage} from './utils.js';
 import {fromModelMessage} from '../thread/utils.js';
 import {TurnOutput} from './turn-output.js';
@@ -206,11 +206,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
             thread: options.thread,
             reasoning: options.reasoning,
             modelClient: this.resolveModelClient(options.model),
-            // run 级审批政策模式解析为自包含判定，替换 agent 默认 resolver 链
-            approvalResolver: options.approvalMode
-              ? composeResolvers(createApprovalModeResolver(options.approvalMode))
-              : undefined,
-            // 透传给各 resolver 的审批政策模式
+            // 透传给各 resolver 的审批政策模式（由默认链中的 approvalModeResolver 处理）
             approvalMode: options.approvalMode,
           });
           resolve(result);
@@ -276,10 +272,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     thread: Thread;
     reasoning?: ReasoningEffort;
     modelClient: ModelClient;
-    approvalResolver?: ApprovalDecider;
     approvalMode?: ApprovalMode;
   }): Promise<TurnResult> {
-    const { userMessages, signal, controller, thread, reasoning, modelClient, approvalResolver, approvalMode } = ctx;
+    const { userMessages, signal, controller, thread, reasoning, modelClient, approvalMode } = ctx;
 
     const workspace = thread.metadata?.workspace ?? this.workspace;
 
@@ -302,7 +297,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     const session: TurnSession = { workspace, thread, turn };
-    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalResolver, approvalMode });
+    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -314,10 +309,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     checkpoint: Checkpoint;
     reasoning?: ReasoningEffort;
     modelClient: ModelClient;
-    approvalResolver?: ApprovalDecider;
     approvalMode?: ApprovalMode;
   }): Promise<TurnResult> {
-    const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalResolver, approvalMode } = params;
+    const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode } = params;
 
     const {decisions} = extractApprovalResponses(userMessages)
 
@@ -337,7 +331,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       usage: { input: 0, output: 0 },
       reasoning,
       modelClient,
-      approvalResolver,
       approvalMode,
     };
 
@@ -687,7 +680,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         continue;
       }
 
-      const decision = await (context.approvalResolver ?? this.approvalResolver)(call, tool, policy, {
+      const decision = await this.approvalResolver(call, tool, policy, {
         toolArgs: call.args,
         workspace: context.session.workspace,
         approvalMode: context.approvalMode,

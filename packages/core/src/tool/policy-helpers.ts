@@ -1,6 +1,6 @@
 // @vico/core - 审批策略：support/resolve 两段式 resolver 及内置规则集
 import {resolve} from 'node:path';
-import type {ApprovalDecider, ApprovalMode, ApprovalResolver} from './types.js';
+import type {ApprovalDecider, ApprovalResolver} from './types.js';
 
 /** 路径参数常用名称 */
 const PATH_ARG_NAMES = new Set(['path', 'filePath', 'file', 'target', 'directory', 'dir']);
@@ -60,12 +60,11 @@ export const toolPolicyResolver: ApprovalResolver = {
 };
 
 /**
- * workspace 放行：requires-workspace 工具只要路径都在 workspace 内（或无路径）即放行；
- * 路径越界则暂停。位于 toolPolicyResolver 之后，仅承接 auto 策略的 requires-workspace 工具
- * （never/always 已由 toolPolicyResolver 先行决策）。
+ * workspace 放行（默认兜底）：未指定 approvalMode 时，requires-workspace 工具只要路径都在
+ * workspace 内（或无路径）即放行，越界暂停。位于 toolPolicyResolver / approvalModeResolver 之后。
  */
 export const workspaceResolver: ApprovalResolver = {
-  order: () => ApprovalPriority.MEDIUM,
+  order: () => ApprovalPriority.LOW,
   support: tool => tool.tags.includes('requires-workspace'),
   resolve: (call, _tool, _policy, ctx) => {
     const workspace = ctx.workspace;
@@ -84,71 +83,55 @@ export const workspaceResolver: ApprovalResolver = {
 };
 
 /**
+ * 审批政策模式通用 resolver：读取 PolicyContext.approvalMode 决策 auto 工具。
+ *
+ * never/always 已由 toolPolicyResolver（更高优先级）先行决策，本 resolver 仅承接 auto 工具；
+ * 未指定 approvalMode 时不参与（support 返回 false），交由 workspaceResolver 走默认 workspace 边界。
+ */
+export const approvalModeResolver: ApprovalResolver = {
+  order: () => ApprovalPriority.MEDIUM,
+  support: (_tool, ctx) => ctx.approvalMode !== undefined,
+  resolve: (call, tool, _policy, ctx) => {
+    switch (ctx.approvalMode) {
+      case 'approve-all':
+        return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
+
+      case 'readonly':
+        return tool.kind === 'readonly'
+          ? { status: 'approved' }
+          : { status: 'paused', reason: `工具 ${call.name} 会修改状态，需要审批` };
+
+      case 'workspace': {
+        // 工作区文件工具：路径全在工作区内（或无路径，如 bash）放行，越界暂停
+        if (tool.tags.includes('requires-workspace')) {
+          const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
+          const paths = extractPaths(args);
+          if (paths.length === 0) return { status: 'approved' };
+          const allInWorkspace = paths.every((p) => isPathInWorkspace(p, ctx.workspace));
+          if (allInWorkspace) return { status: 'approved' };
+          return { status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径` };
+        }
+        // 非工作区工具（浏览器/网络等）：auto 放行
+        return { status: 'approved' };
+      }
+
+      case 'full-access':
+        return { status: 'approved' };
+
+      default:
+        return { status: 'approved' };
+    }
+  },
+};
+
+/**
  * 内置审批 resolver 集，优先级由各 resolver 的 order() 决定（高 → 低）。
  */
 export const defaultApprovalResolvers: ApprovalResolver[] = [
   toolPolicyResolver,
+  approvalModeResolver,
   workspaceResolver,
 ];
-
-/**
- * 依据审批政策模式构建自包含 resolver（support 恒真、resolve 覆盖全部决策）。
- *
- * 该 resolver 会作为 run 级审批判定的唯一来源（替换默认 resolver 链），
- * 因此需自行处理前置规则：
- * - `policy: 'never'` 在所有模式下保持硬阻断（denied）；
- * - `policy: 'always'`（澄清工具 ask_user）需要用户输入，任何模式都不自动放行（paused）。
- *
- * @param mode - 审批政策模式
- * @returns 自包含的 ApprovalResolver，可直接 compose 为 ApprovalDecider
- */
-export function createApprovalModeResolver(mode: ApprovalMode): ApprovalResolver {
-  return {
-    // 自包含 resolver 通常单独 compose，order 仅在与其他 resolver 混用时生效，取最高优先级保证政策优先
-    order: () => ApprovalPriority.HIGH,
-    support: () => true,
-    resolve: (call, tool, policy, ctx) => {
-      // never 硬阻断：无论何种模式，被策略标记为 never 的工具一律拒绝
-      if (policy === 'never') {
-        return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
-      }
-      // always（澄清工具 ask_user）依赖审批 reason 读取用户回答，任何模式都不自动放行
-      if (policy === 'always') {
-        return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
-      }
-
-      switch (mode) {
-        case 'approve-all':
-          return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
-
-        case 'readonly':
-          return tool.kind === 'readonly'
-            ? { status: 'approved' }
-            : { status: 'paused', reason: `工具 ${call.name} 会修改状态，需要审批` };
-
-        case 'workspace': {
-          // 工作区文件工具：路径全在工作区内（或无路径，如 bash）放行，越界暂停
-          if (tool.tags.includes('requires-workspace')) {
-            const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
-            const paths = extractPaths(args);
-            if (paths.length === 0) return { status: 'approved' };
-            const allInWorkspace = paths.every((p) => isPathInWorkspace(p, ctx.workspace));
-            if (allInWorkspace) return { status: 'approved' };
-            return { status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径` };
-          }
-          // 非工作区工具（浏览器/网络等）：auto 放行
-          return { status: 'approved' };
-        }
-
-        case 'full-access':
-          return { status: 'approved' };
-
-        default:
-          return { status: 'denied', reason: `未知审批模式: ${mode}` };
-      }
-    },
-  };
-}
 
 /**
  * 组合多个 ApprovalResolver 为判定函数。
@@ -161,7 +144,7 @@ export function composeResolvers(...resolvers: ApprovalResolver[]): ApprovalDeci
   const sorted = [...resolvers].sort((a, b) => a.order() - b.order());
   return async (call, tool, policy, ctx) => {
     for (const resolver of sorted) {
-      if (!resolver.support(tool)) continue;
+      if (!resolver.support(tool, ctx)) continue;
       return resolver.resolve(call, tool, policy, ctx);
     }
     return {status: 'approved'};

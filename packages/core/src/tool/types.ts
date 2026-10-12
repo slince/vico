@@ -91,8 +91,8 @@ export interface PolicyContext<TInput = unknown> {
 export interface ApprovalResolver<TInput = unknown, TOutput = unknown> {
   /** 优先级，数值越小越优先；composeResolvers 按此升序调度，可引用 ApprovalPriority 档位 */
   order(): number;
-  /** 是否参与该工具的审批判断；返回 false 则跳过该 resolver */
-  support(tool: Tool<TInput, TOutput>): boolean;
+  /** 是否参与该工具的审批判断；返回 false 则跳过该 resolver（context 含 approvalMode 等运行时信息） */
+  support(tool: Tool<TInput, TOutput>, context: PolicyContext<TInput>): boolean;
   /** 决策逻辑，仅当 support 返回 true 时被调用 */
   resolve(
     call: ToolCall<TInput>,
