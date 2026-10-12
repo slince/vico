@@ -133,11 +133,12 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
   const skills = await buildSkills(config.skills)
   const tools = buildTools(config.tools, memory.semantic, skills);
 
-  // 顺序即优先级：never 保护 → 自定义 → workspace 放行 → 破坏性暂停 → 兜底
+  // 优先级由各 resolver 的 order() 决定，composeResolvers 内部按 order 升序调度；
+  // 自定义 resolver 通过自身 order() 声明插入位置（默认档位见 ApprovalPriority）
   const approvalResolvers: ApprovalResolver[] = [...defaultApprovalResolvers]
 
   if (config.approvalResolver) {
-    approvalResolvers.unshift(config.approvalResolver)
+    approvalResolvers.push(config.approvalResolver)
   }
 
   return new LoopAgent({

@@ -29,9 +29,22 @@ function extractPaths(toolArgs: Record<string, unknown> | undefined): string[] {
 }
 
 /**
+ * 审批 resolver 优先级档位 — order 越小越优先，用户可自定义任意整数。
+ */
+export const ApprovalPriority = {
+  /** 高优先级（最先调度） */
+  HIGH: -100,
+  /** 普通优先级 */
+  MEDIUM: 0,
+  /** 低优先级（最后调度） */
+  LOW: 100,
+} as const;
+
+/**
  * never 拒绝：`policy: 'never'` 的工具一律拒绝，优先级最高、不可被覆盖。
  */
 export const neverDenyResolver: ApprovalResolver = {
+  order: () => ApprovalPriority.HIGH,
   support: tool => tool.policy === 'never',
   resolve: call => ({status: 'denied', reason: `工具 ${call.name} 被策略阻止`}),
 };
@@ -41,6 +54,7 @@ export const neverDenyResolver: ApprovalResolver = {
  * 路径越界则暂停。排在 destructive 之前，从而覆盖破坏性工具的默认暂停。
  */
 export const workspaceResolver: ApprovalResolver = {
+  order: () => ApprovalPriority.MEDIUM,
   support: tool => tool.tags.includes('requires-workspace'),
   resolve: (call, _tool, _policy, ctx) => {
     const workspace = ctx.workspace;
@@ -63,6 +77,7 @@ export const workspaceResolver: ApprovalResolver = {
  * 兜底 resolver：恒参与，按工具自身 policy（auto / on-request / never）决策。
  */
 export const defaultResolver: ApprovalResolver = {
+  order: () => ApprovalPriority.LOW,
   support: () => true,
   resolve: (call, tool, policy, ctx) => {
     switch (policy) {
@@ -83,7 +98,7 @@ export const defaultResolver: ApprovalResolver = {
 };
 
 /**
- * 内置审批 resolver 集，数组顺序即优先级（高 → 低）。
+ * 内置审批 resolver 集，优先级由各 resolver 的 order() 决定（高 → 低）。
  */
 export const defaultApprovalResolvers: ApprovalResolver[] = [
   neverDenyResolver,
@@ -114,6 +129,8 @@ export type ApprovalMode = 'approve-all' | 'readonly' | 'workspace' | 'full-acce
  */
 export function createApprovalModeResolver(mode: ApprovalMode): ApprovalResolver {
   return {
+    // 自包含 resolver 通常单独 compose，order 仅在与其他 resolver 混用时生效，取最高优先级保证政策优先
+    order: () => ApprovalPriority.HIGH,
     support: () => true,
     resolve: (call, tool, policy, ctx) => {
       // never 硬阻断：无论何种模式，被策略标记为 never 的工具一律拒绝
@@ -165,15 +182,16 @@ export function createApprovalModeResolver(mode: ApprovalMode): ApprovalResolver
 /**
  * 组合多个 ApprovalResolver 为判定函数。
  *
- * 按数组顺序遍历，首个 `support` 返回 true 的 resolver 的 `resolve` 即为最终决策；
- * 全部不参与则放行。
+ * 按 order 升序（数值越小越优先）调度，首个 `support` 返回 true 的 resolver
+ * 的 `resolve` 即为最终决策（首个命中即终态）；全部不参与则放行。
  */
 export function composeResolvers(...resolvers: ApprovalResolver[]): ApprovalDecider {
+  // 组合时按优先级升序排序一次，调用期无需重复排序
+  const sorted = [...resolvers].sort((a, b) => a.order() - b.order());
   return async (call, tool, policy, ctx) => {
-    for (const resolver of resolvers) {
+    for (const resolver of sorted) {
       if (!resolver.support(tool)) continue;
-      const decision = await resolver.resolve(call, tool, policy, ctx);
-      if (decision.status !== 'approved') return decision;
+      return resolver.resolve(call, tool, policy, ctx);
     }
     return {status: 'approved'};
   };
