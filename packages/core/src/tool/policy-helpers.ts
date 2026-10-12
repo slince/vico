@@ -67,38 +67,61 @@ export const toolPolicyResolver: ApprovalResolver = {
  */
 export const approvalModeResolver: ApprovalResolver = {
   order: () => ApprovalPriority.MEDIUM,
-  support: (_tool, ctx) => true,
-  resolve: (call, tool, _policy, ctx) => {
 
+  support: (_tool, ctx) => true,
+
+  resolve: (call, tool, _policy, ctx) => {
     const approvalMode = ctx.approvalMode ?? 'workspace';
 
     switch (approvalMode) {
       case 'approve-all':
-        return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
+        // 全部工具都需用户审批
+        return {
+          status: 'paused',
+          reason: `工具 ${call.name} 需要用户审批`,
+        };
 
       case 'readonly':
-        return tool.kind === 'readonly'
-          ? { status: 'approved' }
-          : { status: 'paused', reason: `工具 ${call.name} 会修改状态，需要审批` };
+        // 只读工具放行，变更工具需审批
+        if (tool.kind === 'readonly') {
+          return { status: 'approved' };
+        }
+        return {
+          status: 'paused',
+          reason: `工具 ${call.name} 会修改状态，需要审批`,
+        };
 
       case 'workspace': {
         // 工作区文件工具：路径全在工作区内（或无路径，如 bash）放行，越界暂停
         if (tool.tags.includes('requires-workspace')) {
           const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
           const paths = extractPaths(args);
-          if (paths.length === 0) return { status: 'approved' };
+
+          if (paths.length === 0) {
+            return { status: 'approved' };
+          }
+
           const allInWorkspace = paths.every((p) => isPathInWorkspace(p, ctx.workspace));
-          if (allInWorkspace) return { status: 'approved' };
-          return { status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径` };
+          if (allInWorkspace) {
+            return { status: 'approved' };
+          }
+
+          return {
+            status: 'paused',
+            reason: `工具 ${call.name} 尝试访问 workspace 外路径`,
+          };
         }
-        // 非工作区工具（浏览器/网络等）：auto 放行
+
+        // 非工作区工具（浏览器/网络等）：放行
         return { status: 'approved' };
       }
 
       case 'full-access':
+        // 完全权限：直接放行
         return { status: 'approved' };
 
       default:
+        // 兜底放行
         return { status: 'approved' };
     }
   },
