@@ -97,13 +97,24 @@ export const approvalModeResolver: ApprovalResolver = {
           return { status: 'approved' };
         }
 
-        // 变更工具：提取路径参数，检查是否全部落在 workspace 内
+        // 非文件系统类变更工具（todo、记忆写入等）：无法界定范围，需审批
+        if (!tool.tags.includes('requires-workspace')) {
+          return {
+            status: 'paused',
+            reason: `工具 ${call.name} 会修改状态，需要审批`,
+          };
+        }
+
+        // 文件系统类变更工具：提取路径参数，检查是否全部落在 workspace 内
         const args = (ctx.toolArgs ?? call.args) as Record<string, unknown> | undefined;
         const paths = extractPaths(args);
 
-        // 无路径参数的变更工具（如 todo、记忆写入等）不涉及文件边界，放行
+        // 无路径参数（如 bash）：无法静态界定操作范围，需审批
         if (paths.length === 0) {
-          return { status: 'approved' };
+          return {
+            status: 'paused',
+            reason: `工具 ${call.name} 无法确认操作范围，需要审批`,
+          };
         }
 
         const allInWorkspace = paths.every((p) => isPathInWorkspace(p, ctx.workspace));
