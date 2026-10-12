@@ -195,7 +195,7 @@ export const bashTool = createTool({
     '在持久会话中执行 shell 命令。支持长运行命令的超时和会话管理（run/poll/write/stop 操作）。工作目录为工作区根目录。使用 "run" 启动命令，"poll" 检查状态（增量输出），"write" 发送 stdin 输入，"stop" 终止会话。dryRun=true 可预览命令而不执行。会话超时 10 分钟自动清理。',
   inputSchema: bashParams,
   outputSchema: z.string(),
-  policy: 'on-request',
+  policy: 'always',
   kind: 'command',
   tags: ['builtin', 'command', 'requires-workspace'],
   execute: executeBash,

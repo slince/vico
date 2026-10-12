@@ -3,7 +3,7 @@
  *
  * 对应服务端 packages/core/src/tool/builtin/basic/browser-tool.ts，
  * 参数 schema 与服务端 inputSchema/outputSchema 保持一致。
- * navigate/click 为 on-request（需审批），snapshot 为 auto（只读）。
+ * navigate/click 为 always（需审批），snapshot 为 auto（只读）。
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';

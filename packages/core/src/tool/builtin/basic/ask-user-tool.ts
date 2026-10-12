@@ -69,7 +69,7 @@ export function parseAskUserAnswers(
 /**
  * 向用户提问。
  *
- * policy 为 on-request：首次调用即触发审批暂停，resume 时引擎把该 call 对应的
+ * policy 为 always：首次调用即触发审批暂停，resume 时引擎把该 call 对应的
  * ToolCallApproval（含用户在 reason 里提交的 JSON 回答）注入到 ctx.approval，
  * 本 execute 从 ctx.approval.reason 读取并解析为结构化答案返回。
  */
@@ -91,7 +91,7 @@ export const askUserTool = createTool({
     '当需要向用户澄清问题、请求补充信息或让用户做出选择时使用。提交 questions（问题列表，可一次问多个），每个问题含 id、question，可选 header、detail、options（候选项 label+description）、multiSelect（是否多选）。等待用户回答后继续执行。单选时用户可自由输入（custom 覆盖所选）或从候选中选一个；多选时用户从候选中选择多个，custom 作为补充。',
   inputSchema: askUserParams,
   outputSchema: askUserOutputSchema,
-  policy: 'on-request',
+  policy: 'always',
   kind: 'mutation',
   tags: ['builtin', 'human-in-the-loop'],
   execute: executeAskUser,

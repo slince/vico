@@ -1,7 +1,7 @@
 /**
  * 浏览器工具 UI — 渲染 browser_navigate / snapshot / click 三个工具。
  *
- * navigate / click 为 on-request（需审批），snapshot 为只读。
+ * navigate / click 为 always（需审批），snapshot 为只读。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';

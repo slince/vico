@@ -42,7 +42,7 @@ export const writeTool = createTool({
     '在工作区创建新文件或覆盖已有文件，父目录不存在时自动创建。',
   inputSchema: writeParams,
   outputSchema: writeOutputSchema,
-  policy: 'on-request',
+  policy: 'always',
   kind: 'file_change',
   tags: ['builtin', 'write', 'requires-workspace'],
   execute: executeWrite,

@@ -3,7 +3,7 @@ import type {z} from 'zod';
 import {ToolCallApproval, TurnSession} from "../agent/loop-agent-options.js";
 
 /** 工具审批策略 */
-export type ToolPolicy = 'auto' | 'on-request' | 'never';
+export type ToolPolicy = 'auto' | 'always' | 'never';
 
 /** 工具类别 */
 export type ToolKind = 'readonly' | 'command' | 'file_change' | 'delegate' | 'mutation';

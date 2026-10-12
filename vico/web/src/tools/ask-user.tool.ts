@@ -3,7 +3,7 @@
  *
  * 对应服务端 packages/core/src/tool/builtin/basic/ask-user-tool.ts，
  * 参数 schema 与服务端 inputSchema/outputSchema 保持一致。
- * ask_user 为 on-request（需审批）：LLM 暂停 turn 等待用户回答，
+ * ask_user 为 always（需审批）：LLM 暂停 turn 等待用户回答，
  * 用户回答以结构化 JSON 随 tool-approval-response 的 reason 字段回传。
  */
 import {z} from 'zod/v4';

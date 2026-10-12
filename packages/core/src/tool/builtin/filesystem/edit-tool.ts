@@ -172,7 +172,7 @@ export const editTool = createTool({
     '编辑文件，支持三种模式：1) 字符串替换（oldText→newText，oldText 须在文件中唯一）；2) 行号编辑（startLine/endLine+newContent 替换指定行范围）；3) 行插入（insertAt+newContent 在指定行后插入）。返回 unified diff。',
   inputSchema: editParams,
   outputSchema: editOutputSchema,
-  policy: 'on-request',
+  policy: 'always',
   kind: 'file_change',
   tags: ['builtin', 'edit', 'requires-workspace'],
   execute: executeEdit,

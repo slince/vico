@@ -41,17 +41,31 @@ export const ApprovalPriority = {
 } as const;
 
 /**
- * never 拒绝：`policy: 'never'` 的工具一律拒绝，优先级最高、不可被覆盖。
+ * tool.policy 通用 resolver：只处理 `never` 与 `always`，`auto` 交予其它 resolver。
+ *
+ * - `never`：硬拒绝，优先级最高、不可被覆盖；
+ * - `always`：必审批（同一 turn 内已审批通过的工具，后续调用自动放行）。
  */
-export const neverDenyResolver: ApprovalResolver = {
+export const toolPolicyResolver: ApprovalResolver = {
   order: () => ApprovalPriority.HIGH,
-  support: tool => tool.policy === 'never',
-  resolve: call => ({status: 'denied', reason: `工具 ${call.name} 被策略阻止`}),
+  support: tool => tool.policy === 'never' || tool.policy === 'always',
+  resolve: (call, _tool, policy, ctx) => {
+    // never 硬拒绝，不可被 workspace 等后续 resolver 覆盖
+    if (policy === 'never') {
+      return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
+    }
+    // always 必审批；同一 turn 内已审批通过的工具，后续调用自动放行
+    if (!ctx.firstUse && ctx.previousApproved) {
+      return { status: 'approved' };
+    }
+    return { status: 'paused', reason: `工具 ${call.name} 首次使用需要用户审批` };
+  },
 };
 
 /**
  * workspace 放行：requires-workspace 工具只要路径都在 workspace 内（或无路径）即放行；
- * 路径越界则暂停。排在 destructive 之前，从而覆盖破坏性工具的默认暂停。
+ * 路径越界则暂停。位于 toolPolicyResolver 之后，仅承接 auto 策略的 requires-workspace 工具
+ * （never/always 已由 toolPolicyResolver 先行决策）。
  */
 export const workspaceResolver: ApprovalResolver = {
   order: () => ApprovalPriority.MEDIUM,
@@ -72,38 +86,12 @@ export const workspaceResolver: ApprovalResolver = {
   },
 };
 
-
-/**
- * 兜底 resolver：恒参与，按工具自身 policy（auto / on-request / never）决策。
- */
-export const defaultResolver: ApprovalResolver = {
-  order: () => ApprovalPriority.LOW,
-  support: () => true,
-  resolve: (call, tool, policy, ctx) => {
-    switch (policy) {
-      case 'auto':
-        return { status: 'approved' };
-      case 'never':
-        return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
-      case 'on-request':
-        // 同一 turn 内已审批通过的工具，后续调用自动放行
-        if (!ctx.firstUse && ctx.previousApproved) {
-          return { status: 'approved' };
-        }
-        return { status: 'paused', reason: `工具 ${call.name} 首次使用需要用户审批` };
-      default:
-        return { status: 'denied', reason: `未知策略: ${policy}` };
-    }
-  }
-};
-
 /**
  * 内置审批 resolver 集，优先级由各 resolver 的 order() 决定（高 → 低）。
  */
 export const defaultApprovalResolvers: ApprovalResolver[] = [
-  neverDenyResolver,
+  toolPolicyResolver,
   workspaceResolver,
-  defaultResolver,
 ];
 
 /**
@@ -151,8 +139,8 @@ export function createApprovalModeResolver(mode: ApprovalMode): ApprovalResolver
             if (allInWorkspace) return { status: 'approved' };
             return { status: 'paused', reason: `工具 ${call.name} 尝试访问 workspace 外路径` };
           }
-          // 非工作区工具（浏览器/网络等）：auto 放行，on-request 首次需审批
-          if (policy === 'on-request') {
+          // 非工作区工具（浏览器/网络等）：auto 放行，always 首次需审批
+          if (policy === 'always') {
             if (!ctx.firstUse && ctx.previousApproved) return { status: 'approved' };
             return { status: 'paused', reason: `工具 ${call.name} 首次使用需要用户审批` };
           }
