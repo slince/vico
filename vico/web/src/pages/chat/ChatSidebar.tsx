@@ -37,7 +37,7 @@ const EMPTY_TERMINALS: string[] = [];
  */
 export function ChatSidebar({ threadId }: { threadId: string }) {
   const open = useFileExplorerStore((s) => s.fileExplorerOpen);
-  const filesOpen = useFileExplorerStore((s) => s.filesOpenByThread[threadId]);
+  const filesOpen = useFileExplorerStore((s) => s.filesOpenByThread[threadId] !== false);
   const openTabs = useFileExplorerStore((s) => s.openTabsByThread[threadId] ?? EMPTY_FILES);
   const terminalIds = useFileExplorerStore((s) => s.terminalTabsByThread[threadId] ?? EMPTY_TERMINALS);
   const activeTab = useFileExplorerStore((s) => s.activeTabByThread[threadId] ?? null);
