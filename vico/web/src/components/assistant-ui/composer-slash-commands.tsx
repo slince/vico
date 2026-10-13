@@ -6,7 +6,6 @@ import {type FC, useMemo} from "react";
 // 2. Third-party
 import {useQuery} from "@tanstack/react-query";
 import {
-  ComposerPrimitive,
   type Unstable_SlashCommand,
   unstable_useComposerInput,
   unstable_useSlashCommandAdapter,
@@ -16,7 +15,8 @@ import {PuzzleIcon, ScissorsIcon} from "lucide-react";
 // 3. API
 import {api} from "@/api/client";
 
-// 4. UI 组件
+// 4. UI
+import {ComposerTriggerPopover} from "@/components/assistant-ui/elements/composer-trigger-popover.aui";
 
 /** Skill 数据形状（来自 GET /api/v1/skills，仅取本组件所需字段） */
 interface Skill {
@@ -35,14 +35,16 @@ const ICON_MAP: Record<string, FC<{ className?: string }>> = {
 const COMPACT_ICON = "compact";
 /** skill 类命令的 icon 键 */
 const SKILL_ICON = "skill";
+/** 命令未命中 icon 映射时的默认图标 */
+const FALLBACK_ICON = PuzzleIcon;
 
 /**
- * 聊天输入框 slash command 弹层 — 集成 assistant-ui 的 composer slash commands。
+ * 聊天输入框 slash command 数据 hook。
  *
- * 输入 `/` 弹出菜单，列出内置的「压缩上下文」命令与所有 userInvocable 的 skill；
- * 选中后把对应指令文本写入输入框，用户补全需求后再发送。
+ * 拉取 userInvocable 的 skill，与内置 /compact 一起构建命令集，
+ * 返回 unstable_useSlashCommandAdapter 的结果（adapter/action/iconMap/fallbackIcon）。
  */
-export function ComposerSlashCommands() {
+export function useComposerCommands() {
   const { setText } = unstable_useComposerInput();
 
   // 拉取 skill 列表（仅展示 userInvocable 的 skill）
@@ -74,12 +76,30 @@ export function ComposerSlashCommands() {
     ];
   }, [skills, setText]);
 
-  const slash = unstable_useSlashCommandAdapter({
+  return unstable_useSlashCommandAdapter({
     commands,
     removeOnExecute: true,
     iconMap: ICON_MAP,
-    fallbackIcon: PuzzleIcon,
+    fallbackIcon: FALLBACK_ICON,
   });
+}
 
-  return <ComposerPrimitive.TriggerPopover char="/" adapter={slash.adapter} />;
+/**
+ * 聊天输入框 slash command 弹层。
+ *
+ * 输入 `/` 弹出菜单，列出内置「压缩上下文」命令与所有 userInvocable 的 skill；
+ * 选中后把对应指令文本写入输入框，用户补全需求后再发送。
+ */
+export function ComposerSlashCommands() {
+  const slash = useComposerCommands();
+
+  return (
+    <ComposerTriggerPopover
+      char="/"
+      {...slash}
+      backLabel="返回"
+      emptyItemsLabel="暂无可用命令"
+      loadingLabel="加载中…"
+    />
+  );
 }
