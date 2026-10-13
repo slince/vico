@@ -90,13 +90,13 @@ export function Sidebar() {
         collapsed ? 'w-16' : 'w-60',
       )}
     >
-      {/* Header：logo 区 + 右侧折叠切换 */}
+      {/* Header：logo 区 + 折叠切换按钮（收窄时仅显示 logo，悬停 logo 浮现展开按钮） */}
       <div className={cn(
-        'flex items-center border-b border-sidebar-border',
-        collapsed ? 'justify-between p-2' : 'p-4',
+        'group relative flex items-center border-b border-sidebar-border',
+        collapsed ? 'justify-center p-2' : 'p-4',
       )}>
         {collapsed ? (
-          <h1 className="text-lg font-bold">V</h1>
+          <h1 className="text-lg font-bold transition-opacity group-hover:opacity-0">V</h1>
         ) : (
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold tracking-tight">Vico</h1>
@@ -104,28 +104,24 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Collapse toggle */}
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <button
-              onClick={toggle}
-              className="hover:bg-sidebar-accent rounded-md shrink-0 p-1.5"
-            >
-              <PanelLeft
-                size={16}
-                className={cn(
-                  'transition-transform duration-200',
-                  collapsed && 'rotate-180',
-                )}
-              />
-            </button>
-          </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right">
-              {t('expand') ?? '展开菜单'}
-            </TooltipContent>
+        {/* 收窄时按钮绝对定位覆盖 logo，仅 hover 浮现；展开时常驻右侧 */}
+        <button
+          onClick={toggle}
+          title={collapsed ? (t('expand') ?? '展开菜单') : undefined}
+          className={cn(
+            collapsed
+              ? 'absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100'
+              : 'hover:bg-sidebar-accent rounded-md shrink-0 p-1.5',
           )}
-        </Tooltip>
+        >
+          <PanelLeft
+            size={16}
+            className={cn(
+              'transition-transform duration-200',
+              collapsed && 'rotate-180',
+            )}
+          />
+        </button>
       </div>
 
       {/* Nav */}
