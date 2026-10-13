@@ -18,7 +18,7 @@ export interface ExecuteChatParams {
   reasoning?: ReasoningEffort;
   /** 客户端下发的审批政策模式，覆盖 agent 默认审批策略 */
   approvalMode?: ApprovalMode;
-  /** 客户端选择的工作区路径，仅在新会话创建时写入 thread.metadata */
+  /** 客户端选择的工作区路径；新会话写入 thread.metadata，复用会话时若与已存工作区不符则回写 */
   workspace?: string;
 }
 
@@ -55,7 +55,7 @@ function deriveTitle(message: UIMessage | undefined): string | undefined {
  * @param threadId - 客户端传入的线程 ID（可能为空）
  * @param userId - 当前用户 ID，用于校验线程归属
  * @param message
- * @param workspace - 客户端选择的工作区（仅新建线程时写入）
+ * @param workspace - 客户端选择的工作区（新建线程时写入；复用线程时若与已存工作区不符则回写）
  * @returns 待执行的 Thread
  */
 async function resolveThread(
@@ -71,10 +71,19 @@ async function resolveThread(
     if (existing && (!existing.userId || existing.userId === userId)) {
       // 线程由前端提交前预先创建，标题为默认值；此处用首条消息补全标题
       const title = deriveTitle(message);
-      if (title && (!existing.title || existing.title === 'New thread')) {
-        await agent.thread.updateThread(existing.id, { title });
-        existing.title = title;
+      const needsTitle = !!title && (!existing.title || existing.title === 'New thread');
+      // 工作区与当前传参不符时，按当前传参回写 thread.metadata.workspace
+      const needsWorkspace = !!workspace && existing.metadata?.workspace !== workspace;
+      const nextMetadata = needsWorkspace ? { ...existing.metadata, workspace } : undefined;
+
+      if (needsTitle || needsWorkspace) {
+        const patch: Partial<Pick<Thread, 'title' | 'metadata'>> = {};
+        if (needsTitle) patch.title = title;
+        if (nextMetadata) patch.metadata = nextMetadata;
+        await agent.thread.updateThread(existing.id, patch);
       }
+      if (needsTitle) existing.title = title;
+      if (nextMetadata) existing.metadata = nextMetadata;
       return existing;
     }
   }
