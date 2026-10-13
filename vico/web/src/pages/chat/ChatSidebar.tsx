@@ -106,7 +106,7 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
                     className={cn(
                       'group flex shrink-0 cursor-pointer items-center gap-1 border-r px-3 py-1.5 text-xs transition-colors max-w-[180px]',
                       isActive
-                        ? 'bg-background border-b-2 border-b-primary -mb-[1px]'
+                        ? 'bg-background'
                         : 'hover:bg-accent/50 text-muted-foreground',
                     )}
                     onClick={() => setActiveTab(threadId, tab)}
