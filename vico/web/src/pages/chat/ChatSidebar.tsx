@@ -1,22 +1,23 @@
 'use client';
 
-import { FolderTree, PanelRight, Plus, Terminal, X } from 'lucide-react';
+import {FolderTree, PanelRight, Plus, Terminal, X} from 'lucide-react';
 
-import { getFileIcon } from '@/components/file-explorer/FileExplorer';
-import { Button } from '@/components/ui/button';
+import {getFileIcon} from '@/components/file-explorer/FileExplorer';
+import {Button} from '@/components/ui/button';
+import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,} from '@/components/ui/context-menu';
+import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
+import {cn} from '@/lib/utils';
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
-import { MAX_TERMINALS, sameTab, useFileExplorerStore, type OpenFileTab, type PanelTab } from '@/stores/fileExplorerStore';
-import { useResizableWidth } from '@/hooks/use-resizable-width';
-import { FileContentView } from '@/pages/chat/FileContentView';
-import { FileExplorerView } from '@/pages/chat/FileExplorerView';
-import { TerminalView } from '@/pages/chat/TerminalView';
+  MAX_TERMINALS,
+  type OpenFileTab,
+  type PanelTab,
+  sameTab,
+  useFileExplorerStore
+} from '@/stores/fileExplorerStore';
+import {useResizableWidth} from '@/hooks/use-resizable-width';
+import {FileContentView} from '@/pages/chat/FileContentView';
+import {FileExplorerView} from '@/pages/chat/FileExplorerView';
+import {TerminalView} from '@/pages/chat/TerminalView';
 
 /** 无打开文件时的稳定空数组 — 避免 selector 每次返回新引用触发无限渲染 */
 const EMPTY_FILES: OpenFileTab[] = [];
@@ -36,7 +37,7 @@ const EMPTY_TERMINALS: string[] = [];
  */
 export function ChatSidebar({ threadId }: { threadId: string }) {
   const open = useFileExplorerStore((s) => s.fileExplorerOpen);
-  const filesOpen = useFileExplorerStore((s) => s.filesOpenByThread[threadId] !== false);
+  const filesOpen = useFileExplorerStore((s) => s.filesOpenByThread[threadId]);
   const openTabs = useFileExplorerStore((s) => s.openTabsByThread[threadId] ?? EMPTY_FILES);
   const terminalIds = useFileExplorerStore((s) => s.terminalTabsByThread[threadId] ?? EMPTY_TERMINALS);
   const activeTab = useFileExplorerStore((s) => s.activeTabByThread[threadId] ?? null);
