@@ -855,8 +855,8 @@
   scrollbar-color: color-mix(in oklab, var(--border) 70%, transparent) transparent;
 }
 .aui-thin-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 2px;
+  height: 2px;
 }
 .aui-thin-scrollbar::-webkit-scrollbar-track {
   background: transparent;
