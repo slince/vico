@@ -18,6 +18,8 @@ export interface ExecuteChatParams {
   reasoning?: ReasoningEffort;
   /** 客户端下发的审批政策模式，覆盖 agent 默认审批策略 */
   approvalMode?: ApprovalMode;
+  /** 客户端选择的工作区路径，仅在新会话创建时写入 thread.metadata */
+  workspace?: string;
 }
 
 /** executeAgentChat 返回结果：流输出 + 解析后的线程（新建时含服务端生成的 ID） */
@@ -53,6 +55,7 @@ function deriveTitle(message: UIMessage | undefined): string | undefined {
  * @param threadId - 客户端传入的线程 ID（可能为空）
  * @param userId - 当前用户 ID，用于校验线程归属
  * @param message
+ * @param workspace - 客户端选择的工作区（仅新建线程时写入）
  * @returns 待执行的 Thread
  */
 async function resolveThread(
@@ -60,6 +63,7 @@ async function resolveThread(
   threadId: string | undefined,
   userId: string | undefined,
   message: UIMessage,
+  workspace?: string,
 ): Promise<Thread> {
   if (threadId) {
     const existing = await agent.thread.getThread(threadId);
@@ -74,17 +78,17 @@ async function resolveThread(
       return existing;
     }
   }
-  return agent.createThread({ userId, title: deriveTitle(message) });
+  return agent.createThread({ userId, title: deriveTitle(message), workspace });
 }
 
 /** 执行 Agent 对话 — 通过 vico.stream，自动处理新对话和暂停恢复 */
 export async function executeAgentChat(
   params: ExecuteChatParams,
 ): Promise<ExecuteChatResult> {
-  const { agentId, message, threadId, userId, model, reasoning, approvalMode } = params;
+  const { agentId, message, threadId, userId, model, reasoning, approvalMode, workspace } = params;
 
   const agent = await getAgent(agentId);
-  const thread = await resolveThread(agent, threadId, userId, message);
+  const thread = await resolveThread(agent, threadId, userId, message, workspace);
 
   const output = await agent.stream(message ? [message] : [], { thread, model, reasoning, approvalMode });
 

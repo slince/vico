@@ -26,8 +26,8 @@ function joinPath(parent: string, name: string): string {
 }
 
 export interface FolderPickerDialogProps {
-  /** 线程 ID（workspace 标识） */
-  threadId: string;
+  /** 线程 ID（workspace 标识）；为空时走全局 /fs/browse（新会话尚未创建线程） */
+  threadId?: string | null;
   /** 弹窗开关 */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -63,7 +63,10 @@ export function FolderPickerDialog({
       setError(null);
       try {
         const qs = path ? `?path=${encodeURIComponent(path)}` : '';
-        const res = await fetch(`/api/v1/threads/${threadId}/fs/browse${qs}`, {
+        const base = threadId
+          ? `/api/v1/threads/${threadId}/fs/browse`
+          : '/api/v1/fs/browse';
+        const res = await fetch(`${base}${qs}`, {
           credentials: 'include',
         });
         const data = await res.json();

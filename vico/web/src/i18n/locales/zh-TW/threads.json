@@ -40,6 +40,7 @@
   "deleteConfirm": "確認刪除",
   "deleteSuccess": "對話已刪除",
   "selectAgent": "選擇 Agent",
+  "selectWorkspace": "選擇專案",
   "newChat": "新建對話",
   "noThreads": "暫無對話",
   "messageCount": "{{count}} 則訊息",

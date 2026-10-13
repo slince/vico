@@ -62,6 +62,7 @@ import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
 import {AgentSelectorAction} from "@/components/assistant-ui/agent-selector-action";
 import {ApprovalModeSelectorAction} from "@/components/assistant-ui/approval-mode-selector-action";
 import {ModelSelectorAction} from "@/components/assistant-ui/model-selector-action";
+import {WorkspaceSelectorAction} from "@/components/assistant-ui/workspace-selector-action";
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
@@ -446,6 +447,7 @@ const ComposerAction: FC = () => {
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <div className="flex items-center gap-1.5">
         <AgentSelectorAction />
+        <WorkspaceSelectorAction />
         <ModelSelectorAction />
         <ApprovalModeSelectorAction />
         <ComposerAddAttachment />

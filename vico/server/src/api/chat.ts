@@ -48,11 +48,12 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     const agentId: string = body.agentId as string;
     const lastMessage = extractLastMessage(body);
     const requestedThreadId = body.threadId as string | undefined;
-    // 前端通过 modelContext 注入的 config（{ modelName, reasoningEffort, approvalMode }）
+    // 前端通过 modelContext 注入的 config（{ modelName, reasoningEffort, approvalMode, workspace }）
     const config = body.config as {
       modelName?: string;
       reasoningEffort?: string;
       approvalMode?: string;
+      workspace?: string;
     } | undefined;
 
     // 前端本地临时 ID（如 __LOCALID_xxx）视为无真实线程，交由服务端新建
@@ -75,6 +76,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       model: config?.modelName,
       reasoning: toReasoningEffort(config?.reasoningEffort),
       approvalMode: toApprovalMode(config?.approvalMode),
+      workspace: config?.workspace,
     });
 
     // 桥接 HTTP 请求生命周期到 agent 执行：客户端断开时自动终止 LLM 调用

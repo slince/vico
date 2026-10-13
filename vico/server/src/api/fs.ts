@@ -33,6 +33,37 @@ function isBinary(buffer: Buffer): boolean {
   return false;
 }
 
+/** 将原始路径解析为绝对路径：~ 展开、相对路径基于 home、最后 resolve 规范化 */
+function resolveBrowsePath(rawPath: string): string {
+  const absPath = rawPath.startsWith('~')
+    ? join(homedir(), rawPath.slice(1))
+    : rawPath.startsWith('/')
+      ? rawPath
+      : join(homedir(), rawPath);
+  return resolve(absPath);
+}
+
+/**
+ * 列出指定目录下的子目录（隐藏点文件），返回浏览结果。
+ * 非目录返回带 status 的错误对象，由调用方决定如何响应。
+ */
+function listSubDirectories(
+  absPath: string,
+): { path: string; parent: string; entries: { name: string; isDirectory: boolean }[] } | { error: string; status: 400 } {
+  const stat = statSync(absPath);
+  if (!stat.isDirectory()) {
+    return { error: 'Not a directory', status: 400 };
+  }
+
+  const raw = readdirSync(absPath, { withFileTypes: true });
+  const entries = raw
+    .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+    .map((e) => ({ name: e.name, isDirectory: true }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return { path: absPath, parent: dirname(absPath), entries };
+}
+
 /** 将 workspace 路径写入 thread.metadata */
 async function bindThreadWorkspace(threadId: string, workspace: string): Promise<void> {
   const store = vico.thread;
@@ -136,11 +167,7 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
     // 解析目标目录：显式 path（支持 ~ / 相对 home）优先，否则回退当前 workspace / home
     let absPath: string;
     if (rawPath) {
-      absPath = rawPath.startsWith('~')
-        ? join(homedir(), rawPath.slice(1))
-        : rawPath.startsWith('/')
-          ? rawPath
-          : join(homedir(), rawPath);
+      absPath = resolveBrowsePath(rawPath);
     } else {
       const workspace = await getThreadWorkspace(threadId);
       absPath = workspace || homedir();
@@ -148,18 +175,33 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
     absPath = resolve(absPath);
 
     try {
-      const stat = statSync(absPath);
-      if (!stat.isDirectory()) {
-        return c.json({ error: 'Not a directory' }, 400);
-      }
+      const result = listSubDirectories(absPath);
+      if ('error' in result) return c.json({ error: result.error }, result.status);
+      return c.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to browse directory';
+      return c.json({ error: msg }, 500);
+    }
+  });
 
-      const raw = readdirSync(absPath, { withFileTypes: true });
-      const entries = raw
-        .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
-        .map((e) => ({ name: e.name, isDirectory: true }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+  /**
+   * GET /api/v1/fs/browse?path=
+   *
+   * 全局目录浏览端点，供新会话（尚无真实 threadId）选择 workspace 使用。
+   * path 为绝对路径（支持 ~ 前缀 / 相对 home）；省略时默认 home。
+   * 仅返回子目录，隐藏点文件，用于逐级下钻选择目录。
+   */
+  app.get('/api/v1/fs/browse', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
 
-      return c.json({ path: absPath, parent: dirname(absPath), entries });
+    const rawPath = c.req.query('path');
+    const absPath = rawPath ? resolveBrowsePath(rawPath) : resolve(homedir());
+
+    try {
+      const result = listSubDirectories(absPath);
+      if ('error' in result) return c.json({ error: result.error }, result.status);
+      return c.json(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to browse directory';
       return c.json({ error: msg }, 500);
