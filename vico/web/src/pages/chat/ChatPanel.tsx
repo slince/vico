@@ -8,7 +8,7 @@ import {PanelRight} from 'lucide-react';
 
 // 3. Sub-components
 import {Thread} from '@/components/assistant-ui/elements/thread.aui';
-import {FileExplorerPanel} from '@/pages/chat/FileExplorerPanel';
+import {ChatSidebar} from '@/pages/chat/ChatSidebar';
 import {useFileExplorerStore} from '@/stores/fileExplorerStore';
 import {BASE_FONT_SIZE, useFontSize} from '@/hooks/use-font-size';
 import {Button} from '@/components/ui/button';
@@ -52,7 +52,7 @@ const Welcome: FC<{ agentName: string }> = ({ agentName }) => {
  * 使用 assistant-ui 的 Thread 组件替代手动组装的 ThreadPrimitive + ComposerPrimitive。
  * AssistantRuntimeProvider 由父组件 Chat 提供，此组件仅注册工具并渲染 Thread。
  *
- * 聊天区只负责纯对话；右侧为多视图面板（FileExplorerPanel，含文件树 / 预览 / 终端）。
+ * 聊天区只负责纯对话；右侧为多视图面板（ChatSidebar，含文件树 / 预览 / 终端）。
  */
 /** 顶部标题栏内的 Token 用量显示 */
 const TokenUsageDisplay: FC = () => {
@@ -116,7 +116,7 @@ export function ChatPanel({ agent, threadId }: ChatPanelProps) {
       </div>
 
       {/* 右侧多视图面板（文件树 / 预览 / 终端） — 顶住窗口最顶部 */}
-      {threadId && <FileExplorerPanel threadId={threadId} />}
+      {threadId && <ChatSidebar threadId={threadId} />}
     </div>
   );
 }

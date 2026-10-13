@@ -1,14 +1,8 @@
 'use client';
 
-import { FolderSync, FolderTree, PanelRight, Plus, RefreshCw, Terminal, X } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { FolderTree, PanelRight, Plus, Terminal, X } from 'lucide-react';
 
-import {
-  FileExplorer,
-  getFileIcon,
-  type FileExplorerRef,
-} from '@/components/file-explorer/FileExplorer';
-import { FolderPickerDialog } from '@/components/file-explorer/FolderPickerDialog';
+import { getFileIcon } from '@/components/file-explorer/FileExplorer';
 import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
@@ -21,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { MAX_TERMINALS, sameTab, useFileExplorerStore, type OpenFileTab, type PanelTab } from '@/stores/fileExplorerStore';
 import { useResizableWidth } from '@/hooks/use-resizable-width';
 import { FileContentView } from '@/pages/chat/FileContentView';
+import { FileExplorerView } from '@/pages/chat/FileExplorerView';
 import { TerminalView } from '@/pages/chat/TerminalView';
 
 /** 无打开文件时的稳定空数组 — 避免 selector 每次返回新引用触发无限渲染 */
@@ -28,25 +23,24 @@ const EMPTY_FILES: OpenFileTab[] = [];
 const EMPTY_TERMINALS: string[] = [];
 
 /**
- * 线程右侧边栏面板 — 顶层统一 Tab 多视图容器。
+ * 聊天区右侧 Sidebar — 多视图容器。
  *
- * 顶层 Tab 栏将「文件树 / 已打开文件 / 终端」三类 tab 合并到同一行：
- * - 文件树 tab 可关闭，关闭后可通过右上角「+」菜单重新打开
- * - 每个已打开文件对应一个 tab，支持关闭与右键批量关闭（左/右/全部）
- * - 每个终端对应一个 tab（可多个），由「+」菜单新建
+ * 顶层 Tab 栏将「文件树 / 已打开文件 / 终端」三类视图合并到同一行：
+ * - 文件树视图（FileExplorerView）可关闭，关闭后可通过右上角「+」菜单重新打开
+ * - 每个已打开文件对应一个 tab，支持关闭与右键批量关闭（左/右/全部），内容由 FileContentView 渲染
+ * - 每个终端对应一个 tab（可多个），由 TerminalView 渲染，通过「+」菜单新建
  *
  * 视图渲染：文件树与所有终端同时挂载、CSS 隐藏切换，避免切 tab 丢状态
  * （终端 WS 连接、目录树展开态）；文件内容按需挂载（内容缓存在 store）。
  * 面板宽度通过 useResizableWidth 拖动调节并持久化到 localStorage。
  */
-export function FileExplorerPanel({ threadId }: { threadId: string }) {
+export function ChatSidebar({ threadId }: { threadId: string }) {
   const open = useFileExplorerStore((s) => s.fileExplorerOpen);
   const filesOpen = useFileExplorerStore((s) => s.filesOpenByThread[threadId] !== false);
   const openTabs = useFileExplorerStore((s) => s.openTabsByThread[threadId] ?? EMPTY_FILES);
   const terminalIds = useFileExplorerStore((s) => s.terminalTabsByThread[threadId] ?? EMPTY_TERMINALS);
   const activeTab = useFileExplorerStore((s) => s.activeTabByThread[threadId] ?? null);
 
-  const openFile = useFileExplorerStore((s) => s.openFile);
   const setActiveTab = useFileExplorerStore((s) => s.setActiveTab);
   const closeTab = useFileExplorerStore((s) => s.closeTab);
   const closeTabsToLeft = useFileExplorerStore((s) => s.closeTabsToLeft);
@@ -55,13 +49,6 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
   const createTerminal = useFileExplorerStore((s) => s.createTerminal);
   const openFilesTab = useFileExplorerStore((s) => s.openFilesTab);
   const toggleFileExplorer = useFileExplorerStore((s) => s.toggleFileExplorer);
-
-  // 目录树命令式句柄，供刷新 / 切换目录后触发重载
-  const explorerRef = useRef<FileExplorerRef>(null);
-
-  const [cwd, setCwd] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [chdirOpen, setChdirOpen] = useState(false);
 
   // 面板宽度可拖动调节，并持久化到 localStorage（刷新后还原）
   const { width, dragging, onPointerDown } = useResizableWidth({
@@ -86,51 +73,6 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
   const canCreateTerminal = terminalIds.length < MAX_TERMINALS;
   // 「+」菜单是否有可选项：文件树未打开，或还能新建终端；都不可用时隐藏整个「+」按钮
   const showAddMenu = !filesOpen || canCreateTerminal;
-
-  /** 刷新目录树 */
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await explorerRef.current?.reload();
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
-
-  /** 选中目录后切换工作目录（workspace 绑定），成功后重载目录树 */
-  const handleSelectDir = useCallback(
-    async (path: string) => {
-      try {
-        const res = await fetch(`/api/v1/threads/${threadId}/fs/chdir`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ path }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        setCwd(data.cwd);
-        setChdirOpen(false);
-        await explorerRef.current?.reload();
-      } catch {
-        // 保持弹窗打开，便于用户重新选择
-      }
-    },
-    [threadId],
-  );
-
-  /** 打开/关闭目录选择弹窗 */
-  const toggleChdir = useCallback(() => {
-    setChdirOpen((v) => !v);
-  }, []);
-
-  /** 点击文件树中的文件：打开 tab（store 内部会激活该文件 tab） */
-  const handleOpenFile = useCallback(
-    (path: string, name: string) => {
-      openFile(threadId, path, name);
-    },
-    [threadId, openFile],
-  );
 
   if (!open) return null;
 
@@ -256,51 +198,8 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
 
         {/* 文件树视图 — 始终挂载，隐藏以保留展开态 */}
         <div className={cn('min-h-0 flex-1 flex-col', active?.kind === 'files' ? 'flex' : 'hidden')}>
-          {/* 工具条：工作目录路径 + 切换目录 / 刷新 */}
-          <div className="flex shrink-0 items-center gap-0.5 border-b px-2 py-1">
-            <span className="min-w-0 flex-1 truncate px-1 font-mono text-[10px] text-muted-foreground/70">
-              {cwd}
-            </span>
-            <div className="flex shrink-0 items-center gap-0.5">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={toggleChdir}
-                title="切换目录"
-                className="size-7"
-              >
-                <FolderSync className="size-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => void refresh()}
-                title="刷新"
-                disabled={refreshing}
-                className="size-7"
-              >
-                <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
-              </Button>
-            </div>
-          </div>
-
-          {/* 目录树 — 由可复用 FileExplorer 自行查询目录内容 */}
-          <FileExplorer
-            ref={explorerRef}
-            directory={threadId}
-            onOpenFile={handleOpenFile}
-            onCwdChange={setCwd}
-          />
+          <FileExplorerView threadId={threadId} />
         </div>
-
-        {/* 目录选择弹窗 — 浏览服务器文件系统切换工作目录 */}
-        <FolderPickerDialog
-          threadId={threadId}
-          open={chdirOpen}
-          onOpenChange={setChdirOpen}
-          initialPath={cwd}
-          onSelect={handleSelectDir}
-        />
 
         {/* 文件内容视图 — 仅渲染活跃文件（内容缓存在 store） */}
         {activeFile && (
