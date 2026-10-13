@@ -1,6 +1,6 @@
 'use client';
 
-import { FolderSync, FolderTree, Plus, RefreshCw, Terminal, X } from 'lucide-react';
+import { FolderSync, FolderTree, PanelRight, Plus, RefreshCw, Terminal, X } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
 import {
@@ -54,6 +54,7 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
   const closeAllTabs = useFileExplorerStore((s) => s.closeAllTabs);
   const createTerminal = useFileExplorerStore((s) => s.createTerminal);
   const openFilesTab = useFileExplorerStore((s) => s.openFilesTab);
+  const toggleFileExplorer = useFileExplorerStore((s) => s.toggleFileExplorer);
 
   // 目录树命令式句柄，供刷新 / 切换目录后触发重载
   const explorerRef = useRef<FileExplorerRef>(null);
@@ -208,9 +209,9 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
             );
           })}
 
-          {/* 右上角「+」菜单 — 新建终端 / 重新打开文件树；无可选项时隐藏整个按钮 */}
-          {showAddMenu && (
-            <div className="ml-auto flex shrink-0 items-center pr-1">
+          {/* 右侧操作区 — 「+」菜单（条件渲染）+ 收起面板按钮（始终显示在最右） */}
+          <div className="ml-auto flex shrink-0 items-center pr-1">
+            {showAddMenu && (
               <Popover>
                 <PopoverTrigger asChild>
                   <Button size="icon" variant="ghost" title="新建" className="size-7">
@@ -240,8 +241,17 @@ export function FileExplorerPanel({ threadId }: { threadId: string }) {
                   )}
                 </PopoverContent>
               </Popover>
-            </div>
-          )}
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              title="收起右侧面板"
+              onClick={toggleFileExplorer}
+              className="size-7"
+            >
+              <PanelRight className="size-4" />
+            </Button>
+          </div>
         </div>
 
         {/* 文件树视图 — 始终挂载，隐藏以保留展开态 */}

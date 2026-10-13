@@ -4,7 +4,7 @@ import {type FC} from 'react';
 // 2. Third-party
 import {useTranslation} from 'react-i18next';
 import {useThreadTokenUsage} from '@assistant-ui/react-ai-sdk';
-import {FolderTree} from 'lucide-react';
+import {PanelRight} from 'lucide-react';
 
 // 3. Sub-components
 import {Thread} from '@/components/assistant-ui/elements/thread.aui';
@@ -96,15 +96,15 @@ export function ChatPanel({ agent, threadId }: ChatPanelProps) {
         <div className="h-12 flex items-center px-4 border-b shrink-0 gap-2">
           <span className="text-sm font-medium">{agent.name}</span>
           <TokenUsageDisplay />
-          {threadId && (
+          {threadId && !fileExplorerOpen && (
             <Button
               size="icon"
-              variant={fileExplorerOpen ? 'secondary' : 'ghost'}
+              variant="ghost"
               onClick={toggleFileExplorer}
-              title="文件浏览器"
+              title="展开右侧面板"
               className="ml-auto"
             >
-              <FolderTree className="size-4" />
+              <PanelRight className="size-4" />
             </Button>
           )}
         </div>
