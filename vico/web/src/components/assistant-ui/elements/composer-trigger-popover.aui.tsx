@@ -144,7 +144,7 @@ const Items: FC<ItemsProps> = ({
             {backLabel}
           </ComposerPrimitive.Unstable_TriggerPopoverBack>
 
-          <div className="py-1">
+          <div className="aui-thin-scrollbar max-h-[60vh] overflow-y-auto py-1">
             {items.map((item, index) => {
               const iconKey =
                 typeof item.metadata?.icon === "string"

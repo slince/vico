@@ -97,6 +97,7 @@ export function ComposerSlashCommands() {
     <ComposerTriggerPopover
       char="/"
       {...slash}
+      className="w-[32rem] max-w-[calc(100vw-2rem)]"
       backLabel="返回"
       emptyItemsLabel="暂无可用命令"
       loadingLabel="加载中…"
