@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -71,8 +72,17 @@ function ThreadUrlSync() {
     return item?.remoteId;
   });
 
+  // 记录上一次 remoteId，仅在 runtime 主线程切换（remoteId 真正变化）时同步 URL。
+  // 否则点击「对话」回到 /chat 时，URL 的 threadId 先变为空、而 runtime 尚未异步
+  // 切到新本地线程（remoteId 仍是旧值），会误触发回跳。
+  const prevRemoteIdRef = useRef(remoteId);
+
   useEffect(() => {
-    // 仅同步真实后端 ID，跳过本地临时 ID；避免与当前 URL 重复导航
+    const prev = prevRemoteIdRef.current;
+    prevRemoteIdRef.current = remoteId;
+
+    // 仅同步真实后端 ID，跳过本地临时 ID；仅当 remoteId 变化时才同步，避免瞬时回跳
+    if (remoteId === prev) return;
     if (remoteId && !remoteId.startsWith('__LOCALID_') && remoteId !== threadId) {
       navigate(`/chat/${remoteId}`, { replace: true });
     }
