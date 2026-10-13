@@ -92,7 +92,7 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
       />
       <aside className="flex shrink-0 flex-col border-l bg-card" style={{ width }}>
         {/* 顶层 Tab 栏 — 文件树 / 文件 / 终端 + 右上角「+」菜单 */}
-        <div className="flex shrink-0 items-center overflow-x-auto overflow-y-hidden border-b bg-muted/30 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex h-12 shrink-0 items-center overflow-x-auto overflow-y-hidden border-b bg-muted/30 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map((tab, idx) => {
             const isActive = sameTab(active, tab);
             const hasLeft = idx > 0;
