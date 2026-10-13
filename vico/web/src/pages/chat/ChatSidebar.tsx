@@ -5,6 +5,7 @@ import {FolderTree, PanelRight, Plus, Terminal, X} from 'lucide-react';
 import {getFileIcon} from '@/components/file-explorer/FileExplorer';
 import {Button} from '@/components/ui/button';
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,} from '@/components/ui/context-menu';
+import {Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle,} from '@/components/ui/empty';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {cn} from '@/lib/utils';
 import {
@@ -226,11 +227,39 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
           </div>
         ))}
 
-        {/* 空态 — 无任何 tab 时提示 */}
+        {/* 空态 — 无任何 tab 时提供快捷入口 */}
         {!active && (
-          <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-            点击右上角「+」新建终端，或打开文件树浏览文件
-          </div>
+          <Empty className="border-0 p-6">
+            <EmptyMedia variant="icon">
+              <FolderTree />
+            </EmptyMedia>
+            <EmptyHeader>
+              <EmptyTitle>无打开的视图</EmptyTitle>
+              <EmptyDescription>打开文件树浏览项目文件，或新建终端执行命令</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => openFilesTab(threadId)}
+              >
+                <FolderTree className="size-4" />
+                打开文件树
+              </Button>
+              {canCreateTerminal && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => createTerminal(threadId)}
+                >
+                  <Terminal className="size-4" />
+                  新建终端
+                </Button>
+              )}
+            </EmptyContent>
+          </Empty>
         )}
       </aside>
     </>

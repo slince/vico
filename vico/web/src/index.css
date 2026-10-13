@@ -849,22 +849,11 @@
   background-color: color-mix(in oklab, var(--border) 100%, transparent);
 }
 
-/* 通用细滚动条（弹层列表等） */
+/* 弹层列表隐藏原生滚动条 — macOS 系统滚动条无法用 CSS 调细（overlay 模式忽略 ::-webkit-scrollbar），
+   直接隐藏，滚动功能不受影响（触控板/滚轮/拖拽仍可用） */
 .aui-thin-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--border) 70%, transparent) transparent;
+  scrollbar-width: none;
 }
 .aui-thin-scrollbar::-webkit-scrollbar {
-  width: 2px;
-  height: 2px;
-}
-.aui-thin-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.aui-thin-scrollbar::-webkit-scrollbar-thumb {
-  background-color: color-mix(in oklab, var(--border) 70%, transparent);
-  border-radius: 9999px;
-}
-.aui-thin-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(in oklab, var(--border) 100%, transparent);
+  display: none;
 }
