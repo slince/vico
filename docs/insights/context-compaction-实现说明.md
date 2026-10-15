@@ -25,6 +25,10 @@ Vico 在 `@vico/core` 新增上下文压缩机制：当历史消息过大时，�
 
 压缩落库是 **append-only 两段式**：先 `appendEntries` 写入新摘要，再 `archiveMessages` 归档旧摘要 + 被压缩的 head 消息。若在两步之间崩溃，最坏情况是旧消息尚未归档（多出一份冗余摘要/消息），绝不会丢失上下文。`Message.archived` 为 soft delete（`includeArchived:false` 时查询过滤，UI 仍全量展示）。
 
+## 摘要失败 no-op
+
+摘要 LLM 失败/abort、输出为空、shrink check 不通过（framed 摘要不小于被压缩内容）三类失败均 **no-op**：不写摘要、不归档（spec §10），主流程不阻塞，下次 turn 再试——绝不写「原文截断摘要」落库（那会永久丢失被归档细节）。shrink check 基线 = 被归档口径（旧摘要 + head），与 `selectCompactableRange` 的 `removedTokens` 一致。
+
 ## 与 deepseek 的差异
 
 | 维度 | deepseek-harness | Vico |

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
-import {ManualCompactionError} from '@vico/core';
+import {ManualCompactionError, TargetPressureConfigError} from '@vico/core';
 import { getAuthContext } from './helpers.js';
 import { threadManager } from '../services/thread/thread-manager.js';
 import { getAgent } from '../agent/get-agent.js';
@@ -72,6 +72,10 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
       if (!result) return c.json({ compacted: false });
       return c.json(result);
     } catch (err) {
+      // contextWindow 未配置时主动压缩抛配置错误，映射为 400 而非 500（spec §10）
+      if (err instanceof TargetPressureConfigError) {
+        return c.json({ error: err.message }, 400);
+      }
       if (err instanceof ManualCompactionError) {
         const code = (err as ManualCompactionError).code;
         if (code === 'busy') return c.json({ error: 'Compaction already in progress' }, 409);

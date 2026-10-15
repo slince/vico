@@ -102,11 +102,6 @@ function frameSummary(text: string): string {
   return `${CHECKPOINT_PREAMBLE}\n\n${SUMMARY_OPEN_TAG}\n${text}\n${SUMMARY_CLOSE_TAG}`;
 }
 
-/** 失败回退：原文截断摘要（head 各消息 role + 前 200 字符） */
-function fallbackSummary(head: ModelMessage[]): string {
-  return head.map((m) => `${m.role}: ${getMessageText(m).slice(0, 200)}`).join('\n');
-}
-
 /** 候选 surface 段：摘要（可空）+ 各已完成 turn 消息 */
 interface CandidateTurn { turnId: string; messages: ModelMessage[]; messageIds: string[] }
 interface Candidate {
@@ -206,6 +201,7 @@ export class ModelContextCompactor implements ContextCompactor {
       // 增量摘要（含 shrink check 与失败回退）
       const summaryText = await this.summarize(headMessages, candidate.summary, modelClient, signal);
       if (signal.aborted) return null; // cancelled
+      if (summaryText === null) return null; // 摘要失败：不写、不归档（spec §10），下次 turn 再试
 
       // append-only 落库：先写新摘要，再归档旧摘要 + head（先写后删，崩溃不丢上下文）
       const summaryMessageId = randomUUID();
@@ -277,17 +273,21 @@ export class ModelContextCompactor implements ContextCompactor {
     return { summary, summaryEntryId: summaryEntries[summaryEntries.length - 1]?.id, turns };
   }
 
-  /** 增量摘要：独立摘要模型（若配置）或复用传入 modelClient；失败重试 compactionRetries 次后回退原文截断；shrink check 失败走回退 */
-  private async summarize(head: ModelMessage[], oldSummary: ModelMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string> {
+  /**
+   * 增量摘要：独立摘要模型（若配置）或复用传入 modelClient。
+   * 失败（重试耗尽 / 空输出 / shrink check 不通过）时返回 null——调用方 no-op，不写摘要、不归档（spec §10）。
+   */
+  private async summarize(head: ModelMessage[], oldSummary: ModelMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
     const client = this.resolveSummaryClient(modelClient);
-    const headRouteTokens = measure(head).surfaceTokens;
+    // shrink 基线 = 被归档口径（旧摘要 + head），与 selectCompactableRange 的 removedTokens 一致
+    const headRouteTokens = measure(head).surfaceTokens + (oldSummary ? estimateMessage(oldSummary) : 0);
 
     // 摘要输入：旧摘要折叠进新摘要（以 system 角色传入——summary 非 provider 可识别角色，避免 standardizePrompt 拒绝）
     const input: ModelMessage[] = [];
     if (oldSummary) input.push({ role: 'system', content: getMessageText(oldSummary) });
     input.push(...head);
 
-    // 摘要调用按 compactionRetries 重试，全部失败后回退原文截断
+    // 摘要调用按 compactionRetries 重试；全部失败 → 返回 null（不写、不归档）
     let text = '';
     for (let attempt = 0; attempt <= this.settings.compactionRetries; attempt++) {
       try {
@@ -304,16 +304,16 @@ export class ModelContextCompactor implements ContextCompactor {
         }
         break; // 成功，退出重试
       } catch {
-        if (attempt === this.settings.compactionRetries) text = fallbackSummary(head);
+        if (attempt === this.settings.compactionRetries) return null;
       }
     }
 
-    if (!text.trim()) text = fallbackSummary(head);
+    if (!text.trim()) return null; // 空输出 → 失败
 
-    // shrink check：framed 摘要必须小于被压缩内容，否则回退原文截断
+    // shrink check：framed 摘要必须小于被压缩内容，否则返回 null（失败）
     const framed = frameSummary(text);
     if (estimateMessage({ role: 'system', content: framed }) >= headRouteTokens) {
-      return frameSummary(fallbackSummary(head));
+      return null;
     }
     return framed;
   }
@@ -322,7 +322,7 @@ export class ModelContextCompactor implements ContextCompactor {
   private resolveSummaryClient(modelClient: ModelClient): ModelClient {
     if (this.settings.summarizationProvider && this.settings.summarizationModel) {
       if (!this.modelConfig) {
-        throw new Error('cannot resolve summarization model without agent modelConfig');
+        throw new ManualCompactionError('summary', 'cannot resolve summarization model without agent modelConfig');
       }
       return new ModelClient(createLanguageModel({
         ...this.modelConfig,
