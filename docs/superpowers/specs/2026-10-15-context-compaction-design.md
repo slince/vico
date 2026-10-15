@@ -92,6 +92,9 @@ export interface ContextCompactor {
     modelClient: ModelClient,
     signal: AbortSignal,
   ): Promise<CompactionResult | null>;
+
+  /** 记录最近一次请求的 provider 上报 prompt token（usage 锚定用；LoopAgent 在 callModel 后调用） */
+  recordUsage(threadId: string, pressureTokens: number): void;
 }
 ```
 
@@ -325,7 +328,8 @@ usage 锚定（projectedTokens）：
   projectedTokens     = max(0, pressureTokens + surfaceTokens − sampledSurfaceTokens)
 ```
 
-- Vico 的 usage 来源：`ModelStreamReader` 已从 `finish` part 累积 `usage`（`done` 事件携带 `UsageMetrics{input, output}`）。为实现锚定，`UsageMetrics` 需扩展记录 `inputTokens.total/cacheRead/cacheWrite`（或至少 total），并持久化「最近一次请求的 usage 采样」供压缩器读取。
+- Vico 的 usage 来源：`ModelStreamReader` 已从 `finish` part 累积 `usage`（`done` 事件携带 `UsageMetrics{input, output}`）。为实现锚定，`UsageMetrics` 需扩展记录 `inputTokens.total/cacheRead/cacheWrite`（或至少 total）。
+- **anchor 维护**：`surface` = candidate（仅可压缩历史，不含 system/tools）；`sampledSurfaceTokens` 与 `pressureTokens` 由 `ModelContextCompactor` 内部按 thread 维护——`recordUsage(threadId, pressureTokens)`（LoopAgent 在每次 `callModel` 后调用）更新 `pressureTokens`，`compactIfNeeded`/`compactNow` 测量后更新 `sampledSurfaceTokens`。公式 `pressureTokens + surfaceTokens − sampledSurfaceTokens` 由此闭合：`pressureTokens` 隐含 system/tools 开销，`surfaceTokens − sampledSurfaceTokens` 表达历史增量。
 - 未采样到任何 usage（历史从未发过请求）时退化为纯启发式（`baseline.kind='none'`，`projectedTokens = surfaceTokens`）。
 - 摘要消息为纯文本，其 route 价格即启发式价格（对齐 deepseek「text-only checkpoint 的 fixed-heuristic price IS its route price」）。
 
