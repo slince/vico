@@ -145,12 +145,15 @@ export class MysqlThreadStore implements ThreadStore {
 
   async getEntries(
     threadId: string,
-    options?: { limit?: number; start?: number; roles?: string[] },
+    options?: { limit?: number; start?: number; roles?: string[]; includeArchived?: boolean },
   ): Promise<Message[]> {
     const start = options?.start ?? 0;
     const conditions = [eq(messages.thread_id, threadId)];
     if (options?.roles?.length) {
       conditions.push(inArray(messages.role, options.roles));
+    }
+    if (options?.includeArchived === false) {
+      conditions.push(eq(messages.archived, false));
     }
     const base = this.db
       .select()
@@ -162,14 +165,26 @@ export class MysqlThreadStore implements ThreadStore {
     return rows.map((r) => this._toMessage(r));
   }
 
-  async getEntriesByTurns(turnIds: string[]): Promise<Message[]> {
+  async getEntriesByTurns(turnIds: string[], options?: { includeArchived?: boolean }): Promise<Message[]> {
     if (turnIds.length === 0) return [];
+    const conditions = [inArray(messages.turn_id, turnIds)];
+    if (options?.includeArchived === false) {
+      conditions.push(eq(messages.archived, false));
+    }
     const rows = await this.db
       .select()
       .from(messages)
-      .where(inArray(messages.turn_id, turnIds))
+      .where(and(...conditions))
       .orderBy(messages.created_at);
     return rows.map((r) => this._toMessage(r));
+  }
+
+  async archiveMessages(threadId: string, messageIds: string[]): Promise<void> {
+    if (messageIds.length === 0) return;
+    await this.db
+      .update(messages)
+      .set({ archived: true })
+      .where(and(eq(messages.thread_id, threadId), inArray(messages.id, messageIds)));
   }
 
   async getRecentTurns(threadId: string, limit: number, status?: Turn['status']): Promise<Turn[]> {
@@ -229,6 +244,7 @@ export class MysqlThreadStore implements ThreadStore {
       role: r.role,
       content: r.content,
       metadata: r.metadata as Record<string, unknown> | undefined,
+      archived: r.archived,
       createdAt: r.created_at,
     };
   }

@@ -62,10 +62,21 @@ export async function ensureTables(
       role VARCHAR(36) NOT NULL,
       content TEXT NOT NULL,
       metadata JSON,
+      archived BOOLEAN NOT NULL DEFAULT FALSE,
       created_at BIGINT NOT NULL,
       KEY idx_msg_thread (thread_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  // 迁移检测：存量 vico_messages 无 archived 列 → 幂等补列
+  const msgCols = await db.execute(sql`
+    SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vico_messages'
+  `);
+  const msgColNames = (msgCols[0] as unknown as Array<{ COLUMN_NAME: string }>).map((r) => r.COLUMN_NAME);
+  if (msgColNames.length > 0 && !msgColNames.includes('archived')) {
+    await db.execute(sql`ALTER TABLE vico_messages ADD COLUMN archived BOOLEAN NOT NULL DEFAULT FALSE`);
+  }
 
   // 迁移检测：旧版 vico_checkpoints 为 (turn_id, version) 复合主键、无 id/parent_id 列。
   // MySQL 无法 ALTER 主键，检测到旧结构时 DROP 重建为版本树（旧链数据开发期丢弃）。

@@ -1,5 +1,5 @@
 // @vico/mysql-adapter — MySQL Drizzle table definitions for thread and memory persistence
-import { mysqlTable, varchar, text, bigint, int, json, uniqueIndex } from 'drizzle-orm/mysql-core';
+import { mysqlTable, varchar, text, bigint, int, json, boolean, uniqueIndex } from 'drizzle-orm/mysql-core';
 
 // --- Thread tables ---
 
@@ -33,6 +33,8 @@ export const messages = mysqlTable('vico_messages', {
   role: varchar('role', { length: 36 }).notNull(),
   content: text('content').notNull(),
   metadata: json('metadata'),
+  /** 是否已被压缩归档（soft delete；模型上下文不读，UI 全量展示） */
+  archived: boolean('archived').notNull().default(false),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
 });
 
