@@ -30,8 +30,8 @@ describe('token-estimator', () => {
   });
 
   it('estimateMessage 对 system 走纯文本密度 + ROLE_OVERHEAD（无 per-block）', () => {
-    const msg: ModelMessage = { role: 'system', content: [{ type: 'text', text: 'sys' }] };
-    // system：直接对文本长度估，不加 block 开销
+    // AI SDK 的 SystemModelMessage.content 为 string（非 parts 数组）
+    const msg: ModelMessage = { role: 'system', content: 'sys' };
     expect(estimateMessage(msg)).toBe(Math.ceil(3 / CHARS_PER_TOKEN) + ROLE_OVERHEAD);
   });
 

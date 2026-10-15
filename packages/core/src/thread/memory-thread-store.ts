@@ -92,11 +92,14 @@ export class InMemoryThreadStore implements ThreadStore {
     });
   }
 
-  async getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[] }): Promise<Message[]> {
+  async getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[]; includeArchived?: boolean }): Promise<Message[]> {
     let list = this.messages.get(threadId) ?? [];
     if (options?.roles?.length) {
       const roleSet = new Set(options.roles);
       list = list.filter((m) => roleSet.has(m.role));
+    }
+    if (options?.includeArchived === false) {
+      list = list.filter((m) => !m.archived);
     }
     const start = options?.start ?? 0;
     const end = options?.limit ? start + options.limit : undefined;
@@ -126,17 +129,26 @@ export class InMemoryThreadStore implements ThreadStore {
     return result.slice(0, limit);
   }
 
-  async getEntriesByTurns(turnIds: string[]): Promise<Message[]> {
+  async getEntriesByTurns(turnIds: string[], options?: { includeArchived?: boolean }): Promise<Message[]> {
     if (turnIds.length === 0) return [];
     const ids = new Set(turnIds);
     const all: Message[] = [];
     for (const list of this.messages.values()) {
       for (const m of list) {
-        if (ids.has(m.turnId)) all.push(m);
+        if (ids.has(m.turnId) && !(options?.includeArchived === false && m.archived)) all.push(m);
       }
     }
     all.sort((a, b) => a.createdAt - b.createdAt);
     return all;
+  }
+
+  async archiveMessages(threadId: string, messageIds: string[]): Promise<void> {
+    const list = this.messages.get(threadId);
+    if (!list || messageIds.length === 0) return;
+    const ids = new Set(messageIds);
+    for (const m of list) {
+      if (ids.has(m.id)) m.archived = true;
+    }
   }
 
 }

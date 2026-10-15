@@ -67,6 +67,8 @@ export interface Message {
   content: string;
   /** 自定义上下文字段（JSON 可序列化） */
   metadata?: MessageMetadata;
+  /** 是否已被压缩归档（模型上下文不再读取；UI 仍全量展示） */
+  archived?: boolean;
   createdAt: number;
 }
 
@@ -98,10 +100,12 @@ export interface ThreadStore {
 
   /** 批量追加对话记录 */
   appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]>;
-  /** 获取线程的对话记录列表（支持分页和角色筛选） */
-  getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[] }): Promise<Message[]>;
-  /** 批量获取多个 turn 的对话记录 */
-  getEntriesByTurns(turnIds: string[]): Promise<Message[]>;
+  /** 获取线程的对话记录列表（支持分页、角色筛选、归档过滤） */
+  getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[]; includeArchived?: boolean }): Promise<Message[]>;
+  /** 批量获取多个 turn 的对话记录（可选排除已归档） */
+  getEntriesByTurns(turnIds: string[], options?: { includeArchived?: boolean }): Promise<Message[]>;
+  /** 批量归档消息（软标记 archived=true），只作用于已完成 turn 的消息 */
+  archiveMessages(threadId: string, messageIds: string[]): Promise<void>;
   /** 获取线程中最近的一个 turn（用于检测是否有暂停的 turn） */
   getLatestTurn(threadId: string): Promise<Turn | undefined>;
   /** 获取线程最近 limit 个轮次（按创建时间倒序），可选按状态过滤 */
