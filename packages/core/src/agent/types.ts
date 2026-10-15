@@ -8,6 +8,8 @@ export interface ModelConfig {
   model: string;
   baseUrl?: string;
   apiKey: string;
+  /** 模型上下文窗口 token 数；启用压缩（pressure 触发）时必填（provider v4 不暴露） */
+  contextWindow?: number;
 }
 
 /**

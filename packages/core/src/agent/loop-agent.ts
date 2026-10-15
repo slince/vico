@@ -612,8 +612,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const usage = { input: 0, output: 0 };
 
-    await this.tryCompact(step, context);
-
     const modelResult = await this.callModel(step, context);
 
     // 如果模型调用出错，提前结束
@@ -797,19 +795,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     await this.persistMessages(context, messages);
-  }
-
-  /**
-   * 压缩检查，按需原地替换 messages。
-   */
-  private async tryCompact(step: TurnStep, context: TurnContext<TToolSet>): Promise<void> {
-    if (!this.compactor) return;
-    const result = await this.compactor.compactIfNeeded(step.messages, context.modelClient, context.signal);
-    if (result.wasCompacted) {
-      step.messages.length = 0;
-      step.messages.push(...result.compacted);
-      this.emit({ type: 'compacted', removedTokens: result.removedTokens });
-    }
   }
 
   /**
