@@ -19,6 +19,18 @@ memory:
   stm_window: 20
   ltm_auto_extract: true
   ltm_max_entries: 10000
+  compaction:
+    auto: true
+    threshold_ratio: 0.8
+    headroom_tokens: 65536
+    retain_ratio: 0.16
+    max_tokens: 65536
+    compaction_retries: 1
+    max_overflow_retries: 1
+
+# 聊天模型全局默认上下文窗口（provider v4 不暴露 contextWindow，压缩判定用）
+model:
+  context_window: 131072
 
 rag:
   chunk_size: 512

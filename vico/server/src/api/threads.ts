@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
+import {ManualCompactionError} from '@vico/core';
 import { getAuthContext } from './helpers.js';
 import { threadManager } from '../services/thread/thread-manager.js';
 import { getAgent } from '../agent/get-agent.js';
@@ -52,5 +53,31 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
     const deleted = await threadManager.delete(auth.userId, c.req.param('id'));
     if (!deleted) return c.json({ error: 'Thread not found' }, 404);
     return c.json({ success: true });
+  });
+
+  /** POST /api/v1/threads/:id/compact — 主动压缩会话历史 */
+  app.post('/api/v1/threads/:id/compact', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+
+    const threadId = c.req.param('id');
+    const thread = await threadManager.getById(auth.userId, threadId);
+    if (!thread) return c.json({ error: 'Thread not found' }, 404);
+
+    const agent = await getAgent(thread.agentId);
+    if (!agent.compactor) return c.json({ error: 'Compaction not configured for this agent' }, 501);
+
+    try {
+      const result = await agent.compactThread(threadId, c.req.raw.signal);
+      if (!result) return c.json({ compacted: false });
+      return c.json(result);
+    } catch (err) {
+      if (err instanceof ManualCompactionError) {
+        const code = (err as ManualCompactionError).code;
+        if (code === 'busy') return c.json({ error: 'Compaction already in progress' }, 409);
+        return c.json({ error: err.message }, 400);
+      }
+      throw err;
+    }
   });
 }

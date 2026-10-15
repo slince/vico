@@ -3,10 +3,28 @@
  *
  * 服务端各处可通过 getAgent(id) 直接拿到可交互的 agent 对象。
  */
-import type {AgentConfig} from '@vico/core';
+import type {AgentConfig, CompactionSettings} from '@vico/core';
 import {agentManager} from '../services/agent/agent-manager.js';
 import {vico} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
+import {config} from '../config.js';
+
+/** config.yaml 的 snake_case compaction 配置 → core CompactionSettings（camelCase） */
+function toCompactionSettings(raw: NonNullable<typeof config.memory.compaction> | undefined): Partial<CompactionSettings> | undefined {
+  if (!raw) return undefined;
+  return {
+    auto: raw.auto,
+    thresholdRatio: raw.threshold_ratio,
+    headroomTokens: raw.headroom_tokens,
+    retainRatio: raw.retain_ratio,
+    retainTokens: raw.retain_tokens,
+    summarizationProvider: raw.summarization_provider,
+    summarizationModel: raw.summarization_model,
+    maxTokens: raw.max_tokens,
+    compactionRetries: raw.compaction_retries,
+    maxOverflowRetries: raw.max_overflow_retries,
+  };
+}
 
 /** 将 DB 运行时配置转换为 AgentConfig */
 async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<AgentConfig> {
@@ -26,10 +44,13 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
       model: model.model_name,
       baseUrl: model.base_url,
       apiKey: model.api_key,
+      contextWindow: config.model?.context_window,
     },
     temperature: a.temperature ?? 0.7,
     maxTokens: a.max_tokens ?? 4096,
     maxSteps: a.max_steps ?? 10,
+    conversationWindow: config.memory.stm_window,
+    compaction: toCompactionSettings(config.memory.compaction),
     workspace,
     skills,
   };

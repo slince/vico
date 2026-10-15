@@ -33,6 +33,23 @@ interface AppConfig {
     stm_window: number;
     ltm_auto_extract: boolean;
     ltm_max_entries: number;
+    /** 上下文压缩配置（snake_case，对齐 server.config.yaml；由 get-agent 转 CompactionSettings） */
+    compaction?: {
+      auto?: boolean;
+      threshold_ratio?: number;
+      headroom_tokens?: number;
+      retain_ratio?: number;
+      retain_tokens?: number;
+      summarization_provider?: string;
+      summarization_model?: string;
+      max_tokens?: number;
+      compaction_retries?: number;
+      max_overflow_retries?: number;
+    };
+  };
+  /** 聊天模型全局默认上下文窗口（provider v4 不暴露 contextWindow，压缩判定需显式声明） */
+  model?: {
+    context_window?: number;
   };
   rag: {
     chunk_size: number;
@@ -89,7 +106,19 @@ function loadConfig(): AppConfig {
     auth: { session_expiry_days: 7 },
     database: { url: 'file:./data/vico.db' },
     skills: { scan_paths: [resolve(__dirname, '../../skills'), resolve(__dirname, '../db/custom-skills')] },
-    memory: { stm_window: 20, ltm_auto_extract: true, ltm_max_entries: 10000 },
+    memory: {
+      stm_window: 20, ltm_auto_extract: true, ltm_max_entries: 10000,
+      compaction: {
+        auto: true,
+        threshold_ratio: 0.8,
+        headroom_tokens: 65536,
+        retain_ratio: 0.16,
+        max_tokens: 65536,
+        compaction_retries: 1,
+        max_overflow_retries: 1,
+      },
+    },
+    model: { context_window: 131072 },
     rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'openai/text-embedding-3-small' },
     tool: { timeout_ms: 30000 },
     upload: { max_size_bytes: 50 * 1024 * 1024, allowed_mime_types: ['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'text/x-python', 'text/javascript', 'application/json'] },
@@ -108,7 +137,8 @@ function loadConfig(): AppConfig {
       auth: { ...defaultConfig.auth, ...parsed.auth },
       database: { ...defaultConfig.database, ...parsed.database },
       skills: { ...defaultConfig.skills, ...parsed.skills },
-      memory: { ...defaultConfig.memory, ...parsed.memory },
+      memory: { ...defaultConfig.memory, ...parsed.memory, compaction: { ...defaultConfig.memory.compaction, ...parsed.memory?.compaction } },
+      model: { ...defaultConfig.model, ...parsed.model },
       rag: { ...defaultConfig.rag, ...parsed.rag },
       tool: { ...defaultConfig.tool, ...parsed.tool },
       upload: { ...defaultConfig.upload, ...parsed.upload },
