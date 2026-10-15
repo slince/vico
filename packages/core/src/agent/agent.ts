@@ -10,7 +10,7 @@ import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {TurnOutput} from './turn-output.js';
 import type {RunOptions, TurnResult} from './loop-agent-options.js';
 import type {UserMessage} from '../stream/types.js';
-import type {ContextCompactor} from './context-compactor.js';
+import type {ContextCompactor, CompactionResult} from './context-compactor.js';
 import type {CheckpointStore} from './checkpoint.js';
 import type {Logger} from 'pino';
 
@@ -117,4 +117,13 @@ export interface Agent {
    * @param options - turn 运行可选参数
    */
   stream(message: UserMessage, options?: RunOptions): Promise<TurnOutput>;
+
+  /**
+   * 主动压缩指定会话：忽略 token 阈值，压缩除最近保留 turn 外的全部已完成 turn。
+   * 无可用区间时返回 null（不写库）；thread 不存在或未配置 compactor 返回 null。
+   *
+   * @param threadId - 会话 ID
+   * @param signal - 可选中断信号
+   */
+  compactThread(threadId: string, signal?: AbortSignal): Promise<CompactionResult | null>;
 }

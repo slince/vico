@@ -14,7 +14,7 @@ import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.j
 import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
-import type {ContextCompactor} from './context-compactor.js';
+import {isContextOverflowError, type CompactionResult, type ContextCompactor} from './context-compactor.js';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from './checkpoint.js';
 import type {ContextProcessor} from './context-processors/context-processor.js';
 import {ProcessorPipeline} from './context-processors/context-processor.js';
@@ -287,7 +287,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       turn = latestTurn;
       checkpoint = await this.checkpointStore.getLatest(latestTurn.id)
     } else {
-      // ── 正常新 turn ──
+      // ── 正常新 turn ── 历史压力压缩（只压缩已完成 turn，在创建 turn / 注入历史前）
+      await this.compactForPressure(thread, modelClient, signal);
       turn = await this.thread.createTurn(thread.id);
     }
 
@@ -315,8 +316,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const {decisions} = extractApprovalResponses(userMessages)
 
+    const userMessageCount = userMessages.length;
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
     await this.pipeline.enter(requestContext);
+    // 历史由 MemoryProcessor unshift 注入；记录条数供 context-overflow 压缩后重建内存历史前缀
+    const historyCount = requestContext.messages.length - userMessageCount;
 
     // 本轮次的上下文对象
     const context: TurnContext<TToolSet> = {
@@ -332,6 +336,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       reasoning,
       modelClient,
       approvalMode,
+      historyCount,
     };
 
     // 从 session 加载会话配置
@@ -798,47 +803,111 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 单次模型调用。messages 已由调用方预处理（含 ctx.before/after），
-   * 不修改入参，结果通过 CallModelResult 返回。
+   * 新 turn 开始前的压力压缩。未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
+   */
+  private async compactForPressure(thread: Thread, modelClient: ModelClient, signal: AbortSignal): Promise<void> {
+    if (!this.compactor) return;
+    try {
+      const result = await this.compactor.compactIfNeeded(thread, modelClient, 'pressure', signal);
+      if (result) this.emitCompacted(result);
+    } catch (err) {
+      this.log.warn({ threadId: thread.id, err }, 'pressure compaction skipped');
+    }
+  }
+
+  /** 发射压缩事件（compacted 五字段） */
+  private emitCompacted(result: CompactionResult): void {
+    this.emit({
+      type: 'compacted',
+      summaryMessageId: result.summaryMessageId,
+      archivedTurnIds: result.archivedTurnIds,
+      removedTokens: result.removedTokens,
+      shadowedTokenCount: result.shadowedTokenCount,
+    });
+  }
+
+  /** context-overflow 压缩后，用新历史替换内存中的旧历史前缀（原地 splice 使 step.messages 同步） */
+  private async refreshHistory(context: TurnContext<TToolSet>): Promise<void> {
+    if (!this.memory.conversation || context.historyCount === 0) return;
+    const fresh = await this.memory.conversation.get(context.session.thread.id);
+    context.messages.splice(0, context.historyCount, ...fresh);
+    context.historyCount = fresh.length;
+  }
+
+  /** Agent.compactThread 实现：主动压缩指定会话 */
+  async compactThread(threadId: string, signal?: AbortSignal): Promise<CompactionResult | null> {
+    if (!this.compactor) return null;
+    const thread = await this.thread.getThread(threadId);
+    if (!thread) return null;
+    return this.compactor.compactNow(thread, this.modelClient, signal ?? new AbortController().signal);
+  }
+
+  /**
+   * 单次模型调用（含 context-overflow 压缩恢复）。messages 已由调用方预处理（含 ctx.before/after）。
    */
   private async callModel(step: TurnStep, context: TurnContext<TToolSet>): Promise<CallModelResult> {
     const { ctx, controller } = context;
-
-    const cleaned = ensureToolCallConsistency(step.messages);
-
-    const request: ModelRequest = {
-      system: ctx.getSystemPrompt(),
-      messages: cleaned,
-      tools: ctx.tools,
-      maxOutputTokens: this.maxTokens,
-      temperature: this.temperature,
-      reasoning: context.reasoning ?? this.reasoning,
-      abortSignal: context.signal,
-    };
 
     const resolveError = (error: Error | string): CallModelResult => {
       this.emit({ type: 'error', error });
       try {
         controller.enqueue({ type: 'error', error });
       } catch (e) {
-        // controller 已关闭（客户端断开），enqueue 失败可忽略
         this.log.warn({ threadId: context.session.thread.id, err: e }, 'controller closed, error enqueue ignored');
       }
       return { text: '', reasoning: '', toolCalls: [], usage: { input: 0, output: 0 }, error };
     };
 
-    try {
-      const {stream} = await context.modelClient.stream(request);
-      const reader = new ModelStreamReader<TToolSet>({
-        controller,
-        emit: this.emit,
-        request: request,
-      });
+    // 单次模型调用（可被 context-overflow 重试复用）
+    const attempt = async (): Promise<CallModelResult> => {
+      const cleaned = ensureToolCallConsistency(step.messages);
+      const request: ModelRequest = {
+        system: ctx.getSystemPrompt(),
+        messages: cleaned,
+        tools: ctx.tools,
+        maxOutputTokens: this.maxTokens,
+        temperature: this.temperature,
+        reasoning: context.reasoning ?? this.reasoning,
+        abortSignal: context.signal,
+      };
+      try {
+        const {stream} = await context.modelClient.stream(request);
+        const reader = new ModelStreamReader<TToolSet>({
+          controller,
+          emit: this.emit,
+          request: request,
+        });
+        return reader.read(stream);
+      } catch (e) {
+        return resolveError(e instanceof Error ? e : new Error(String(e)));
+      }
+    };
 
-      return reader.read(stream);
-    } catch (e) {
-      const err = e instanceof Error ? e as Error: new Error(String(e));
-      return resolveError(err);
+    const first = await attempt();
+
+    // usage 锚定：无论成功失败，记录 provider 上报的 prompt token
+    this.compactor?.recordUsage(context.session.thread.id, first.usage.input);
+
+    // 正常响应 → 清零 context-overflow 重试计数
+    if (!first.error) {
+      this.compactor?.noteModelSuccess(context.session.thread);
+      return first;
     }
+
+    // context-overflow 恢复：启发式检测超限错误 → 压缩（retainTokens=0）→ 重建历史 → 重试一次
+    if (this.compactor && !context.signal.aborted && isContextOverflowError(first.error)) {
+      try {
+        const result = await this.compactor.compactIfNeeded(context.session.thread, context.modelClient, 'context-overflow', context.signal);
+        if (result) {
+          this.emitCompacted(result);
+          await this.refreshHistory(context);
+          return attempt();
+        }
+      } catch (err) {
+        this.log.warn({ threadId: context.session.thread.id, err }, 'context-overflow compaction failed');
+      }
+    }
+
+    return first;
   }
 }

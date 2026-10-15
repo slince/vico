@@ -67,6 +67,8 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   modelClient: ModelClient;
   /** 本次运行的审批政策模式，随 PolicyContext 透传给各 resolver */
   approvalMode?: ApprovalMode;
+  /** turn 开始时注入的历史消息条数（context-overflow 压缩后据此重建内存历史前缀） */
+  historyCount: number;
 }
 
 
