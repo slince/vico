@@ -2,7 +2,7 @@
 import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {Agent} from './agent.js';
 import {LoopAgent} from './loop-agent.js';
-import type {ModelConfig, ModelRef, TurnEvent} from './types.js';
+import {isLanguageModelV4, type ModelConfig, type ModelRef, type TurnEvent} from './types.js';
 import type {ReasoningEffort} from '../model/types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
@@ -22,6 +22,8 @@ import type {CheckpointStore} from "./checkpoint.js";
 import {MemoryCheckpointStore} from "./memory-checkpoint-store.js";
 import {createFSSkillLoader} from "../skill/fs-skill-loader.js";
 import {collectSkillDirs} from "./utils.js";
+import {ModelContextCompactor} from "./context-compactor.js";
+import type {CompactionSettings} from "./compaction-config.js";
 
 
 /** LanguageModel 工厂类型 */
@@ -118,6 +120,8 @@ export interface AgentConfig {
   /** 自定义审批 resolver（support/resolve 两段式），插在 never 保护之后、workspace 之前 */
   approvalResolver?: ApprovalResolver;
   checkpointStore?: CheckpointStore;
+  /** 上下文压缩配置；未传则不构造 compactor（自动压缩关闭，向后兼容） */
+  compaction?: Partial<CompactionSettings>;
 }
 
 /**
@@ -132,6 +136,18 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 
   const skills = await buildSkills(config.skills)
   const tools = buildTools(config.tools, memory.semantic, skills);
+
+  // 上下文压缩器：仅在显式配置 compaction 时构造；模型为 ModelConfig 时才能拿到 contextWindow/摘要模型
+  const modelConfig = !isLanguageModelV4(config.model) ? config.model : undefined;
+  const compactor = config.compaction
+    ? new ModelContextCompactor({
+        thread,
+        conversationWindow: config.conversationWindow ?? DEFAULT_CONVERSATION_WINDOW,
+        modelConfig,
+        maxTokens: config.maxTokens,
+        settings: config.compaction,
+      })
+    : undefined;
 
   // 优先级由各 resolver 的 order() 决定，composeResolvers 内部按 order 升序调度；
   // 自定义 resolver 通过自身 order() 声明插入位置（默认档位见 ApprovalPriority）
@@ -157,6 +173,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     workspace: config.workspace,
     events: events,
     approvalResolver: composeResolvers(...approvalResolvers),
-    checkpointStore: config.checkpointStore || new MemoryCheckpointStore()
+    checkpointStore: config.checkpointStore || new MemoryCheckpointStore(),
+    compactor,
   });
 }

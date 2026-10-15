@@ -134,8 +134,50 @@ export {
 export { InMemoryThreadStore } from './thread/memory-thread-store.js';
 export { toModelMessages, fromModelMessage, toUiMessages } from './thread/utils.js';
 
-// ContextCompactor
-export { ContextCompactor } from './agent/context-compactor.js';
+// ContextCompactor（值导出：实现类 / 错误类 / 超限检测函数）
+export {
+  ModelContextCompactor,
+  ManualCompactionError,
+  TargetPressureConfigError,
+  isContextOverflowError,
+} from './agent/context-compactor.js';
+// ContextCompactor（类型导出：端口 / 结果 / 触发类型）
+export type {
+  ContextCompactor,
+  CompactionTrigger,
+  CompactionResult,
+  ManualCompactionErrorCode,
+  ModelContextCompactorOptions,
+} from './agent/context-compactor.js';
+export {
+  COMPACTION_INSTRUCTION,
+  CHECKPOINT_PREAMBLE,
+  SUMMARY_OPEN_TAG,
+  SUMMARY_CLOSE_TAG,
+} from './agent/context-compactor.js';
+export {
+  resolveSettings,
+  resolveCompactSpec,
+  selectCompactableRange,
+  DEFAULT_COMPACTION_SETTINGS,
+  type CompactionSettings,
+  type ResolvedCompactionSettings,
+  type ResolvedCompactSpec,
+  type CompactionModelPolicy,
+  type TurnTokenBudget,
+  type CompactableRange,
+} from './agent/compaction-config.js';
+export {
+  estimateContent,
+  estimateMessage,
+  measure,
+  CHARS_PER_TOKEN,
+  BLOCK_OVERHEAD,
+  ROLE_OVERHEAD,
+  type TokenAnchor,
+  type PricedMessage,
+  type TokenMeasurement,
+} from './agent/token-estimator.js';
 
 // Utils
 export { KeyedMutex } from './utils/async-keyed-lock.js';

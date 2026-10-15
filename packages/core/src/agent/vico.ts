@@ -9,6 +9,7 @@ import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
 import type {CheckpointStore} from './checkpoint.js';
+import type {CompactionSettings} from './compaction-config.js';
 
 /** Vico 配置选项 */
 export interface VicoOptions {
@@ -26,6 +27,8 @@ export interface VicoOptions {
   thread?: ThreadStore;
   /** 全局 CheckpointStore（agent 自身未配置时使用） */
   checkpointStore?: CheckpointStore;
+  /** 全局默认压缩配置（agent 自身未配置 compaction 时使用） */
+  compaction?: Partial<CompactionSettings>;
 }
 
 /**
@@ -104,6 +107,7 @@ export class Vico {
       thread: config.thread ?? this.thread,
       checkpointStore: config.checkpointStore ?? this.checkpointStore,
       events: config.events ?? this.events,
+      compaction: config.compaction ?? this.options.compaction,
     });
   }
 }
