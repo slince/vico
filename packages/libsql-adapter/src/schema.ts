@@ -34,6 +34,8 @@ export const messages = sqliteTable('vico_messages', {
   role: text('role').notNull(),
   content: text('content').notNull(),
   metadata: text('metadata'),
+  /** 是否已被压缩归档（soft delete；模型上下文不读，UI 全量展示） */
+  archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   created_at: integer('created_at').notNull(),
 });
 

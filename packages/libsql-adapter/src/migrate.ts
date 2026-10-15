@@ -64,6 +64,7 @@ export async function ensureTables(
       role TEXT NOT NULL,
       content TEXT NOT NULL,
       metadata TEXT,
+      archived INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     )
   `);
@@ -72,6 +73,15 @@ export async function ensureTables(
     CREATE INDEX IF NOT EXISTS idx_msg_thread
     ON vico_messages(thread_id)
   `);
+
+  // 迁移检测：存量 vico_messages 无 archived 列 → 幂等补列
+  const msgCols = await db.values<[string]>(sql`
+    SELECT name FROM pragma_table_info('vico_messages')
+  `);
+  const msgColNames = msgCols.map((r) => r[0]);
+  if (msgColNames.length > 0 && !msgColNames.includes('archived')) {
+    await db.run(sql`ALTER TABLE vico_messages ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`);
+  }
 
   // 迁移检测：旧版 vico_checkpoints 为 (turn_id, version) 复合主键、无 id/parent_id 列。
   // SQLite 无法 ALTER 主键，检测到旧结构时 DROP 重建为版本树（旧链数据开发期丢弃）。
