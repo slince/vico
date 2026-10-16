@@ -206,6 +206,7 @@ function contentToParts(content: ModelMessage['content'], role: string): UIMessa
  * - assistant 消息的 tool-call part 转为 `tool-${toolName}`（初始 input-available）；
  *   tool-approval-request part 转为 approval-requested（借对应 tool-call 的 toolName/input）。
  * - user / assistant / system 角色原样保留；未知角色静默跳过。
+ * - 消息 metadata（含 assistant 的 usage 明细）透传到 UIMessage.metadata。
  *
  * @param entries - ThreadStore 消息记录
  * @returns 可直接渲染的 UIMessage 数组
@@ -234,7 +235,12 @@ export function toUiMessages(entries: Message[]): UIMessage[] {
     // 仅 user / assistant / system 产出 UIMessage，未知角色跳过
     if (entry.role !== 'user' && entry.role !== 'assistant' && entry.role !== 'system') continue;
 
-    result.push({ id: entry.id, role: entry.role, parts: contentToParts(content, entry.role) });
+    result.push({
+      id: entry.id,
+      role: entry.role,
+      parts: contentToParts(content, entry.role),
+      ...(entry.metadata ? { metadata: entry.metadata } : {}),
+    });
     if (entry.role === 'assistant') lastAssistantIndex = result.length - 1;
   }
 

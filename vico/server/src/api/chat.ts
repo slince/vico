@@ -1,6 +1,6 @@
 import {Hono} from 'hono';
 import {createUIMessageStreamResponse, toUIMessageStream, UIMessage} from 'ai';
-import type {ApprovalMode, ReasoningEffort} from '@vico/core';
+import type {ApprovalMode, ReasoningEffort, UsageMetrics} from '@vico/core';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
@@ -92,7 +92,14 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
             return err
           }
           return err instanceof Error ? String(err.message) : JSON.stringify(err)
-        }
+        },
+        // 将 finish part 携带的完整 UsageMetrics 挂到消息 metadata.usage，
+        // 前端据此在 message action 栏展示 token 用量明细
+        messageMetadata: ({ part }) => {
+          if (part.type !== 'finish') return undefined;
+          const usage = (part as { usage?: UsageMetrics }).usage;
+          return usage ? { usage } : undefined;
+        },
       }),
       headers: {
         'x-thread-id': thread.id

@@ -205,7 +205,8 @@ export function finishStepPart<TToolSet extends ToolSet = ToolSet>(params: Finis
 }
 
 /**
- * turn 终态 finish part。totalUsage 由 UsageMetrics 派生（仅填充总量），
+ * turn 终态 finish part。totalUsage 由 UsageMetrics 派生（仅填充总量）供 AI SDK 兼容，
+ * 完整 UsageMetrics 另经 usage 字段透出，供路由层 messageMetadata 挂到消息 metadata。
  * 精确的分步 usage 已由各 finish-step part 携带。
  */
 export function finishPart<TToolSet extends ToolSet = ToolSet>(finishReason: FinishReason, usage: UsageMetrics): TextStreamPart<TToolSet> {
@@ -219,5 +220,6 @@ export function finishPart<TToolSet extends ToolSet = ToolSet>(finishReason: Fin
       outputTokens: usage.outputTokens.total,
       totalTokens: addTokenCount(usage.inputTokens.total, usage.outputTokens.total),
     },
+    usage,
   } as TextStreamPart<TToolSet>;
 }
