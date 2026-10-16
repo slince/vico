@@ -12,14 +12,16 @@ import {createThreadListAdapter} from '@/lib/thread-adapter';
 import {useChatThreadRuntime} from '@/hooks/use-chat-thread-runtime';
 
 export interface UseAssistantRuntimeOptions {
-  /** Agent ID，同时用于对话列表过滤和发送消息 */
-  agentId: string;
+  /** 固定 Agent ID（Agent 详情页测试对话区传入）；Chat 路由不传，由 composer 选中态决定 */
+  agentId?: string;
   /** 可选的 thread ID，用于加载历史消息和继续对话 */
   threadId?: string;
   /** 首次对话创建 thread 后的回调 */
   onThreadCreated?: (threadId: string) => void;
   /** 错误回调 */
   onError?: (error: Error) => void;
+  /** 是否启用运行时与线程列表请求，非 Chat 路由关闭 */
+  enabled?: boolean;
 }
 
 /**
@@ -29,11 +31,11 @@ export interface UseAssistantRuntimeOptions {
  * 每个线程独立创建 useChatRuntime 实例处理消息。
  *
  * @param options - 配置选项
- * @returns AssistantRuntime 实例，可直接传给 AssistantRuntimeProvider
+ * @returns AssistantRuntime 实例；enabled 为 false 时返回 null
  */
-export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError,}: UseAssistantRuntimeOptions) {
-  // 线程列表适配器 — 按 agentId 过滤
-  const adapter = useMemo(() => createThreadListAdapter(agentId), [agentId]);
+export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError, enabled = true,}: UseAssistantRuntimeOptions) {
+  // 线程列表适配器 — 传入 agentId 时按该 Agent 过滤；否则列出全部线程
+  const adapter = useMemo(() => createThreadListAdapter(agentId, enabled), [agentId, enabled]);
 
   const runtime = useRemoteThreadListRuntime({
     runtimeHook:  () => {
@@ -43,6 +45,5 @@ export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError
     threadId,
   });
 
-  // 没有选择 agent 不需要runtime
-  return agentId ? runtime : null;
+  return enabled ? runtime : null;
 }

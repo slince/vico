@@ -6,12 +6,11 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   type ReactNode,
 } from 'react';
 
 // 2. Third-party
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AssistantRuntimeProvider,
@@ -22,30 +21,15 @@ import {
 import { DevToolsModal } from '@assistant-ui/react-devtools';
 
 // 3. API / Hooks
-import { api } from '@/api/client';
 import { useAssistantRuntime } from '@/hooks/use-assistant-runtime';
-import { useThread } from '@/hooks/use-thread';
 import { toolkit } from '@/tools/toolkit';
-
-// 4. 类型
-import type { Agent } from '@/types/models';
 
 /** Chat 全局状态上下文 — 供全局 Sidebar（会话列表）与 Chat 页面（聊天区）共享 */
 interface ChatContextType {
-  /** Agent 列表（仅在 Chat 路由下加载） */
-  agents: Agent[];
-  /** Agent 列表是否加载中 */
-  agentsLoading: boolean;
-  /** 当前选中的 Agent，未选中时为 null */
-  selectedAgent: Agent | null;
   /** 当前 URL 中的 threadId（/chat/:threadId），无则为空串 */
   threadId: string;
   /** 是否处于 Chat 路由（/chat 或 /chat/:threadId） */
   isChatRoute: boolean;
-  /** 选择 Agent — 清除线程并回到 /chat */
-  selectAgent: (agent: Agent) => void;
-  /** 选择第一个 Agent（空态按钮） */
-  selectFirstAgent: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
@@ -92,12 +76,12 @@ function ThreadUrlSync() {
 }
 
 /**
- * Chat 全局 Provider — 将 Agent 选择、线程路由、AssistantRuntime 提升到 Layout 层。
+ * Chat 全局 Provider — 只负责线程路由与 AssistantRuntime 的装配，不再感知 Agent。
  *
- * 原本次三者都封装在 Chat 页面内，导致会话列表（ThreadList）只能与聊天区同处
- * 一个组件树；提升后全局 Sidebar 也能在 AssistantRuntimeProvider 内渲染会话列表。
+ * Agent 选择已下沉到聊天区 composer（AgentSelectorAction → config.agentId），
+ * 因此 runtime 不再按 Agent 重建、线程列表也不再按 Agent 过滤。
  *
- * 仅在 Chat 路由下创建 runtime / 请求 Agent 列表，避免其它页面产生多余开销。
+ * 仅在 Chat 路由下创建 runtime，避免其它页面产生多余开销。
  */
 export function ChatProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -111,79 +95,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [location.pathname],
   );
 
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-
-  // 首次对话创建 thread 后回写 URL
+  // 首次对话创建 thread 后回写 URL，并刷新设置页的会话记录
   const handleThreadCreated = useCallback(
     (newThreadId: string) => {
       navigate(`/chat/${newThreadId}`, { replace: true });
-      queryClient.invalidateQueries({ queryKey: ['threads', selectedAgent?.id] });
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
     },
-    [navigate, queryClient, selectedAgent?.id],
+    [navigate, queryClient],
   );
 
   const runtime = useAssistantRuntime({
-    agentId: isChatRoute ? (selectedAgent?.id ?? '') : '',
     threadId: threadId || undefined,
     onThreadCreated: handleThreadCreated,
+    enabled: isChatRoute,
   });
 
   const aui = useAui({ tools: Tools({ toolkit }) });
 
-  // 获取 Agent 列表（仅在 Chat 路由下请求）
-  const { data: agents, isLoading: agentsLoading } = useQuery<Agent[]>({
-    queryKey: ['agents'],
-    queryFn: () => api('/agents'),
-    enabled: isChatRoute,
-  });
-
-  // 页面刷新时，从 URL threadId 查询对应 Agent 以恢复状态
-  const { data: thread } = useThread(threadId);
-  const threadAgentId = thread?.agentId;
-
-  const agentList: Agent[] = agents ?? [];
-
-  // 自动选中 URL 中 thread 对应的 Agent
-  useEffect(() => {
-    if (threadAgentId && agentList.length > 0 && selectedAgent?.id !== threadAgentId) {
-      const agent = agentList.find((a) => a.id === threadAgentId);
-      if (agent) setSelectedAgent(agent);
-    }
-  }, [threadAgentId, agentList, selectedAgent]);
-
-  // 进入 Chat 页面（无 threadId）时默认选中 main agent
-  useEffect(() => {
-    if (!threadId && agentList.length > 0 && !selectedAgent) {
-      const defaultAgent = agentList.find((a) => a.is_default === 1);
-      if (defaultAgent) setSelectedAgent(defaultAgent);
-    }
-  }, [threadId, agentList, selectedAgent]);
-
-  /** 选择 Agent — 清除线程并回到 /chat */
-  const selectAgent = useCallback(
-    (agent: Agent) => {
-      setSelectedAgent(agent);
-      navigate('/chat', { replace: true });
-    },
-    [navigate],
-  );
-
-  /** 选择第一个 Agent（空态按钮） */
-  const selectFirstAgent = useCallback(() => {
-    if (agentList.length > 0) setSelectedAgent(agentList[0]);
-  }, [agentList]);
-
   const value = useMemo<ChatContextType>(
-    () => ({
-      agents: agentList,
-      agentsLoading,
-      selectedAgent,
-      threadId,
-      isChatRoute,
-      selectAgent,
-      selectFirstAgent,
-    }),
-    [agentList, agentsLoading, selectedAgent, threadId, isChatRoute, selectAgent, selectFirstAgent],
+    () => ({ threadId, isChatRoute }),
+    [threadId, isChatRoute],
   );
 
   return (

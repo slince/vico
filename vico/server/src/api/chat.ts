@@ -45,16 +45,18 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const body = await c.req.json();
-    const agentId: string = body.agentId as string;
     const lastMessage = extractLastMessage(body);
     const requestedThreadId = body.threadId as string | undefined;
-    // 前端通过 modelContext 注入的 config（{ modelName, reasoningEffort, approvalMode, workspace }）
+    // 前端通过 modelContext 注入的 config（{ agentId, modelName, reasoningEffort, approvalMode, workspace }）；
+    // agentId 优先取 config，兼容 Agent 详情页测试区仍走顶层 body.agentId 的旧路径
     const config = body.config as {
+      agentId?: string;
       modelName?: string;
       reasoningEffort?: string;
       approvalMode?: string;
       workspace?: string;
     } | undefined;
+    const agentId: string = (config?.agentId ?? body.agentId) as string;
 
     // 前端本地临时 ID（如 __LOCALID_xxx）视为无真实线程，交由服务端新建
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;

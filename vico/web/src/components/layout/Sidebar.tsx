@@ -33,11 +33,10 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const { t } = useTranslation('sidebar');
   const { t: tSettings } = useTranslation('settings');
-  const { t: tThreads } = useTranslation('threads');
   const navigate = useNavigate();
 
   // Chat 全局状态 — 用于在 Chat 路由下渲染会话列表
-  const { selectedAgent, isChatRoute } = useChat();
+  const { isChatRoute } = useChat();
 
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -164,13 +163,7 @@ export function Sidebar() {
         <div className="flex-1 min-h-0 flex flex-col border-t border-sidebar-border">
           {/* 会话列表（含「新建对话」按钮，需 AssistantRuntimeProvider 上下文） */}
           <div className="flex-1 min-h-0 overflow-y-auto p-2">
-            {selectedAgent ? (
-              <ThreadList searchable={false} showNew={false}/>
-            ) : (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                {tThreads('chatSidebarEmpty')}
-              </div>
-            )}
+            <ThreadList searchable={false} showNew={false}/>
           </div>
         </div>
       )}

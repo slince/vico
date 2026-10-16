@@ -13,6 +13,7 @@ import type {
 } from '@assistant-ui/react';
 import type {ContentPart} from '@vico/core';
 import {api} from '@/api/client';
+import {useAgentSelection} from '@/stores/agent-selection';
 import {UIMessage} from "ai";
 
 /**
@@ -52,16 +53,19 @@ interface ThreadItem {
 /**
  * 创建适配器，连接后端线程列表。
  *
- * @param agentId - 当前选中的 Agent ID，用于过滤线程列表
+ * @param agentId - 固定 Agent ID（Agent 详情页测试对话区传入）；Chat 路由不传，
+ *                  此时线程列表不按 Agent 过滤，预创建线程的 Agent 取 composer 选中态。
+ * @param enabled - 是否启用列表请求（非 Chat 路由关闭，避免全量线程查询）
  */
-export function createThreadListAdapter(agentId: string): RemoteThreadListAdapter {
+export function createThreadListAdapter(agentId?: string, enabled = true): RemoteThreadListAdapter {
   return {
     async list() {
-      // 无 agentId 时不发起请求（未选择 Agent 或非 Chat 路由），避免全量线程查询
-      if (!agentId) return { threads: [] };
+      // 非启用态（如非 Chat 路由）不发起请求
+      if (!enabled) return { threads: [] };
       const params = new URLSearchParams();
-      params.set('agent_id', agentId);
-      const data = await api<ThreadItem[]>(`/threads?${params.toString()}`);
+      if (agentId) params.set('agent_id', agentId);
+      const query = params.toString();
+      const data = await api<ThreadItem[]>(`/threads${query ? `?${query}` : ''}`);
       const threads = Array.isArray(data) ? data : [];
       return {
         threads: threads.map((t) => ({
@@ -87,11 +91,15 @@ export function createThreadListAdapter(agentId: string): RemoteThreadListAdapte
      * 新线程初始化 — 首次发送消息前由 assistant-ui 调用（发送前会 await 本方法），
      * 这里先请求后端创建会话拿到真实 thread id，再作为 remoteId 返回，
      * assistant-ui 会自动把真实 id 应用到本地线程映射，随后才发起真正的 chat 请求。
+     *
+     * Chat 路由下 Agent 由 composer 选中态决定；Agent 详情页测试区用传入的固定 agentId。
      */
     async initialize(_threadId: string) {
+      const id = agentId ?? useAgentSelection.getState().selectedAgent?.id;
+      if (!id) throw new Error('No agent selected');
       const thread = await api<{ id: string }>('/threads', {
         method: 'POST',
-        body: JSON.stringify({ agentId }),
+        body: JSON.stringify({ agentId: id }),
       });
       return { remoteId: thread.id, externalId: undefined };
     },

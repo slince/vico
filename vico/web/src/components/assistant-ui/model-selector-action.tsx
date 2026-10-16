@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 // 2. API / Hooks
 import { api } from '@/api/client';
 import { useChat } from '@/providers/chat-provider';
+import { useAgentSelection } from '@/stores/agent-selection';
 
 // 3. UI / 子组件
 import {
@@ -35,12 +36,13 @@ function toModelOptions(catalog: LlmCatalog, providerId: string): ModelOption[] 
 /**
  * Composer 中的模型选择器。
  *
- * 下拉模型不再写死，而是根据当前选中 Agent 的 LLM 提供商（`llm.provider`，
+ * 下拉模型不再写死，而是根据当前 composer 选中 Agent 的 LLM 提供商（`llm.provider`，
  * 由 `/api/v1/agents` 列表接口返回）从 catalog 接口读取该厂商支持的对话模型；
  * 默认选中 Agent 绑定的模型名（`llm.model`）。切换 Agent 时通过 key 强制重建以刷新默认值。
  */
 export function ModelSelectorAction() {
-  const { selectedAgent, isChatRoute } = useChat();
+  const { isChatRoute } = useChat();
+  const selectedAgent = useAgentSelection((s) => s.selectedAgent);
 
   const { data: catalog } = useQuery<LlmCatalog>({
     queryKey: ['llm-providers'],

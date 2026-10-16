@@ -24,8 +24,8 @@ const SPEECH_LANG_MAP: Record<string, string> = {
 };
 
 export interface UseChatThreadRuntimeOptions {
-  /** Agent ID */
-  agentId: string;
+  /** Agent ID — Agent 详情页测试区传入（写入顶层 body.agentId）；Chat 路由不传（走 config.agentId） */
+  agentId?: string;
   /** 首次对话创建 thread 后的回调 */
   onThreadCreated?: (threadId: string) => void;
   /** 错误回调 */
@@ -57,11 +57,13 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseCh
 
   // 为此线程创建 transport — threadId 为对话 ID（新线程则为本地 ID）
   // 使用 AssistantChatTransport（而非 DefaultChatTransport）以自动把
-  // modelContext（ModelSelector 等注册的 config/modelName）注入请求 body。
+  // modelContext（ModelSelector / AgentSelector 等注册的 config）注入请求 body。
   const transport = useMemo(() => new AssistantChatTransport({
         api: '/api/v1/chat',
         credentials: 'include',
-        body: () => ({ agentId }),
+        // Agent 详情页测试区走顶层 body.agentId；Chat 路由的 agentId 由 AgentSelector
+        // 通过 modelContext 注入 body.config.agentId，这里不写顶层字段。
+        body: () => (agentId ? { agentId } : {}),
         prepareSendMessagesRequest: ({ messages, body, id }) => {
           const lastMsg = messages[messages.length - 1];
 

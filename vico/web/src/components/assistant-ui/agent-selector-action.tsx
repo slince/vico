@@ -1,10 +1,21 @@
 "use client";
 
-// 1. Third-party
+// 1. React
+import { useEffect } from "react";
+
+// 2. Third-party
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useAui, type LanguageModelConfig } from "@assistant-ui/react";
 import { Bot, CheckIcon, ChevronDownIcon } from "lucide-react";
 
-// 2. UI components
+// 3. API / Hooks
+import { api } from "@/api/client";
+import { useChat } from "@/providers/chat-provider";
+import { useThread } from "@/hooks/use-thread";
+import { useAgentSelection } from "@/stores/agent-selection";
+
+// 4. UI components
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -19,19 +30,67 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-// 3. Hooks
-import { useChat } from "@/providers/chat-provider";
+// 5. 类型
+import type { Agent } from "@/types/models";
+
+/** 携带 agentId 的 modelContext config，随请求透传 body.config.agentId */
+type AgentConfig = LanguageModelConfig & { agentId?: string };
 
 /**
- * Agent 选择器 — 内嵌在 thread composer action 中，用于切换当前对话 Agent。
+ * Agent 选择器 — 内嵌在 thread composer action 中，决定本次会话使用的 Agent。
  *
- * 直接消费 ChatProvider 的 agents / selectedAgent / selectAgent，与全局
- * Sidebar 共享同一份状态；选择后通过 selectAgent 回到 /chat 并重建 runtime。
+ * 选中值通过 assistant-ui 的 modelContext 机制随请求注入 body.config.agentId，
+ * 由服务端解析为本次对话的 Agent（预创建线程时也读同一份选中态）。
+ * 不再驱动 runtime 重建：选择后仅更新 composer 选中态与请求 config。
  * 仅在 Chat 路由下渲染（Agent 详情页的测试对话区不显示）。
  */
 export function AgentSelectorAction() {
-  const { agents, selectedAgent, selectAgent, isChatRoute } = useChat();
+  const { isChatRoute, threadId } = useChat();
   const { t } = useTranslation("threads");
+  const aui = useAui();
+  const selectedAgent = useAgentSelection((s) => s.selectedAgent);
+  const setSelectedAgent = useAgentSelection((s) => s.setSelectedAgent);
+
+  // Agent 列表仅在 Chat 路由下请求
+  const { data: agents } = useQuery<Agent[]>({
+    queryKey: ['agents'],
+    queryFn: () => api('/agents'),
+    enabled: isChatRoute,
+  });
+  const agentList = agents ?? [];
+
+  // URL 中的 threadId 对应线程（用于恢复该线程的 Agent）
+  const { data: thread } = useThread(threadId || undefined);
+
+  // 同步选中 Agent：有线程时取该线程的 Agent；新会话回退默认 Agent
+  useEffect(() => {
+    if (!isChatRoute || agentList.length === 0) return;
+
+    if (threadId && thread?.agentId) {
+      if (selectedAgent?.id !== thread.agentId) {
+        const agent = agentList.find((a) => a.id === thread.agentId);
+        if (agent) setSelectedAgent(agent);
+      }
+      return;
+    }
+
+    if (!threadId && !selectedAgent) {
+      const defaultAgent =
+        agentList.find((a) => a.is_default === 1) ?? agentList[0];
+      if (defaultAgent) setSelectedAgent(defaultAgent);
+    }
+  }, [isChatRoute, agentList, threadId, thread?.agentId, selectedAgent, setSelectedAgent]);
+
+  // 将当前选中 Agent 注册进 modelContext，与 ModelSelector 的 config 浅合并后随请求下发
+  useEffect(() => {
+    if (!isChatRoute) return;
+    return aui.modelContext.register({
+      getModelContext: () => {
+        const config: AgentConfig = { agentId: selectedAgent?.id };
+        return { config };
+      },
+    });
+  }, [aui, isChatRoute, selectedAgent?.id]);
 
   // 非 Chat 路由（如 Agent 详情页测试区）不展示切换器
   if (!isChatRoute) return null;
@@ -64,12 +123,12 @@ export function AgentSelectorAction() {
           <CommandList>
             <CommandEmpty>{t("chatSidebarEmpty")}</CommandEmpty>
             <CommandGroup>
-              {agents.map((agent) => (
+              {agentList.map((agent) => (
                 <CommandItem
                   key={agent.id}
                   value={agent.id}
                   keywords={[agent.name]}
-                  onSelect={() => selectAgent(agent)}
+                  onSelect={() => setSelectedAgent(agent)}
                   className="gap-2 rounded-lg px-2.5 py-2"
                 >
                   <Bot className="size-3.5 shrink-0 opacity-60" />
