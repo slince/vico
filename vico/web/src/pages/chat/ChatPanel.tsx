@@ -3,17 +3,20 @@ import {type FC} from 'react';
 
 // 2. Third-party
 import {useTranslation} from 'react-i18next';
+import {AuiConfig, AuiProvider, Suggestions, useAui} from '@assistant-ui/react';
 import {useThreadTokenUsage} from '@assistant-ui/react-ai-sdk';
 import {PanelRight} from 'lucide-react';
 
-// 3. Sub-components
-import {Thread} from '@/components/assistant-ui/elements/thread.aui';
-import {ChatSidebar} from '@/pages/chat/ChatSidebar';
+// 3. Hooks / Stores
+import {useThread} from '@/hooks/use-thread';
+import {BASE_FONT_SIZE, useFontSize} from '@/hooks/use-font-size';
 import {useFileExplorerStore} from '@/stores/fileExplorerStore';
 import {useAgentSelection} from '@/stores/agent-selection';
-import {BASE_FONT_SIZE, useFontSize} from '@/hooks/use-font-size';
+
+// 4. UI / 子组件
+import {Thread} from '@/components/assistant-ui/elements/thread.aui';
+import {ChatSidebar} from '@/pages/chat/ChatSidebar';
 import {Button} from '@/components/ui/button';
-import {AuiConfig, AuiProvider, Suggestions, useAui} from "@assistant-ui/react";
 
 /** 格式化 token 数量为可读字符串 */
 function formatTokens(tokens: number): string {
@@ -83,13 +86,23 @@ export function ChatPanel({ threadId }: ChatPanelProps) {
   const toggleFileExplorer = useFileExplorerStore((s) => s.toggleFileExplorer);
   const fileExplorerOpen = useFileExplorerStore((s) => s.fileExplorerOpen);
   const { fontSize } = useFontSize();
+  const { t } = useTranslation("threads");
+
+  // 会话标题 — 以服务端数据为准；新会话/未生成标题时回退「新建对话」。
+  // 首次对话后由 ChatProvider 的 handleThreadCreated 失效 ['thread', id] 触发刷新。
+  const { data: threadData } = useThread(threadId);
+  const title =
+    threadData?.title && threadData.title !== 'New thread' ? threadData.title : undefined;
 
   return (
     <div className="flex-1 flex bg-background min-w-0">
       {/* 左侧：topbar + 对话内容区 */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶部工具栏 — 始终显示 */}
+        {/* 顶部工具栏 — 左侧标题 + 右侧 token 用量 / 面板开关 */}
         <div className="h-12 flex items-center px-4 border-b shrink-0 gap-2">
+          <span className="text-sm font-medium truncate flex-1 min-w-0">
+            {title ?? t("newChat")}
+          </span>
           <TokenUsageDisplay />
           {threadId && !fileExplorerOpen && (
             <Button
