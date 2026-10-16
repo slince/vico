@@ -4,8 +4,9 @@ import type {TextStreamPart, ToolSet} from 'ai';
 
 import type {ToolCall} from '../tool/types.js';
 import type {CallModelResult} from './loop-agent-options.js';
-import type {TurnEvent} from './types.js';
+import type {TurnEvent, UsageMetrics} from './types.js';
 import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart,} from './stream-parts.js';
+import {emptyUsage, fromV4Usage} from './usage.js';
 import {ModelRequest} from "../model/types.js";
 
 /** ModelStreamReader 构造选项 */
@@ -48,7 +49,7 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
     const toolCalls: ToolCall[] = [];
 
     // ── V4 → TextStreamPart 转换所需的 step 级状态 ──
-    const modelUsage = { input: 0, output: 0 };
+    let modelUsage: UsageMetrics = emptyUsage();
     const stepStartTime = Date.now();
     /** 首个输出 chunk 到达时间（性能指标 timeToFirstOutputMs） */
     let firstChunkTime: number | undefined;
@@ -176,8 +177,7 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
               firstChunkTime,
             }));
             if (chunk.usage) {
-              modelUsage.input = chunk.usage.inputTokens.total ?? 0;
-              modelUsage.output = chunk.usage.outputTokens.total ?? 0;
+              modelUsage = fromV4Usage(chunk.usage);
             }
             break;
 

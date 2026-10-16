@@ -26,6 +26,7 @@ import type {
 } from '@ai-sdk/provider';
 import type {ToolCall, ToolResult} from '../tool/types.js';
 import type {UsageMetrics} from './types.js';
+import {addTokenCount} from './usage.js';
 
 /** createToolCall 的可选属性 */
 interface ToolCallPartOptions {
@@ -214,9 +215,9 @@ export function finishPart<TToolSet extends ToolSet = ToolSet>(finishReason: Fin
     rawFinishReason: undefined,
     totalUsage: {
       ...createNullLanguageModelUsage(),
-      inputTokens: usage.input,
-      outputTokens: usage.output,
-      totalTokens: usage.input + usage.output,
+      inputTokens: usage.inputTokens.total,
+      outputTokens: usage.outputTokens.total,
+      totalTokens: addTokenCount(usage.inputTokens.total, usage.outputTokens.total),
     },
   } as TextStreamPart<TToolSet>;
 }
