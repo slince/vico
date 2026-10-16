@@ -10,6 +10,7 @@ import {PanelRight} from 'lucide-react';
 import {Thread} from '@/components/assistant-ui/elements/thread.aui';
 import {ChatSidebar} from '@/pages/chat/ChatSidebar';
 import {useFileExplorerStore} from '@/stores/fileExplorerStore';
+import {useAgentSelection} from '@/stores/agent-selection';
 import {BASE_FONT_SIZE, useFontSize} from '@/hooks/use-font-size';
 import {Button} from '@/components/ui/button';
 import {AuiConfig, AuiProvider, Suggestions, useAui} from "@assistant-ui/react";
@@ -25,11 +26,14 @@ interface ChatPanelProps {
   threadId?: string;
 }
 
-/** 自定义欢迎组件 — 空会话时展示开始对话提示 */
-const Welcome: FC = () => {
+/** 自定义欢迎组件 — 空会话时展示当前 Agent 名称与开始对话提示 */
+const Welcome: FC<{ agentName: string }> = ({ agentName }) => {
   const { t } = useTranslation("threads");
   return (
     <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
+      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
+        {agentName}
+      </h1>
       <p className="text-muted-foreground mt-2 text-sm">
         {t("chatStartHint")}
       </p>
@@ -60,6 +64,7 @@ const TokenUsageDisplay: FC = () => {
 
 function ThreadWithSuggestions() {
   const aui = useAui();
+  const selectedAgent = useAgentSelection((s) => s.selectedAgent);
   const config = AuiConfig({
     suggestions: Suggestions([]),
   });
@@ -67,7 +72,7 @@ function ThreadWithSuggestions() {
     <AuiProvider extends={aui} config={config}>
       <Thread
         components={{
-          Welcome: () => <Welcome />,
+          Welcome: () => <Welcome agentName={selectedAgent?.name ?? ''} />,
         }}
       />
     </AuiProvider>
