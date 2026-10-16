@@ -7,6 +7,7 @@
   "columnUser": "使用者",
   "columnAgent": "Agent",
   "columnMessages": "訊息數",
+  "columnTokens": "Token",
   "columnModel": "模型",
   "columnTime": "時間",
   "columnActions": "操作",

@@ -40,6 +40,7 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter,
 } from '@/components/ui/alert-dialog';
 import { formatDateTime } from '@/lib/date-format';
+import { formatTokens, totalTokens } from '@/lib/token-format';
 
 // 5. Sub-components
 import ThreadTableSkeleton from './threads/ThreadTableSkeleton';
@@ -54,6 +55,12 @@ interface Thread {
   agentId: string;
   messageCount: number;
   updatedAt: number;
+  metadata?: {
+    usage?: {
+      inputTokens?: { total?: number };
+      outputTokens?: { total?: number };
+    };
+  };
 }
 
 interface Agent {
@@ -198,6 +205,7 @@ export default function Threads() {
                   <TableHead>{t('columnUser')}</TableHead>
                   <TableHead>{t('columnAgent')}</TableHead>
                   <TableHead>{t('columnMessages')}</TableHead>
+                  <TableHead>{t('columnTokens')}</TableHead>
                   <TableHead>{t('columnTime')}</TableHead>
                   <TableHead>{t('columnActions')}</TableHead>
                 </TableRow>
@@ -215,6 +223,10 @@ export default function Threads() {
 
                     <TableCell className="text-sm">
                       {thread.messageCount}
+                    </TableCell>
+
+                    <TableCell className="text-sm font-mono tabular-nums">
+                      {formatTokens(totalTokens(thread.metadata?.usage))}
                     </TableCell>
 
                     <TableCell className="text-xs text-muted-foreground">

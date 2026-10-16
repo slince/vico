@@ -1,4 +1,5 @@
 // @vico/core - Thread module type definitions
+import type {UsageMetrics} from '../agent/types.js';
 
 /** Session 级工具审批记录 */
 export interface SessionApprovedTool {
@@ -11,12 +12,16 @@ export interface ThreadMetadata {
   workspace?: string;
   /** Session 级已审批工具映射，跨 turn 生效 */
   sessionApprovedTools?: Record<string, SessionApprovedTool>;
+  /** 线程累计 token 用量（所有已完结 turn 的 usage 之和，含分叉调用） */
+  usage?: UsageMetrics;
   [key: string]: unknown;
 }
 
 /** 轮次自定义元数据，包含已知字段并支持任意扩展 */
 export interface TurnMetadata {
   workspace?: string;
+  /** 本 turn 累计 token 用量（跨 step 累加；暂停时写快照，恢复后继续累加） */
+  usage?: UsageMetrics;
   [key: string]: unknown;
 }
 

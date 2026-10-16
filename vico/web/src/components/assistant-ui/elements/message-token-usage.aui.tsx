@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { formatTokens, totalTokens } from "@/lib/token-format";
 import type { FC } from "react";
 
 /**
@@ -28,20 +29,6 @@ export interface MessageUsage {
     reasoning?: number;
   };
 }
-
-/** 数字缩写：≥1M 用 M，≥1k 用 k，其余原样；undefined 显示占位 */
-const formatTokens = (tokens: number | undefined): string => {
-  if (tokens === undefined) return "—";
-  if (tokens >= 1_000_000)
-    return `${(tokens / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (tokens >= 1_000)
-    return `${(tokens / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-  return `${tokens}`;
-};
-
-/** 两个 token 数安全相加：双方都 undefined 时保持 undefined */
-const addTokens = (a?: number, b?: number): number | undefined =>
-  a === undefined && b === undefined ? undefined : (a ?? 0) + (b ?? 0);
 
 /** 单行用量明细（label / value），值为 undefined 时不渲染 */
 const UsageRow: FC<{ label: string; tokens: number | undefined }> = ({
@@ -88,7 +75,7 @@ export const MessageTokenUsage: FC<{
 
   const input = usage.inputTokens;
   const output = usage.outputTokens;
-  const total = addTokens(input?.total, output?.total);
+  const total = totalTokens(usage);
 
   // 无任何有效 token 数时不渲染
   if (total === undefined) return null;

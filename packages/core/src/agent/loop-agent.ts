@@ -333,7 +333,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       signal,
       controller,
       checkpoint,
-      usage: emptyUsage(),
+      // 恢复暂停的 turn 时从 metadata.usage 读回已累计用量，跨暂停不丢量
+      usage: session.turn.metadata?.usage ?? emptyUsage(),
       reasoning,
       modelClient,
       approvalMode,
@@ -379,7 +380,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 模型错误导致的失败
     if (loopResult.status === 'failed') {
       const err = loopResult.error!;
-      await this.thread.updateTurn(turn.id, { status: 'failed', steps: loopResult.steps });
+      // 失败态也落库本 turn 累计用量，供审计与 thread 累加
+      await this.thread.updateTurn(turn.id, {
+        status: 'failed',
+        steps: loopResult.steps,
+        metadata: { ...turn.metadata, usage },
+      });
       await this.saveCheckpoint(context, 'failed')
 
       context.controller.enqueue(finishPart('error', usage));
@@ -396,11 +402,16 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       };
     }
 
-    // 更新turn的完结态
+    // 更新turn的完结态，并把本 turn 累计用量写入 turn.metadata.usage
     await this.thread.updateTurn(turn.id, {
       status: loopResult.status,
-      steps: loopResult.steps
+      steps: loopResult.steps,
+      metadata: { ...turn.metadata, usage },
     });
+
+    // turn 完结后累加 thread 总用量（含分叉产生的调用，实际消费口径）
+    const threadUsage = addUsage(thread.metadata?.usage ?? emptyUsage(), usage);
+    await this.thread.updateThread(thread.id, { metadata: { ...thread.metadata, usage: threadUsage } });
 
     // 终态进版本链（nextAction='end'），审计可见；版本链全量保留
     await this.saveCheckpoint(context, 'end')
@@ -481,7 +492,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           approvedCalls: approvedCalls ?? [],
           deniedResults: deniedResults ?? [],
         })
-        await this.thread.updateTurn(turn.id, { status: 'paused', steps });
+        // 暂停前写 usage 快照：历史累计（context.usage）+ 本次 loop 累计，恢复时据此续算
+        await this.thread.updateTurn(turn.id, {
+          status: 'paused',
+          steps,
+          metadata: { ...turn.metadata, usage: addUsage(context.usage, usage) },
+        });
         return { status: 'paused', steps, usage };
       }
 
