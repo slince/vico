@@ -1,6 +1,21 @@
 {
   "composer": { "placeholder": "输入消息...", "send": "发送" },
-  "message": { "thinking": "思考中...", "copy": "复制", "copied": "已复制！" },
+  "message": {
+    "thinking": "思考中...",
+    "copy": "复制",
+    "copied": "已复制！",
+    "tokenUsage": {
+      "label": "Token 用量",
+      "input": "输入",
+      "output": "输出",
+      "total": "总计",
+      "noCache": "非缓存",
+      "cacheRead": "缓存读取",
+      "cacheWrite": "缓存写入",
+      "text": "文本",
+      "reasoning": "推理"
+    }
+  },
   "threadList": {
     "empty": "暂无对话",
     "newThread": "新建对话",

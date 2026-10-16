@@ -1,6 +1,21 @@
 {
   "composer": { "placeholder": "Type a message...", "send": "Send" },
-  "message": { "thinking": "Thinking...", "copy": "Copy", "copied": "Copied!" },
+  "message": {
+    "thinking": "Thinking...",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "tokenUsage": {
+      "label": "Token usage",
+      "input": "Input",
+      "output": "Output",
+      "total": "Total",
+      "noCache": "No cache",
+      "cacheRead": "Cache read",
+      "cacheWrite": "Cache write",
+      "text": "Text",
+      "reasoning": "Reasoning"
+    }
+  },
   "threadList": {
     "empty": "No conversations yet",
     "newThread": "New chat",

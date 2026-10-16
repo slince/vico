@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
+import { Coins } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Popover,
   PopoverContent,
@@ -56,7 +58,7 @@ const UsageRow: FC<{ label: string; tokens: number | undefined }> = ({
 };
 
 /**
- * 在 assistant 消息 action 栏展示 token 用量：触发按钮显示输入+输出总量，
+ * 在 assistant 消息 action 栏展示 token 用量：触发按钮以图标+输入输出总量呈现，
  * 点击弹出 popover 渲染完整使用明细（缓存读写、文本/推理拆分）。
  *
  * 用法同 MessageTiming，置于 `ActionBarPrimitive.Root` 内：
@@ -75,6 +77,7 @@ export const MessageTokenUsage: FC<{
   className?: string;
   side?: "top" | "right" | "bottom" | "left";
 }> = ({ className, side = "bottom" }) => {
+  const { t } = useTranslation("assistant");
   const usage = useAuiState<MessageUsage | undefined>((s) =>
     s.message.role === "assistant"
       ? (s.message.metadata?.custom?.usage as MessageUsage | undefined)
@@ -108,13 +111,14 @@ export const MessageTokenUsage: FC<{
         <button
           type="button"
           data-slot="message-token-usage-trigger"
-          aria-label="Token usage"
+          aria-label={t("message.tokenUsage.label")}
           className={cn(
-            "text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center rounded-md p-1 font-mono text-xs tabular-nums transition-colors data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
+            "text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center gap-1 rounded-md p-1 font-mono text-xs tabular-nums transition-colors data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
             className,
           )}
         >
-          {formatTokens(total)}
+          <Coins className="size-4 shrink-0 opacity-70" />
+          <span>{formatTokens(total)}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -125,31 +129,42 @@ export const MessageTokenUsage: FC<{
         className="w-56 p-3"
       >
         <div className="text-xs">
-          <div className="flex items-baseline justify-between gap-6">
-            <span className="font-medium">Token usage</span>
+          <div className="flex items-center justify-between gap-6">
+            <span className="flex items-center gap-1.5 font-medium">
+              <Coins className="size-4 shrink-0 opacity-70" />
+              {t("message.tokenUsage.label")}
+            </span>
             <span className="font-mono tabular-nums">{formatTokens(total)}</span>
           </div>
 
+          {(hasInput || hasOutput) && (
+            <div className="bg-foreground/[0.08] mt-2.5 h-px" />
+          )}
+
           {hasInput && (
-            <div className="mt-3 grid gap-1.5">
+            <div className="mt-2.5 grid gap-1.5">
               <div className="text-muted-foreground/80 text-[11px] font-medium uppercase tracking-wide">
-                Input
+                {t("message.tokenUsage.input")}
               </div>
-              <UsageRow label="Total" tokens={input?.total} />
-              <UsageRow label="No cache" tokens={input?.noCache} />
-              <UsageRow label="Cache read" tokens={input?.cacheRead} />
-              <UsageRow label="Cache write" tokens={input?.cacheWrite} />
+              <UsageRow label={t("message.tokenUsage.total")} tokens={input?.total} />
+              <UsageRow label={t("message.tokenUsage.noCache")} tokens={input?.noCache} />
+              <UsageRow label={t("message.tokenUsage.cacheRead")} tokens={input?.cacheRead} />
+              <UsageRow label={t("message.tokenUsage.cacheWrite")} tokens={input?.cacheWrite} />
             </div>
           )}
 
+          {hasInput && hasOutput && (
+            <div className="bg-foreground/[0.08] mt-2.5 h-px" />
+          )}
+
           {hasOutput && (
-            <div className="mt-3 grid gap-1.5">
+            <div className="mt-2.5 grid gap-1.5">
               <div className="text-muted-foreground/80 text-[11px] font-medium uppercase tracking-wide">
-                Output
+                {t("message.tokenUsage.output")}
               </div>
-              <UsageRow label="Total" tokens={output?.total} />
-              <UsageRow label="Text" tokens={output?.text} />
-              <UsageRow label="Reasoning" tokens={output?.reasoning} />
+              <UsageRow label={t("message.tokenUsage.total")} tokens={output?.total} />
+              <UsageRow label={t("message.tokenUsage.text")} tokens={output?.text} />
+              <UsageRow label={t("message.tokenUsage.reasoning")} tokens={output?.reasoning} />
             </div>
           )}
         </div>
