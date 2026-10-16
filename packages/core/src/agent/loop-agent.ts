@@ -5,7 +5,7 @@ import pino from 'pino';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import {isLanguageModelV4, type ModelRef, type TurnEvent, type UsageMetrics} from './types.js';
+import {isLanguageModelV4, type ModelRef, type TurnEvent} from './types.js';
 import {createLanguageModel} from '../model/factory.js';
 import type {ApprovalDecider, ApprovalMode, Tool, ToolCall, ToolResult} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
@@ -34,7 +34,7 @@ import type {
 import {ModelClient} from '../model/model-client.js';
 import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
 import {createDefaultProcessors, normalizeUserMessage} from './utils.js';
-import {fromModelMessage} from '../thread/utils.js';
+import {fromModelMessage, type MessageWithUsage} from '../thread/utils.js';
 import {addUsage, emptyUsage} from './usage.js';
 import {TurnOutput} from './turn-output.js';
 import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
@@ -639,7 +639,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning, pendingApprovalCalls);
       context.messages.push(assistantMsg);
 
-      await this.persistMessages(context, [assistantMsg], modelResult.usage);
+      // usage 与 assistant 消息一一对应：仅在持久化副本上挂载，消息链保持纯净（不随上下文发给模型）
+      await this.persistMessages(context, [{ ...assistantMsg, usage: modelResult.usage }]);
     }
 
     if (modelResult.toolCalls.length === 0) {
@@ -760,7 +761,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 批量持久化消息到 threadStore。
    */
-  async persistMessages(context: TurnContext<TToolSet>, messages: ModelMessage[], usage?: UsageMetrics): Promise<void> {
+  async persistMessages(context: TurnContext<TToolSet>, messages: MessageWithUsage[]): Promise<void> {
     if (messages.length === 0) {
       return
     }
@@ -768,12 +769,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const threadId = context.session.thread.id;
     const turnId = context.session.turn.id;
 
-    // assistant 消息可携带该次模型调用的 usage，落库时写入 Message.metadata（消息链本身保持纯净）
-    const converted = messages.map(message => {
-      const entry = { threadId, turnId, ...fromModelMessage(message) };
-      if (usage) entry.metadata = { ...entry.metadata, usage };
-      return entry;
-    })
+    // usage 与消息一一对应：fromModelMessage 从每条消息取出 usage 写入 metadata
+    const converted = messages.map(message => ({ threadId, turnId, ...fromModelMessage(message) }))
     const created = await this.thread.appendEntries(converted);
 
     // 记录最后一条消息 id，供 fork 时截断消息链精确定位

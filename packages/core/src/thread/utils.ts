@@ -1,5 +1,6 @@
 // src/thread/utils.ts — ThreadStore Message 与原生 ModelMessage/UIMessage 的相互转换
 import type {Message} from './thread-store.js';
+import type {UsageMetrics} from '../agent/types.js';
 import type {ModelMessage, ToolUIPart, UIMessage} from 'ai';
 import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart, ToolResultPart} from '@ai-sdk/provider-utils';
 
@@ -20,10 +21,22 @@ export function toModelMessages(entries: Message[]): ModelMessage[] {
 }
 
 /**
- * 原生 ModelMessage → ThreadStore 持久化字段（content 序列化）。
+ * 待持久化消息：原生 ModelMessage 附带可选的单次调用用量。
+ * usage 与消息一一对应 —— 仅 assistant 消息携带（该次模型调用的完整用量）。
  */
-export function fromModelMessage(msg: ModelMessage): Pick<Message, 'role'|'content'|'metadata'> {
-  return { role: msg.role, content: JSON.stringify(msg.content) };
+export type MessageWithUsage = ModelMessage & { usage?: UsageMetrics };
+
+/**
+ * 原生 ModelMessage → ThreadStore 持久化字段（content 序列化，usage 写入 metadata）。
+ * usage 仅存在于持久化副本，不进入发往模型的消息链。
+ */
+export function fromModelMessage(msg: MessageWithUsage): Pick<Message, 'role'|'content'|'metadata'> {
+  const entry: Pick<Message, 'role'|'content'|'metadata'> = {
+    role: msg.role,
+    content: JSON.stringify(msg.content),
+  };
+  if (msg.usage) entry.metadata = { usage: msg.usage };
+  return entry;
 }
 
 /**
