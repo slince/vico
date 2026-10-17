@@ -31,6 +31,7 @@ import {
   filterProvidersByType,
   getProviderBaseUrl,
   getModelSuggestions,
+  getModelCapabilities,
   type LlmCatalog,
   type ModelType,
 } from './providers';
@@ -44,6 +45,8 @@ interface ModelEntry {
   base_url: string | null;
   model_type: string;
   is_default: number;
+  context_window: number | null;
+  max_output_tokens: number | null;
 }
 
 /**
@@ -66,6 +69,8 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
   const [modelName, setModelName] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [baseURL, setBaseURL] = useState('');
+  const [contextWindow, setContextWindow] = useState('');
+  const [maxOutputTokens, setMaxOutputTokens] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
 
@@ -132,6 +137,8 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
     setProvider(first?.id ?? '');
     setBaseURL(getProviderBaseUrl(first, type));
     setModelName('');
+    setContextWindow('');
+    setMaxOutputTokens('');
   }, [providers]);
 
   const resetFormDialog = useCallback(() => {
@@ -141,6 +148,8 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
     setApiKey('');
     setProvider('');
     setBaseURL('');
+    setContextWindow('');
+    setMaxOutputTokens('');
     setIsDefault(false);
   }, []);
 
@@ -164,6 +173,8 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
     ));
     setFormType(model.model_type as ModelType);
     setIsDefault(model.is_default === 1);
+    setContextWindow(model.context_window != null ? String(model.context_window) : '');
+    setMaxOutputTokens(model.max_output_tokens != null ? String(model.max_output_tokens) : '');
     setAddDialogOpen(true);
   }, [providers]);
 
@@ -171,12 +182,29 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
     setProvider(newProvider);
     const entry = availableProviders.find((p) => p.id === newProvider);
     setBaseURL(getProviderBaseUrl(entry, formType));
+    // 模型名随厂商变化，能力参数不再适用，清空交回用户
+    setContextWindow('');
+    setMaxOutputTokens('');
   }, [availableProviders, formType]);
+
+  /** 命中目录模型时用其能力参数预填上下文窗口 / 最大输出 tokens；未命中保持用户已填内容 */
+  const applyCapabilities = useCallback((name: string) => {
+    const caps = getModelCapabilities(selectedProviderEntry, name, formType);
+    if (!caps) return;
+    setContextWindow(caps.context_window != null ? String(caps.context_window) : '');
+    setMaxOutputTokens(caps.max_output_tokens != null ? String(caps.max_output_tokens) : '');
+  }, [selectedProviderEntry, formType]);
+
+  const handleModelNameChange = useCallback((name: string) => {
+    setModelName(name);
+    applyCapabilities(name);
+  }, [applyCapabilities]);
 
   const handleModelSuggestionPick = useCallback((name: string) => {
     setModelName(name);
+    applyCapabilities(name);
     setShowSuggestions(false);
-  }, []);
+  }, [applyCapabilities]);
 
   const handleResetBaseURL = useCallback(() => {
     setBaseURL(defaultBaseUrl);
@@ -192,6 +220,8 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
       model_type: formType,
       base_url: baseURL || null,
       is_default: isDefault ? 1 : 0,
+      context_window: contextWindow.trim() ? Number(contextWindow) : null,
+      max_output_tokens: maxOutputTokens.trim() ? Number(maxOutputTokens) : null,
     };
 
     if (editingModelId) {
@@ -201,7 +231,7 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
     } else {
       addMutation.mutate({ ...payload, api_key: apiKey.trim() });
     }
-  }, [editingModelId, modelName, apiKey, provider, formType, baseURL, isDefault, addMutation, editMutation]);
+  }, [editingModelId, modelName, apiKey, provider, formType, baseURL, isDefault, contextWindow, maxOutputTokens, addMutation, editMutation]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTargetId) deleteMutation.mutate(deleteTargetId);
@@ -236,6 +266,13 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
                       API Key: {m.api_key.slice(0, 8)}...
                       {m.base_url ? ` \u00b7 ${m.base_url}` : ''}
                     </p>
+                    {(m.context_window != null || m.max_output_tokens != null) && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {t('llm.contextWindowLabel')}: {m.context_window ?? '\u2014'}
+                        {' \u00b7 '}
+                        {t('llm.maxOutputTokensLabel')}: {m.max_output_tokens ?? '\u2014'}
+                      </p>
+                    )}
                   </div>
                 </div>
                 {isAdmin && (
@@ -343,11 +380,15 @@ export default function ModelManagement({ isAdmin }: { isAdmin: boolean }) {
               provider={provider}
               onProviderChange={handleProviderChange}
               modelName={modelName}
-              onModelNameChange={setModelName}
+              onModelNameChange={handleModelNameChange}
               apiKey={apiKey}
               onApiKeyChange={setApiKey}
               baseURL={baseURL}
               onBaseURLChange={setBaseURL}
+              contextWindow={contextWindow}
+              onContextWindowChange={setContextWindow}
+              maxOutputTokens={maxOutputTokens}
+              onMaxOutputTokensChange={setMaxOutputTokens}
               showSuggestions={showSuggestions}
               onShowSuggestionsChange={setShowSuggestions}
               currentSuggestions={currentSuggestions}

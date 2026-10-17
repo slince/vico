@@ -34,3 +34,4 @@
 
 - 把 embedding/rerank/vllm/asr 模型接入实际管线：RAG 向量化/重排、语音识别等（目前仍走 `config.ts` 里硬编码的 `rag.embedder` / `rerank.model`）。
 - `web/src/components/assistant-ui/model-selector-action.tsx` 仍是硬编码占位模型（`gpt-6-luna` 等），可接入 `/api/v1/models` 的 chat 模型。
+- 模型级「高级选项」已落库（见 [[model-settings-advanced-options]]），但 `context_window` / `max_output_tokens` 尚未接入压缩判定与生成上限。

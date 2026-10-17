@@ -95,6 +95,11 @@
     "typeEmptyTitle": "No {{type}} models",
     "typeEmptyDescription": "Add the first model of this type for its corresponding capability",
     "searchProvider": "Search provider...",
-    "noProviderFound": "No provider found"
+    "noProviderFound": "No provider found",
+    "advancedOptions": "Advanced options",
+    "contextWindowLabel": "Context window",
+    "contextWindowPlaceholder": "Leave empty for default",
+    "maxOutputTokensLabel": "Max output tokens",
+    "maxOutputTokensPlaceholder": "Leave empty for default"
   }
 }

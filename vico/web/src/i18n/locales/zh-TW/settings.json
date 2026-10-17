@@ -95,6 +95,11 @@
     "typeEmptyTitle": "尚無{{type}}模型",
     "typeEmptyDescription": "新增該類型的第一個模型，供對應能力使用",
     "searchProvider": "搜尋提供商...",
-    "noProviderFound": "找不到相符的提供商"
+    "noProviderFound": "找不到相符的提供商",
+    "advancedOptions": "高級選項",
+    "contextWindowLabel": "上下文視窗",
+    "contextWindowPlaceholder": "留空使用預設值",
+    "maxOutputTokensLabel": "最大輸出 tokens",
+    "maxOutputTokensPlaceholder": "留空使用預設值"
   }
 }

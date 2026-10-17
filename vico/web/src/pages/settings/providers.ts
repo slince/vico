@@ -34,6 +34,10 @@ export interface CatalogModel {
   model_type?: string;
   /** 是否支持 reasoning effort（true=支持，false=不支持） */
   reasoning?: boolean;
+  /** 上下文窗口（token），对话/VLM 模型携带 */
+  context_window?: number;
+  /** 单次回复最大输出 tokens，对话/VLM 模型携带 */
+  max_output_tokens?: number;
 }
 
 /** 单个厂商条目 */
@@ -90,4 +94,50 @@ export function getModelSuggestions(provider: ProviderEntry | undefined, type: M
   return models
     .filter((m) => m.kind === 'model' && !m.model_type)
     .map((m) => m.id ?? m.name);
+}
+
+/** 模型能力参数（上下文窗口 / 最大输出 tokens），供高级选项预填充 */
+export interface ModelCapabilities {
+  context_window?: number;
+  max_output_tokens?: number;
+}
+
+/** 将 catalog 的 glob pattern（如 `gpt-5*`）转成正则，仅 `*` 作为通配符 */
+function globToRegExp(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^${escaped.replace(/\\\*/g, '.*')}$`);
+}
+
+/**
+ * 获取指定厂商 + 类型下，模型名对应的能力参数（上下文窗口 / 最大输出 tokens）。
+ * 先按模型 id 精确匹配，再回退 pattern（`gpt-5*`）模糊匹配；未命中返回 null。
+ */
+export function getModelCapabilities(
+  provider: ProviderEntry | undefined,
+  modelName: string,
+  type: ModelType,
+): ModelCapabilities | null {
+  if (!provider || !modelName.trim()) return null;
+  const models = provider.models ?? [];
+  // 与 getModelSuggestions 相同的类型筛选：非对话类型按 model_type，对话/VLM 取无 model_type 的条目
+  const relevant = models.filter((m) => {
+    if (type === 'embedding' || type === 'rerank' || type === 'asr') {
+      return m.model_type === NON_CHAT_MODEL_TYPE[type];
+    }
+    return !m.model_type;
+  });
+
+  const exact = relevant.find((m) => m.id === modelName);
+  if (exact) {
+    return { context_window: exact.context_window, max_output_tokens: exact.max_output_tokens };
+  }
+
+  const pattern = relevant.find(
+    (m) => m.kind === 'pattern' && m.match && globToRegExp(m.match).test(modelName),
+  );
+  if (pattern) {
+    return { context_window: pattern.context_window, max_output_tokens: pattern.max_output_tokens };
+  }
+
+  return null;
 }

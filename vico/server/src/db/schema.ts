@@ -11,6 +11,8 @@ export const model_configs = sqliteTable('model_configs', {
   base_url: text('base_url'),
   model_type: text('model_type').notNull().default('chat'),
   is_default: integer('is_default').notNull().default(0),
+  context_window: integer('context_window'),
+  max_output_tokens: integer('max_output_tokens'),
   created_at: integer('created_at').notNull(),
 });
 

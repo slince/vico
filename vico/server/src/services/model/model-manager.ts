@@ -43,7 +43,10 @@ class ModelManager {
       id, provider: data.provider, model_name: data.model_name,
       api_key: encryptApiKey(data.api_key), base_url: data.base_url || null,
       model_type: modelType,
-      is_default: isDefault, created_at: now,
+      is_default: isDefault,
+      context_window: data.context_window ?? null,
+      max_output_tokens: data.max_output_tokens ?? null,
+      created_at: now,
     }).run();
     return (await this.getById(id))!;
   }

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DialogContent,
@@ -17,7 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RotateCcw } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { RotateCcw, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { MODEL_TYPES, type ModelType, type ProviderEntry } from './providers';
 import { ProviderCombobox } from './ProviderCombobox';
 
@@ -47,6 +50,14 @@ interface AddModelDialogProps {
   baseURL: string;
   /** Base URL 变更回调 */
   onBaseURLChange: (url: string) => void;
+  /** 上下文窗口（token），空串表示未设置 */
+  contextWindow: string;
+  /** 上下文窗口变更回调 */
+  onContextWindowChange: (value: string) => void;
+  /** 最大输出 tokens，空串表示未设置 */
+  maxOutputTokens: string;
+  /** 最大输出 tokens 变更回调 */
+  onMaxOutputTokensChange: (value: string) => void;
   /** 是否显示模型名称建议下拉 */
   showSuggestions: boolean;
   /** 建议下拉显示状态变更回调 */
@@ -73,7 +84,8 @@ interface AddModelDialogProps {
  * 添加/编辑模型对话框
  *
  * 按模型类型组织表单：模型类型 → 提供商（来自 catalog 接口）→ 模型名称（含建议下拉）
- * → API Key → Base URL（按厂商自动填充，可改可重置）→ 设为默认。
+ * → API Key → Base URL（按厂商自动填充，可改可重置）→ 高级选项（上下文窗口/最大输出 tokens）
+ * → 设为默认。
  *
  * @param props - 对话框属性，包括表单状态、变更回调和提交处理
  */
@@ -91,6 +103,10 @@ export default function AddModelDialog(props: AddModelDialogProps) {
     onApiKeyChange,
     baseURL,
     onBaseURLChange,
+    contextWindow,
+    onContextWindowChange,
+    maxOutputTokens,
+    onMaxOutputTokensChange,
     showSuggestions,
     onShowSuggestionsChange,
     currentSuggestions,
@@ -104,6 +120,7 @@ export default function AddModelDialog(props: AddModelDialogProps) {
   } = props;
 
   const { t } = useTranslation('settings');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
     <DialogContent className="sm:max-w-lg">
@@ -210,6 +227,46 @@ export default function AddModelDialog(props: AddModelDialogProps) {
             )}
           </div>
         </div>
+
+        {/* 高级选项：仅对话/视觉模型，含上下文窗口与最大输出 tokens */}
+        {(modelType === 'chat' || modelType === 'vllm') && (
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-8 px-2 -ml-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                {t('llm.advancedOptions')}
+                <ChevronDown className={cn('size-4 transition-transform', advancedOpen && 'rotate-180')} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-3 pt-1">
+              <div className="space-y-2">
+                <Label htmlFor="model-context-window">{t('llm.contextWindowLabel')}</Label>
+                <Input
+                  id="model-context-window"
+                  type="number"
+                  min={1}
+                  value={contextWindow}
+                  onChange={(e) => onContextWindowChange(e.target.value)}
+                  placeholder={t('llm.contextWindowPlaceholder')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="model-max-output-tokens">{t('llm.maxOutputTokensLabel')}</Label>
+                <Input
+                  id="model-max-output-tokens"
+                  type="number"
+                  min={1}
+                  value={maxOutputTokens}
+                  onChange={(e) => onMaxOutputTokensChange(e.target.value)}
+                  placeholder={t('llm.maxOutputTokensPlaceholder')}
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         {/* 设为默认 */}
         <div className="flex items-center gap-2">
