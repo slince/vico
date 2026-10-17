@@ -86,7 +86,6 @@ export async function seedMainAgent() {
 - 如果 Agent 返回的结果不完整或有问题，可以补充说明`,
     model_id: '',
     temperature: 0.7,
-    max_tokens: 4096,
     max_steps: 15,
     rag_mode: 'auto',
     builtin_tools: '{"read":true,"write":true,"edit":true,"ls":true,"grep":true,"stat":true}',

@@ -130,7 +130,6 @@ class AgentManager {
       system_prompt: data.system_prompt,
       model_id: data.model_id,
       temperature: data.temperature,
-      max_tokens: data.max_tokens,
       max_steps: data.max_steps,
       rag_mode: data.rag_mode,
       builtin_tools: JSON.stringify(data.builtin_tools ?? {}),

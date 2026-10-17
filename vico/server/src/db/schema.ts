@@ -23,7 +23,6 @@ export const agents = sqliteTable('agents', {
   system_prompt: text('system_prompt').notNull().default(''),
   model_id: text('model_id').notNull(),
   temperature: real('temperature').notNull().default(0.7),
-  max_tokens: integer('max_tokens').notNull().default(4096),
   rag_mode: text('rag_mode').notNull().default('auto'),
   max_steps: integer('max_steps').notNull().default(10),
   builtin_tools: text('builtin_tools').notNull().default('{}'),

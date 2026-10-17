@@ -16,7 +16,6 @@ export interface AgentRow {
   system_prompt: string;
   model_id: string;
   temperature: number;
-  max_tokens: number;
   rag_mode: string;
   max_steps: number;
   enabled: number;
@@ -74,7 +73,6 @@ export const createAgentSchema = z.object({
   system_prompt: z.string().optional().default(''),
   model_id: z.string().optional().default(''),
   temperature: z.number().min(0).max(2).optional().default(0.7),
-  max_tokens: z.number().int().positive().optional().default(4096),
   max_steps: z.number().int().positive().optional().default(10),
   rag_mode: z.string().optional().default('auto'),
   builtin_tools: z.record(z.string(), builtinToolEntrySchema).optional().default({}),
@@ -89,7 +87,6 @@ export const updateAgentSchema = z.object({
   system_prompt: z.string().optional(),
   model_id: z.string().optional(),
   temperature: z.number().min(0).max(2).optional(),
-  max_tokens: z.number().int().positive().optional(),
   max_steps: z.number().int().positive().optional(),
   rag_mode: z.string().optional(),
   kb_id: z.string().nullable().optional(),

@@ -99,6 +99,13 @@
       "when": 1791400000001,
       "tag": "0014_add_model_max_output_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1791400000002,
+      "tag": "0015_drop_agents_max_tokens",
+      "breakpoints": true
     }
   ]
 }

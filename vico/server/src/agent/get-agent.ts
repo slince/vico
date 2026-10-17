@@ -46,7 +46,7 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
       apiKey: model.api_key,
       // 模型级上下文窗口优先，缺失时回退全局默认（provider v4 不暴露 contextWindow）
       contextWindow: model.context_window ?? config.model?.context_window,
-      // 模型级输出上限；缺失时交给调用方（agent 的 max_tokens）兜底
+      // 模型级输出上限；缺失时不设上限，交给 provider 默认
       maxOutputTokens: model.max_output_tokens ?? undefined,
     },
     temperature: a.temperature ?? 0.7,
