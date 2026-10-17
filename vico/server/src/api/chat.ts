@@ -30,12 +30,17 @@ const APPROVAL_MODES: readonly ApprovalMode[] = [
   'approve-all', 'readonly', 'workspace', 'full-access',
 ];
 
-/** 校验客户端下发的 approvalMode，非法值回退 undefined（走 agent 默认策略） */
+/**
+ * 校验客户端下发的 approvalMode。
+ * 未下发（undefined）返回 undefined，由 agent 采用默认策略；
+ * 下发但非法（非字符串或不在 APPROVAL_MODES 中）则抛异常，避免静默回退掩盖配置错误。
+ */
 function toApprovalMode(value: unknown): ApprovalMode | undefined {
-  if (typeof value !== 'string') return undefined;
-  return (APPROVAL_MODES as readonly string[]).includes(value)
-    ? (value as ApprovalMode)
-    : undefined;
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || !(APPROVAL_MODES as readonly string[]).includes(value)) {
+    throw new Error(`Invalid approvalMode: ${JSON.stringify(value)}. Expected one of: ${APPROVAL_MODES.join(', ')}`);
+  }
+  return value as ApprovalMode;
 }
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
