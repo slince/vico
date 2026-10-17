@@ -26,7 +26,7 @@
     "@vico/rag": "workspace:*",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/headless": "^6.0.0",
-    "ai": "7.0.26",
+    "ai": "7.0.142",
     "better-auth": "^1.7.3",
     "drizzle-orm": "^0.45.2",
     "files-sdk": "^1.9.0",
