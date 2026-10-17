@@ -1,4 +1,4 @@
-// @vico/mysql-adapter — MySQL/Drizzle-backed SemanticMemory implementation
+// @vico/memory-mysql — MySQL/Drizzle-backed SemanticMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import {
@@ -6,7 +6,7 @@ import {
   MEMORY_ENTRY_TYPE,
   SEMANTIC_MEMORY_SCOPE_TYPE,
   type SemanticMemory,
-} from '@vico/core';
+} from '@vico/memory';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
 

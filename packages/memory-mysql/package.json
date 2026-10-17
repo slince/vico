@@ -1,18 +1,17 @@
 {
-  "name": "@vico/mysql-adapter",
+  "name": "@vico/memory-mysql",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./schema": "./src/schema.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vico/core": "workspace:*",
+    "@vico/memory": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "mysql2": "^3.11.0"
   },
