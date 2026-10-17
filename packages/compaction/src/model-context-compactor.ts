@@ -59,7 +59,9 @@ export class ModelContextCompactor implements ContextCompactor {
 
   recordUsage(threadId: string, pressureTokens: number | undefined): void {
     if (pressureTokens === undefined) {
-      this.pressureTokens.delete(threadId); // 无 usage 上报 → 回退无锚定启发式估算
+      // 无 usage 上报 → 清除锚点与上次采样，回退无锚定启发式估算（避免与后续 usage 错位配对）
+      this.pressureTokens.delete(threadId);
+      this.sampledSurfaceTokens.delete(threadId);
       return;
     }
     this.pressureTokens.set(threadId, pressureTokens);
@@ -99,8 +101,10 @@ export class ModelContextCompactor implements ContextCompactor {
         ...(candidate.summary ? [candidate.summary] : []),
         ...candidate.turns.flatMap((t) => t.messages),
       ];
-      const anchor = this.pressureTokens.has(thread.id)
-        ? { pressureTokens: this.pressureTokens.get(thread.id)!, sampledSurfaceTokens: this.sampledSurfaceTokens.get(thread.id) ?? 0 }
+      // 锚定需 pressureTokens 与 sampledSurfaceTokens 同周期配对；任一缺失则退化为无锚定启发式估算
+      const hasAnchor = this.pressureTokens.has(thread.id) && this.sampledSurfaceTokens.has(thread.id);
+      const anchor = hasAnchor
+        ? { pressureTokens: this.pressureTokens.get(thread.id)!, sampledSurfaceTokens: this.sampledSurfaceTokens.get(thread.id)! }
         : undefined;
       const measurement = measure(allMessages, anchor);
       this.sampledSurfaceTokens.set(thread.id, measurement.surfaceTokens);

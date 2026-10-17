@@ -1,4 +1,4 @@
-// @vico/core - Token 估算：分 part 定价 + ROLE/BLOCK 开销 + usage 锚定（对齐 deepseek dsh-token-meter）
+// @vico/compaction - Token 估算：分 part 定价 + ROLE/BLOCK 开销 + usage 锚定（对齐 deepseek dsh-token-meter）
 import type {ModelMessage} from 'ai';
 import {getMessageText} from '@vico/model';
 
