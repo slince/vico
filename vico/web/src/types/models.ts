@@ -34,3 +34,21 @@ export interface Thread {
   /** 最后更新时间，Unix 毫秒时间戳 */
   updatedAt: number;
 }
+
+/**
+ * 单条 assistant 消息的 token 用量明细（对齐后端 UsageMetrics 持久化结构）。
+ * 各字段可能为 undefined（provider 未上报对应明细时）。
+ */
+export interface MessageUsage {
+  inputTokens?: {
+    total?: number;
+    noCache?: number;
+    cacheRead?: number;
+    cacheWrite?: number;
+  };
+  outputTokens?: {
+    total?: number;
+    text?: number;
+    reasoning?: number;
+  };
+}

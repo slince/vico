@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { useThreadTokenUsage } from "@assistant-ui/ai-sdk";
 import { type FC, type ReactNode } from "react";
+import { useThreadTokenUsage } from "../utils/use-thread-token-usage";
 import {
   ContextDisplayBar as ContextDisplayBarBase,
   ContextDisplayContent,

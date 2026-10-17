@@ -11,24 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatTokens, totalTokens } from "@/lib/token-format";
 import type { FC } from "react";
-
-/**
- * 单条 assistant 消息的 token 用量明细（对齐后端 UsageMetrics 持久化结构）。
- * 各字段可能为 undefined（provider 未上报对应明细时）。
- */
-export interface MessageUsage {
-  inputTokens?: {
-    total?: number;
-    noCache?: number;
-    cacheRead?: number;
-    cacheWrite?: number;
-  };
-  outputTokens?: {
-    total?: number;
-    text?: number;
-    reasoning?: number;
-  };
-}
+import type { MessageUsage } from "@/types/models";
 
 /** 单行用量明细（label / value），值为 undefined 时不渲染 */
 const UsageRow: FC<{ label: string; tokens: number | undefined }> = ({

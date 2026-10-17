@@ -4,11 +4,11 @@ import {type FC} from 'react';
 // 2. Third-party
 import {useTranslation} from 'react-i18next';
 import {AuiConfig, AuiProvider, Suggestions, useAui} from '@assistant-ui/react';
-import {useThreadTokenUsage} from '@assistant-ui/react-ai-sdk';
 import {PanelRight} from 'lucide-react';
 
 // 3. Hooks / Stores
 import {useThread} from '@/hooks/use-thread';
+import {useThreadTokenUsage} from '@/components/assistant-ui/utils/use-thread-token-usage';
 import {BASE_FONT_SIZE, useFontSize} from '@/hooks/use-font-size';
 import {useFileExplorerStore} from '@/stores/fileExplorerStore';
 import {useAgentSelection} from '@/stores/agent-selection';
@@ -71,8 +71,6 @@ const ContextDisplayUsage: FC = () => {
   const contextWindow = selectedAgent?.llm?.context_window;
 
   if (contextWindow && contextWindow > 0) {
-    console.log('selectedAgent', selectedAgent, contextWindow)
-
     return (
       <ContextDisplay.Bar
         modelContextWindow={contextWindow}

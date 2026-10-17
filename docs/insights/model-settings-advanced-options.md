@@ -34,6 +34,7 @@
 | `server/src/agent/get-agent.ts` | `buildAgentConfig` 传模型级 `context_window` / `max_output_tokens` |
 | `web/src/pages/chat/ChatPanel.tsx` | 聊天顶栏用 `ContextDisplay.Bar` 展示上下文用量，`modelContextWindow` 取当前 Agent 的 `llm.context_window` |
 | `web/src/types/models.ts` | 全局 `Agent.llm` 补 `context_window` / `max_output_tokens` |
+| `web/src/components/assistant-ui/utils/use-thread-token-usage.ts` | 嵌套 `UsageMetrics` → 扁平 `TokenUsage` 映射 + `useThreadTokenUsage` 适配 hook |
 
 ## 运行管线接入
 
@@ -45,3 +46,7 @@
   - `ModelContextCompactor` 的 `reservedCompletionTokens`（压缩预算里为 completion 预留的额度）。
 
 `AgentConfig` 不再暴露独立的 `maxTokens` 字段，输出上限统一由模型级 `max_output_tokens` 决定；`createAgent` 内部用 `const maxTokens = modelConfig?.maxOutputTokens` 取值，模型未配置时交给 provider 默认（`reservedCompletionTokens` 为 0）。
+
+## 前端 ContextDisplay 适配
+
+assistant-ui 的 `useThreadTokenUsage` 只认扁平 AI SDK 用量结构（`inputTokens` 等为数字）；本应用后端持久化到 `metadata.custom.usage` 的是嵌套 `UsageMetrics`（`inputTokens.total`、`outputTokens.total` 等），直接调用原版 hook 会返回 `undefined`，导致 `ContextDisplay.Bar` 不渲染。已在 `use-thread-token-usage.ts` 里自建同名 hook：从最新一条带用量的 assistant 消息读取嵌套结构，映射为 `{ totalTokens, inputTokens, outputTokens, cachedInputTokens, reasoningTokens }` 扁平结构（`cachedInputTokens` 取 `inputTokens.cacheRead`，`reasoningTokens` 取 `outputTokens.reasoning`），供 `ContextDisplay.Bar` 与顶栏 Token 用量回退展示复用。
