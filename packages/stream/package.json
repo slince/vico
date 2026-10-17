@@ -1,0 +1,23 @@
+{
+  "name": "@vico/stream",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^4.0.28",
+    "@vico/model": "workspace:*",
+    "@vico/tool": "workspace:*",
+    "@vico/types": "workspace:*",
+    "ai": "7.0.142"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  }
+}

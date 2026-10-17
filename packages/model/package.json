@@ -1,0 +1,25 @@
+{
+  "name": "@vico/model",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.81",
+    "@ai-sdk/openai": "^4.0.95",
+    "@ai-sdk/provider": "^4.0.28",
+    "@ai-sdk/provider-utils": "^5.0.61",
+    "@vico/tool": "workspace:*",
+    "@vico/types": "workspace:*",
+    "ai": "7.0.142"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  }
+}

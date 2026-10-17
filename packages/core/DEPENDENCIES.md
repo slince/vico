@@ -1,115 +1,133 @@
-# @vico/core 模块依赖关系分析
+# @vico/core 包依赖关系分析
 
-> 范围：`packages/core/src` 下的顶层模块。边由各文件的 `import` 归并到模块粒度得出。
+> 范围：`@vico/core` 拆分后的 13 个子包 + 聚合壳。边由各包源码的 `import` 归并到包粒度得出。
 >
 > 图例：**实线** = 运行时值依赖（`import` 值 / 函数 / 类 / const）；**虚线** = 仅类型依赖（`import type` 或纯 `interface`/`type` 引用，编译期擦除）。
 
 ## 依赖图
 
-![依赖关系图](./deps.svg)
 
 > 上图为 mermaid 源码渲染产物（`deps.svg`）；下方保留源码，可在 mermaid.live / GitHub 中直接编辑。
 
 ```mermaid
 flowchart TD
-    subgraph L3["编排层"]
-        agent["agent"]
-        tool["tool"]
+    subgraph L6["L6 聚合层"]
+        core["@vico/core<br/>re-export"]
     end
-    subgraph L2["中间层"]
-        checkpoint["checkpoint"]
-        compaction["compaction"]
-        context["context"]
-        stream["stream"]
-        memory["memory"]
+    subgraph L5["L5 编排层"]
+        agent["@vico/agent"]
     end
-    subgraph L1["基础层"]
-        model["model"]
-        thread["thread"]
-        skill["skill"]
+    subgraph L4["L4 集成层"]
+        context["@vico/context"]
     end
-    subgraph L0["叶子层"]
-        shared["shared"]
-        utils["utils"]
-        events["events"]
-        rag["rag"]
+    subgraph L3["L3 领域层"]
+        skill["@vico/skill"]
+        compaction["@vico/compaction"]
+        memory["@vico/memory"]
+    end
+    subgraph L2["L2 能力层"]
+        tool["@vico/tool"]
+        checkpoint["@vico/checkpoint"]
+    end
+    subgraph L1["L1 基础层"]
+        model["@vico/model"]
+        thread["@vico/thread"]
+        stream["@vico/stream"]
+    end
+    subgraph L0["L0 叶子层"]
+        types["@vico/types"]
+        utils["@vico/utils"]
+        events["@vico/events"]
+        rag["@vico/rag"]
     end
 
-    %% ---- 运行时值依赖（实线）----
-    agent --> checkpoint
-    agent --> compaction
-    agent --> context
-    agent --> events
-    agent --> memory
-    agent --> model
-    agent --> skill
-    agent --> stream
-    agent --> thread
-    agent --> tool
+    %% ---- L1/L2 → types（纯类型，虚线）----
+    model -.-> types
+    thread -.-> types
+    stream -.-> types
+    tool -.-> types
+    checkpoint -.-> types
 
+    %% ---- 基础层互依（type-only 环 + 唯一值边 tool→stream）----
+    model -.-> tool
+    stream -.-> tool
+    stream -.-> model
+    tool --> stream
+    tool -.-> thread
+    checkpoint -.-> tool
+
+    %% ---- 领域层 ----
+    skill --> tool
     compaction --> model
     compaction --> thread
     compaction --> utils
-
-    context --> model
     memory --> model
     memory --> thread
     memory --> tool
     memory --> utils
+    memory -.-> rag
 
-    skill --> tool
-    stream --> model
-
-    tool --> agent
-    tool --> stream
-
-    %% ---- 仅类型依赖（虚线）----
-    checkpoint -.-> shared
-    checkpoint -.-> tool
+    %% ---- 集成层（仅 model 为值依赖，其余端口为类型注入）----
+    context --> model
     context -.-> memory
     context -.-> rag
     context -.-> skill
     context -.-> thread
     context -.-> tool
-    model -.-> shared
-    model -.-> tool
-    stream -.-> shared
-    stream -.-> tool
-    thread -.-> shared
-    tool -.-> shared
-    tool -.-> thread
+
+    %% ---- 编排层 ----
+    agent -.-> types
+    agent --> events
+    agent --> model
+    agent --> thread
+    agent --> stream
+    agent --> tool
+    agent --> skill
+    agent --> checkpoint
+    agent --> compaction
+    agent --> memory
+    agent --> context
+
+    %% ---- 聚合壳（纯 re-export）----
+    core --> agent
+    core --> context
+    core --> tool
+    core --> checkpoint
+    core --> skill
+    core --> compaction
+    core --> memory
+    core --> model
+    core --> thread
+    core --> stream
+    core --> types
+    core --> utils
+    core --> events
+    core --> rag
 ```
 
 ## 分层表
 
-| 层 | 模块 | 出边（依赖谁） |
+| 层 | 包 | 出边（依赖谁） |
 |----|------|----------------|
-| **编排** | `agent` | 运行时依赖全部 10 个模块（LoopAgent 编排核心） |
-| | `tool` | 运行时 → `agent`(delegate-tool 的 `createAgent`)、`stream`；类型 → `shared`、`thread` |
-| **中间** | `checkpoint` | 类型 → `shared`、`tool` |
-| | `compaction` | 运行时 → `model`、`thread`、`utils` |
-| | `context` | 运行时 → `model`；类型 → `memory`/`rag`/`skill`/`thread`/`tool` |
-| | `stream` | 运行时 → `model`；类型 → `shared`、`tool` |
-| | `memory` | 运行时 → `model`、`thread`、`tool`、`utils` |
-| **基础** | `model` | 类型 → `shared`、`tool` |
-| | `thread` | 类型 → `shared` |
-| | `skill` | 运行时 → `tool` |
-| **叶子** | `shared` | 无出边（`UsageMetrics` / `ToolCallApproval` / `ToolApproval` 纯结构类型） |
-| | `utils` / `events` / `rag` | 无出边 |
+| **L0 叶子** | `types` | —（纯结构契约） |
+| | `utils` | —（Stack / KeyedMutex / map） |
+| | `events` | —（事件记录） |
+| | `rag` | —（RAG 检索 / 嵌入，既有包） |
+| **L1 基础** | `model` | 值 → `ai`/providers；类型 → `types`、`tool` |
+| | `thread` | 值 → `ai`；类型 → `types` |
+| | `stream` | 值 → `ai`/provider；类型 → `types`、`tool`、`model` |
+| **L2 能力** | `tool` | 值 → `stream`（toolResultPart）；类型 → `stream`、`thread`、`types` |
+| | `checkpoint` | 类型 → `types`、`tool` |
+| **L3 领域** | `skill` | 值 → `tool` |
+| | `compaction` | 值 → `model`、`thread`、`utils` |
+| | `memory` | 值 → `model`、`thread`、`tool`、`utils`；类型 → `rag` |
+| **L4 集成** | `context` | 值 → `model`；类型 → `memory`、`rag`、`skill`、`thread`、`tool` |
+| **L5 编排** | `agent` | 值 → `events`、`model`、`thread`、`stream`、`tool`、`skill`、`checkpoint`、`compaction`、`memory`、`context`；类型 → `types` |
+| **L6 聚合** | `core` | 值 → 全部 13 个子包（纯 re-export） |
 
-## 关键发现
+## 关键结论
 
-1. **「类型引力中心」已消除**：所有非 agent 模块不再 `import type` agent。此前集中在 `agent/types.ts` / `agent/loop-agent-options.ts` 的共享类型已下沉：
-   - `UsageMetrics` / `ToolCallApproval` / `ToolApproval` → **`src/shared.ts`**（新叶子）
-   - `ModelConfig` / `ModelRef` / `isLanguageModelV4` → `model/types.ts`
-   - `TurnEvent` / `CallModelResult` → `stream/types.ts`
-   - `TurnSession` / `TurnStep` → `thread/thread-store.ts`
-
-2. **唯一真正的运行时循环仍是 `agent ↔ tool`**：
-   - `agent → tool`：`loop-agent.ts` 运行时引入 `ToolExecutor`、`composeResolvers`。
-   - `tool → agent`：`tool/builtin/coding/delegate-tool.ts` 运行时引入 `createAgent`（子代理需要再建 Agent）。
-   - 其余 tool → agent 的 type 引用已用**依赖倒置**消除：`ToolExecutor` 改用本地窄接口 `AgentHost`（`emit`）与 `ToolExecutionContext`（`session`/`signal`/`decisions`/`controller`），引擎的 `LoopAgent` / `TurnContext` 结构化满足。
-
-3. **`shared` 是新的类型叶子**：被 `checkpoint` / `context` / `model` / `stream` / `thread` / `tool` 六个模块依赖，自身无出边，避免了 `thread → model → tool → thread` 这类 type 环。
-
-4. `index.ts`（barrel）是唯一对外出口，重导出全部模块，自身不参与上述依赖环；对外导出的符号名未变，消费方零改动。
+1. **无运行时环**：唯一的 value 环疑点是 `model → tool → stream → model`，但其中只有 `tool → stream`（`toolResultPart`）是 value 边，其余 `model → tool`、`stream → model`、`stream → tool` 均为 `import type`，编译期擦除后运行时是 DAG。
+2. **`agent` 不再是唯一 hub**：任何域包（tool / thread / memory 等）都可独立复用，不再间接经过 agent 编排层。
+3. **`tool → agent` 运行时环已消除**：`createDelegateTool` 移入 `@vico/agent`，`@vico/tool` 成为可独立复用的通用工具包。
+4. **pnpm 元数据环放行**：pnpm 无法区分 type/value，故在 `pnpm-workspace.yaml` 设 `ignoreWorkspaceCycles: true` 放行上述 type-only 环（任务产物无依赖，顺序无关紧要）。

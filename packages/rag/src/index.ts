@@ -21,6 +21,9 @@ export type {
   Reranker,
 } from './types/reranker.js';
 export type {
+  RagChunk, RagProvider,
+} from './types/rag-provider.js';
+export type {
   ChunkConfig, RetrievalConfig, QueryRewriteConfig, RerankConfig,
   NoMatchStrategy, RagConfig,
 } from './types/config.js';

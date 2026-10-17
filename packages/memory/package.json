@@ -1,0 +1,27 @@
+{
+  "name": "@vico/memory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vico/model": "workspace:*",
+    "@vico/rag": "workspace:*",
+    "@vico/thread": "workspace:*",
+    "@vico/tool": "workspace:*",
+    "@vico/utils": "workspace:*",
+    "ai": "7.0.142",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}

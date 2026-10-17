@@ -1,0 +1,56 @@
+// @vico/tool - 工具框架与内置工具
+
+export { createTool, type ToolOptions } from './create-tool.js';
+export {
+  ToolExecutor,
+  type AgentHost,
+  type ToolExecutionContext,
+  type ToolExecutorOptions,
+} from './tool-executor.js';
+export { StormBreaker } from './storm-breaker.js';
+export {
+  isPathInWorkspace,
+  composeResolvers,
+  defaultApprovalResolvers,
+  toolPolicyResolver,
+  approvalModeResolver,
+  ApprovalPriority,
+} from './policy-helpers.js';
+export {
+  readTool,
+  bashTool,
+  editTool,
+  writeTool,
+  grepTool,
+  findTool,
+  lsTool,
+  lspTool,
+  webFetchTool,
+  todoTool,
+  askUserTool,
+  browserNavigateTool,
+  browserSnapshotTool,
+  browserClickTool,
+  basicTools,
+  filesystemTools,
+  codingTools,
+  baseBuiltinTools,
+  fileBuiltinTools,
+  coreBuiltinTools,
+  resolveWorkspacePath,
+} from './builtin/index.js';
+export type {
+  Tool,
+  ToolCall,
+  ToolResult,
+  ToolPolicy,
+  ToolKind,
+  ToolTag,
+  ToolCallContext,
+  ApprovalStatus,
+  ApprovalDecision,
+  ApprovalMode,
+  PolicyContext,
+  ApprovalResolver,
+  ApprovalDecider,
+} from './types.js';

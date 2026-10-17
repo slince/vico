@@ -1,0 +1,23 @@
+{
+  "name": "@vico/tool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vico/stream": "workspace:*",
+    "@vico/thread": "workspace:*",
+    "@vico/types": "workspace:*",
+    "ai": "7.0.142",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,18 @@
+// @vico/model - 模型接入（工厂、客户端、消息工具）
+
+export { createLanguageModel } from './factory.js';
+export { ModelClient } from './model-client.js';
+export { isLanguageModelV4, type ModelConfig, type ModelRef, type ModelRequest, type ModelStreamResult, type ReasoningEffort } from './types.js';
+export {
+  getMessageText,
+  pickPrimaryUserMessage,
+  completedCallIds,
+  ensureToolCallConsistency,
+  buildAssistantMessage,
+  buildToolResultMessage,
+  extractApprovalResponses,
+  toToolSet,
+  type ContentPart,
+} from './message-utils.js';
+export type { ModelMessage, UIMessage, UIMessageChunk, ToolSet } from 'ai';
+export { convertToModelMessages, validateUIMessages } from 'ai';

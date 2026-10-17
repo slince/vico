@@ -1,0 +1,33 @@
+{
+  "name": "@vico/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^4.0.28",
+    "@vico/checkpoint": "workspace:*",
+    "@vico/compaction": "workspace:*",
+    "@vico/context": "workspace:*",
+    "@vico/events": "workspace:*",
+    "@vico/memory": "workspace:*",
+    "@vico/model": "workspace:*",
+    "@vico/skill": "workspace:*",
+    "@vico/stream": "workspace:*",
+    "@vico/thread": "workspace:*",
+    "@vico/tool": "workspace:*",
+    "@vico/types": "workspace:*",
+    "ai": "7.0.142",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  }
+}

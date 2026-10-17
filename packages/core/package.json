@@ -7,27 +7,28 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.81",
-    "@ai-sdk/openai": "^4.0.95",
-    "@ai-sdk/provider": "^4.0.28",
-    "@ai-sdk/provider-utils": "^5.0.61",
+    "@vico/agent": "workspace:*",
+    "@vico/checkpoint": "workspace:*",
+    "@vico/compaction": "workspace:*",
+    "@vico/context": "workspace:*",
+    "@vico/events": "workspace:*",
+    "@vico/memory": "workspace:*",
+    "@vico/model": "workspace:*",
     "@vico/rag": "workspace:*",
-    "ai": "7.0.142",
-    "gray-matter": "^4.0.3",
-    "mitt": "^3.0.1",
-    "p-limit": "^7.3.3",
-    "pino": "^10.4.0",
-    "zod": "^4.6.7"
+    "@vico/skill": "workspace:*",
+    "@vico/stream": "workspace:*",
+    "@vico/thread": "workspace:*",
+    "@vico/tool": "workspace:*",
+    "@vico/types": "workspace:*",
+    "@vico/utils": "workspace:*",
+    "ai": "7.0.142"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.12"
+    "typescript": "^5.9.3"
   }
 }

@@ -1,0 +1,23 @@
+{
+  "name": "@vico/thread",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/provider-utils": "^5.0.61",
+    "@vico/types": "workspace:*",
+    "ai": "7.0.142"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.12"
+  }
+}
