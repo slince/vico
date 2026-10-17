@@ -43,8 +43,6 @@
   "temperature": "Temperature",
   "temperatureExact": "精确",
   "temperatureCreative": "创造",
-  "maxTokens": "Max Tokens",
-  "maxTokensDesc": "单次回复的最大 token 数，范围 1–128000",
   "ragMode": "RAG 模式",
   "ragModeDesc": "控制知识库检索增强生成的工作模式。",
   "ragModeAuto": "自动（推荐）",

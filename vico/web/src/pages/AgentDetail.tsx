@@ -61,7 +61,6 @@ export default function AgentDetail() {
   const { register, watch, formState: { dirtyFields } } = useForm({
     values: {
       system_prompt: agent?.system_prompt ?? '',
-      max_tokens: agent?.max_tokens ?? 4096,
     },
   });
 
@@ -122,19 +121,17 @@ export default function AgentDetail() {
   });
 
   const watchedPrompt = watch('system_prompt');
-  const watchedMaxTokens = watch('max_tokens');
 
   useEffect(() => {
     const data: Record<string, unknown> = {};
     if (dirtyFields.system_prompt && agent?.is_default !== 1) data.system_prompt = watchedPrompt;
-    if (dirtyFields.max_tokens) data.max_tokens = watchedMaxTokens;
     if (Object.keys(data).length === 0) return;
 
     const timer = setTimeout(() => {
       updateMutation.mutate(data);
     }, 300);
     return () => clearTimeout(timer);
-  }, [watchedPrompt, watchedMaxTokens, agent?.is_default]);
+  }, [watchedPrompt, agent?.is_default]);
 
   const toggleSkill = useCallback(
     (skillName: string, boundSkills: string[]) => {

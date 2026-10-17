@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import type { UseFormRegister } from 'react-hook-form';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -16,7 +15,6 @@ import type { Agent, Model } from './types';
 
 interface FormFields {
   system_prompt: string;
-  max_tokens: number;
 }
 
 export interface ConfigPanelProps {
@@ -122,22 +120,6 @@ export default function ConfigPanel({
             </div>
           </div>
 
-          <Separator />
-
-          <div className="space-y-2">
-            <Label htmlFor="max-tokens">{t('maxTokens')}</Label>
-            <Input
-              id="max-tokens"
-              type="number"
-              {...register('max_tokens', { valueAsNumber: true })}
-              min={1}
-              max={128000}
-              className="max-w-48"
-            />
-            <p className="text-xs text-muted-foreground">
-              {t('maxTokensDesc')}
-            </p>
-          </div>
           <Separator />
 
           <div className="space-y-2">

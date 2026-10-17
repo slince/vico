@@ -43,8 +43,6 @@
   "temperature": "Temperature",
   "temperatureExact": "Precise",
   "temperatureCreative": "Creative",
-  "maxTokens": "Max Tokens",
-  "maxTokensDesc": "Maximum tokens per response, range 1–128000",
   "ragMode": "RAG Mode",
   "ragModeDesc": "Controls how the knowledge base retrieval-augmented generation works.",
   "ragModeAuto": "Auto (Recommended)",
