@@ -113,7 +113,7 @@ export function ApprovalModeSelectorAction() {
           data-slot="approval-mode-trigger"
           aria-label="审批政策模式"
           className={cn(
-            "border-input hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 flex h-8 max-w-36 items-center gap-1.5 rounded-md border bg-transparent px-2.5 py-1.5 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-1",
+            "border-input hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 flex h-8 max-w-36 cursor-pointer items-center gap-1.5 rounded-md border bg-transparent px-2.5 py-1.5 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-1",
           )}
         >
           <current.icon className="size-3.5 shrink-0 opacity-60" />

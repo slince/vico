@@ -103,7 +103,7 @@ export function AgentSelectorAction() {
           data-slot="agent-selector-trigger"
           aria-label={t("selectAgent")}
           className={cn(
-            "border-input hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 flex h-8 max-w-40 items-center gap-1.5 rounded-md border bg-transparent px-2.5 py-1.5 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-1",
+            "border-input hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 flex h-8 max-w-40 cursor-pointer items-center gap-1.5 rounded-md border bg-transparent px-2.5 py-1.5 text-xs whitespace-nowrap transition-colors outline-none focus-visible:ring-1",
           )}
         >
           <Bot className="size-3.5 shrink-0 opacity-60" />
