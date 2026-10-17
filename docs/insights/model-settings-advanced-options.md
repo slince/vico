@@ -23,7 +23,7 @@
 | 文件 | 职责 |
 |------|------|
 | `server/src/db/schema.ts` | `model_configs` 增加 `context_window` / `max_output_tokens`（integer，可空） |
-| `server/drizzle/0013_add_model_context_fields.sql` + `meta/_journal.json` | 迁移 |
+| `server/drizzle/0013_add_model_context_window.sql` / `0014_add_model_max_output_tokens.sql` + `meta/_journal.json` | 迁移（每条一个 `ALTER`，勿合并在一个文件） |
 | `server/src/services/model/types.ts` | `ModelConfigRow` 补两个字段 |
 | `server/src/services/model/model-manager.ts` | `create()` 写入两列；`update()` 通用复制，null 原样写入 |
 | `web/src/pages/settings/providers.ts` | `CatalogModel` 补字段 + `getModelCapabilities` 纯函数 |
