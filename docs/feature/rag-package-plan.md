@@ -247,7 +247,7 @@ export interface RetrievalPipeline {
 |---|---|---|
 | `@vico/rag` | 核心 RAG 能力（chunking、embedding、检索管道、解析器） | — |
 | `@vico/agent` | Agent 类型定义、AgentLoop、Memory 子系统 | imports 类型（VectorStore、Embedder 等接口） |
-| `@vico/chroma-adapter` | Chroma 版 VectorStore 实现 | implements VectorStore |
+| `@vico/rag-chroma` | Chroma 版 VectorStore 实现 | implements VectorStore |
 | `@vico/libsql-adapter` | LibSQL 版 VectorStore 实现 | implements VectorStore |
 | `@vico/mysql-adapter` | MySQL 版 VectorStore 实现 | implements VectorStore |
 | `vico/server` | 业务层：RAGManager、KB CRUD、文件上传 | imports 核心能力 + 组合使用 |

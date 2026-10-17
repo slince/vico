@@ -1,5 +1,5 @@
 {
-  "name": "@vico/chroma-adapter",
+  "name": "@vico/rag-chroma",
   "version": "0.1.0",
   "private": true,
   "type": "module",

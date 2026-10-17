@@ -1,4 +1,4 @@
-// @vico/chroma — Chroma-backed VectorStore (implements @vico/rag VectorStore)
+// @vico/rag-chroma — Chroma-backed VectorStore (implements @vico/rag VectorStore)
 import type {ChromaClient, Collection, Metadata, Where} from 'chromadb';
 import type {DistanceMetric, VectorQueryResult, VectorStore} from '@vico/rag';
 
@@ -24,7 +24,7 @@ interface IndexEntry {
  *
  * @example
  * import { ChromaClient } from 'chromadb';
- * import { ChromaVectorStore } from '@vico/chroma-adapter';
+ * import { ChromaVectorStore } from '@vico/rag-chroma';
  *
  * const client = new ChromaClient({ path: 'http://localhost:8000' });
  * const store = new ChromaVectorStore({ client });

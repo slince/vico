@@ -1,4 +1,4 @@
-// @vico/chroma-adapter — Public API barrel exports
+// @vico/rag-chroma — Public API barrel exports
 
 export {
   ChromaVectorStore,
