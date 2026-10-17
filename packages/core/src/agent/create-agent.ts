@@ -139,12 +139,14 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 
   // 上下文压缩器：仅在显式配置 compaction 时构造；模型为 ModelConfig 时才能拿到 contextWindow/摘要模型
   const modelConfig = !isLanguageModelV4(config.model) ? config.model : undefined;
+  // 输出上限默认值：模型级 maxOutputTokens 兜底，AgentConfig.maxTokens 显式配置时优先
+  const maxTokens = config.maxTokens ?? modelConfig?.maxOutputTokens;
   const compactor = config.compaction
     ? new ModelContextCompactor({
         thread,
         conversationWindow: config.conversationWindow ?? DEFAULT_CONVERSATION_WINDOW,
         modelConfig,
-        maxTokens: config.maxTokens,
+        maxTokens,
         settings: config.compaction,
       })
     : undefined;
@@ -164,7 +166,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     model: config.model,
     temperature: config.temperature ?? 0.7,
     reasoning: config.reasoning,
-    maxTokens: config.maxTokens,
+    maxTokens,
     maxSteps: config.maxSteps ?? 10,
     skills: skills || [],
     tools: tools,

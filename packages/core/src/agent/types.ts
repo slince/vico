@@ -10,6 +10,8 @@ export interface ModelConfig {
   apiKey: string;
   /** 模型上下文窗口 token 数；启用压缩（pressure 触发）时必填（provider v4 不暴露） */
   contextWindow?: number;
+  /** 模型最大输出 token 数；作为模型请求默认输出上限，并预留为压缩预算的 completion 额度 */
+  maxOutputTokens?: number;
 }
 
 /**

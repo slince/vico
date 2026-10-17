@@ -44,10 +44,14 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
       model: model.model_name,
       baseUrl: model.base_url,
       apiKey: model.api_key,
-      contextWindow: config.model?.context_window,
+      // 模型级上下文窗口优先，缺失时回退全局默认（provider v4 不暴露 contextWindow）
+      contextWindow: model.context_window ?? config.model?.context_window,
+      // 模型级输出上限；缺失时交给调用方（agent 的 max_tokens）兜底
+      maxOutputTokens: model.max_output_tokens ?? undefined,
     },
     temperature: a.temperature ?? 0.7,
-    maxTokens: a.max_tokens ?? 4096,
+    // 输出上限默认值：模型级 max_output_tokens 优先，其次 agent 的 max_tokens，最后兜底 4096
+    maxTokens: model.max_output_tokens ?? a.max_tokens ?? 4096,
     maxSteps: a.max_steps ?? 10,
     conversationWindow: config.memory.stm_window,
     compaction: toCompactionSettings(config.memory.compaction),

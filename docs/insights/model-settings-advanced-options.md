@@ -29,12 +29,17 @@
 | `web/src/pages/settings/providers.ts` | `CatalogModel` 补字段 + `getModelCapabilities` 纯函数 |
 | `web/src/pages/settings/ModelManagement.tsx` | 表单状态、预填充、提交、列表卡片展示 |
 | `web/src/pages/settings/AddModelDialog.tsx` | 「高级选项」`Collapsible` 折叠区 |
+| `packages/core/src/agent/types.ts` | `ModelConfig` 补 `maxOutputTokens`（`contextWindow` 已存在） |
+| `packages/core/src/agent/create-agent.ts` | 输出上限默认值 `config.maxTokens ?? modelConfig?.maxOutputTokens`，同步给 `LoopAgent` 与 `ModelContextCompactor` |
+| `server/src/agent/get-agent.ts` | `buildAgentConfig` 传模型级 `context_window` / `max_output_tokens` |
 
-## 范围与后续可做（本次未做）
+## 运行管线接入
 
-与 [[model-settings-multi-type]] 一致，本次**仅设置页 + 存储，未接入运行管线**：
+模型级参数已接入 `buildAgentConfig → createAgent → LoopAgent / ModelContextCompactor`：
 
-- 压缩判定仍走 `config.model.context_window`（`server/src/agent/get-agent.ts` 的 `contextWindow`），未使用 `model_configs.context_window`。
-- 生成上限仍走 agent 的 `max_tokens`，未使用 `model_configs.max_output_tokens`。
+- **上下文窗口**：`model.context_window ?? config.model?.context_window`（模型级优先，回退全局默认），供 `ModelContextCompactor` 的 pressure 压缩预算计算使用。
+- **最大输出 tokens**：`maxTokens = model.max_output_tokens ?? a.max_tokens ?? 4096`（模型级优先，其次 agent 的 `max_tokens`），同时作用于
+  - `LoopAgent.callModel` 的 `ModelRequest.maxOutputTokens`（模型请求输出上限）；
+  - `ModelContextCompactor` 的 `reservedCompletionTokens`（压缩预算里为 completion 预留的额度）。
 
-后续可在 `buildAgentConfig` 中让模型级 `context_window` 覆盖全局默认、`max_output_tokens` 作为该模型输出上限（或 agent 默认值），再落一份说明。
+`packages/core/src/agent/create-agent.ts` 中也有兜底 `const maxTokens = config.maxTokens ?? modelConfig?.maxOutputTokens`，让非 server 调用方直接传 `ModelConfig.maxOutputTokens` 时同样生效。
