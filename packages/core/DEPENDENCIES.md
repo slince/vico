@@ -6,6 +6,10 @@
 
 ## 依赖图
 
+![依赖关系图](./deps.svg)
+
+> 上图为 mermaid 源码渲染产物（`deps.svg`）；下方保留源码，可在 mermaid.live / GitHub 中直接编辑。
+
 ```mermaid
 flowchart TD
     subgraph L3["编排层"]
