@@ -10,8 +10,8 @@
     "postinstall": "mkdir -p public/pdfjs && cp $(find ../../node_modules/.pnpm -name 'pdf.worker.min.mjs' -not -path '*/legacy/*' | head -1) public/pdfjs/"
   },
   "dependencies": {
-    "@assistant-ui/ai-sdk": "^0.0.12",
-    "@assistant-ui/react": "^0.15.27",
+    "@assistant-ui/ai-sdk": "^0.0.13",
+    "@assistant-ui/react": "^0.15.29",
     "@assistant-ui/react-ai-sdk": "^1.4.17",
     "@assistant-ui/react-devtools": "^1.2.24",
     "@assistant-ui/react-generative-ui": "^0.1.1",
