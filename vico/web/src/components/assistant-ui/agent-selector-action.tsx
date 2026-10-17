@@ -42,7 +42,8 @@ type AgentConfig = LanguageModelConfig & { agentId?: string };
  * 选中值通过 assistant-ui 的 modelContext 机制随请求注入 body.config.agentId，
  * 由服务端解析为本次对话的 Agent（预创建线程时也读同一份选中态）。
  * 不再驱动 runtime 重建：选择后仅更新 composer 选中态与请求 config。
- * 仅在 Chat 路由下渲染（Agent 详情页的测试对话区不显示）。
+ * 仅在 Chat 路由的新会话（尚无 threadId）下渲染：已有会话的详情页不展示，
+ * 由线程绑定的 Agent 决定本次对话（Agent 详情页的测试对话区同样不显示）。
  */
 export function AgentSelectorAction() {
   const { isChatRoute, threadId } = useChat();
@@ -92,8 +93,9 @@ export function AgentSelectorAction() {
     });
   }, [aui, isChatRoute, selectedAgent?.id]);
 
-  // 非 Chat 路由（如 Agent 详情页测试区）不展示切换器
-  if (!isChatRoute) return null;
+  // 非 Chat 路由（如 Agent 详情页测试区）或已有会话详情页不展示切换器，
+  // 仅在新建会话时允许选择 Agent
+  if (!isChatRoute || threadId) return null;
 
   return (
     <Popover>
