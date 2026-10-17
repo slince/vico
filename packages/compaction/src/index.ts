@@ -1,24 +1,24 @@
 // @vico/compaction - 上下文压缩
 
+export {ModelContextCompactor} from './model-context-compactor.js';
 export {
-  ModelContextCompactor,
   ManualCompactionError,
   TargetPressureConfigError,
   isContextOverflowError,
-} from './context-compactor.js';
+} from './errors.js';
 export type {
   ContextCompactor,
   CompactionTrigger,
   CompactionResult,
   ManualCompactionErrorCode,
   ModelContextCompactorOptions,
-} from './context-compactor.js';
+} from './types.js';
 export {
   COMPACTION_INSTRUCTION,
   CHECKPOINT_PREAMBLE,
   SUMMARY_OPEN_TAG,
   SUMMARY_CLOSE_TAG,
-} from './context-compactor.js';
+} from './prompts.js';
 export {
   resolveSettings,
   resolveCompactSpec,

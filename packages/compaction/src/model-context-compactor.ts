@@ -1,101 +1,23 @@
-// @vico/core - ContextCompactor 端口 + ModelContextCompactor 默认实现（持久化增量滚动压缩）
+// @vico/compaction — ModelContextCompactor 默认实现（持久化增量滚动压缩）
 import {randomUUID} from 'node:crypto';
 import type {ModelMessage} from 'ai';
 import type {Thread, ThreadStore} from '@vico/thread';
-import {ModelClient} from '@vico/model';
-import {createLanguageModel} from '@vico/model';
+import {ModelClient, createLanguageModel, getMessageText} from '@vico/model';
 import type {ModelConfig} from '@vico/model';
 import {toModelMessages} from '@vico/thread';
-import {getMessageText} from '@vico/model';
 import {KeyedMutex} from '@vico/utils';
 import {measure, estimateMessage} from './token-estimator.js';
 import {
   resolveSettings, resolveCompactSpec, selectCompactableRange,
-  type CompactionSettings, type ResolvedCompactionSettings,
+  type ResolvedCompactionSettings,
 } from './compaction-config.js';
-
-/** 压缩触发类型：pressure（窗口压力）/ context-overflow（模型报错超限） */
-export type CompactionTrigger = 'pressure' | 'context-overflow';
-
-/** 手动压缩失败分类（对齐 ManualCompactionErrorCode） */
-export type ManualCompactionErrorCode = 'busy' | 'cancelled' | 'changed' | 'summary' | 'commit' | 'persistence';
-
-export class ManualCompactionError extends Error {
-  constructor(readonly code: ManualCompactionErrorCode, message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = 'ManualCompactionError';
-  }
-}
-
-/** pressure 触发但未配置 contextWindow 时抛出（对齐 deepseek TargetPressureConfigError） */
-export class TargetPressureConfigError extends Error {
-  constructor() {
-    super('contextWindow is required for pressure-triggered compaction');
-    this.name = 'TargetPressureConfigError';
-  }
-}
-
-/** 压缩结果 */
-export interface CompactionResult {
-  summaryMessageId: string;
-  archivedTurnIds: string[];
-  shadowedRange: { startTurnId: string; endTurnId: string };
-  shadowedTokenCount: number;
-  removedTokens: number;
-}
-
-/** 上下文压缩端口（对齐 deepseek CompactionEngine） */
-export interface ContextCompactor {
-  compactIfNeeded(thread: Thread, modelClient: ModelClient, trigger: CompactionTrigger, signal: AbortSignal): Promise<CompactionResult | null>;
-  compactNow(thread: Thread, modelClient: ModelClient, signal: AbortSignal): Promise<CompactionResult | null>;
-  recordUsage(threadId: string, pressureTokens: number): void;
-  /** 任一 turn 收到正常 assistant 消息时调用，清零 context-overflow 重试计数 */
-  noteModelSuccess(thread: Thread): void;
-}
-
-/** ModelContextCompactor 构造选项 */
-export interface ModelContextCompactorOptions {
-  thread: ThreadStore;
-  /** 候选 surface 的最近已完成 turn 数（对齐 stm_window） */
-  conversationWindow: number;
-  /** agent 原始模型配置（contextWindow + 独立摘要模型解析） */
-  modelConfig?: ModelConfig;
-  /** agent 输出上限（reservedCompletionTokens） */
-  maxTokens?: number;
-  settings?: Partial<CompactionSettings>;
-}
+import type {CompactionTrigger, CompactionResult, ContextCompactor, ModelContextCompactorOptions} from './types.js';
+import {ManualCompactionError, TargetPressureConfigError} from './errors.js';
+import {COMPACTION_INSTRUCTION, CHECKPOINT_PREAMBLE, SUMMARY_OPEN_TAG, SUMMARY_CLOSE_TAG} from './prompts.js';
 
 /** 摘要消息固定 role 与 metadata 标识 */
 const SUMMARY_ROLE = 'summary';
 const SUMMARY_METADATA_KIND = 'compaction-summary';
-
-/** 结构化 checkpoint 指令（对齐 deepseek COMPACTION_INSTRUCTION 8 节模板） */
-export const COMPACTION_INSTRUCTION = `You are maintaining a rolling summary of an ongoing conversation between an AI agent and a user.
-Compress the provided conversation content into a structured Markdown checkpoint. Rules:
-- Preserve each of the following 8 sections verbatim (use "(none)" for empty sections):
-  ## Primary Request and Intent
-  ## Key Technical Concepts
-  ## Files and Code
-  ## Errors and Fixes
-  ## Pending Jobs
-  ## Current Work
-  ## Next Step
-  ## Critical Context
-- Use concise bullets. Preserve exact paths, commands, error strings, identifiers, numeric values, and function signatures.
-- Faithfully record user feedback and corrections. Do not mention this compaction.
-- If a previous summary block is present in the input, merge with it rather than copy it verbatim.`;
-
-export const CHECKPOINT_PREAMBLE = 'This is an automatically generated compacted summary of earlier conversation content.';
-export const SUMMARY_OPEN_TAG = '<compacted-summary>';
-export const SUMMARY_CLOSE_TAG = '</compacted-summary>';
-
-/** 上下文超限启发式检测（对齐 deepseek CONTEXT_WINDOW_EXCEEDED_CODE 的 Vico 侧适配） */
-export function isContextOverflowError(error: unknown): boolean {
-  const text = (typeof error === 'string' ? error : '') + ' '
-    + ((error as { message?: string } | null)?.message ?? '') + ' '
-    + String((error as { statusCode?: number } | null)?.statusCode ?? '');
-  return /context.?length|context_length_exceeded|maximum context|too many tokens|token limit|context window/i.test(text);
-}
 
 /** 摘要消息 framing */
 function frameSummary(text: string): string {

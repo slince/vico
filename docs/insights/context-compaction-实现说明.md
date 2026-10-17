@@ -40,7 +40,10 @@ Vico 在 `@vico/core` 新增上下文压缩机制：当历史消息过大时，�
 
 ## 关键文件索引
 
-- `packages/core/src/agent/context-compactor.ts` — 端口 + 默认实现（compactLocked 主流程）
+- `packages/compaction/src/types.ts` — 端口与类型（ContextCompactor / CompactionResult / 触发类型 / 选项）
+- `packages/compaction/src/errors.ts` — 压缩错误与 `isContextOverflowError` 超限检测
+- `packages/compaction/src/prompts.ts` — 摘要提示词与 framing 常量
+- `packages/compaction/src/model-context-compactor.ts` — 默认实现（compactLocked 主流程）
 - `packages/core/src/agent/compaction-config.ts` — 配置解析 / 阈值计算 / 可压缩区间选择
 - `packages/core/src/agent/token-estimator.ts` — 分 part token 估算 + usage 锚定
 - `packages/core/src/agent/loop-agent.ts` — 双 trigger 接线 + `compactThread` + 历史重建

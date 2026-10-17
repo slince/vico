@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { InMemoryThreadStore } from '@vico/thread';
 import type { ModelClient } from '@vico/model';
-import { ManualCompactionError, ModelContextCompactor, TargetPressureConfigError, isContextOverflowError } from './context-compactor.js';
+import { ManualCompactionError, TargetPressureConfigError, isContextOverflowError } from './errors.js';
+import { ModelContextCompactor } from './model-context-compactor.js';
 
 /** parts 数组 → ReadableStream（Node 类型无 ReadableStream.from，手动包装） */
 function streamOf(parts: unknown[]): ReadableStream<unknown> {
