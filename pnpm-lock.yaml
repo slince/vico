@@ -451,26 +451,26 @@ importers:
         specifier: ^0.15.29
         version: 0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
       '@assistant-ui/react-ai-sdk':
-        specifier: ^1.4.17
-        version: 1.4.17(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)
+        specifier: ^1.4.18
+        version: 1.4.18(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)
       '@assistant-ui/react-devtools':
         specifier: ^1.2.24
         version: 1.2.24(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@assistant-ui/tap@0.9.23(@types/react@19.2.18)(react@19.3.0))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@assistant-ui/react-generative-ui':
-        specifier: ^0.1.1
-        version: 0.1.1(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)
+        specifier: ^0.1.4
+        version: 0.1.4(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)
       '@assistant-ui/react-markdown':
-        specifier: ^0.14.20
-        version: 0.14.20(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^0.14.23
+        version: 0.14.23(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@assistant-ui/react-mcp':
-        specifier: ^0.1.22
-        version: 0.1.22(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(assistant-cloud@0.2.7(ai@7.0.118(zod@4.6.5)))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^0.1.23
+        version: 0.1.23(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(assistant-cloud@0.2.7(ai@7.0.118(zod@4.6.5)))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@assistant-ui/react-streamdown':
         specifier: ^0.3.20
         version: 0.3.20(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@streamdown/cjk@1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(react@19.3.0)(unified@11.0.5))(@streamdown/code@1.1.1(react@19.3.0))(@streamdown/math@1.0.2(react@19.3.0))(@streamdown/mermaid@1.0.2(react@19.3.0))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@assistant-ui/react-syntax-highlighter':
         specifier: ^0.14.7
-        version: 0.14.7(@assistant-ui/react-markdown@0.14.20(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-syntax-highlighter@15.5.13)(@types/react@19.2.18)(react-syntax-highlighter@16.1.1(react@19.3.0))(react@19.3.0)
+        version: 0.14.7(@assistant-ui/react-markdown@0.14.23(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-syntax-highlighter@15.5.13)(@types/react@19.2.18)(react-syntax-highlighter@16.1.1(react@19.3.0))(react@19.3.0)
       '@assistant-ui/store':
         specifier: 0.3.19
         version: 0.3.19(@assistant-ui/tap@0.9.23(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(react@19.3.0)
@@ -791,18 +791,6 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@assistant-ui/ai-sdk@0.0.12':
-    resolution: {integrity: sha512-ympJLsfpr7PfT1u90ZrcN5NaJooXwdC+e3+hR2rD3iEVIk14UaLC3umpikw98MvaNQCi7we+dpFF4cLaVBpQdg==}
-    peerDependencies:
-      '@types/react': '*'
-      ai: ^7.0.101
-      react: ^18 || ^19
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react:
-        optional: true
-
   '@assistant-ui/ai-sdk@0.0.13':
     resolution: {integrity: sha512-y5JMVYUVb6vddBHV6LPHZe+UIAGHlwL70MrFbo6aD3XaozT/S3Q7D/sCTszM7j8OkgSGTrhaHt6H8tVE/SGdfA==}
     peerDependencies:
@@ -831,13 +819,15 @@ packages:
       react:
         optional: true
 
-  '@assistant-ui/generative-ui@0.0.2':
-    resolution: {integrity: sha512-FEHldOzZyTHUeUa1aNiW9R8AJDGktcRBlbhIV7SRk7mHZvLorxN2A1FlVue0RuXdyzZUfGRXWDgUym+0icSdjg==}
+  '@assistant-ui/generative-ui@0.0.5':
+    resolution: {integrity: sha512-7TeJpTfyIi71dMixLEO5LfFcN8J/lcYiNT4yxuZk90nQn5ekLLbRTtwCZ8EOxOhp7YH7k1MXYsLevlq6GodIAg==}
     peerDependencies:
       '@assistant-ui/react': ^0.15.0
       '@types/react': '*'
-      generative-frame: ^0.0.3
+      generative-frame: ^0.0.6
       react: ^18 || ^19
+      react-native: '*'
+      vue: ^3.5.0
       zod: ^4.0.0
     peerDependenciesMeta:
       '@assistant-ui/react':
@@ -848,11 +838,15 @@ packages:
         optional: true
       react:
         optional: true
+      react-native:
+        optional: true
+      vue:
+        optional: true
       zod:
         optional: true
 
-  '@assistant-ui/react-ai-sdk@1.4.17':
-    resolution: {integrity: sha512-xEf3K6zrygB2XWKsLqXyyCDfyLpKyqCNk24kSp9HZ6wPYb5hn3UUHFdm8nVQ57LTly0dU1K8UMbTsTzUXwsmRA==}
+  '@assistant-ui/react-ai-sdk@1.4.18':
+    resolution: {integrity: sha512-roh5/VEYX0uZ1u3L3cbZlh96jaWCyhnRPiEOOBsZ4BGuEdNfIVzF4Ikh6YE/s8a6/d1/HgWo7scKdhBwxwqNNw==}
     peerDependencies:
       '@types/react': '*'
       ai: ^7.0.101
@@ -876,8 +870,8 @@ packages:
       '@types/react-dom':
         optional: true
 
-  '@assistant-ui/react-generative-ui@0.1.1':
-    resolution: {integrity: sha512-MxKLdT459Itm5ehjVa7wDVxnbM36ImjPrwip2KGltcCPSsTNMFABKfd1o5Fv+bJKXIvn7P3g8RniGbM+2CzVhQ==}
+  '@assistant-ui/react-generative-ui@0.1.4':
+    resolution: {integrity: sha512-EXSlQxcy6B5LghFp5AtiLfP/6yNrsMABjLZKHxhPlLkDW7Vi/AezZYwz/XzIUi6du++M2Q1liJWP8GFekSIHMQ==}
     peerDependencies:
       '@assistant-ui/react': ^0.15.0
       '@types/react': '*'
@@ -887,8 +881,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@assistant-ui/react-markdown@0.14.20':
-    resolution: {integrity: sha512-I+zblcZHjC/hn3pepmiGQhkJsIV7IUr4xSA3bf1Pkmln1k5W3LbbSITD5qMiccC0a3EKor6BF1B7XrsYfvBfdQ==}
+  '@assistant-ui/react-markdown@0.14.23':
+    resolution: {integrity: sha512-mcuKNlRwCz39/w66aa37mWuncW5O2A0jG6z8LCtq5sjQsUp+urQ2bwH4vPnQ88dj92BLROCw1L4GhU8Br1oZFg==}
     peerDependencies:
       '@assistant-ui/react': ^0.15.0
       '@types/react': '*'
@@ -897,8 +891,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@assistant-ui/react-mcp@0.1.22':
-    resolution: {integrity: sha512-sB9QBGYBkQjmXdRxXqdPL+l1Vf+j3jJCsQP7GDIKueE7T9oZL52LBRl0OgjrDo4Up8fdKHRcIHMght8UzkfKCQ==}
+  '@assistant-ui/react-mcp@0.1.23':
+    resolution: {integrity: sha512-BZ6SngDjTn5OmtP5H287GmMzoifYdi9QpuS4i/9sXJUbS8fgOGYD/dd288t1NGXENiJLsmVLYznKFCgpJ2EQpQ==}
     peerDependencies:
       '@types/react': '*'
       react: ^18 || ^19
@@ -8530,27 +8524,6 @@ snapshots:
       package-manager-detector: 1.8.0
       tinyexec: 1.3.0
 
-  '@assistant-ui/ai-sdk@0.0.12(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/mcp': 2.0.73(zod@4.6.5)
-      '@ai-sdk/react': 4.0.140(react@19.3.0)(zod@4.6.5)
-      '@assistant-ui/core': 0.3.26(@assistant-ui/store@0.3.19(@assistant-ui/tap@0.9.22(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(react@19.3.0))(@assistant-ui/tap@0.9.22(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(assistant-cloud@0.2.7(ai@7.0.118(zod@4.6.5)))(react@19.3.0)
-      '@assistant-ui/store': 0.3.19(@assistant-ui/tap@0.9.22(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(react@19.3.0)
-      '@assistant-ui/tap': 0.9.22(@types/react@19.2.18)(react@19.3.0)
-      ai: 7.0.118(zod@4.6.5)
-      assistant-cloud: 0.2.7(ai@7.0.118(zod@4.6.5))
-      assistant-stream: 0.3.49(ai@7.0.118(zod@4.6.5))
-    optionalDependencies:
-      '@types/react': 19.2.18
-      react: 19.3.0
-    transitivePeerDependencies:
-      - '@opentelemetry/api'
-      - '@opentelemetry/exporter-trace-otlp-http'
-      - '@opentelemetry/sdk-trace-base'
-      - ioredis
-      - redis
-      - zod
-
   '@assistant-ui/ai-sdk@0.0.13(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)':
     dependencies:
       '@ai-sdk/mcp': 2.0.73(zod@4.6.5)
@@ -8602,10 +8575,10 @@ snapshots:
       - ioredis
       - redis
 
-  '@assistant-ui/generative-ui@0.0.2(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)':
+  '@assistant-ui/generative-ui@0.0.5(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)':
     dependencies:
       '@types/json-schema': 7.0.15
-      assistant-stream: 0.3.49(ai@7.0.118(zod@4.6.5))
+      assistant-stream: 0.3.52(ai@7.0.118(zod@4.6.5))
     optionalDependencies:
       '@assistant-ui/react': 0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
       '@types/react': 19.2.18
@@ -8616,9 +8589,9 @@ snapshots:
       - ioredis
       - redis
 
-  '@assistant-ui/react-ai-sdk@1.4.17(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)':
+  '@assistant-ui/react-ai-sdk@1.4.18(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)':
     dependencies:
-      '@assistant-ui/ai-sdk': 0.0.12(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)
+      '@assistant-ui/ai-sdk': 0.0.13(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)
       ai: 7.0.118(zod@4.6.5)
       react: 19.3.0
     optionalDependencies:
@@ -8643,9 +8616,9 @@ snapshots:
       '@types/react': 19.2.18
       '@types/react-dom': 19.2.4(@types/react@19.2.18)
 
-  '@assistant-ui/react-generative-ui@0.1.1(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)':
+  '@assistant-ui/react-generative-ui@0.1.4(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)':
     dependencies:
-      '@assistant-ui/generative-ui': 0.0.2(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)
+      '@assistant-ui/generative-ui': 0.0.5(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(react@19.3.0)(zod@4.6.5)
       '@assistant-ui/react': 0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
       react: 19.3.0
       zod: 4.6.5
@@ -8655,13 +8628,14 @@ snapshots:
       - ai
       - generative-frame
       - ioredis
+      - react-native
       - redis
+      - vue
 
-  '@assistant-ui/react-markdown@0.14.20(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@assistant-ui/react-markdown@0.14.23(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@assistant-ui/react': 0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
       '@radix-ui/react-primitive': 2.1.11(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@radix-ui/react-use-callback-ref': 1.1.4(@types/react@19.2.18)(react@19.3.0)
       '@types/hast': 3.0.5
       classnames: 2.5.1
       micromark-util-html-tag-name: 2.0.1
@@ -8674,15 +8648,15 @@ snapshots:
       - react-dom
       - supports-color
 
-  '@assistant-ui/react-mcp@0.1.22(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(assistant-cloud@0.2.7(ai@7.0.118(zod@4.6.5)))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@assistant-ui/react-mcp@0.1.23(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(assistant-cloud@0.2.7(ai@7.0.118(zod@4.6.5)))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
-      '@assistant-ui/core': 0.3.26(@assistant-ui/store@0.3.19(@assistant-ui/tap@0.9.22(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(react@19.3.0))(@assistant-ui/tap@0.9.22(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(assistant-cloud@0.2.7(ai@7.0.118(zod@4.6.5)))(react@19.3.0)
-      '@assistant-ui/store': 0.3.19(@assistant-ui/tap@0.9.22(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(react@19.3.0)
-      '@assistant-ui/tap': 0.9.22(@types/react@19.2.18)(react@19.3.0)
+      '@assistant-ui/core': 0.3.26(@assistant-ui/store@0.3.19(@assistant-ui/tap@0.9.23(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(react@19.3.0))(@assistant-ui/tap@0.9.23(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(assistant-cloud@0.2.7(ai@7.0.118(zod@4.6.5)))(react@19.3.0)
+      '@assistant-ui/store': 0.3.19(@assistant-ui/tap@0.9.23(@types/react@19.2.18)(react@19.3.0))(@types/react@19.2.18)(react@19.3.0)
+      '@assistant-ui/tap': 0.9.23(@types/react@19.2.18)(react@19.3.0)
       '@modelcontextprotocol/client': 2.3.1
       '@modelcontextprotocol/core': 2.3.1
       '@radix-ui/react-primitive': 2.1.11(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      assistant-stream: 0.3.49(ai@7.0.118(zod@4.6.5))
+      assistant-stream: 0.3.52(ai@7.0.118(zod@4.6.5))
       react: 19.3.0
     optionalDependencies:
       '@types/react': 19.2.18
@@ -8697,7 +8671,7 @@ snapshots:
   '@assistant-ui/react-streamdown@0.3.20(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@streamdown/cjk@1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(react@19.3.0)(unified@11.0.5))(@streamdown/code@1.1.1(react@19.3.0))(@streamdown/math@1.0.2(react@19.3.0))(@streamdown/mermaid@1.0.2(react@19.3.0))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@assistant-ui/react': 0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
-      '@assistant-ui/react-markdown': 0.14.20(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@assistant-ui/react-markdown': 0.14.23(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/hast': 3.0.5
       micromark-util-html-tag-name: 2.0.1
       react: 19.3.0
@@ -8718,10 +8692,10 @@ snapshots:
       - react-dom
       - supports-color
 
-  '@assistant-ui/react-syntax-highlighter@0.14.7(@assistant-ui/react-markdown@0.14.20(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-syntax-highlighter@15.5.13)(@types/react@19.2.18)(react-syntax-highlighter@16.1.1(react@19.3.0))(react@19.3.0)':
+  '@assistant-ui/react-syntax-highlighter@0.14.7(@assistant-ui/react-markdown@0.14.23(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-syntax-highlighter@15.5.13)(@types/react@19.2.18)(react-syntax-highlighter@16.1.1(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@assistant-ui/react': 0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
-      '@assistant-ui/react-markdown': 0.14.20(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@assistant-ui/react-markdown': 0.14.23(@assistant-ui/react@0.15.29(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(ai@7.0.118(zod@4.6.5))(immer@11.1.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0)))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
       react-syntax-highlighter: 16.1.1(react@19.3.0)
     optionalDependencies:
