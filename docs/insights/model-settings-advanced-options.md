@@ -30,7 +30,7 @@
 | `web/src/pages/settings/ModelManagement.tsx` | 表单状态、预填充、提交、列表卡片展示 |
 | `web/src/pages/settings/AddModelDialog.tsx` | 「高级选项」`Collapsible` 折叠区 |
 | `packages/core/src/agent/types.ts` | `ModelConfig` 补 `maxOutputTokens`（`contextWindow` 已存在） |
-| `packages/core/src/agent/create-agent.ts` | 输出上限默认值 `config.maxTokens ?? modelConfig?.maxOutputTokens`，同步给 `LoopAgent` 与 `ModelContextCompactor` |
+| `packages/core/src/agent/create-agent.ts` | 输出上限取自 `modelConfig?.maxOutputTokens`，同步给 `LoopAgent` 与 `ModelContextCompactor`；移除 `AgentConfig.maxTokens` |
 | `server/src/agent/get-agent.ts` | `buildAgentConfig` 传模型级 `context_window` / `max_output_tokens` |
 
 ## 运行管线接入
@@ -38,8 +38,8 @@
 模型级参数已接入 `buildAgentConfig → createAgent → LoopAgent / ModelContextCompactor`：
 
 - **上下文窗口**：`model.context_window ?? config.model?.context_window`（模型级优先，回退全局默认），供 `ModelContextCompactor` 的 pressure 压缩预算计算使用。
-- **最大输出 tokens**：`maxTokens = model.max_output_tokens ?? a.max_tokens ?? 4096`（模型级优先，其次 agent 的 `max_tokens`），同时作用于
+- **最大输出 tokens**：`ModelConfig.maxOutputTokens = model.max_output_tokens`，同时作用于
   - `LoopAgent.callModel` 的 `ModelRequest.maxOutputTokens`（模型请求输出上限）；
   - `ModelContextCompactor` 的 `reservedCompletionTokens`（压缩预算里为 completion 预留的额度）。
 
-`packages/core/src/agent/create-agent.ts` 中也有兜底 `const maxTokens = config.maxTokens ?? modelConfig?.maxOutputTokens`，让非 server 调用方直接传 `ModelConfig.maxOutputTokens` 时同样生效。
+`AgentConfig` 不再暴露独立的 `maxTokens` 字段，输出上限统一由模型级 `max_output_tokens` 决定；`createAgent` 内部用 `const maxTokens = modelConfig?.maxOutputTokens` 取值，模型未配置时交给 provider 默认（`reservedCompletionTokens` 为 0）。

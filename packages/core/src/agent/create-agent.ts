@@ -103,7 +103,6 @@ export interface AgentConfig {
   systemPrompt: string;
   model: ModelRef;
   temperature?: number;
-  maxTokens?: number;
   maxSteps?: number;
   /** 推理力度，不传则 provider 默认 */
   reasoning?: ReasoningEffort;
@@ -139,8 +138,8 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 
   // 上下文压缩器：仅在显式配置 compaction 时构造；模型为 ModelConfig 时才能拿到 contextWindow/摘要模型
   const modelConfig = !isLanguageModelV4(config.model) ? config.model : undefined;
-  // 输出上限默认值：模型级 maxOutputTokens 兜底，AgentConfig.maxTokens 显式配置时优先
-  const maxTokens = config.maxTokens ?? modelConfig?.maxOutputTokens;
+  // 输出上限来自模型级 maxOutputTokens（AgentConfig 不再暴露独立 maxTokens）
+  const maxTokens = modelConfig?.maxOutputTokens;
   const compactor = config.compaction
     ? new ModelContextCompactor({
         thread,

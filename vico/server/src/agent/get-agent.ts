@@ -50,8 +50,6 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
       maxOutputTokens: model.max_output_tokens ?? undefined,
     },
     temperature: a.temperature ?? 0.7,
-    // 输出上限默认值：模型级 max_output_tokens 优先，其次 agent 的 max_tokens，最后兜底 4096
-    maxTokens: model.max_output_tokens ?? a.max_tokens ?? 4096,
     maxSteps: a.max_steps ?? 10,
     conversationWindow: config.memory.stm_window,
     compaction: toCompactionSettings(config.memory.compaction),

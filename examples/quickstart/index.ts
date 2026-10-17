@@ -42,7 +42,6 @@ async function main() {
     systemPrompt: 'You are an echo bot. Use the echo tool to repeat user messages.',
     model: { provider: 'mock', model: 'mock-model' },
     temperature: 0.7,
-    maxTokens: 1024,
     maxSteps: 5,
   });
 

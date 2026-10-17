@@ -36,7 +36,6 @@ export function createDelegateTool(parentConfig: { getConfig(): AgentConfig}) {
       ].join('\n'),
       model: parent.model,
       temperature: parent.temperature ?? 0.3,
-      maxTokens: parent.maxTokens,
       maxSteps: 5,
       workspace: parent.workspace,
       tools: [],
