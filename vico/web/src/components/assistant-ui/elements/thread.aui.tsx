@@ -9,7 +9,7 @@ import {File} from "@/components/assistant-ui/elements/file";
 import {ThreadFollowupSuggestions} from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
 import {Image} from "@/components/assistant-ui/elements/image";
 import {MarkdownText} from "@/components/assistant-ui/elements/markdown-text";
-import {MessageTokenUsage} from "@/components/assistant-ui/elements/message-token-usage.aui";
+import {MessageTokenUsage} from "@/components/assistant-ui/message-token-usage";
 import {
   Reasoning,
   ReasoningContent,
