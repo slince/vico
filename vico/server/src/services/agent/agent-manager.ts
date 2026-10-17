@@ -57,7 +57,12 @@ class AgentManager {
       if (a.model_id) {
         const model = await modelManager.getById(a.model_id);
         if (model) {
-          detail.llm = { provider: model.provider, model: model.model_name };
+          detail.llm = {
+            provider: model.provider,
+            model: model.model_name,
+            context_window: model.context_window,
+            max_output_tokens: model.max_output_tokens,
+          };
         }
       }
       result.push(detail);
