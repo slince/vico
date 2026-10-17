@@ -17,15 +17,12 @@ describe('resolveSettings', () => {
     expect(() => resolveSettings({ thresholdRatio: 0.5, retainRatio: 0.6 })).toThrow(/retainRatio/);
   });
 
-  it('summarizationProvider/Model 必须成对设置', () => {
-    expect(() => resolveSettings({ summarizationProvider: 'openai' })).toThrow(/summarization/);
+  it('只改 thresholdRatio 不误报 retainRatio 校验', () => {
+    expect(() => resolveSettings({ thresholdRatio: 0.1 })).not.toThrow();
   });
 
-  it('modelPolicies 重复 target 报错', () => {
-    expect(() => resolveSettings({ modelPolicies: [
-      { provider: 'a', model: 'm' },
-      { provider: 'a', model: 'm' },
-    ] })).toThrow(/duplicate|重复/);
+  it('summarizationProvider/Model 必须成对设置', () => {
+    expect(() => resolveSettings({ summarizationProvider: 'openai' })).toThrow(/summarization/);
   });
 
   it('默认 maxTokens = headroomTokens', () => {
@@ -55,17 +52,16 @@ describe('resolveCompactSpec', () => {
 
 describe('selectCompactableRange', () => {
   const turns = [
-    { turnId: 't1', routeTokens: 100, heuristicTokens: 90 },
-    { turnId: 't2', routeTokens: 200, heuristicTokens: 180 },
-    { turnId: 't3', routeTokens: 300, heuristicTokens: 270 },
+    { turnId: 't1', tokens: 100 },
+    { turnId: 't2', tokens: 200 },
+    { turnId: 't3', tokens: 300 },
   ];
 
   it('从尾部累计到 retainTokens，head = 剩余 turn', () => {
     // retainTokens=350：尾部累计 t3(300)→t2(500)>=350 停在 t2，保留 [t2,t3]，head=[t1]
     const r = selectCompactableRange(turns, 50, 350);
     expect(r!.headTurnIds).toEqual(['t1']);
-    expect(r!.headRouteTokens).toBe(50 + 100);
-    expect(r!.headHeuristicTokens).toBe(90);
+    expect(r!.headTokens).toBe(50 + 100);
   });
 
   it('总 token 不足 retainTokens 时返回 null（全部保留）', () => {
@@ -80,6 +76,6 @@ describe('selectCompactableRange', () => {
   it('head 为空时返回 null', () => {
     expect(selectCompactableRange([], 50, 0)).toBeNull();
     // retainTokens 很小但只有一个 turn：tailStart 会落在 0 → null
-    expect(selectCompactableRange([{ turnId: 't1', routeTokens: 100, heuristicTokens: 90 }], 0, 10)).toBeNull();
+    expect(selectCompactableRange([{ turnId: 't1', tokens: 100 }], 0, 10)).toBeNull();
   });
 });

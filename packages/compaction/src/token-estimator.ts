@@ -15,24 +15,12 @@ export interface TokenAnchor {
   sampledSurfaceTokens: number;
 }
 
-/** 单条消息的双级价格 */
-export interface PricedMessage {
-  message: ModelMessage;
-  /** route-priced 价格（判定/切分/shrink 用；v1 纯文本 === heuristic） */
-  tokens: number;
-  /** 固定启发式价格（替换记账 shadow-price 用） */
-  heuristicTokens: number;
-}
-
 /** 测量结果 */
 export interface TokenMeasurement {
   /** usage 锚定后的投影 token；无 anchor 时 = surfaceTokens */
   totalTokens: number;
-  /** Σ route-priced token */
+  /** Σ 启发式估算 token */
   surfaceTokens: number;
-  /** Σ heuristic token */
-  heuristicTokens: number;
-  nodes: PricedMessage[];
 }
 
 /**
@@ -75,16 +63,15 @@ export function estimateMessage(msg: ModelMessage): number {
   return estimateContent(msg.content) + ROLE_OVERHEAD;
 }
 
-/** 批量测量：v1 无图片/文件，route 价格 = heuristic；有 anchor 时做 usage 投影 */
+/**
+ * 批量测量：逐消息启发式估算后累加，有 anchor 时做 usage 投影。
+ * 注意：anchor.pressureTokens 是 provider 上报的完整请求 input token（含 system prompt / 历史 / 工具定义），
+ * 与 surfaceTokens（仅窗口内消息 + 摘要的启发式价格）口径不同，投影是近似校准而非精确换算。
+ */
 export function measure(messages: ModelMessage[], anchor?: TokenAnchor): TokenMeasurement {
-  const nodes: PricedMessage[] = messages.map((message) => {
-    const heuristicTokens = estimateMessage(message);
-    return { message, tokens: heuristicTokens, heuristicTokens };
-  });
-  const surfaceTokens = nodes.reduce((s, n) => s + n.tokens, 0);
-  const heuristicTokens = nodes.reduce((s, n) => s + n.heuristicTokens, 0);
+  const surfaceTokens = messages.reduce((sum, m) => sum + estimateMessage(m), 0);
   const totalTokens = anchor
     ? Math.max(0, anchor.pressureTokens + surfaceTokens - anchor.sampledSurfaceTokens)
     : surfaceTokens;
-  return { totalTokens, surfaceTokens, heuristicTokens, nodes };
+  return { totalTokens, surfaceTokens };
 }

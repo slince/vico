@@ -38,8 +38,6 @@ describe('token-estimator', () => {
   it('measure 无 anchor 时 totalTokens = surfaceTokens', () => {
     const m = measure([{ role: 'user', content: 'hello' }]);
     expect(m.totalTokens).toBe(m.surfaceTokens);
-    expect(m.nodes).toHaveLength(1);
-    expect(m.nodes[0].tokens).toBe(m.nodes[0].heuristicTokens); // v1 route = heuristic
   });
 
   it('measure 有 anchor 时 totalTokens = max(0, pressure + surface - sampled)', () => {

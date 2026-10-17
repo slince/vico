@@ -1,19 +1,6 @@
-// @vico/core - 压缩配置解析与区间选择（对齐 deepseek resolveCompactSpec / selectCompactableRange）
-export interface CompactionModelPolicy {
-  provider: string;
-  model: string;
-  thresholdRatio?: number;
-  headroomTokens?: number;
-  retainRatio?: number;
-  retainTokens?: number;
-  summarizationProvider?: string;
-  summarizationModel?: string;
-  maxTokens?: number;
-  compactionRetries?: number;
-  maxOverflowRetries?: number;
-}
+// @vico/compaction - 压缩配置解析与区间选择（对齐 deepseek resolveCompactSpec / selectCompactableRange）
 
-/** 压缩设置（字段语义对齐 deepseek BasicCompactionConfig；v1 不做 modelPolicies 精确覆盖） */
+/** 压缩设置（字段语义对齐 deepseek BasicCompactionConfig） */
 export interface CompactionSettings {
   auto?: boolean;
   thresholdRatio?: number;
@@ -25,7 +12,6 @@ export interface CompactionSettings {
   maxTokens?: number;
   compactionRetries?: number;
   maxOverflowRetries?: number;
-  modelPolicies?: CompactionModelPolicy[];
 }
 
 /** 解析后的压缩设置（全部非可选） */
@@ -40,7 +26,6 @@ export interface ResolvedCompactionSettings {
   maxTokens: number;
   compactionRetries: number;
   maxOverflowRetries: number;
-  modelPolicies?: CompactionModelPolicy[];
 }
 
 export const DEFAULT_COMPACTION_SETTINGS: ResolvedCompactionSettings = {
@@ -56,7 +41,7 @@ export const DEFAULT_COMPACTION_SETTINGS: ResolvedCompactionSettings = {
 /**
  * 校验并合并压缩设置，产出全非可选字段的解析结果。
  * 校验规则照搬 deepseek resolveConfig：retainRatio/retainTokens 互斥、retainRatio < thresholdRatio、
- * summarizationProvider/Model 成对、modelPolicies 无重复 target。
+ * summarizationProvider/Model 成对。
  */
 export function resolveSettings(settings: Partial<CompactionSettings> = {}): ResolvedCompactionSettings {
   if (settings.retainRatio !== undefined && settings.retainTokens !== undefined) {
@@ -71,17 +56,9 @@ export function resolveSettings(settings: Partial<CompactionSettings> = {}): Res
     ...settings,
     maxTokens: settings.maxTokens ?? settings.headroomTokens ?? DEFAULT_COMPACTION_SETTINGS.headroomTokens,
   };
-  // thresholdRatio 默认值在 spread 后可能被覆盖为显式值；按最终值校验 retainRatio < thresholdRatio
-  if (merged.retainRatio >= merged.thresholdRatio) {
+  // 仅对显式传入的 retainRatio 校验：默认 retainRatio 不随 thresholdRatio 缩小而调整，避免误伤只改 thresholdRatio 的配置
+  if (settings.retainRatio !== undefined && settings.retainRatio >= merged.thresholdRatio) {
     throw new Error('retainRatio must be less than thresholdRatio');
-  }
-  if (merged.modelPolicies) {
-    const seen = new Set<string>();
-    for (const p of merged.modelPolicies) {
-      const key = `${p.provider}:${p.model}`;
-      if (seen.has(key)) throw new Error(`duplicate modelPolicy target: ${key}`);
-      seen.add(key);
-    }
   }
   return merged;
 }
@@ -129,19 +106,17 @@ export function resolveCompactSpec(
 /** 单个 turn 的 token 预算（供区间选择按 turn 边界累计） */
 export interface TurnTokenBudget {
   turnId: string;
-  routeTokens: number;
-  heuristicTokens: number;
+  tokens: number;
 }
 
-/** 压缩区间：待归档 head + 保留 tail */
+/** 压缩区间：待归档 head */
 export interface CompactableRange {
   headTurnIds: string[];
-  headRouteTokens: number;
-  headHeuristicTokens: number;
+  headTokens: number;
 }
 
 /**
- * 从尾部向前累计 route token 到 retainTokens 预算，head 为剩余 turn（对齐 deepseek selectCompactableRange 的 turn 粒度简化）。
+ * 从尾部向前累计 token 到 retainTokens 预算，head 为剩余 turn（对齐 deepseek selectCompactableRange 的 turn 粒度简化）。
  * summaryTokens 计入 head（旧摘要随增量折叠进新摘要）。
  * retainTokens <= 0 表示不保留尾部（context-overflow 强制压缩全部）；总 token 不足预算或 head 为空返回 null。
  */
@@ -154,7 +129,7 @@ export function selectCompactableRange(
   if (retainTokens > 0) {
     let tailRoute = 0;
     for (let i = turns.length - 1; i >= 0; i--) {
-      tailRoute += turns[i].routeTokens;
+      tailRoute += turns[i].tokens;
       if (tailRoute >= retainTokens) { tailStart = i; break; }
     }
     if (tailRoute < retainTokens) return null; // 尾部累计不足预算，全部保留
@@ -163,7 +138,6 @@ export function selectCompactableRange(
   const head = turns.slice(0, tailStart);
   return {
     headTurnIds: head.map((t) => t.turnId),
-    headRouteTokens: summaryTokens + head.reduce((s, t) => s + t.routeTokens, 0),
-    headHeuristicTokens: head.reduce((s, t) => s + t.heuristicTokens, 0),
+    headTokens: summaryTokens + head.reduce((s, t) => s + t.tokens, 0),
   };
 }

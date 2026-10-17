@@ -19,7 +19,7 @@ export type TurnEvent =
   | { type: 'tool-result'; id: string; name: string; status: 'success' | 'error'; output: unknown }
   | { type: 'step-start'; step: number }
   | { type: 'step-end'; step: number }
-  | { type: 'compacted'; summaryMessageId: string; archivedTurnIds: string[]; removedTokens: number; shadowedTokenCount: number }
+  | { type: 'compacted'; summaryMessageId: string; archivedTurnIds: string[]; removedTokens: number }
   | { type: 'error'; error: string | Error }
   | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName: string; input: unknown }
   | { type: 'tool-suggested'; toolCallId: string; toolName: string; input: unknown }

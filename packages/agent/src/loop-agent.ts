@@ -829,14 +829,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
   }
 
-  /** 发射压缩事件（compacted 五字段） */
+  /** 发射压缩事件 */
   private emitCompacted(result: CompactionResult): void {
     this.emit({
       type: 'compacted',
       summaryMessageId: result.summaryMessageId,
       archivedTurnIds: result.archivedTurnIds,
       removedTokens: result.removedTokens,
-      shadowedTokenCount: result.shadowedTokenCount,
     });
   }
 
@@ -899,8 +898,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const first = await attempt();
 
-    // usage 锚定：无论成功失败，记录 provider 上报的 prompt token
-    this.compactor?.recordUsage(context.session.thread.id, first.usage.inputTokens?.total ?? 0);
+    // usage 锚定：无论成功失败，记录 provider 上报的 prompt token（无上报时传 undefined 清除锚点）
+    this.compactor?.recordUsage(context.session.thread.id, first.usage.inputTokens?.total);
 
     // 正常响应 → 清零 context-overflow 重试计数
     if (!first.error) {

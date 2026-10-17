@@ -27,7 +27,7 @@ Vico 在 `@vico/core` 新增上下文压缩机制：当历史消息过大时，�
 
 ## 摘要失败 no-op
 
-摘要 LLM 失败/abort、输出为空、shrink check 不通过（framed 摘要不小于被压缩内容）三类失败均 **no-op**：不写摘要、不归档（spec §10），主流程不阻塞，下次 turn 再试——绝不写「原文截断摘要」落库（那会永久丢失被归档细节）。shrink check 基线 = 被归档口径（旧摘要 + head），与 `selectCompactableRange` 的 `removedTokens` 一致。
+摘要 LLM 失败/abort、输出为空、shrink check 不通过（framed 摘要不小于被压缩内容）三类失败均 **no-op**：不写摘要、不归档（spec §10），主流程不阻塞，下次 turn 再试——绝不写「原文截断摘要」落库（那会永久丢失被归档细节）。shrink check 基线 = 被归档口径（旧摘要 + head），与 `selectCompactableRange` 的 `headTokens`（即 `CompactionResult.removedTokens`）一致。
 
 ## 与 deepseek 的差异
 

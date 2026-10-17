@@ -142,42 +142,14 @@ export {
   TargetPressureConfigError,
   isContextOverflowError,
 } from '@vico/compaction';
-// ContextCompactor（类型导出：端口 / 结果 / 触发类型）
+// ContextCompactor（类型导出：端口 / 结果 / 触发类型 / 设置）
 export type {
   ContextCompactor,
   CompactionTrigger,
   CompactionResult,
   ManualCompactionErrorCode,
   ModelContextCompactorOptions,
-} from '@vico/compaction';
-export {
-  COMPACTION_INSTRUCTION,
-  CHECKPOINT_PREAMBLE,
-  SUMMARY_OPEN_TAG,
-  SUMMARY_CLOSE_TAG,
-} from '@vico/compaction';
-export {
-  resolveSettings,
-  resolveCompactSpec,
-  selectCompactableRange,
-  DEFAULT_COMPACTION_SETTINGS,
-  type CompactionSettings,
-  type ResolvedCompactionSettings,
-  type ResolvedCompactSpec,
-  type CompactionModelPolicy,
-  type TurnTokenBudget,
-  type CompactableRange,
-} from '@vico/compaction';
-export {
-  estimateContent,
-  estimateMessage,
-  measure,
-  CHARS_PER_TOKEN,
-  BLOCK_OVERHEAD,
-  ROLE_OVERHEAD,
-  type TokenAnchor,
-  type PricedMessage,
-  type TokenMeasurement,
+  CompactionSettings,
 } from '@vico/compaction';
 
 // Utils

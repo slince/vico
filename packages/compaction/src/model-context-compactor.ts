@@ -57,7 +57,11 @@ export class ModelContextCompactor implements ContextCompactor {
     this.settings = resolveSettings(options.settings);
   }
 
-  recordUsage(threadId: string, pressureTokens: number): void {
+  recordUsage(threadId: string, pressureTokens: number | undefined): void {
+    if (pressureTokens === undefined) {
+      this.pressureTokens.delete(threadId); // 无 usage 上报 → 回退无锚定启发式估算
+      return;
+    }
     this.pressureTokens.set(threadId, pressureTokens);
   }
 
@@ -107,10 +111,7 @@ export class ModelContextCompactor implements ContextCompactor {
       }
 
       const range = selectCompactableRange(
-        candidate.turns.map((t) => {
-          const tokens = measure(t.messages);
-          return { turnId: t.turnId, routeTokens: tokens.surfaceTokens, heuristicTokens: tokens.heuristicTokens };
-        }),
+        candidate.turns.map((t) => ({ turnId: t.turnId, tokens: measure(t.messages).surfaceTokens })),
         candidate.summary ? estimateMessage(candidate.summary) : 0,
         retainTokens,
       );
@@ -150,9 +151,7 @@ export class ModelContextCompactor implements ContextCompactor {
       return {
         summaryMessageId: created.id,
         archivedTurnIds: range.headTurnIds,
-        shadowedRange: { startTurnId: range.headTurnIds[0], endTurnId: range.headTurnIds[range.headTurnIds.length - 1] },
-        shadowedTokenCount: range.headHeuristicTokens,
-        removedTokens: range.headRouteTokens,
+        removedTokens: range.headTokens,
       };
     } finally {
       this.busyThreads.delete(thread.id);
@@ -201,8 +200,8 @@ export class ModelContextCompactor implements ContextCompactor {
    */
   private async summarize(head: ModelMessage[], oldSummary: ModelMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
     const client = this.resolveSummaryClient(modelClient);
-    // shrink 基线 = 被归档口径（旧摘要 + head），与 selectCompactableRange 的 removedTokens 一致
-    const headRouteTokens = measure(head).surfaceTokens + (oldSummary ? estimateMessage(oldSummary) : 0);
+    // shrink 基线 = 被归档口径（旧摘要 + head），与 selectCompactableRange 的 headTokens 一致
+    const headTokens = measure(head).surfaceTokens + (oldSummary ? estimateMessage(oldSummary) : 0);
 
     // 摘要输入：旧摘要折叠进新摘要（以 system 角色传入——summary 非 provider 可识别角色，避免 standardizePrompt 拒绝）
     const input: ModelMessage[] = [];
@@ -237,7 +236,7 @@ export class ModelContextCompactor implements ContextCompactor {
 
     // shrink check：framed 摘要必须小于被压缩内容，否则返回 null（失败）
     const framed = frameSummary(text);
-    if (estimateMessage({ role: 'system', content: framed }) >= headRouteTokens) {
+    if (estimateMessage({ role: 'system', content: framed }) >= headTokens) {
       return null;
     }
     return framed;
