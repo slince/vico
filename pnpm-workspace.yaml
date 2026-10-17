@@ -15,8 +15,8 @@ allowBuilds:
   protobufjs: true
   sharp: true
 
-# 强制对齐 assistant-ui 核心包版本（ai-sdk/react-mcp 仍声明 ^0.3.25/^0.3.18，官方未发跟进版，
-# 此处统一到 react@0.15.27 所需的 core 0.3.26 / store 0.3.19，消除运行时重复加载）
-overrides:
-  "@assistant-ui/core": 0.3.26
-  "@assistant-ui/store": 0.3.19
+## 强制对齐 assistant-ui 核心包版本（ai-sdk/react-mcp 仍声明 ^0.3.25/^0.3.18，官方未发跟进版，
+## 此处统一到 react@0.15.27 所需的 core 0.3.26 / store 0.3.19，消除运行时重复加载）
+#overrides:
+#  "@assistant-ui/core": 0.3.26
+#  "@assistant-ui/store": 0.3.19

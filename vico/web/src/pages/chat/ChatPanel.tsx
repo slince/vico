@@ -72,7 +72,7 @@ const ContextDisplayUsage: FC = () => {
 
   if (contextWindow && contextWindow > 0) {
     return (
-      <ContextDisplay.Bar
+      <ContextDisplay.Ring
         modelContextWindow={contextWindow}
         className="ml-auto shrink-0"
       />
