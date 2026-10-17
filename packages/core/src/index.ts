@@ -1,6 +1,5 @@
 // src/index.ts — @vico/core public API
 
-export { type ModelConfig, type ModelRef } from './agent/types.js';
 export { type LanguageModelFactory, type AgentConfig } from './agent/create-agent.js';
 export {
   type Tool,
@@ -19,7 +18,7 @@ export { createLanguageModel } from './model/factory.js';
 
 // ModelClient and types
 export { ModelClient } from './model/model-client.js';
-export type { ModelRequest, ModelStreamResult, ReasoningEffort } from './model/types.js';
+export type { ModelConfig, ModelRef, ModelRequest, ModelStreamResult, ReasoningEffort } from './model/types.js';
 export {
   getMessageText,
   buildAssistantMessage, buildToolResultMessage, toToolSet,
@@ -28,7 +27,7 @@ export {
 } from './model/message-utils.js';
 
 // Stream
-export type { UserMessage } from './stream/types.js';
+export type { CallModelResult, TurnEvent, UserMessage } from './stream/types.js';
 
 // Context processors (onion model)
 export {
@@ -70,7 +69,6 @@ export {
   type ToolCallContext,
   type ApprovalDecision,
 } from './tool/types.js';
-export { type TurnSession, type CallModelResult } from './agent/loop-agent-options.js';
 export { StormBreaker } from './tool/storm-breaker.js';
 export { type PolicyContext, type ApprovalResolver, type ApprovalDecider, type ApprovalMode } from './tool/types.js';
 export { isPathInWorkspace, composeResolvers, defaultApprovalResolvers, toolPolicyResolver, approvalModeResolver, ApprovalPriority } from './tool/policy-helpers.js';
@@ -130,6 +128,8 @@ export {
   type Turn,
   type Message,
   type SessionApprovedTool,
+  type TurnSession,
+  type TurnStep,
 } from './thread/thread-store.js';
 export { InMemoryThreadStore } from './thread/memory-thread-store.js';
 export { toModelMessages, fromModelMessage, toUiMessages } from './thread/utils.js';
@@ -197,8 +197,9 @@ export { createAgent } from './agent/create-agent.js';
 export { LoopAgent, type LoopAgentOptions } from './agent/loop-agent.js';
 export { collectTurnResult, normalizeUserMessage } from './agent/utils.js';
 export { TurnOutput } from './agent/turn-output.js';
-export { type TurnEvent, type UsageMetrics } from './agent/types.js';
-export { type TurnResult, type RunOptions, type ToolApproval, type ToolCallApproval } from './agent/loop-agent-options.js';
+export { type UsageMetrics } from './shared.js';
+export { type TurnResult, type RunOptions } from './agent/loop-agent-options.js';
+export { type ToolApproval, type ToolCallApproval } from './shared.js';
 export { type Checkpoint, type CheckpointAppendPatch, type CheckpointStore, type NextAction, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint, DEFAULT_CHECKPOINT_TTL } from './checkpoint/checkpoint.js';
 
 // Container

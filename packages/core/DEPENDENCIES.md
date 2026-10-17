@@ -29,6 +29,7 @@ flowchart TD
         skill["skill"]
     end
     subgraph L0["叶子层"]
+        shared["shared"]
         utils["utils"]
         events["events"]
         rag["rag"]
@@ -63,21 +64,20 @@ flowchart TD
     tool --> stream
 
     %% ---- 仅类型依赖（虚线）----
-    checkpoint -.-> agent
+    checkpoint -.-> shared
     checkpoint -.-> tool
-    compaction -.-> agent
-    context -.-> agent
     context -.-> memory
     context -.-> rag
     context -.-> skill
     context -.-> thread
     context -.-> tool
-    model -.-> agent
+    model -.-> shared
     model -.-> tool
-    stream -.-> agent
+    stream -.-> shared
     stream -.-> tool
-    thread -.-> agent
-    tool -.-> agent
+    thread -.-> shared
+    tool -.-> shared
+    tool -.-> thread
 ```
 
 ## 分层表
@@ -85,28 +85,31 @@ flowchart TD
 | 层 | 模块 | 出边（依赖谁） |
 |----|------|----------------|
 | **编排** | `agent` | 运行时依赖全部 10 个模块（LoopAgent 编排核心） |
-| | `tool` | 运行时 → `agent`(delegate-tool 的 `createAgent`)、`stream` |
-| **中间** | `checkpoint` | 仅类型 → `agent`、`tool` |
-| | `compaction` | 运行时 → `model`、`thread`、`utils`；类型 → `agent` |
-| | `context` | 运行时 → `model`；类型 → `agent`/`memory`/`rag`/`skill`/`thread`/`tool` |
-| | `stream` | 运行时 → `model`；类型 → `agent`、`tool` |
+| | `tool` | 运行时 → `agent`(delegate-tool 的 `createAgent`)、`stream`；类型 → `shared`、`thread` |
+| **中间** | `checkpoint` | 类型 → `shared`、`tool` |
+| | `compaction` | 运行时 → `model`、`thread`、`utils` |
+| | `context` | 运行时 → `model`；类型 → `memory`/`rag`/`skill`/`thread`/`tool` |
+| | `stream` | 运行时 → `model`；类型 → `shared`、`tool` |
 | | `memory` | 运行时 → `model`、`thread`、`tool`、`utils` |
-| **基础** | `model` | 仅类型 → `agent`、`tool` |
-| | `thread` | 仅类型 → `agent` |
+| **基础** | `model` | 类型 → `shared`、`tool` |
+| | `thread` | 类型 → `shared` |
 | | `skill` | 运行时 → `tool` |
-| **叶子** | `utils` / `events` / `rag` | 无内部出边 |
+| **叶子** | `shared` | 无出边（`UsageMetrics` / `ToolCallApproval` / `ToolApproval` 纯结构类型） |
+| | `utils` / `events` / `rag` | 无出边 |
 
 ## 关键发现
 
-1. **唯一真正的运行时循环：`agent ↔ tool`**
+1. **「类型引力中心」已消除**：所有非 agent 模块不再 `import type` agent。此前集中在 `agent/types.ts` / `agent/loop-agent-options.ts` 的共享类型已下沉：
+   - `UsageMetrics` / `ToolCallApproval` / `ToolApproval` → **`src/shared.ts`**（新叶子）
+   - `ModelConfig` / `ModelRef` / `isLanguageModelV4` → `model/types.ts`
+   - `TurnEvent` / `CallModelResult` → `stream/types.ts`
+   - `TurnSession` / `TurnStep` → `thread/thread-store.ts`
+
+2. **唯一真正的运行时循环仍是 `agent ↔ tool`**：
    - `agent → tool`：`loop-agent.ts` 运行时引入 `ToolExecutor`、`composeResolvers`。
    - `tool → agent`：`tool/builtin/coding/delegate-tool.ts` 运行时引入 `createAgent`（子代理需要再建 Agent）。
-   - 这是真实的值级双向依赖，可编译但运行时行为需留意（ESM 循环引用）。
+   - 其余 tool → agent 的 type 引用已用**依赖倒置**消除：`ToolExecutor` 改用本地窄接口 `AgentHost`（`emit`）与 `ToolExecutionContext`（`session`/`signal`/`decisions`/`controller`），引擎的 `LoopAgent` / `TurnContext` 结构化满足。
 
-2. **`agent` 是「类型引力中心」**：几乎所有模块都反向 `import type` 到 `agent/types.ts` / `agent/loop-agent-options.ts`（`TurnContext`、`TurnSession`、`ToolCallApproval` 等）。虚线边编译期擦除，安全，但结构上让 `agent` 成为全局耦合点。
+3. **`shared` 是新的类型叶子**：被 `checkpoint` / `context` / `model` / `stream` / `thread` / `tool` 六个模块依赖，自身无出边，避免了 `thread → model → tool → thread` 这类 type 环。
 
-3. **已消除的语义噪音**：以下纯类型引用已改为 `import type`，避免伪装成运行时依赖：
-   - `src/tool/types.ts` → `import type {ToolCallApproval, TurnSession}`
-   - `src/context/model-request-context.ts` → `import type {TurnSession, TurnStep}`
-
-4. `index.ts`（barrel）是唯一对外出口，重导出全部模块，自身不参与上述依赖环。
+4. `index.ts`（barrel）是唯一对外出口，重导出全部模块，自身不参与上述依赖环；对外导出的符号名未变，消费方零改动。

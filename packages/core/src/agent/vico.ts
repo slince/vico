@@ -1,5 +1,5 @@
 // @vico/core - Vico: one-shot wiring for all Agent services
-import type {TurnEvent} from './types.js';
+import type {TurnEvent} from '../stream/types.js';
 import {createAgent, buildSkills, type AgentConfig, type LanguageModelFactory, type SkillOptions} from './create-agent.js';
 import type {Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';

@@ -1,6 +1,6 @@
 // @vico/core - 模型模块类型定义（消息/流类型全部使用 AI SDK 原生类型）
 import type {ModelMessage} from 'ai';
-import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
+import type {LanguageModelV4, LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type {Tool} from '../tool/types.js';
 
 
@@ -28,4 +28,26 @@ export interface ModelStreamResult {
   stream: ReadableStream<LanguageModelV4StreamPart>;
   /** 消费 stream 并返回完整文本输出（text-delta 拼接）。调用后 stream 不可再被读取，与 `stream` 二选一消费。 */
   readText(): Promise<string>;
+}
+
+/** 模型配置：provider + 模型名 + 连接凭据，createLanguageModel 据此构建 LanguageModelV4 */
+export interface ModelConfig {
+  provider: string;
+  model: string;
+  baseUrl?: string;
+  apiKey: string;
+  /** 模型上下文窗口 token 数；启用压缩（pressure 触发）时必填（provider v4 不暴露） */
+  contextWindow?: number;
+  /** 模型最大输出 token 数；作为模型请求默认输出上限，并预留为压缩预算的 completion 额度 */
+  maxOutputTokens?: number;
+}
+
+/**
+ * 模型引用：已解析的 LanguageModelV4 实例，或待解析的 ModelConfig
+ */
+export type ModelRef = LanguageModelV4 | ModelConfig;
+
+/** 判断 ModelRef 是否为已解析的 LanguageModelV4 实例（配置对象无 modelId 字段） */
+export function isLanguageModelV4(ref: ModelRef): ref is LanguageModelV4 {
+  return 'modelId' in ref;
 }

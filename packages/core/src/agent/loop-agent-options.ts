@@ -1,4 +1,4 @@
-import {UsageMetrics} from "./types.js";
+import type {ToolApproval, ToolCallApproval, UsageMetrics} from "../shared.js";
 import {type ApprovalMode, ToolCall, ToolResult} from "../tool/types.js";
 import type {Checkpoint} from '../checkpoint/checkpoint.js';
 import {ModelRequestContext} from '../context/model-request-context.js';
@@ -6,6 +6,7 @@ import type {ReasoningEffort} from "../model/types.js";
 import type {ModelClient} from "../model/model-client.js";
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from "../thread/thread-store.js";
+import type {TurnSession} from "../thread/thread-store.js";
 
 /** executeModelStep 返回值 */
 export interface ModelStepResult {
@@ -31,20 +32,6 @@ export interface ResolvedApprovals {
   deniedResults: ToolResult[];
   /** 待审批的 ToolCall（需暂停 turn 等待客户端审批） */
   pendingApprovalCalls: ToolCall[];
-}
-
-/** callModel 的返回值 */
-export interface CallModelResult {
-  /** 模型生成的完整文本 */
-  text: string;
-  /** 模型推理/思考内容（reasoning tokens，如 o1/DeepSeek-R1 的内部推理链） */
-  reasoning: string;
-  /** 模型请求的工具调用 */
-  toolCalls: ToolCall[];
-  /** 本次调用的 token 用量 */
-  usage: UsageMetrics;
-  /** 错误信息（如有） */
-  error?: string | Error;
 }
 
 /** executeModelStep / callModel 共享上下文 */
@@ -95,46 +82,6 @@ export interface TurnResult {
   turn?: Turn;
   /** 错误信息（status 为 failed 时） */
   error?: Error | string;
-}
-
-/**
- * Step — turn 内的一次 LLM 调用 + 可选工具执行。
- * 由 _run 在每轮迭代时创建，随 callModel / executeToolCalls / dispatchTools 流转。
- */
-export interface TurnStep {
-  /** 当前步骤编号（0 起始） */
-  index: number;
-
-  /** 本轮step的会话*/
-  messages: ModelMessage[]
-}
-
-/** 一次 turn 的会话标识，贯穿 model 调用和工具执行 */
-export interface TurnSession {
-  workspace?: string;
-  thread: Thread;
-  turn: Turn;
-}
-
-
-/** 客户端工具审批决策（将 toolCallId 与审批结果绑定） */
-export interface ToolCallApproval {
-  toolCallId: string;
-  approved: boolean;
-  /** 审批作用域：turn（本 turn 有效）| session（整个 thread 有效），默认 turn */
-  scope?: 'turn' | 'session';
-  /** 用户随审批提交的回答（ask_user 等澄清工具），复用 tool-approval-response 的 reason 字段承载；内容为结构化 answers 的 JSON 字符串 */
-  reason?: string;
-}
-
-/** 单次工具审批在 turn 内的状态记录 */
-export interface ToolApproval {
-  /** 工具名称 */
-  toolName: string;
-  /** 是否已批准 */
-  approved: boolean;
-  /** 批准/拒绝时间戳（Unix ms） */
-  approvedAt: number;
 }
 
 /** runTurn 选项 */

@@ -2,8 +2,8 @@
 import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {Agent} from './agent.js';
 import {LoopAgent} from './loop-agent.js';
-import {isLanguageModelV4, type ModelConfig, type ModelRef, type TurnEvent} from './types.js';
-import type {ReasoningEffort} from '../model/types.js';
+import {isLanguageModelV4, type ModelConfig, type ModelRef, type ReasoningEffort} from '../model/types.js';
+import type {TurnEvent} from '../stream/types.js';
 import type {ApprovalResolver, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {SemanticMemory} from '../memory/types.js';

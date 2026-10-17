@@ -12,7 +12,7 @@ import type {
   ToolResultOutput,
 } from '@ai-sdk/provider-utils';
 import type {Tool, ToolCall, ToolResult} from '../tool/types.js';
-import type {ToolCallApproval} from '../agent/loop-agent-options.js';
+import type {ToolCallApproval} from '../shared.js';
 
 /**
  * 消息 content 的原生 part 联合类型，覆盖 AI SDK 生成/历史场景中的主要 part。

@@ -25,7 +25,7 @@ import type {
   SharedV4ProviderMetadata,
 } from '@ai-sdk/provider';
 import type {ToolCall, ToolResult} from '../tool/types.js';
-import type {UsageMetrics} from '../agent/types.js';
+import type {UsageMetrics} from '../shared.js';
 import {addTokenCount} from './usage.js';
 
 /** createToolCall 的可选属性 */

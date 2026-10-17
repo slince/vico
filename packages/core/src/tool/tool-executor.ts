@@ -1,22 +1,36 @@
 // @vico/core - ToolExecutor: 工具注册、执行、结果上流
 import type {Tool, ToolCall, ToolCallContext, ToolResult} from './types.js';
 import {StormBreaker} from './storm-breaker.js';
-import type {ToolSet} from 'ai';
-import type {LoopAgent} from '../agent/loop-agent.js';
-import type {TurnContext} from '../agent/loop-agent-options.js';
+import type {TextStreamPart, ToolSet} from 'ai';
+import type {TurnEvent} from '../stream/types.js';
+import type {TurnSession} from '../thread/thread-store.js';
+import type {ToolCallApproval} from '../shared.js';
 import {toolResultPart} from '../stream/stream-parts.js';
+
+/** ToolExecutor 所需的宿主最小接口（依赖倒置：LoopAgent 满足此结构） */
+export interface AgentHost {
+  emit(event: TurnEvent): void;
+}
+
+/** ToolExecutor 执行工具所需的最小上下文（依赖倒置：引擎的 TurnContext 满足此结构） */
+export interface ToolExecutionContext<TToolSet extends ToolSet = ToolSet> {
+  session: TurnSession;
+  signal: AbortSignal;
+  decisions: Map<string, ToolCallApproval>;
+  controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
+}
 
 /** ToolExecutor 构造选项 */
 export interface ToolExecutorOptions<TToolSet extends ToolSet = ToolSet> {
   tools?: Tool[];
-  host: LoopAgent<TToolSet>;
+  host: AgentHost;
 }
 
 /** ToolExecutor — 工具注册、执行、结果上流 */
 export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   private tools: Map<string, Tool> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();
-  private host: LoopAgent<TToolSet>;
+  private host: AgentHost;
 
   constructor(options: ToolExecutorOptions<TToolSet>) {
     this.host = options.host;
@@ -59,7 +73,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   }
 
   /** 执行单个工具调用 */
-  private async execute(call: ToolCall, context: TurnContext<TToolSet>): Promise<ToolResult> {
+  private async execute(call: ToolCall, context: ToolExecutionContext<TToolSet>): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
@@ -96,7 +110,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
    * readonly 并行执行（无副作用），其余串行逐条执行。
    * 工具结果只落消息链（由调用方 appendToolResults 持久化），本方法不写 checkpoint。
    */
-  async executeToolCalls(toolCalls: ToolCall[], context: TurnContext<TToolSet>): Promise<ToolResult[]> {
+  async executeToolCalls(toolCalls: ToolCall[], context: ToolExecutionContext<TToolSet>): Promise<ToolResult[]> {
     if (toolCalls.length === 0) return [];
 
     const { readonlyCalls, sequentialCalls } = this.partitionCalls(toolCalls);

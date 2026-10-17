@@ -2,7 +2,7 @@
 import {createOpenAI} from '@ai-sdk/openai';
 import {createAnthropic} from '@ai-sdk/anthropic';
 import type {LanguageModelV4} from '@ai-sdk/provider';
-import type {ModelConfig} from '../agent/types.js';
+import type {ModelConfig} from './types.js';
 
 /**
  * 从 ModelConfig 创建 LanguageModel 实例。

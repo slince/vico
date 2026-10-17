@@ -4,7 +4,7 @@ import type {ModelMessage} from 'ai';
 import type {Thread, ThreadStore} from '../thread/thread-store.js';
 import {ModelClient} from '../model/model-client.js';
 import {createLanguageModel} from '../model/factory.js';
-import type {ModelConfig} from '../agent/types.js';
+import type {ModelConfig} from '../model/types.js';
 import {toModelMessages} from '../thread/utils.js';
 import {getMessageText} from '../model/message-utils.js';
 import {KeyedMutex} from '../utils/async-keyed-lock.js';

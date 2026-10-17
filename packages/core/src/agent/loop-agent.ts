@@ -5,30 +5,27 @@ import pino from 'pino';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import {isLanguageModelV4, type ModelRef, type TurnEvent} from './types.js';
+import {isLanguageModelV4, type ModelRef} from '../model/types.js';
 import {createLanguageModel} from '../model/factory.js';
 import type {ApprovalDecider, ApprovalMode, Tool, ToolCall, ToolResult} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
-import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.js';
+import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '../thread/thread-store.js';
+import type {ToolApproval} from '../shared.js';
 import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
-import type {UserMessage} from '../stream/types.js';
+import type {CallModelResult, TurnEvent, UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
 import {isContextOverflowError, type CompactionResult, type ContextCompactor} from '../compaction/context-compactor.js';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '../checkpoint/checkpoint.js';
 import type {ContextProcessor} from '../context/context-processor.js';
 import {ProcessorPipeline} from '../context/context-processor.js';
 import type {
-  CallModelResult,
   ModelStepResult,
   ResolvedApprovals,
   RunOptions,
   StepLoopResult,
-  ToolApproval,
   TurnContext,
   TurnResult,
-  TurnSession,
-  TurnStep,
 } from './loop-agent-options.js';
 
 import {ModelClient} from '../model/model-client.js';

@@ -1,5 +1,6 @@
 // @vico/core - Thread module type definitions
-import type {UsageMetrics} from '../agent/types.js';
+import type {ModelMessage} from 'ai';
+import type {UsageMetrics} from '../shared.js';
 
 /** Session 级工具审批记录 */
 export interface SessionApprovedTool {
@@ -117,4 +118,23 @@ export interface ThreadStore {
   getLatestTurn(threadId: string): Promise<Turn | undefined>;
   /** 获取线程最近 limit 个轮次（按创建时间倒序），可选按状态过滤 */
   getRecentTurns(threadId: string, limit: number, status?: Turn['status']): Promise<Turn[]>;
+}
+
+/** 一次 turn 的会话标识，贯穿 model 调用和工具执行 */
+export interface TurnSession {
+  workspace?: string;
+  thread: Thread;
+  turn: Turn;
+}
+
+/**
+ * Step — turn 内的一次 LLM 调用 + 可选工具执行。
+ * 由 _run 在每轮迭代时创建，随 callModel / executeToolCalls / dispatchTools 流转。
+ */
+export interface TurnStep {
+  /** 当前步骤编号（0 起始） */
+  index: number;
+
+  /** 本轮step的会话*/
+  messages: ModelMessage[];
 }

@@ -1,6 +1,6 @@
 // src/thread/utils.ts — ThreadStore Message 与原生 ModelMessage/UIMessage 的相互转换
 import type {Message} from './thread-store.js';
-import type {UsageMetrics} from '../agent/types.js';
+import type {UsageMetrics} from '../shared.js';
 import type {ModelMessage, ToolUIPart, UIMessage} from 'ai';
 import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart, ToolResultPart} from '@ai-sdk/provider-utils';
 

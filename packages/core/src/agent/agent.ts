@@ -1,7 +1,6 @@
 // @vico/core - Agent 对外契约（interface）与构造参数
 import type {ModelClient} from '../model/model-client.js';
-import type {ReasoningEffort} from '../model/types.js';
-import type {ModelRef, TurnEvent} from './types.js';
+import type {ModelRef, ReasoningEffort} from '../model/types.js';
 import type {ApprovalDecider, Tool} from '../tool/types.js';
 import type {Skill} from '../skill/types.js';
 import type {MemoryStore} from '../memory/memory-store.js';
@@ -9,7 +8,7 @@ import type {Thread, ThreadStore} from '../thread/thread-store.js';
 import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {TurnOutput} from './turn-output.js';
 import type {RunOptions, TurnResult} from './loop-agent-options.js';
-import type {UserMessage} from '../stream/types.js';
+import type {TurnEvent, UserMessage} from '../stream/types.js';
 import type {ContextCompactor, CompactionResult} from '../compaction/context-compactor.js';
 import type {CheckpointStore} from '../checkpoint/checkpoint.js';
 import type {Logger} from 'pino';
