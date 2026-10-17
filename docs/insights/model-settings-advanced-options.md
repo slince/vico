@@ -32,6 +32,8 @@
 | `packages/core/src/agent/types.ts` | `ModelConfig` 补 `maxOutputTokens`（`contextWindow` 已存在） |
 | `packages/core/src/agent/create-agent.ts` | 输出上限取自 `modelConfig?.maxOutputTokens`，同步给 `LoopAgent` 与 `ModelContextCompactor`；移除 `AgentConfig.maxTokens` |
 | `server/src/agent/get-agent.ts` | `buildAgentConfig` 传模型级 `context_window` / `max_output_tokens` |
+| `web/src/pages/chat/ChatPanel.tsx` | 聊天顶栏用 `ContextDisplay.Bar` 展示上下文用量，`modelContextWindow` 取当前 Agent 的 `llm.context_window` |
+| `web/src/types/models.ts` | 全局 `Agent.llm` 补 `context_window` / `max_output_tokens` |
 
 ## 运行管线接入
 

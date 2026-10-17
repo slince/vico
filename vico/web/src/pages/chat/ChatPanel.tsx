@@ -15,6 +15,7 @@ import {useAgentSelection} from '@/stores/agent-selection';
 
 // 4. UI / 子组件
 import {Thread} from '@/components/assistant-ui/elements/thread.aui';
+import {ContextDisplay} from '@/components/assistant-ui/elements/context-display.aui';
 import {ChatSidebar} from '@/pages/chat/ChatSidebar';
 import {Button} from '@/components/ui/button';
 
@@ -52,7 +53,7 @@ const Welcome: FC<{ agentName: string }> = ({ agentName }) => {
  *
  * 聊天区只负责纯对话；右侧为多视图面板（ChatSidebar，含文件树 / 预览 / 终端）。
  */
-/** 顶部标题栏内的 Token 用量显示 */
+/** 顶部标题栏内的 Token 用量显示（回退：无上下文窗口时仅显示原始 token 数） */
 const TokenUsageDisplay: FC = () => {
   const usage = useThreadTokenUsage();
   if (!usage || usage.totalTokens === undefined || usage.totalTokens === 0) return null;
@@ -62,6 +63,25 @@ const TokenUsageDisplay: FC = () => {
       {formatTokens(usage.totalTokens)} tokens
     </span>
   );
+};
+
+/** 顶部标题栏内的上下文用量显示 — 当前 Agent 模型配置了上下文窗口时用 ContextDisplay.Bar */
+const ContextDisplayUsage: FC = () => {
+  const selectedAgent = useAgentSelection((s) => s.selectedAgent);
+  const contextWindow = selectedAgent?.llm?.context_window;
+
+  if (contextWindow && contextWindow > 0) {
+    console.log('selectedAgent', selectedAgent, contextWindow)
+
+    return (
+      <ContextDisplay.Bar
+        modelContextWindow={contextWindow}
+        className="ml-auto shrink-0"
+      />
+    );
+  }
+
+  return <TokenUsageDisplay />;
 };
 
 
@@ -103,7 +123,7 @@ export function ChatPanel({ threadId }: ChatPanelProps) {
           <span className="text-sm font-medium truncate flex-1 min-w-0">
             {title ?? t("newChat")}
           </span>
-          <TokenUsageDisplay />
+          <ContextDisplayUsage />
           {threadId && !fileExplorerOpen && (
             <Button
               size="icon"

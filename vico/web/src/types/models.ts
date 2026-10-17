@@ -13,7 +13,12 @@ export interface Agent {
   /** 是否为默认 Agent（1=是，0=否），全局只有一个默认 Agent */
   is_default: number;
   /** 解析后的 LLM 模型信息（来自 model_configs），列表接口返回；无模型时缺省 */
-  llm?: { provider: string; model: string };
+  llm?: {
+    provider: string;
+    model: string;
+    context_window: number | null;
+    max_output_tokens: number | null;
+  };
 }
 
 /** 会话 — 对应 `/api/v1/threads/:id` 返回 */
