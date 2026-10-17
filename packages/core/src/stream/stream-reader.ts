@@ -3,8 +3,8 @@ import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type {TextStreamPart, ToolSet} from 'ai';
 
 import type {ToolCall} from '../tool/types.js';
-import type {CallModelResult} from './loop-agent-options.js';
-import type {TurnEvent, UsageMetrics} from './types.js';
+import type {CallModelResult} from '../agent/loop-agent-options.js';
+import type {TurnEvent, UsageMetrics} from '../agent/types.js';
 import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart,} from './stream-parts.js';
 import {emptyUsage, fromV4Usage} from './usage.js';
 import {ModelRequest} from "../model/types.js";

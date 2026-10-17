@@ -7,12 +7,12 @@ import {SkillSettings} from "./create-agent.js";
 import {resolve} from "node:path";
 import {homedir} from "node:os";
 import {MemoryStore} from "../memory/memory-store.js";
-import {ContextProcessor} from "./context-processors/context-processor.js";
+import {ContextProcessor} from '../context/context-processor.js';
 import {Skill} from "../skill/types.js";
-import {SystemPromptProcessor} from "./context-processors/system-prompt-processor.js";
-import {SkillProcessor} from "./context-processors/skill-processor.js";
-import {WorkspaceToolProcessor} from "./context-processors/workspace-tool-processor.js";
-import {MemoryProcessor} from "./context-processors/memory-processor.js";
+import {SystemPromptProcessor} from '../context/system-prompt-processor.js';
+import {SkillProcessor} from '../context/skill-processor.js';
+import {WorkspaceToolProcessor} from '../context/workspace-tool-processor.js';
+import {MemoryProcessor} from '../context/memory-processor.js';
 
 /**
  * UserMessage 归一化为本轮输入消息组（审批决策以原生 tool-approval-response 消息 in-band 携带）：

@@ -8,8 +8,8 @@ import {AgentRuntime} from './agent-runtime.js';
 import {MemoryStore} from '../memory/memory-store.js';
 import type {ThreadStore} from '../thread/thread-store.js';
 import {MittEventRecorder} from '../events/event-recorder.js';
-import type {CheckpointStore} from './checkpoint.js';
-import type {CompactionSettings} from './compaction-config.js';
+import type {CheckpointStore} from '../checkpoint/checkpoint.js';
+import type {CompactionSettings} from '../compaction/compaction-config.js';
 
 /** Vico 配置选项 */
 export interface VicoOptions {

@@ -1,7 +1,7 @@
 // @vico/core - UsageMetrics 构造与累加工具
 import type {LanguageModelV4Usage} from '@ai-sdk/provider';
 
-import type {UsageMetrics} from './types.js';
+import type {UsageMetrics} from '../agent/types.js';
 
 /** 空用量 — 所有明细字段为 undefined */
 export function emptyUsage(): UsageMetrics {

@@ -1,9 +1,9 @@
 // @vico/core - ModelRequestContext: 穿过洋葱层各处理器的可变上下文
 import type {ModelMessage} from 'ai';
-import {getMessageText, pickPrimaryUserMessage} from '../../model/message-utils.js';
-import type {Tool} from '../../tool/types.js';
-import type {Thread} from '../../thread/thread-store.js';
-import {TurnSession, TurnStep} from "../loop-agent-options.js";
+import {getMessageText, pickPrimaryUserMessage} from '../model/message-utils.js';
+import type {Tool} from '../tool/types.js';
+import type {Thread} from '../thread/thread-store.js';
+import {TurnSession, TurnStep} from "../agent/loop-agent-options.js";
 
 /** 上下文中的 Agent 引用 — 提供处理器所需的配置字段 */
 export interface AgentRef {

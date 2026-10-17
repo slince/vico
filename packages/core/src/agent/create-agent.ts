@@ -18,12 +18,12 @@ import {createUpdateSemanticMemoryTool} from "../memory/tool/semantic-memory-too
 import {ConversationHistoryMemory} from "../memory/conversation-history-memory.js";
 import {DEFAULT_CONVERSATION_WINDOW} from '../memory/constants.js';
 import {composeResolvers, defaultApprovalResolvers} from "../tool/policy-helpers.js";
-import type {CheckpointStore} from "./checkpoint.js";
-import {MemoryCheckpointStore} from "./memory-checkpoint-store.js";
+import type {CheckpointStore} from '../checkpoint/checkpoint.js';
+import {MemoryCheckpointStore} from '../checkpoint/memory-checkpoint-store.js';
 import {createFSSkillLoader} from "../skill/fs-skill-loader.js";
 import {collectSkillDirs} from "./utils.js";
-import {ModelContextCompactor} from "./context-compactor.js";
-import type {CompactionSettings} from "./compaction-config.js";
+import {ModelContextCompactor} from '../compaction/context-compactor.js';
+import type {CompactionSettings} from '../compaction/compaction-config.js';
 
 
 /** LanguageModel 工厂类型 */

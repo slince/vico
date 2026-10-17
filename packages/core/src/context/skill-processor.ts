@@ -2,7 +2,7 @@
 import type {ContextProcessor} from './context-processor.js';
 import type {ModelRequestContext} from './model-request-context.js';
 import {Priority} from './context-processor.js';
-import type {Skill} from '../../skill/types.js';
+import type {Skill} from '../skill/types.js';
 
 /** 追加 Skill 目录到系统提示词（HIGH 优先级） */
 export class SkillProcessor implements ContextProcessor {

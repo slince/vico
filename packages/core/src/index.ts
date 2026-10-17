@@ -34,19 +34,19 @@ export type { UserMessage } from './stream/types.js';
 export {
   ModelRequestContext,
   type AgentRef,
-} from './agent/context-processors/model-request-context.js';
-export { type ContextProcessor } from './agent/context-processors/context-processor.js';
+} from './context/model-request-context.js';
+export { type ContextProcessor } from './context/context-processor.js';
 export {
   ProcessorPipeline,
   buildModelRequest,
   Priority,
-} from './agent/context-processors/context-processor.js';
+} from './context/context-processor.js';
 
-export { SystemPromptProcessor } from './agent/context-processors/system-prompt-processor.js';
-export { SkillProcessor } from './agent/context-processors/skill-processor.js';
-export { MemoryProcessor } from './agent/context-processors/memory-processor.js';
-export { RagProcessor } from './agent/context-processors/rag-processor.js';
-export { WorkspaceToolProcessor } from './agent/context-processors/workspace-tool-processor.js';
+export { SystemPromptProcessor } from './context/system-prompt-processor.js';
+export { SkillProcessor } from './context/skill-processor.js';
+export { MemoryProcessor } from './context/memory-processor.js';
+export { RagProcessor } from './context/rag-processor.js';
+export { WorkspaceToolProcessor } from './context/workspace-tool-processor.js';
 
 export {
   type RagChunk,
@@ -65,7 +65,7 @@ export {
 
 // Tool system
 export { createTool, type ToolOptions } from './tool/create-tool.js';
-export { ToolExecutor } from './agent/tool-executor.js';
+export { ToolExecutor } from './tool/tool-executor.js';
 export {
   type ToolCallContext,
   type ApprovalDecision,
@@ -140,7 +140,7 @@ export {
   ManualCompactionError,
   TargetPressureConfigError,
   isContextOverflowError,
-} from './agent/context-compactor.js';
+} from './compaction/context-compactor.js';
 // ContextCompactor（类型导出：端口 / 结果 / 触发类型）
 export type {
   ContextCompactor,
@@ -148,13 +148,13 @@ export type {
   CompactionResult,
   ManualCompactionErrorCode,
   ModelContextCompactorOptions,
-} from './agent/context-compactor.js';
+} from './compaction/context-compactor.js';
 export {
   COMPACTION_INSTRUCTION,
   CHECKPOINT_PREAMBLE,
   SUMMARY_OPEN_TAG,
   SUMMARY_CLOSE_TAG,
-} from './agent/context-compactor.js';
+} from './compaction/context-compactor.js';
 export {
   resolveSettings,
   resolveCompactSpec,
@@ -166,7 +166,7 @@ export {
   type CompactionModelPolicy,
   type TurnTokenBudget,
   type CompactableRange,
-} from './agent/compaction-config.js';
+} from './compaction/compaction-config.js';
 export {
   estimateContent,
   estimateMessage,
@@ -177,7 +177,7 @@ export {
   type TokenAnchor,
   type PricedMessage,
   type TokenMeasurement,
-} from './agent/token-estimator.js';
+} from './compaction/token-estimator.js';
 
 // Utils
 export { KeyedMutex } from './utils/async-keyed-lock.js';
@@ -199,7 +199,7 @@ export { collectTurnResult, normalizeUserMessage } from './agent/utils.js';
 export { TurnOutput } from './agent/turn-output.js';
 export { type TurnEvent, type UsageMetrics } from './agent/types.js';
 export { type TurnResult, type RunOptions, type ToolApproval, type ToolCallApproval } from './agent/loop-agent-options.js';
-export { type Checkpoint, type CheckpointAppendPatch, type CheckpointStore, type NextAction, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint, DEFAULT_CHECKPOINT_TTL } from './agent/checkpoint.js';
+export { type Checkpoint, type CheckpointAppendPatch, type CheckpointStore, type NextAction, CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint, DEFAULT_CHECKPOINT_TTL } from './checkpoint/checkpoint.js';
 
 // Container
 export {

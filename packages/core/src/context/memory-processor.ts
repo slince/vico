@@ -3,8 +3,8 @@ import {randomUUID} from 'node:crypto';
 import type {ContextProcessor} from './context-processor.js';
 import {Priority} from './context-processor.js';
 import type {ModelRequestContext} from './model-request-context.js';
-import {getMessageText} from '../../model/message-utils.js';
-import type {MemoryStore} from '../../memory/memory-store.js';
+import {getMessageText} from '../model/message-utils.js';
+import type {MemoryStore} from '../memory/memory-store.js';
 
 /** 语义召回最小相似度 — 低于该值的记忆视为不相关，不注入上下文 */
 const RECALL_MIN_SCORE = 0.5;

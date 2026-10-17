@@ -10,8 +10,8 @@ import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {TurnOutput} from './turn-output.js';
 import type {RunOptions, TurnResult} from './loop-agent-options.js';
 import type {UserMessage} from '../stream/types.js';
-import type {ContextCompactor, CompactionResult} from './context-compactor.js';
-import type {CheckpointStore} from './checkpoint.js';
+import type {ContextCompactor, CompactionResult} from '../compaction/context-compactor.js';
+import type {CheckpointStore} from '../checkpoint/checkpoint.js';
 import type {Logger} from 'pino';
 
 /** Agent 构造参数 */

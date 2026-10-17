@@ -1,10 +1,10 @@
 // @vico/core - ToolExecutor: 工具注册、执行、结果上流
-import type {Tool, ToolCall, ToolCallContext, ToolResult} from '../tool/types.js';
-import {StormBreaker} from '../tool/storm-breaker.js';
+import type {Tool, ToolCall, ToolCallContext, ToolResult} from './types.js';
+import {StormBreaker} from './storm-breaker.js';
 import type {ToolSet} from 'ai';
-import type {LoopAgent} from './loop-agent.js';
-import type {TurnContext} from './loop-agent-options.js';
-import {toolResultPart} from './stream-parts.js';
+import type {LoopAgent} from '../agent/loop-agent.js';
+import type {TurnContext} from '../agent/loop-agent-options.js';
+import {toolResultPart} from '../stream/stream-parts.js';
 
 /** ToolExecutor 构造选项 */
 export interface ToolExecutorOptions<TToolSet extends ToolSet = ToolSet> {

@@ -11,7 +11,7 @@ describe('createCheckpoint（初始版本快照）', () => {
     expect(ckpt.version).toBe(1);
     expect(ckpt.stepIndex).toBe(0);
     expect(ckpt.nextAction).toBe('model');
-    expect(ckpt.approvedTools).toEqual({});
+    expect(ckpt.approvedTools).toEqual([]);
     expect(ckpt.pendingApprovalCalls).toEqual([]);
     expect(ckpt.approvedCalls).toEqual([]);
     expect(ckpt.deniedResults).toEqual([]);

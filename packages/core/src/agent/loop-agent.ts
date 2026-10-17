@@ -14,10 +14,10 @@ import type {Thread, ThreadMetadata, ThreadStore} from '../thread/thread-store.j
 import type {EventPayload, EventRecorder, EventType} from '../events/types.js';
 import type {UserMessage} from '../stream/types.js';
 import type {ModelRequest, ReasoningEffort} from '../model/types.js';
-import {isContextOverflowError, type CompactionResult, type ContextCompactor} from './context-compactor.js';
-import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from './checkpoint.js';
-import type {ContextProcessor} from './context-processors/context-processor.js';
-import {ProcessorPipeline} from './context-processors/context-processor.js';
+import {isContextOverflowError, type CompactionResult, type ContextCompactor} from '../compaction/context-compactor.js';
+import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '../checkpoint/checkpoint.js';
+import type {ContextProcessor} from '../context/context-processor.js';
+import {ProcessorPipeline} from '../context/context-processor.js';
 import type {
   CallModelResult,
   ModelStepResult,
@@ -35,9 +35,9 @@ import {ModelClient} from '../model/model-client.js';
 import {composeResolvers, defaultApprovalResolvers} from '../tool/policy-helpers.js';
 import {createDefaultProcessors, normalizeUserMessage} from './utils.js';
 import {fromModelMessage, type MessageWithUsage} from '../thread/utils.js';
-import {addUsage, emptyUsage} from './usage.js';
+import {addUsage, emptyUsage} from '../stream/usage.js';
 import {TurnOutput} from './turn-output.js';
-import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from './stream-parts.js';
+import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from '../stream/stream-parts.js';
 import {
   buildAssistantMessage,
   buildToolResultMessage,
@@ -45,9 +45,9 @@ import {
   ensureToolCallConsistency,
   extractApprovalResponses,
 } from '../model/message-utils.js';
-import {ToolExecutor} from './tool-executor.js';
-import {ModelStreamReader} from './stream-reader.js';
-import {ModelRequestContext} from './context-processors/model-request-context.js';
+import {ToolExecutor} from '../tool/tool-executor.js';
+import {ModelStreamReader} from '../stream/stream-reader.js';
+import {ModelRequestContext} from '../context/model-request-context.js';
 
 /** LoopAgent 构造选项 */
 export interface LoopAgentOptions extends AgentOptions {
