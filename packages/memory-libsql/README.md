@@ -2,20 +2,23 @@
 
 LibSQL 版 SemanticMemory 持久化实现，实现 `@vico/memory` 的 `SemanticMemory` 端口。
 
-## 主要导出
+## 快速使用
 
-- `LibSqlSemanticMemory` / `LibSqlSemanticMemoryOptions` — LibSQL 版 SemanticMemory
-- schema — `memoryEntries`（供调用方纳入 drizzle-kit 生成迁移）
-- `ensureMemoryTables` — 启动时自动建表（幂等，含补列迁移）
+```ts
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
+import { LibSqlSemanticMemory, ensureMemoryTables, memoryEntries } from '@vico/memory-libsql';
 
-> `vico_memory_entries` 归 memory 域所有（`memoryEntries` 既是 semantic 行也是向量行）；`@vico/rag-libsql` 依赖本包保证该表存在。
+const db = drizzle(createClient({ url: 'file:data.db' }), {
+  schema: { memoryEntries }, // 本包导出的表
+});
 
-## 依赖
+await ensureMemoryTables(db); // 启动时自动建表（含补列迁移）
+const semantic = new LibSqlSemanticMemory({ db });
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/memory` | SemanticMemory 端口 |
-| `drizzle-orm` | Drizzle ORM（sqlite-core） |
+await semantic.set('user-1', '# 用户画像\n偏好中文回复');
+const profile = await semantic.get('user-1');
+```
 
 ## 相关文档
 

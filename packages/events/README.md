@@ -2,16 +2,18 @@
 
 事件记录与广播（零内部依赖的叶子包），基于 mitt。
 
-## 主要导出
+## 快速使用
 
-- `MittEventRecorder` — 基于 mitt 的事件记录器
-- 类型 — `EventRecorder` / `EventPayload` / `TypedEvent` / `EventType`
+```ts
+import { MittEventRecorder, type TypedEvent } from '@vico/events';
 
-## 依赖
+// 自定义事件联合类型，on/emit 均获得类型推导
+type MyEvent = { type: 'ping'; value: number } | { type: 'pong'; value: string };
 
-| 依赖 | 用途 |
-|------|------|
-| `mitt` | 轻量事件总线 |
+const events = new MittEventRecorder<MyEvent>();
+events.on('ping', (e) => console.log(e.value));
+events.emit({ type: 'ping', value: 1 });
+```
 
 ## 相关文档
 

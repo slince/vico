@@ -2,20 +2,30 @@
 
 RAG 核心能力：分块、嵌入、文档解析、混合检索管道、向量存储端口。
 
-## 主要导出
+## 快速使用
 
-- 类型 — `Chunker` / `Embedder` / `VectorStore` / `Parser` / `ParserRegistry` / `RetrievalPipeline` / `Reranker` / `RagProvider` 及配置类型；`DEFAULT_RAG_CONFIG`
-- 分块 — `RecursiveChunker` / `SentenceChunker` / `MarkdownChunker` / `CodeChunker`
-- 嵌入 — `createEmbedder` / `FastEmbedEmbedder` / `OpenAIEmbedder`
-- 解析 — `DefaultParserRegistry` / `TextParser` / `MarkdownParser` / `PdfParser` / `DocxParser` / `CsvParser` / `HtmlParser`
-- 检索 — `dedup` / `formatResults` / `joinResults` / `DefaultQueryRewriter` / `DefaultRetrievalPipeline`
-- 工具 — `createSearchTool` 及类型（`RagToolOptions` / `RagToolExecuteParams` / `RagToolResult`）
+```ts
+import {
+  RecursiveChunker,
+  createEmbedder,
+  DefaultRetrievalPipeline,
+} from '@vico/rag';
 
-## 依赖
+// 1. 分块
+const chunks = await new RecursiveChunker().chunk(longText, { size: 500, overlap: 50 });
 
-| 依赖 | 用途 |
-|------|------|
-| `zod` | schema 校验 |
+// 2. 嵌入（本地 fastembed，或 { provider: 'openai', apiKey }）
+const embedder = createEmbedder('fastembed');
+
+// 3. 检索管道：query rewrite → embed → vector search → filter → dedup → rerank → format
+const pipeline = new DefaultRetrievalPipeline({ embedder, vectorStore });
+const results = await pipeline.search({
+  indexName: 'kb-demo',
+  query: '关键词',
+  topK: 5,
+  similarityThreshold: 0.6,
+});
+```
 
 ## 相关文档
 

@@ -2,22 +2,22 @@
 
 Skill 插件系统：加载、注册与工具。
 
-基于文件系统的 Skill 加载（manifest + prompt + tools），提供注册表与一组让 Agent 加载/检索/读取/执行 Skill 的工具。
+基于文件系统的 Skill 加载（SKILL.md front-matter），提供注册表与一组让 Agent 加载/检索/读取/执行 Skill 的工具。
 
-## 主要导出
+## 快速使用
 
-- `SkillLoader` / `Skill` — 端口与数据模型
-- `createFSSkillLoader` — 文件系统 Skill 加载器
-- `SkillRegistry` — Skill 注册表
-- 工具 — `createSkillLoadTool` / `createSkillSearchTool` / `createSkillReadTool` / `createSkillExecuteTool` / `createSkillTools`
+```ts
+import { createFSSkillLoader, SkillRegistry } from '@vico/skill';
 
-## 依赖
+// 扫描目录下所有 SKILL.md（含一级子目录）
+const loader = createFSSkillLoader(['./skills', '~/.vico/skills']);
+const skills = await loader();
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/tool` | 工具框架 |
-| `gray-matter` | 解析 markdown front-matter |
-| `zod` | schema 校验 |
+// 注册并检索
+const registry = new SkillRegistry(skills);
+const skill = registry.get('my-skill');
+const matches = registry.search('关键词', 10);
+```
 
 ## 相关文档
 

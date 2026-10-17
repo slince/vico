@@ -2,18 +2,21 @@
 
 LibSQL 版 CheckpointStore 持久化实现，实现 `@vico/checkpoint` 的 `CheckpointStore` 端口。
 
-## 主要导出
+## 快速使用
 
-- `LibSqlCheckpointStore` — LibSQL 版 CheckpointStore
-- schema — `checkpoints` / `checkpointsThreadIdIdx`（供调用方纳入 drizzle-kit 生成迁移）
-- `ensureCheckpointTables` — 启动时自动建表（幂等，含旧复合主键 DROP 重建逻辑）
+```ts
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
+import { LibSqlCheckpointStore, ensureCheckpointTables } from '@vico/checkpoint-libsql';
 
-## 依赖
+const db = drizzle(createClient({ url: 'file:data.db' }));
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/checkpoint` | CheckpointStore 端口 |
-| `drizzle-orm` | Drizzle ORM（sqlite-core） |
+await ensureCheckpointTables(db); // 启动时自动建表（含旧复合主键 DROP 重建）
+const store = new LibSqlCheckpointStore(db as any); // schema 含索引列，最小示例用 as any 对齐
+
+const ckpt = await store.create('turn-1', 'thread-1');
+const latest = await store.getLatest('turn-1');
+```
 
 ## 相关文档
 

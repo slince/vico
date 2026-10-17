@@ -2,20 +2,23 @@
 
 线程/会话存储与消息转换。
 
-定义 `ThreadStore` 端口与 Thread / Turn / Message 等会话数据模型，提供内存实现与 AI SDK 消息互转工具。
+定义 `ThreadStore` 端口与 Thread / Turn / Message 数据模型，提供内存实现与 AI SDK 消息互转。
 
-## 主要导出
+## 快速使用
 
-- 类型 — `ThreadStore` / `Thread` / `Turn` / `Message` / `TurnSession` / `TurnStep` / `ThreadMetadata` / `TurnMetadata` / `ThreadContext` / `MessageMetadata` / `SessionApprovedTool` / `TurnStatus` / `MessageWithUsage`
-- `InMemoryThreadStore` — 内存版 ThreadStore
-- 消息转换 — `toModelMessages` / `fromModelMessage` / `toUiMessages`
+```ts
+import { InMemoryThreadStore, toModelMessages } from '@vico/thread';
 
-## 依赖
+// 内存版 ThreadStore（进程重启丢失）
+const store = new InMemoryThreadStore();
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/types` | UsageMetrics 等基础契约 |
-| `ai` / `@ai-sdk/provider-utils` | 消息类型与工具 |
+await store.createThread('agent-1', '会话标题', 'thread-1', { userId: 'user-1' });
+const thread = await store.getThread('thread-1');
+const threads = await store.listThreads({ agentId: 'agent-1' });
+
+// 消息转 AI SDK 模型格式（入参为 Message[]）
+const modelMessages = toModelMessages(await store.getEntries('thread-1'));
+```
 
 ## 相关文档
 

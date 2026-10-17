@@ -2,29 +2,26 @@
 
 工具框架与内置工具。
 
-提供 Tool 定义、ToolExecutor 执行器、审批策略（StormBreaker、approval resolver）与一组内置工具（文件系统、编码、浏览器、web fetch、todo、ask_user）。
+提供 Tool 定义、ToolExecutor 执行器、审批策略，以及文件系统、编码、浏览器、web fetch、todo、ask_user 等内置工具。
 
-## 主要导出
+## 快速使用
 
-- `createTool` / `ToolOptions` — 工具定义
-- `ToolExecutor` / `AgentHost` / `ToolExecutionContext` — 工具执行器
-- `StormBreaker` — 风暴熔断（并发/预算控制）
-- 审批策略 — `isPathInWorkspace` / `composeResolvers` / `defaultApprovalResolvers` / `toolPolicyResolver` / `approvalModeResolver` / `ApprovalPriority`
-- 内置工具 — `readTool` / `bashTool` / `editTool` / `writeTool` / `grepTool` / `findTool` / `lsTool` / `lspTool` / `webFetchTool` / `todoTool` / `askUserTool` / `browserNavigateTool` / `browserSnapshotTool` / `browserClickTool`，以及分组 `basicTools` / `filesystemTools` / `codingTools` / `baseBuiltinTools` / `fileBuiltinTools` / `coreBuiltinTools` / `resolveWorkspacePath`
-- 类型 — `Tool` / `ToolCall` / `ToolResult` / `ToolPolicy` / `ToolKind` / `ToolTag` / `ToolCallContext` / `Approval*` / `PolicyContext` / `ApprovalResolver` / `ApprovalDecider` / `ApprovalMode` / `ApprovalStatus`
+```ts
+import { z } from 'zod';
+import { createTool } from '@vico/tool';
 
-## 依赖
+// 用 Zod schema 定义参数，execute 前自动校验 call.args
+const echo = createTool({
+  name: 'echo',
+  description: 'Echo back the input',
+  inputSchema: z.object({ message: z.string() }),
+  execute: async (args) => args.message,
+});
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/types` | 基础数据契约 |
-| `@vico/stream`（value） | toolResultPart 等 stream parts |
-| `@vico/thread`（type） | TurnSession 等 |
-| `ai` / `zod` | AI SDK 工具类型 / schema 校验 |
-
-## 备注
-
-`createDelegateTool`（创建子 agent 的工具）不在此包，已移入 `@vico/agent` 以打破运行时环（见 [拆分方案](../core/SPLIT-PLAN.md)）。
+// 内置工具直接组合使用
+import { basicTools, filesystemTools, codingTools } from '@vico/tool';
+const tools = [...basicTools, ...filesystemTools, ...codingTools];
+```
 
 ## 相关文档
 

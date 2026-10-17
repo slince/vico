@@ -2,23 +2,32 @@
 
 模型接入层：语言模型工厂、ModelClient、消息工具。
 
-统一 Anthropic / OpenAI 等 provider，为上层提供 `createLanguageModel` 工厂与 `ModelClient` 抽象；消息类型 re-export AI SDK 原生类型。
+统一 Anthropic / OpenAI 等 provider，为上层提供 `createLanguageModel` 工厂与 `ModelClient` 抽象。
 
-## 主要导出
+## 快速使用
 
-- `createLanguageModel` — 按 `ModelConfig` 创建语言模型
-- `ModelClient` — 模型客户端抽象（流式调用）
-- 类型 — `ModelConfig` / `ModelRef` / `ModelRequest` / `ModelStreamResult` / `ReasoningEffort`，`isLanguageModelV4`
-- 消息工具 — `getMessageText` / `pickPrimaryUserMessage` / `completedCallIds` / `ensureToolCallConsistency` / `buildAssistantMessage` / `buildToolResultMessage` / `extractApprovalResponses` / `toToolSet` / `ContentPart`
-- AI SDK re-export — `ModelMessage` / `UIMessage` / `UIMessageChunk` / `ToolSet`，`convertToModelMessages` / `validateUIMessages`
+```ts
+import { createLanguageModel, ModelClient } from '@vico/model';
 
-## 依赖
+// 1. 按配置解析 LanguageModelV4
+const model = createLanguageModel({
+  provider: 'openai',
+  model: 'gpt-4o',
+  apiKey: process.env.OPENAI_API_KEY!,
+  maxOutputTokens: 4096,
+});
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/types` | 基础数据契约 |
-| `@vico/tool`（type） | Tool / ToolCall / ToolResult 类型 |
-| `ai` + `@ai-sdk/*` | AI SDK 与 provider |
+// 2. 包装为 ModelClient 发起流式调用
+const client = new ModelClient(model);
+const { readText } = await client.stream({
+  system: 'You are a helpful assistant.',
+  messages: [{ role: 'user', content: 'Hello' }],
+  tools: myTools, // @vico/tool 的 Tool[]，内部转为 provider 工具格式
+});
+
+// 3. 消费流拿到完整文本（与 stream 二选一）
+const text = await readText();
+```
 
 ## 相关文档
 

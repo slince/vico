@@ -2,19 +2,23 @@
 
 MySQL 版 SemanticMemory 持久化实现，实现 `@vico/memory` 的 `SemanticMemory` 端口。
 
-## 主要导出
+## 快速使用
 
-- `MysqlSemanticMemory` / `MysqlSemanticMemoryOptions` — MySQL 版 SemanticMemory
-- schema — `memoryEntries`（供调用方纳入 drizzle-kit 生成迁移）
-- `ensureMemoryTables` — 启动时自动建表（幂等，含「记忆类型重命名」幂等迁移）
+```ts
+import { drizzle } from 'drizzle-orm/mysql2';
+import { createPool } from 'mysql2/promise';
+import { MysqlSemanticMemory, ensureMemoryTables, memoryEntries } from '@vico/memory-mysql';
 
-## 依赖
+const db = drizzle(createPool('mysql://user:pass@localhost:3306/vico'), {
+  schema: { memoryEntries }, // 本包导出的表
+});
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/memory` | SemanticMemory 端口 |
-| `drizzle-orm` | Drizzle ORM（mysql-core） |
-| `mysql2` | MySQL 驱动 |
+await ensureMemoryTables(db); // 启动时自动建表（含记忆类型重命名幂等迁移）
+const semantic = new MysqlSemanticMemory({ db });
+
+await semantic.set('user-1', '# 用户画像\n偏好中文回复');
+const profile = await semantic.get('user-1');
+```
 
 ## 相关文档
 

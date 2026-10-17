@@ -2,20 +2,34 @@
 
 Agent 编排核心。
 
-Agent 运行时与默认 LoopAgent 实现，装配模型、工具、记忆、上下文处理器，驱动多轮工具调用循环；提供 Vico 容器与 delegate 工具。
+Agent 运行时与默认 LoopAgent 实现，装配模型、工具、记忆、上下文处理器，驱动多轮工具调用循环。
 
-## 主要导出
+## 快速使用
 
-- `createAgent` / `Agent` / `AgentOptions` / `CreateThreadOptions` / `AgentConfig` — Agent 定义
-- `AgentRuntime` — 运行时
-- `LoopAgent` / `LoopAgentOptions` / `RunOptions` / `TurnResult` — 默认循环实现
-- `Vico` / `VicoOptions` — 一键装配容器（Skill + Memory + Model）
-- `createDelegateTool` — 创建子 agent 的 delegate 工具
-- `collectTurnResult` / `normalizeUserMessage` / `TurnOutput` / `LanguageModelFactory` — 工具函数与类型
+```ts
+import { createAgent } from '@vico/agent';
 
-## 依赖
+const agent = await createAgent({
+  id: 'demo',
+  name: 'Demo Agent',
+  systemPrompt: 'You are a helpful assistant.',
+  model: {
+    provider: 'openai',
+    model: 'gpt-4o',
+    apiKey: process.env.OPENAI_API_KEY!,
+  },
+  maxSteps: 5,
+  workspace: process.cwd(), // 工具执行的默认工作目录
+});
 
-依赖 L0–L4 全部域包（types / events / model / thread / stream / tool / skill / checkpoint / compaction / memory / context），是编排收口层——没有任何包反向依赖它（运行时）。
+// 订阅 turn 事件
+agent.on('text-delta', (e) => console.log(e.content));
+
+// 创建会话并发起对话
+const thread = await agent.createThread({ title: '新会话', userId: 'user-1' });
+const result = await agent.invoke('Hello'); // 非流式
+const output = await agent.stream('Hello'); // 流式（TurnOutput）
+```
 
 ## 相关文档
 

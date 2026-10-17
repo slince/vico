@@ -2,20 +2,35 @@
 
 检查点（断点续传）。
 
-定义 `CheckpointStore` 端口、Checkpoint 数据模型与版本迁移，提供内存实现；支持 turn 中断后从检查点恢复（含审批待办、暂停项）。
+定义 `CheckpointStore` 版本树端口与 Checkpoint 快照模型，提供内存实现；支持 turn 中断后从检查点恢复（含审批待办、暂停项）。
 
-## 主要导出
+## 快速使用
 
-- 数据模型与端口 — `Checkpoint` / `CheckpointAppendPatch` / `CheckpointStore` / `NextAction` / `CheckpointApprovalCalls`
-- 构造与迁移 — `createCheckpoint` / `checkpointMigrations` / `CHECKPOINT_CURRENT_VERSION` / `DEFAULT_CHECKPOINT_TTL`
-- `MemoryCheckpointStore` — 内存版 CheckpointStore
+```ts
+import { MemoryCheckpointStore } from '@vico/checkpoint';
 
-## 依赖
+const store = new MemoryCheckpointStore();
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/types` | 基础数据契约 |
-| `@vico/tool`（type） | ToolCall / ToolResult 类型 |
+// turn 开始时创建初始版本（version=1、parentId=null、nextAction=model）
+const ckpt = await store.create('turn-1', 'thread-1');
+
+// 追加一个版本（patch 全字段覆盖最新快照，parentId 表达血缘）
+await store.append(ckpt, {
+  parentId: ckpt.id,
+  stepIndex: 1,
+  nextAction: 'model',
+  decisions: [],
+  approvedTools: [],
+  pendingApprovalCalls: [],
+  approvedCalls: [],
+  deniedResults: [],
+  lastMessageId: null,
+});
+
+// 读取最新版本 / 版本树
+const latest = await store.getLatest('turn-1');
+const versions = await store.listVersions('turn-1');
+```
 
 ## 相关文档
 

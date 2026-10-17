@@ -12,13 +12,9 @@ pnpm --filter vico-quickstart start
 cd examples/quickstart && pnpm start
 ```
 
-## 内容
+输出示例：
 
-- 用 `FakeModelClient` 模拟 LLM 响应并自动调用 `echo` 工具
-- 演示 `Vico` 装配（Skill + Memory + ModelFactory）、Agent 创建与 `invoke` 对话
-
-## 依赖
-
-| 依赖 | 用途 |
-|------|------|
-| `@vico/core` | 聚合入口 |
+```text
+Skills: [...]
+Result: success steps: 1 usage: { input: 120, output: 40 }
+```

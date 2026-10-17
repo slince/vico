@@ -4,20 +4,32 @@ LibSQL 原生向量存储实现，实现 `@vico/rag` 的 `VectorStore` 端口。
 
 基于原生 SQL（`F32_BLOB` + `vector_distance_cos`），不经过 Drizzle ORM。
 
-## 主要导出
+## 快速使用
 
-- `LibSQLVectorStore` / `LibSQLVectorStoreOptions` — LibSQL 版 VectorStore
+```ts
+import { createClient } from '@libsql/client';
+import { LibSQLVectorStore } from '@vico/rag-libsql';
 
-## 建表说明
+const store = new LibSQLVectorStore({
+  client: createClient({ url: 'file:data.db' }),
+});
 
-本包不提供建表函数（与原 `@vico/libsql-adapter` 一致）：向量存储只在其内部 `ensureLoaded()` 里自建 `vico_index_config`，不建 `vico_memory_entries`。后者由 `@vico/memory-libsql` 的 `ensureMemoryTables` 保证。
+await store.createIndex({ indexName: 'kb-demo', dimension: 1536, metric: 'cosine' });
+await store.upsert({
+  indexName: 'kb-demo',
+  vectors: [embedding], // number[]
+  ids: ['1'],
+  metadata: [{ content: '待检索的文本' }],
+});
 
-## 依赖
+const results = await store.query({
+  indexName: 'kb-demo',
+  queryVector: embedding,
+  topK: 5,
+});
+```
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/rag` | VectorStore 端口 |
-| `@libsql/client` | LibSQL 客户端 |
+> 注意：本类不建 `vico_memory_entries` 表，需由 `@vico/memory-libsql` 的 `ensureMemoryTables` 保证其存在。
 
 ## 相关文档
 

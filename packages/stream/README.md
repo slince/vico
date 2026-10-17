@@ -2,23 +2,24 @@
 
 流式解析、用量计量与 turn 事件。
 
-把模型流解析为结构化 chunk，构造标准 stream part（工具调用/审批/步骤等），并提供 usage 累加工具。
+`ModelStreamReader` 消费 provider 原生 V4 流并转为引擎层 `TextStreamPart`；`usage` 系列提供用量累加与换算。
 
-## 主要导出
+## 快速使用
 
-- `ModelStreamReader` — 模型流读取器
-- stream parts 构造器 — `createToolCall` / `toolResultPart` / `v4ToolResultPart` / `toolOutputDeniedPart` / `toolApprovalRequestPart` / `toolApprovalResponsePart` / `v4FilePart` / `startStepPart` / `finishStepPart` / `finishPart`
-- usage 工具 — `emptyUsage` / `addTokenCount` / `addUsage` / `fromV4Usage`
-- 类型 — `CallModelResult` / `TurnEvent` / `UserMessage`
+```ts
+import { emptyUsage, addUsage, fromV4Usage, ModelStreamReader } from '@vico/stream';
 
-## 依赖
+// 用量累加 / 换算（UsageMetrics）
+const usage = addUsage(emptyUsage(), fromV4Usage(v4Usage));
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/types` | 基础数据契约 |
-| `@vico/model`（type） | ModelRequest 等 |
-| `@vico/tool`（type） | ToolCall / ToolResult |
-| `ai` / `@ai-sdk/provider` | AI SDK 流类型 |
+// 消费 provider V4 流，逐 chunk 转 TextStreamPart 并累积结果
+const reader = new ModelStreamReader({
+  controller, // ReadableStreamDefaultController<TextStreamPart>
+  emit: (event) => console.log(event), // TurnEvent 转发
+  request, // ModelRequest
+});
+const result = await reader.read(v4Stream); // { text, reasoning, toolCalls, usage }
+```
 
 ## 相关文档
 

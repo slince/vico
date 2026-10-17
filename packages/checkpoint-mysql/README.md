@@ -2,19 +2,21 @@
 
 MySQL 版 CheckpointStore 持久化实现，实现 `@vico/checkpoint` 的 `CheckpointStore` 端口。
 
-## 主要导出
+## 快速使用
 
-- `MysqlCheckpointStore` — MySQL 版 CheckpointStore
-- schema — `checkpoints`（供调用方纳入 drizzle-kit 生成迁移）
-- `ensureCheckpointTables` — 启动时自动建表（幂等，补列检测走 `INFORMATION_SCHEMA.COLUMNS`）
+```ts
+import { drizzle } from 'drizzle-orm/mysql2';
+import { createPool } from 'mysql2/promise';
+import { MysqlCheckpointStore, ensureCheckpointTables } from '@vico/checkpoint-mysql';
 
-## 依赖
+const db = drizzle(createPool('mysql://user:pass@localhost:3306/vico'));
 
-| 依赖 | 用途 |
-|------|------|
-| `@vico/checkpoint` | CheckpointStore 端口 |
-| `drizzle-orm` | Drizzle ORM（mysql-core） |
-| `mysql2` | MySQL 驱动 |
+await ensureCheckpointTables(db); // 启动时自动建表（补列检测走 INFORMATION_SCHEMA.COLUMNS）
+const store = new MysqlCheckpointStore(db as any); // schema 含索引列，最小示例用 as any 对齐
+
+const ckpt = await store.create('turn-1', 'thread-1');
+const latest = await store.getLatest('turn-1');
+```
 
 ## 相关文档
 
