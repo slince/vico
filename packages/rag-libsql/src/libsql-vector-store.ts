@@ -1,4 +1,4 @@
-// @vico/libsql-adapter — LibSQL 原生向量存储（基于 F32_BLOB + vector_distance_cos）
+// @vico/rag-libsql — LibSQL 原生向量存储（基于 F32_BLOB + vector_distance_cos）
 import type { Client } from '@libsql/client';
 import type { DistanceMetric, VectorQueryResult, VectorStore } from '@vico/rag';
 
@@ -20,10 +20,13 @@ export interface LibSQLVectorStoreOptions {
  * 用 `scope_type` 列存 `indexName` 作为向量索引命名空间（情景记忆为 'episodic'，RAG 为 kb 索引名），
  * `scope_id` 存归属标识。查询时始终以 `scope_type = indexName AND type = ?` 分区。
  *
+ * 注意：本类不建 `vico_memory_entries` 表（该表归 @vico/memory-libsql 所有），
+ * 需由 `@vico/memory-libsql` 的 `ensureMemoryTables` 保证其存在。
+ *
  * @example
  * ```ts
  * import { createClient } from '@libsql/client';
- * import { LibSQLVectorStore } from '@vico/libsql-adapter';
+ * import { LibSQLVectorStore } from '@vico/rag-libsql';
  *
  * const client = createClient({ url: 'file:data.db' });
  * const store = new LibSQLVectorStore({ client });

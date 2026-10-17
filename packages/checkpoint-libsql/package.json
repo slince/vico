@@ -1,11 +1,10 @@
 {
-  "name": "@vico/libsql-adapter",
+  "name": "@vico/checkpoint-libsql",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./schema": "./src/schema.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "build": "tsc",
@@ -13,12 +12,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@libsql/client": "^0.17.0",
-    "@vico/core": "workspace:*",
-    "@vico/rag": "workspace:*",
+    "@vico/checkpoint": "workspace:*",
     "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
+    "@libsql/client": "^0.17.0",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",
     "vitest": "^4.1.8"

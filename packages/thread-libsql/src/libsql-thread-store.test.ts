@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
 import * as schema from './schema.js';
-import { ensureTables } from './migrate.js';
+import { ensureThreadTables } from './migrate.js';
 import { LibSqlThreadStore } from './libsql-thread-store.js';
 
 describe('LibSqlThreadStore archiveMessages / includeArchived', () => {
@@ -10,7 +10,7 @@ describe('LibSqlThreadStore archiveMessages / includeArchived', () => {
   beforeAll(async () => {
     const client = createClient({ url: ':memory:' });
     const db = drizzle(client, { schema });
-    await ensureTables(db as never);
+    await ensureThreadTables(db as never);
     store = new LibSqlThreadStore({ db: db as never });
   });
 

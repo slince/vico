@@ -10,7 +10,9 @@
  * - defaultModelFactory（自动匹配 OpenAI/Anthropic/DeepSeek 等 provider）
  */
 import {Vico} from '@vico/core';
-import {ensureTables} from '@vico/libsql-adapter';
+import {ensureCheckpointTables} from '@vico/checkpoint-libsql';
+import {ensureMemoryTables} from '@vico/memory-libsql';
+import {ensureThreadTables} from '@vico/thread-libsql';
 import {startCheckpointPurge} from './checkpoint-purge.js';
 import {config} from './config.js';
 import {getDb} from './db/db.js';
@@ -36,8 +38,10 @@ export const app = createApp();
 
 /** 系统初始化 */
 export async function initVico(): Promise<void> {
-  // 确保 Vico 持久化表存在（vico_threads / vico_turns / vico_messages / vico_memory_entries）
-  await ensureTables(db as any);
+  // 确保 Vico 持久化表存在（thread / checkpoint / memory 三域）
+  await ensureThreadTables(db as any);
+  await ensureCheckpointTables(db as any);
+  await ensureMemoryTables(db as any);
   // checkpoint 版本链 TTL 清理：启动一次 + 每小时一次
   startCheckpointPurge(
     getCheckpointStore(),

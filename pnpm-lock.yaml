@@ -281,6 +281,28 @@ importers:
         specifier: ^4.1.12
         version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/checkpoint-libsql:
+    dependencies:
+      '@vico/checkpoint':
+        specifier: workspace:*
+        version: link:../checkpoint
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.4(@libsql/client@0.17.4)(kysely@0.29.6)(mysql2@3.24.6(@types/node@22.20.5))
+    devDependencies:
+      '@libsql/client':
+        specifier: ^0.17.0
+        version: 0.17.4
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/chroma-adapter:
     dependencies:
       '@vico/rag':
@@ -421,31 +443,6 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/libsql-adapter:
-    dependencies:
-      '@libsql/client':
-        specifier: ^0.17.0
-        version: 0.17.4
-      '@vico/core':
-        specifier: workspace:*
-        version: link:../core
-      '@vico/rag':
-        specifier: workspace:*
-        version: link:../rag
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.4(@libsql/client@0.17.4)(kysely@0.29.6)(mysql2@3.24.6(@types/node@22.20.5))
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.20.5
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-      vitest:
-        specifier: ^4.1.8
-        version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
-
   packages/memory:
     dependencies:
       '@vico/model':
@@ -479,6 +476,22 @@ importers:
       vitest:
         specifier: ^4.1.12
         version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/memory-libsql:
+    dependencies:
+      '@vico/memory':
+        specifier: workspace:*
+        version: link:../memory
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.4(@libsql/client@0.17.4)(kysely@0.29.6)(mysql2@3.24.6(@types/node@22.20.5))
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
   packages/model:
     dependencies:
@@ -555,6 +568,22 @@ importers:
         specifier: ^4.1.8
         version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/rag-libsql:
+    dependencies:
+      '@libsql/client':
+        specifier: ^0.17.0
+        version: 0.17.4
+      '@vico/rag':
+        specifier: workspace:*
+        version: link:../rag
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
   packages/skill:
     dependencies:
       '@vico/tool':
@@ -621,6 +650,28 @@ importers:
         specifier: ^4.1.12
         version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/thread-libsql:
+    dependencies:
+      '@vico/thread':
+        specifier: workspace:*
+        version: link:../thread
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.4(@libsql/client@0.17.4)(kysely@0.29.6)(mysql2@3.24.6(@types/node@22.20.5))
+    devDependencies:
+      '@libsql/client':
+        specifier: ^0.17.0
+        version: 0.17.4
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/tool:
     dependencies:
       '@vico/stream':
@@ -684,15 +735,24 @@ importers:
       '@lydell/node-pty':
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
+      '@vico/checkpoint-libsql':
+        specifier: workspace:*
+        version: link:../../packages/checkpoint-libsql
       '@vico/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@vico/libsql-adapter':
+      '@vico/memory-libsql':
         specifier: workspace:*
-        version: link:../../packages/libsql-adapter
+        version: link:../../packages/memory-libsql
       '@vico/rag':
         specifier: workspace:*
         version: link:../../packages/rag
+      '@vico/rag-libsql':
+        specifier: workspace:*
+        version: link:../../packages/rag-libsql
+      '@vico/thread-libsql':
+        specifier: workspace:*
+        version: link:../../packages/thread-libsql
       '@xterm/addon-serialize':
         specifier: ^0.14.0
         version: 0.14.0

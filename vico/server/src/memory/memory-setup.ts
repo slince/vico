@@ -8,7 +8,10 @@
  * - getCheckpointStore() — LibSqlCheckpointStore 单例
  */
 import {type CheckpointStore, ConversationHistoryMemory, MemoryStore, VectorEpisodicRecall} from '@vico/core';
-import {LibSqlCheckpointStore, LibSqlThreadStore, LibSQLVectorStore, LibSqlSemanticMemory} from '@vico/libsql-adapter';
+import {LibSqlCheckpointStore} from '@vico/checkpoint-libsql';
+import {LibSqlSemanticMemory} from '@vico/memory-libsql';
+import {LibSQLVectorStore} from '@vico/rag-libsql';
+import {LibSqlThreadStore} from '@vico/thread-libsql';
 import {createConfiguredEmbedder} from './embedder.js';
 import {getDb} from '../db/db.js';
 import {getClient} from '../db/init-libsql.js';

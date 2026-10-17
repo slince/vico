@@ -1,9 +1,9 @@
-// @vico/libsql-adapter — LibSQL CheckpointStore implementation（版本树，append-only）
+// @vico/checkpoint-libsql — LibSQL CheckpointStore implementation（版本树，append-only）
 import {randomUUID} from 'node:crypto';
 import {desc, eq, sql} from 'drizzle-orm';
 import type {LibSQLDatabase} from 'drizzle-orm/libsql';
-import type {Checkpoint, CheckpointAppendPatch, CheckpointStore} from '@vico/core';
-import {CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint} from '@vico/core';
+import type {Checkpoint, CheckpointAppendPatch, CheckpointStore} from '@vico/checkpoint';
+import {CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint} from '@vico/checkpoint';
 import type * as schema from './schema.js';
 import {checkpoints} from './schema.js';
 

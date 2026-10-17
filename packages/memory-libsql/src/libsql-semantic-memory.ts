@@ -1,4 +1,4 @@
-// @vico/libsql-adapter — Drizzle-backed SemanticMemory implementation
+// @vico/memory-libsql — Drizzle-backed SemanticMemory implementation
 import { eq, and } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import {
@@ -6,7 +6,7 @@ import {
   MEMORY_ENTRY_TYPE,
   SEMANTIC_MEMORY_SCOPE_TYPE,
   type SemanticMemory,
-} from '@vico/core';
+} from '@vico/memory';
 import { memoryEntries } from './schema.js';
 import type * as schema from './schema.js';
 
