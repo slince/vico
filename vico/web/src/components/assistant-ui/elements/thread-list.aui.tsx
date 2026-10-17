@@ -14,6 +14,7 @@ import {
 } from "@assistant-ui/react";
 import {
   ArchiveIcon,
+  ArchiveRestoreIcon,
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
@@ -47,6 +48,7 @@ export const ThreadList: FC<{ searchable?: boolean; showNew?: boolean }> = ({
         <ThreadListSearch value={search} onValueChange={setSearch} />
       )}
       <ThreadListItems searchQuery={searchable && hasThreads ? search : ""} />
+      <ArchivedThreadList />
     </ThreadListRoot>
   );
 };
@@ -396,7 +398,18 @@ const ThreadListItemRename: FC<{
   );
 };
 
+/** 更多菜单普通项样式 */
+const MORE_ITEM_CLASS =
+  "hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none";
+
+/** 更多菜单危险项（删除）样式 */
+const MORE_ITEM_DESTRUCTIVE_CLASS =
+  "text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none";
+
 const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
+  // 归档会话不提供重命名 / 归档，改为「取消归档」
+  const isArchived = useAuiState((s) => s.threadListItem.status === "archived");
+
   return (
     <ThreadListItemMorePrimitive.Root sharedFocusGroup>
       <ThreadListItemMorePrimitive.Trigger asChild>
@@ -417,27 +430,41 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
         data-slot="aui_thread-list-item-more-content"
         className="bg-popover text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-32 overflow-hidden rounded-xl border p-1.5"
       >
-        <ThreadListItemMorePrimitive.Item
-          data-slot="aui_thread-list-item-more-item"
-          className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
-          onSelect={onRename}
-        >
-          <PencilIcon className="size-4" />
-          Rename
-        </ThreadListItemMorePrimitive.Item>
-        <ThreadListItemPrimitive.Archive asChild>
+        {!isArchived && (
           <ThreadListItemMorePrimitive.Item
             data-slot="aui_thread-list-item-more-item"
-            className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+            className={MORE_ITEM_CLASS}
+            onSelect={onRename}
           >
-            <ArchiveIcon className="size-4" />
-            Archive
+            <PencilIcon className="size-4" />
+            Rename
           </ThreadListItemMorePrimitive.Item>
-        </ThreadListItemPrimitive.Archive>
+        )}
+        {isArchived ? (
+          <ThreadListItemPrimitive.Unarchive asChild>
+            <ThreadListItemMorePrimitive.Item
+              data-slot="aui_thread-list-item-more-item"
+              className={MORE_ITEM_CLASS}
+            >
+              <ArchiveRestoreIcon className="size-4" />
+              Unarchive
+            </ThreadListItemMorePrimitive.Item>
+          </ThreadListItemPrimitive.Unarchive>
+        ) : (
+          <ThreadListItemPrimitive.Archive asChild>
+            <ThreadListItemMorePrimitive.Item
+              data-slot="aui_thread-list-item-more-item"
+              className={MORE_ITEM_CLASS}
+            >
+              <ArchiveIcon className="size-4" />
+              Archive
+            </ThreadListItemMorePrimitive.Item>
+          </ThreadListItemPrimitive.Archive>
+        )}
         <ThreadListItemPrimitive.Delete asChild>
           <ThreadListItemMorePrimitive.Item
             data-slot="aui_thread-list-item-more-item"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+            className={MORE_ITEM_DESTRUCTIVE_CLASS}
           >
             <TrashIcon className="size-4" />
             Delete
@@ -445,5 +472,30 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
         </ThreadListItemPrimitive.Delete>
       </ThreadListItemMorePrimitive.Content>
     </ThreadListItemMorePrimitive.Root>
+  );
+};
+
+/** 归档会话分区 — 仅在有归档会话时展示，点击条目切换时 assistant-ui 会自动取消归档 */
+const ArchivedThreadList: FC = () => {
+  const archivedThreadIds = useAuiState((s) => s.threads.archivedThreadIds);
+  if (archivedThreadIds.length === 0) return null;
+
+  return (
+    <div
+      data-slot="aui_thread-list-archived"
+      className="mt-2 border-t pt-1"
+    >
+      <div className="text-muted-foreground px-2.5 pt-1 pb-1 text-xs font-medium">
+        Archived
+      </div>
+      {archivedThreadIds.map((id, index) => (
+        <ThreadListPrimitive.ItemByIndex
+          key={id}
+          index={index}
+          archived
+          components={{ ThreadListItem }}
+        />
+      ))}
+    </div>
   );
 };

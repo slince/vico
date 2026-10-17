@@ -55,6 +55,23 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
     return c.json({ success: true });
   });
 
+  /** PATCH /api/v1/threads/:id — 重命名 / 归档 / 取消归档 */
+  app.patch('/api/v1/threads/:id', async (c) => {
+    const auth = await getAuthContext(c);
+    if (auth instanceof Response) return auth;
+
+    const body = await c.req.json();
+    const title = typeof body.title === 'string' ? (body.title as string) : undefined;
+    const archived = typeof body.archived === 'boolean' ? (body.archived as boolean) : undefined;
+    if (title === undefined && archived === undefined) {
+      return c.json({ error: 'title or archived is required' }, 400);
+    }
+
+    const ok = await threadManager.update(auth.userId, c.req.param('id'), { title, archived });
+    if (!ok) return c.json({ error: 'Thread not found' }, 404);
+    return c.json({ success: true });
+  });
+
   /** POST /api/v1/threads/:id/compact — 主动压缩会话历史 */
   app.post('/api/v1/threads/:id/compact', async (c) => {
     const auth = await getAuthContext(c);

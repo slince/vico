@@ -13,6 +13,7 @@ import type {
 } from '@assistant-ui/react';
 import type {ContentPart} from '@vico/core';
 import {api} from '@/api/client';
+import {queryClient} from '@/lib/query-client';
 import {useAgentSelection} from '@/stores/agent-selection';
 import {UIMessage} from "ai";
 
@@ -47,6 +48,8 @@ function processHistoryMessages(messages: UIMessage[]): MessageFormatItem<UIMess
 interface ThreadItem {
   id: string;
   title: string;
+  /** 是否已归档（对应 assistant-ui 的 archived status） */
+  archived: boolean;
   updatedAt: number;
 }
 
@@ -69,7 +72,7 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
       const threads = Array.isArray(data) ? data : [];
       return {
         threads: threads.map((t) => ({
-          status: 'regular' as const,
+          status: t.archived ? ('archived' as const) : ('regular' as const),
           remoteId: t.id,
           title: t.title || 'New Chat',
           lastMessageAt: new Date(t.updatedAt),
@@ -80,7 +83,7 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
     async fetch(threadId: string) {
       const item = await api<ThreadItem>(`/threads/${threadId}`);
       return {
-        status: 'regular' as const,
+        status: item.archived ? ('archived' as const) : ('regular' as const),
         remoteId: item.id,
         title: item.title || 'New Chat',
         lastMessageAt: new Date(item.updatedAt),
@@ -108,16 +111,32 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
       await api(`/threads/${remoteId}`, { method: 'DELETE' });
     },
 
-    async rename(_remoteId: string, _newTitle: string) {
-      // 后端暂不支持重命名
+    async rename(remoteId: string, newTitle: string) {
+      await api(`/threads/${remoteId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title: newTitle }),
+      });
+      // 顶栏标题与 Agent 选择器通过 useThread 读取缓存，重命名后需失效触发重取
+      queryClient.invalidateQueries({ queryKey: ['thread', remoteId] });
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
     },
 
-    async archive(_remoteId: string) {
-      // 后端暂不支持归档
+    async archive(remoteId: string) {
+      await api(`/threads/${remoteId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ archived: true }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['thread', remoteId] });
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
     },
 
-    async unarchive(_remoteId: string) {
-      // 后端暂不支持取消归档
+    async unarchive(remoteId: string) {
+      await api(`/threads/${remoteId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ archived: false }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['thread', remoteId] });
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
     },
 
     async generateTitle(

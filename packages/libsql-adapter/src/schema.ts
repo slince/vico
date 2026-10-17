@@ -10,6 +10,8 @@ export const threads = sqliteTable('vico_threads', {
   user_id: text('user_id'),
   title: text('title'),
   metadata: text('metadata'),
+  /** 是否已归档（软归档；列表/详情均返回该标志） */
+  archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
   created_at: integer('created_at').notNull(),
   updated_at: integer('updated_at').notNull(),
 });

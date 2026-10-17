@@ -27,10 +27,20 @@ export async function ensureTables(
       user_id TEXT,
       title TEXT,
       metadata TEXT,
+      archived INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
   `);
+
+  // 迁移检测：存量 vico_threads 无 archived 列 → 幂等补列（软归档支持）
+  const threadCols = await db.values<[string]>(sql`
+    SELECT name FROM pragma_table_info('vico_threads')
+  `);
+  const threadColNames = threadCols.map((r) => r[0]);
+  if (threadColNames.length > 0 && !threadColNames.includes('archived')) {
+    await db.run(sql`ALTER TABLE vico_threads ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`);
+  }
 
   // 对话轮次表
   await db.run(sql`

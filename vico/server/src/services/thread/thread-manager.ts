@@ -130,6 +130,28 @@ class ThreadManager {
       return false;
     }
   }
+
+  /**
+   * 更新会话（重命名 / 归档 / 取消归档），校验归属后透传给 ThreadStore。
+   *
+   * @returns 更新成功返回 true；会话不存在或不属于当前用户返回 false
+   */
+  async update(
+    userId: string,
+    id: string,
+    patch: { title?: string; archived?: boolean },
+  ): Promise<boolean> {
+    const thread = await this.store.getThread(id);
+    if (!thread) return false;
+    if (thread.userId && thread.userId !== userId) return false;
+
+    try {
+      await this.store.updateThread(id, patch);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export const threadManager = new ThreadManager();

@@ -39,6 +39,8 @@ export interface Thread {
   title?: string;
   /** 自定义上下文字段（JSON 可序列化） */
   metadata?: ThreadMetadata;
+  /** 是否已归档（软归档，数据保留但默认不出现在会话列表） */
+  archived?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -87,8 +89,8 @@ export interface ThreadStore {
   getThread(threadId: string): Promise<Thread | undefined>;
   /** 列出线程（可按 agentId / userId 筛选） */
   listThreads(filter?: { agentId?: string; userId?: string }): Promise<Thread[]>;
-  /** 更新线程信息（title、metadata 等） */
-  updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata'>>): Promise<void>;
+  /** 更新线程信息（title、metadata、archived 等） */
+  updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata' | 'archived'>>): Promise<void>;
   /** 删除线程及其全部轮次与消息（不存在时静默忽略） */
   deleteThread(threadId: string): Promise<void>;
 

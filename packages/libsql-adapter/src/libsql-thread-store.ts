@@ -34,10 +34,11 @@ export class LibSqlThreadStore implements ThreadStore {
       user_id: opts?.userId ?? null,
       title: title ?? null,
       metadata: opts?.metadata ? JSON.stringify(opts.metadata) : null,
+      archived: false,
       created_at: now,
       updated_at: now,
     });
-    return { id: threadId, agentId, userId: opts?.userId, title: title || undefined, metadata: opts?.metadata, createdAt: now, updatedAt: now };
+    return { id: threadId, agentId, userId: opts?.userId, title: title || undefined, metadata: opts?.metadata, archived: false, createdAt: now, updatedAt: now };
   }
 
   async getThread(threadId: string): Promise<Thread | undefined> {
@@ -64,10 +65,11 @@ export class LibSqlThreadStore implements ThreadStore {
     return rows.map((r) => this._toThread(r));
   }
 
-  async updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata'>>): Promise<void> {
+  async updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata' | 'archived'>>): Promise<void> {
     const values: Record<string, unknown> = { updated_at: Date.now() };
     if (patch.title !== undefined) values.title = patch.title;
     if (patch.metadata !== undefined) values.metadata = JSON.stringify(patch.metadata);
+    if (patch.archived !== undefined) values.archived = patch.archived;
     if (Object.keys(values).length === 1) return; // only updated_at
     await this.db.update(threads).set(values).where(eq(threads.id, threadId));
   }
@@ -221,6 +223,7 @@ export class LibSqlThreadStore implements ThreadStore {
       userId: r.user_id ?? undefined,
       title: r.title ?? undefined,
       metadata: r.metadata ? (JSON.parse(r.metadata) as Record<string, unknown>) : undefined,
+      archived: r.archived,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     };

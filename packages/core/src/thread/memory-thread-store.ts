@@ -16,6 +16,7 @@ export class InMemoryThreadStore implements ThreadStore {
       userId: opts?.userId,
       title,
       metadata: opts?.metadata,
+      archived: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -36,11 +37,12 @@ export class InMemoryThreadStore implements ThreadStore {
     });
   }
 
-  async updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata'>>): Promise<void> {
+  async updateThread(threadId: string, patch: Partial<Pick<Thread, 'title' | 'metadata' | 'archived'>>): Promise<void> {
     const t = this.threads.get(threadId);
     if (!t) return;
     if (patch.title !== undefined) t.title = patch.title;
     if (patch.metadata !== undefined) t.metadata = patch.metadata;
+    if (patch.archived !== undefined) t.archived = patch.archived;
     t.updatedAt = Date.now();
   }
 

@@ -10,6 +10,8 @@ export const threads = mysqlTable('vico_threads', {
   user_id: varchar('user_id', { length: 36 }),
   title: text('title'),
   metadata: json('metadata'),
+  /** 是否已归档（软归档；列表/详情均返回该标志） */
+  archived: boolean('archived').notNull().default(false),
   created_at: bigint('created_at', { mode: 'number' }).notNull(),
   updated_at: bigint('updated_at', { mode: 'number' }).notNull(),
 });
