@@ -11,7 +11,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vico/agent": "workspace:*",
+    "@vico/checkpoint": "workspace:*",
     "@vico/di": "workspace:*",
+    "@vico/events": "workspace:*",
+    "@vico/memory": "workspace:*",
+    "@vico/rag": "workspace:*",
+    "@vico/skill": "workspace:*",
+    "@vico/stream": "workspace:*",
+    "@vico/thread": "workspace:*",
     "yaml": "^2.6.0",
     "zod": "^4.6.7"
   },

@@ -7,6 +7,7 @@ export { memoryProvider } from './providers/memory-provider.js';
 export { agentProvider } from './providers/agent-provider.js';
 
 export {
+  agentSchema,
   skillsSchema,
   memoryCompactionSchema,
   memorySchema,
@@ -16,6 +17,8 @@ export {
   workspaceSchema,
   checkpointSchema,
 } from './config/schemas/index.js';
+
+export { InMemoryVectorStore } from './lib/in-memory-vector-store.js';
 
 export type { VicoConfigKeys } from './config/keys.js';
 export type { VicoConfig } from './config/types.js';

@@ -1,24 +1,38 @@
-// @vico/boot - 记忆领域 provider（绑定存储三件套 + 嵌入器 + 三层记忆）
+// @vico/boot - 记忆领域 provider（线程 / 检查点 / 嵌入器 / 向量存储 / 三层记忆）
 
+import { MemoryCheckpointStore } from '@vico/checkpoint';
+import { ConversationHistoryMemory, MemoryStore, VectorEpisodicRecall } from '@vico/memory';
+import { createEmbedder, type EmbedderConfig } from '@vico/rag';
+import { InMemoryThreadStore } from '@vico/thread';
+import { InMemoryVectorStore } from '../lib/in-memory-vector-store.js';
 import type { VicoServiceProvider } from '../tokens.js';
 
 /**
- * 记忆 provider：绑定 `thread` / `checkpointStore` / `embedder` / `vectorStore` / `memory`。
+ * 记忆 provider：注册 `thread` / `checkpointStore` / `embedder` / `vectorStore` / `memory`。
  *
- * 依赖拓扑：thread/checkpointStore/vectorStore → embedder → memory。
- * `thread` / `checkpointStore` / `vectorStore` 的持久化实现（libsql/mysql/chroma）由
- * 使用方注入 adapter；boot 提供内存默认实现或标注 TODO。
+ * 默认装配使用内存实现（thread / checkpoint / vector），使用方可覆盖为持久化适配器；
+ * `embedder` 由 `rag.embedder` 配置驱动（"none" 禁用，episodic 记忆随之停用）。
  */
 export const memoryProvider: VicoServiceProvider = {
   register(c) {
-    // TODO(迁移): c.register('thread', () => new InMemoryThreadStore());
-    // TODO(迁移): c.register('checkpointStore', () => new MemoryCheckpointStore());
-    // TODO(迁移): c.register('embedder', ({ getConfig }) => createEmbedder(getConfig('rag').embedder));
-    // TODO(迁移): c.register('vectorStore', ({ resolve }) => /* 使用方注入的向量存储 */);
-    // TODO(迁移): c.register('memory', ({ resolve, getConfig }) => new MemoryStore({
-    //   conversation: new ConversationHistoryMemory(resolve('thread'), getConfig('memory').stm_window),
-    //   semantic: new FileSemanticMemory({ ... }),
-    //   episodic: resolve('embedder') ? new VectorEpisodicRecall({ embedder, vectorStore: resolve('vectorStore') }) : undefined,
-    // }));
+    c.register('thread', () => new InMemoryThreadStore());
+    c.register('checkpointStore', () => new MemoryCheckpointStore());
+    c.register('vectorStore', () => new InMemoryVectorStore());
+    c.register('embedder', ({ getConfig }) => {
+      const configured = getConfig('rag').embedder;
+      if (typeof configured === 'string') {
+        return configured === 'none' ? undefined : createEmbedder(configured);
+      }
+      return createEmbedder(configured as unknown as EmbedderConfig);
+    });
+    c.register('memory', ({ resolve, getConfig }) => {
+      const embedder = resolve('embedder');
+      return new MemoryStore({
+        conversation: new ConversationHistoryMemory(resolve('thread'), getConfig('memory').stm_window),
+        episodic: embedder
+          ? new VectorEpisodicRecall({ embedder, vectorStore: resolve('vectorStore') })
+          : undefined,
+      });
+    });
   },
 };

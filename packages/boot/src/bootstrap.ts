@@ -3,6 +3,7 @@
 import { fileURLToPath } from 'node:url';
 import { createContainer } from '@vico/di';
 import {
+  agentSchema,
   checkpointSchema,
   memorySchema,
   modelSchema,
@@ -28,7 +29,7 @@ const DEFAULT_CONFIG_FILE = fileURLToPath(
  * 加载顺序沿用 `@vico/di` 的「后加载覆盖先加载」语义：内置默认配置先加载，
  * 用户 `configPath`（可选）后加载，同名段整段覆盖、段内字段由 schema `.default()` 兜底。
  *
- * 只注册 framework 自身配置段（skills/memory/model/rag/tool/workspace/checkpoint）；
+ * 只注册 framework 自身配置段（agent/skills/memory/model/rag/tool/workspace/checkpoint）；
  * 应用层专属配置由使用方通过 `registerConfig` 扩展。
  *
  * @param options 可选启动选项；`configPath` 为用户自定义配置文件路径
@@ -39,6 +40,7 @@ export function createVicoContainer(options?: { configPath?: string }): VicoCont
 
   // 逐个注册配置段（schema 类型由 VicoConfigKeys 约束，getConfig 得到 z.infer 类型）
   container
+    .registerConfig('agent', agentSchema)
     .registerConfig('skills', skillsSchema)
     .registerConfig('memory', memorySchema)
     .registerConfig('model', modelSchema)
@@ -60,7 +62,7 @@ export function createVicoContainer(options?: { configPath?: string }): VicoCont
  *
  * 依赖拓扑（注册顺序的自然依据）：
  * skills → thread/checkpointStore/vectorStore → embedder → memory
- * → toolExecutor → agentRuntime。
+ * → events → agentRuntime。
  */
 export const vicoProviders: VicoServiceProvider[] = [
   skillsProvider,

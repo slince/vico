@@ -1,6 +1,7 @@
 // @vico/boot - 配置段 schema 映射表（配置段名 → zod schema 类型）
 
 import type {
+  agentSchema,
   checkpointSchema,
   memorySchema,
   modelSchema,
@@ -18,6 +19,7 @@ import type {
  * 认证、数据库连接、文件存储/上传等）由使用方自行扩展。
  */
 export interface VicoConfigKeys {
+  agent: typeof agentSchema;
   skills: typeof skillsSchema;
   memory: typeof memorySchema;
   model: typeof modelSchema;

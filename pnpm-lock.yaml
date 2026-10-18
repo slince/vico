@@ -264,9 +264,33 @@ importers:
 
   packages/boot:
     dependencies:
+      '@vico/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@vico/checkpoint':
+        specifier: workspace:*
+        version: link:../checkpoint
       '@vico/di':
         specifier: workspace:*
         version: link:../di
+      '@vico/events':
+        specifier: workspace:*
+        version: link:../events
+      '@vico/memory':
+        specifier: workspace:*
+        version: link:../memory
+      '@vico/rag':
+        specifier: workspace:*
+        version: link:../rag
+      '@vico/skill':
+        specifier: workspace:*
+        version: link:../skill
+      '@vico/stream':
+        specifier: workspace:*
+        version: link:../stream
+      '@vico/thread':
+        specifier: workspace:*
+        version: link:../thread
       yaml:
         specifier: ^2.6.0
         version: 2.9.1

@@ -2,6 +2,9 @@
 # 使用方自定义 yaml 会整段覆盖同名段，段内字段由 schema 的 .default() 兜底。
 # 应用层专属配置（HTTP 服务、认证、数据库连接、文件存储/上传）不在此列。
 
+agent:
+  max_cached: 50
+
 skills:
   scan_paths: []
 

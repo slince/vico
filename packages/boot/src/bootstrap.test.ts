@@ -1,10 +1,15 @@
-// @vico/boot - 启动层测试（默认配置加载、用户覆盖、provider 两阶段时序）
+// @vico/boot - 启动层测试（默认配置加载、用户覆盖、两阶段时序、真实装配）
 
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { AgentRuntime } from '@vico/agent';
+import { MemoryCheckpointStore } from '@vico/checkpoint';
+import { MemoryStore } from '@vico/memory';
+import { InMemoryThreadStore } from '@vico/thread';
 import { bootstrapVico, createVicoContainer, vicoProviders } from './bootstrap.js';
+import { InMemoryVectorStore } from './lib/in-memory-vector-store.js';
 import type { VicoServiceProvider } from './tokens.js';
 
 /** 写一个临时配置文件并返回其路径 */
@@ -18,6 +23,7 @@ function writeTempConfig(content: string): string {
 describe('createVicoContainer', () => {
   it('加载内置默认配置', () => {
     const c = createVicoContainer();
+    expect(c.getConfig('agent').max_cached).toBe(50);
     expect(c.getConfig('skills').scan_paths).toEqual([]);
     expect(c.getConfig('rag').embedder).toBe('openai/text-embedding-3-small');
     expect(c.getConfig('memory').stm_window).toBe(20);
@@ -62,11 +68,37 @@ describe('bootstrap 两阶段时序', () => {
     await c.bootstrap([mk('a'), mk('b'), mk('c')]);
     expect(events).toEqual(['a:register', 'b:register', 'c:register', 'a:boot', 'b:boot', 'c:boot']);
   });
+});
 
-  it('骨架 providers 可无副作用启动', async () => {
+describe('providers 真实装配', () => {
+  it('bootstrapVico 后可 resolve 出 framework 核心依赖', async () => {
     const c = await bootstrapVico();
-    // 骨架阶段未绑定真实实现，resolve 未注册 token 应抛错
-    expect(c.has('agentRuntime')).toBe(false);
+    expect(c.resolve('thread')).toBeInstanceOf(InMemoryThreadStore);
+    expect(c.resolve('checkpointStore')).toBeInstanceOf(MemoryCheckpointStore);
+    expect(c.resolve('vectorStore')).toBeInstanceOf(InMemoryVectorStore);
+    expect(c.resolve('memory')).toBeInstanceOf(MemoryStore);
+    expect(c.resolve('agentRuntime')).toBeInstanceOf(AgentRuntime);
+    expect(c.resolve('events')).toBeTruthy();
+  });
+
+  it('skills 异步扫描（默认空路径 → 空列表）', async () => {
+    const c = await bootstrapVico();
+    const skills = await c.resolveAsync('skills');
+    expect(skills).toEqual([]);
+  });
+
+  it('embedder 配置为 none 时禁用 episodic', async () => {
+    const file = writeTempConfig('rag:\n  embedder: none\n');
+    const c = await bootstrapVico({ configPath: file });
+    expect(c.resolve('embedder')).toBeUndefined();
+    expect(c.resolve('memory').episodic).toBeUndefined();
+    rmSync(join(file, '..'), { recursive: true, force: true });
+  });
+
+  it('默认 embedder 启用 episodic', async () => {
+    const c = await bootstrapVico();
+    expect(c.resolve('embedder')).toBeTruthy();
+    expect(c.resolve('memory').episodic).toBeTruthy();
   });
 });
 
