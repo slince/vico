@@ -86,7 +86,9 @@ export function resolveCompactSpec(
   const messageBudgetTokens = contextWindow - reservedCompletionTokens;
   const pressureBudgetTokens = messageBudgetTokens - settings.headroomTokens;
   if (pressureBudgetTokens <= 0) {
-    throw new Error('pressure budget tokens must be positive');
+    throw new Error(
+      `pressure budget tokens must be positive (contextWindow=${contextWindow}, reservedCompletionTokens=${reservedCompletionTokens}, headroomTokens=${settings.headroomTokens})`,
+    );
   }
   const thresholdTokens = Math.floor(Math.min(contextWindow * settings.thresholdRatio, pressureBudgetTokens));
   const retainTokens = settings.retainTokens ?? Math.floor(messageBudgetTokens * settings.retainRatio);
