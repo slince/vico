@@ -20,7 +20,7 @@ import type { ThreadManager } from './services/thread/thread-manager.js';
 import type { KnowledgeManager } from './services/knowledge/knowledge-manager.js';
 import type { StorageManager } from './services/knowledge/storage-manager.js';
 import type { DocumentManager } from './services/knowledge/document-manager.js';
-import type { RAGManager } from './memory/rag.js';
+import type { RAGManager } from './lib/rag-manager.js';
 import type { TerminalManager } from './lib/terminal-manager.js';
 import type { weatherTool } from './agent/tools/weather-tool.js';
 import type { meta, providers } from './llm/providers/index.js';

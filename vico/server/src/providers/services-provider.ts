@@ -12,7 +12,7 @@ import { ThreadManager } from '../services/thread/thread-manager.js';
 import { KnowledgeManager } from '../services/knowledge/knowledge-manager.js';
 import { StorageManager } from '../services/knowledge/storage-manager.js';
 import { DocumentManager } from '../services/knowledge/document-manager.js';
-import { RAGManager } from '../memory/rag.js';
+import { RAGManager } from '../lib/rag-manager.js';
 import { TerminalManager } from '../lib/terminal-manager.js';
 import { weatherTool } from '../agent/tools/weather-tool.js';
 import { meta, providers } from '../llm/providers/index.js';

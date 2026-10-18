@@ -1,16 +1,16 @@
-import { v4 as uuid } from 'uuid';
-import { statSync, readdirSync } from 'node:fs';
-import { resolve, basename } from 'node:path';
-import { RecursiveChunker, DefaultParserRegistry } from '@vico/rag';
-import type { Embedder, VectorStore } from '@vico/rag';
-import { ragSchema } from '@vico/boot';
-import type { z } from 'zod';
-import type { Client } from '@libsql/client';
-import type { Logger } from 'pino';
-import { schema } from '../db/db.js';
-import type { AppDb } from '../db/db.js';
-import { eq, sql } from 'drizzle-orm';
-import { kbIndexName } from '../lib/resource.js';
+import {v4 as uuid} from 'uuid';
+import {readdirSync, statSync} from 'node:fs';
+import {basename, resolve} from 'node:path';
+import type {Embedder, VectorStore} from '@vico/rag';
+import {DefaultParserRegistry, RecursiveChunker} from '@vico/rag';
+import {ragSchema} from '@vico/boot';
+import type {z} from 'zod';
+import type {Client} from '@libsql/client';
+import type {Logger} from 'pino';
+import type {AppDb} from '../db/db.js';
+import {schema} from '../db/db.js';
+import {eq, sql} from 'drizzle-orm';
+import {kbIndexName} from './resource.js';
 
 /** RAG 配置切片类型（来自 @vico/boot 的 ragSchema） */
 type RagConfig = z.infer<typeof ragSchema>;

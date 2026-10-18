@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { extname } from 'node:path';
 import { schema } from '../../db/db.js';
 import type { AppDb } from '../../db/db.js';
-import type { RAGManager } from '../../memory/rag.js';
+import type { RAGManager } from '../../lib/rag-manager.js';
 import type { DocumentManager } from './document-manager.js';
 import type { StorageManager } from './storage-manager.js';
 import type { UploadConfig } from '../../config/schemas.js';
