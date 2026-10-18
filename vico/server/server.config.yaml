@@ -13,7 +13,8 @@ database:
 skills:
   scan_paths:
     - "../skills"
-    - "./data/custom-skills"
+    - "~/vico/skills"
+  compatible: true
 
 memory:
   stm_window: 20
