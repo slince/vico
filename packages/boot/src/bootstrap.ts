@@ -1,14 +1,14 @@
 // @vico/boot - Vico Agent Framework 启动入口（容器装配 + provider 两阶段启动）
 
-import { fileURLToPath } from 'node:url';
-import { createContainer } from '@vico/di';
-import type { Container } from '@vico/di';
-import type { VicoConfigKeys } from './config/keys.js';
-import type { VicoServiceProvider, VicoTokens } from './tokens.js';
-import { skillsProvider } from './providers/skills-provider.js';
-import { memoryProvider } from './providers/memory-provider.js';
-import { agentProvider } from './providers/agent-provider.js';
-import { configProvider } from './providers/config-provider.js';
+import {fileURLToPath} from 'node:url';
+import type {Container} from '@vico/di';
+import {createContainer} from '@vico/di';
+import type {VicoConfigKeys} from './config/keys.js';
+import type {VicoServiceProvider, VicoTokens} from './tokens.js';
+import {skillsProvider} from './providers/skills-provider.js';
+import {memoryProvider} from './providers/memory-provider.js';
+import {agentProvider} from './providers/agent-provider.js';
+import {configProvider} from './providers/config-provider.js';
 
 /** 包内默认配置文件的绝对路径（默认值唯一来源） */
 const DEFAULT_CONFIG_FILE = fileURLToPath(
@@ -48,11 +48,9 @@ export async function createVicoContainer<
 ): Promise<Container<VicoTokens, TConfigKeys>> {
   const container = createContainer<VicoTokens, TConfigKeys>();
 
-  // 先注册 framework 领域 provider（register 阶段声明配置段 schema 并绑定服务）
   // provider 以 VicoConfigKeys 视角注册 framework 段（其 schema 类型在两种视角下完全一致）
-  const framework = container as unknown as Container<VicoTokens, VicoConfigKeys>;
   for (const provider of vicoProviders) {
-    await framework.registerProvider(provider);
+    await container.registerProvider(provider);
   }
 
   // 使用方扩展：注入连接 / 注册应用层 provider（须在 load/freeze 前完成）
