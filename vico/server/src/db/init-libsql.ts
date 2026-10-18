@@ -8,7 +8,7 @@ import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { config } from '../config.js';
+import { getContainer } from '../container.js';
 import * as bizSchema from './schema.js';
 import * as authSchema from './auth-schema.js';
 
@@ -30,11 +30,16 @@ function ensureDbDir(dbUrl: string): void {
   }
 }
 
+/** 读取数据库连接 URL（来自容器 database 段） */
+function databaseUrl(): string {
+  return getContainer().getConfig('database').url;
+}
+
 /** 获取 libsql 客户端，用于 BLOB/向量等低级操作 */
 export function getClient(): Client {
   if (!_client) {
-    ensureDbDir(config.database.url);
-    _client = createClient({ url: config.database.url });
+    ensureDbDir(databaseUrl());
+    _client = createClient({ url: databaseUrl() });
   }
   return _client;
 }
@@ -49,7 +54,7 @@ export function getDb(): LibSQLDatabase<typeof combinedSchema> {
 
 /** 获取数据库连接 URL */
 export function getDatabaseUrl(): string {
-  return config.database.url;
+  return databaseUrl();
 }
 
 export { combinedSchema as schema };

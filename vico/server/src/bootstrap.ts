@@ -1,10 +1,20 @@
 import { createVicoContainer, vicoProviders } from '@vico/boot';
-import type { VicoContainer, VicoServiceProvider } from '@vico/boot';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ensureCheckpointTables } from '@vico/checkpoint-libsql';
 import { ensureMemoryTables } from '@vico/memory-libsql';
 import { ensureThreadTables } from '@vico/thread-libsql';
 import { startCheckpointPurge } from './checkpoint-purge.js';
-import { CONFIG_PATH } from './config.js';
+import {
+  authSchema,
+  databaseSchema,
+  fileStorageSchema,
+  serverSchema,
+  uploadSchema,
+  type ServerConfigKeys,
+  type ServerContainer,
+  type ServerServiceProvider,
+} from './config/schemas.js';
 import { setContainer } from './container.js';
 import { runMigrations } from './db/run-migrations.js';
 import { getDb } from './db/db.js';
@@ -12,12 +22,27 @@ import { getClient } from './db/init-libsql.js';
 import { seedDefaultAdmin, seedMainAgent } from './auth/seed.js';
 import logger from './lib/logger.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** 配置文件路径（应用层与 framework 共用同一份 server.config.yaml） */
+const CONFIG_PATH = process.env.CONFIG_PATH || resolve(__dirname, '../server.config.yaml');
+
 /**
- * 应用层 provider：boot 阶段执行迁移、seed、建表与 checkpoint 清理定时器。
- * register 阶段无绑定——db/client 连接由 bootstrap() 显式注入。
+ * 应用层 provider：
+ * - register：把 server 专属配置段（server/auth/database/file_storage/upload）注册进容器；
+ * - boot：执行迁移、seed、建表与 checkpoint 清理定时器。
+ *
+ * db/client 连接由 bootstrap() 显式注入（token 名与 storage.db_service / client_service 对齐）。
  */
-const serverProvider: VicoServiceProvider = {
-  register() {},
+const serverProvider: ServerServiceProvider = {
+  register(c) {
+    c
+      .registerConfig('server', serverSchema)
+      .registerConfig('auth', authSchema)
+      .registerConfig('database', databaseSchema)
+      .registerConfig('file_storage', fileStorageSchema)
+      .registerConfig('upload', uploadSchema);
+  },
 
   async boot(c) {
     await runMigrations();
@@ -47,16 +72,20 @@ const serverProvider: VicoServiceProvider = {
  * 应用层注入 libsql 连接（db/client），供 framework 的 thread/checkpoint/vector
  * 后端按 storage 配置解析使用；随后依序执行迁移、seed、建表等初始化副作用。
  *
- * @returns 完成启动后的 Vico 容器
+ * 容器在 bootstrap 之前即写入全局单例：boot 阶段（迁移/建表）需要读取 database 配置。
+ *
+ * @returns 完成启动后的 server 容器
  */
-export async function bootstrap(): Promise<VicoContainer> {
-  const container = createVicoContainer({ configPath: CONFIG_PATH });
+export async function bootstrap(): Promise<ServerContainer> {
+  const container = createVicoContainer<ServerConfigKeys>({ configPath: CONFIG_PATH });
+
+  // 提前记录容器，让 boot 阶段的 getDb()/getConfig('database') 可用
+  setContainer(container);
 
   // 注入 libsql 连接（token 名与 storage.db_service / client_service 对齐）
   container.register('db', () => getDb());
   container.register('client', () => getClient());
 
   await container.bootstrap([...vicoProviders, serverProvider]);
-  setContainer(container);
   return container;
 }

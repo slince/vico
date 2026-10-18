@@ -2,7 +2,7 @@ import {count, desc, eq} from 'drizzle-orm';
 import {v4 as uuid} from 'uuid';
 import {getDb, schema} from '../../db/db.js';
 import {modelManager} from '../model/model-manager.js';
-import {expandHome} from '../../config.js';
+import {expandHome} from '../../lib/path.js';
 import {getContainer} from '../../container.js';
 import {
   type AgentDetail,

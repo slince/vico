@@ -3,7 +3,6 @@ import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { RecursiveChunker, DefaultParserRegistry } from '@vico/rag';
 import type { Embedder } from '@vico/rag';
-import { getRagConfig } from '../config.js';
 import { getContainer } from '../container.js';
 import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
@@ -22,14 +21,14 @@ class RAGManager {
    */
   async indexText(kbId: string, text: string, metadata: Record<string, any> = {}, documentId?: string): Promise<number> {
     const vector = getContainer().resolve('vectorStore');
-    const kbConfig = getRagConfig();
+    const kbConfig = getContainer().getConfig('rag');
 
     // 使用 @vico/rag RecursiveChunker 分块
     const chunker = new RecursiveChunker();
     const chunks = await chunker.chunk(text, {
       strategy: 'recursive',
-      size: kbConfig.chunk.size,
-      overlap: kbConfig.chunk.overlap,
+      size: kbConfig.chunk_size,
+      overlap: kbConfig.chunk_overlap,
     });
     const chunkTexts = chunks.map((c) => c.text);
     const chunkIds = chunks.map(() => uuid());

@@ -3,10 +3,10 @@ import {cors} from 'hono/cors';
 import {upgradeWebSocket} from '@hono/node-server';
 import {WebSocketServer} from 'ws';
 
-import {auth} from './auth';
+import {getAuth} from './auth';
 import {registerRoutes} from './api/router.js';
 import {registerWsRoutes} from './api/ws/router.js';
-import {config} from './config.js';
+import {getContainer} from './container.js';
 import logger from './lib/logger.js';
 import type {Variables} from './index.js';
 
@@ -23,7 +23,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
     const message = err instanceof Error ? err.message : 'An internal error occurred';
     const stack = err instanceof Error ? err.stack : undefined;
     return c.json(
-      { error: message, stack: config.server.deploy_mode === 'private' ? stack : undefined },
+      { error: message, stack: getContainer().getConfig('server').deploy_mode === 'private' ? stack : undefined },
       500,
     );
   });
@@ -92,7 +92,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
       return next();
     }
 
-    const result = await auth.api.getSession({
+    const result = await getAuth().api.getSession({
       headers: c.req.raw.headers,
     });
 
@@ -126,7 +126,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
   });
 
   /** 挂载 better-auth 路由处理器 */
-  app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+  app.on(['POST', 'GET'], '/api/auth/*', (c) => getAuth().handler(c.req.raw));
 
   /** 注册业务路由 */
   registerRoutes(app);

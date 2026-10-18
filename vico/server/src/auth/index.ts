@@ -11,63 +11,77 @@ import * as authSchema from '../db/auth-schema.js';
 // better-auth 返回类型涉及 zod v4 内部泛型，跨文件引用不可移植，且
 // ReturnType<typeof betterAuth> 会捕获字面量 options 类型，与 BetterAuthOptions 协变不兼容。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const auth: any = betterAuth({
-  database: drizzleAdapter(getDb(), {
-    provider: 'sqlite',
-    schema: authSchema,
-  }),
+let _auth: any;
 
-  /** 邮箱密码登录（同时启用 username 插件，支持用户名登录） */
-  emailAndPassword: {
-    enabled: true,
-    autoSignIn: true,
-    requireEmailVerification: false,
-  },
+/**
+ * 获取 better-auth 实例（懒加载单例）。
+ *
+ * 不能在模块加载时创建：betterAuth 初始化会调用 getDb()，而 getDb() 依赖容器的
+ * database 配置，容器在 bootstrap() 后才可用。首次调用发生在请求处理阶段，
+ * 此时容器已就绪。
+ */
+export function getAuth(): any {
+  if (!_auth) {
+    _auth = betterAuth({
+      database: drizzleAdapter(getDb(), {
+        provider: 'sqlite',
+        schema: authSchema,
+      }),
 
-  /** 用户名登录插件 */
-  plugins: [
-    username({
-      minUsernameLength: 2,
-      maxUsernameLength: 50,
-    }),
-  ],
-
-  /** 自定义用户字段 — 声明 role 以便 better-auth 在 session 输出中返回它 */
-  user: {
-    additionalFields: {
-      role: {
-        type: 'string',
-        required: false,
-        defaultValue: 'user',
+      /** 邮箱密码登录（同时启用 username 插件，支持用户名登录） */
+      emailAndPassword: {
+        enabled: true,
+        autoSignIn: true,
+        requireEmailVerification: false,
       },
-    },
-  },
 
-  /** Session 配置 — 7 天有效期，与旧 JWT token_expiry 一致 */
-  session: {
-    expiresIn: 60 * 60 * 24 * 7,
-    updateAge: 60 * 60 * 24,
-  },
+      /** 用户名登录插件 */
+      plugins: [
+        username({
+          minUsernameLength: 2,
+          maxUsernameLength: 50,
+        }),
+      ],
 
-  /** Cookie 配置 — 开发环境（localhost HTTP） */
-  advanced: {
-    cookiePrefix: 'vico',
-    defaultCookieAttributes: {
-      sameSite: 'lax',
-      secure: false,
-      httpOnly: true,
-    },
-    crossSubDomainCookies: {
-      enabled: false,
-    },
-  },
+      /** 自定义用户字段 — 声明 role 以便 better-auth 在 session 输出中返回它 */
+      user: {
+        additionalFields: {
+          role: {
+            type: 'string',
+            required: false,
+            defaultValue: 'user',
+          },
+        },
+      },
 
-  /** 信任 Vite 开发服务器来源 */
-  trustedOrigins: ['http://localhost:5173'],
+      /** Session 配置 — 7 天有效期，与旧 JWT token_expiry 一致 */
+      session: {
+        expiresIn: 60 * 60 * 24 * 7,
+        updateAge: 60 * 60 * 24,
+      },
 
-  /** 服务端基础 URL — 消除 "Base URL is not set" 警告 */
-  baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
+      /** Cookie 配置 — 开发环境（localhost HTTP） */
+      advanced: {
+        cookiePrefix: 'vico',
+        defaultCookieAttributes: {
+          sameSite: 'lax',
+          secure: false,
+          httpOnly: true,
+        },
+        crossSubDomainCookies: {
+          enabled: false,
+        },
+      },
 
-  /** 密钥 — 替代原 jwt_secret */
-  secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-change-me-in-production',
-});
+      /** 信任 Vite 开发服务器来源 */
+      trustedOrigins: ['http://localhost:5173'],
+
+      /** 服务端基础 URL — 消除 "Base URL is not set" 警告 */
+      baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
+
+      /** 密钥 — 替代原 jwt_secret */
+      secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-change-me-in-production',
+    });
+  }
+  return _auth;
+}

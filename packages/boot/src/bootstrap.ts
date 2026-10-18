@@ -2,6 +2,7 @@
 
 import { fileURLToPath } from 'node:url';
 import { createContainer } from '@vico/di';
+import type { Container } from '@vico/di';
 import {
   agentSchema,
   checkpointSchema,
@@ -33,14 +34,23 @@ const DEFAULT_CONFIG_FILE = fileURLToPath(
  * 只注册 framework 自身配置段（agent/skills/memory/model/rag/tool/workspace/checkpoint/storage）；
  * 应用层专属配置由使用方通过 `registerConfig` 扩展。
  *
+ * @typeParam TConfigKeys 扩展后的配置段映射（必须继承 `VicoConfigKeys`），
+ *   使用方传入 `interface ServerConfigKeys extends VicoConfigKeys { ... }` 即可追加应用层段
  * @param options 可选启动选项；`configPath` 为用户自定义配置文件路径
- * @returns 已注册配置但尚未 bootstrap 的 Vico 容器
+ * @returns 已注册配置但尚未 bootstrap 的容器
  */
-export function createVicoContainer(options?: { configPath?: string }): VicoContainer {
-  const container = createContainer<undefined, VicoTokens, VicoConfigKeys>();
+export function createVicoContainer<
+  TConfigKeys extends VicoConfigKeys = VicoConfigKeys,
+>(
+  options?: { configPath?: string },
+): Container<undefined, VicoTokens, TConfigKeys> {
+  const container = createContainer<undefined, VicoTokens, TConfigKeys>();
 
-  // 逐个注册配置段（schema 类型由 VicoConfigKeys 约束，getConfig 得到 z.infer 类型）
-  container
+  // 逐个注册 framework 配置段。泛型 TConfigKeys extends VicoConfigKeys，而
+  // registerConfig 的 schema 参数处于逆变位置，TS 无法在泛型视角下校验；此处以
+  // VicoConfigKeys 视角注册 framework 段（其 schema 类型在两种视角下完全一致）。
+  const framework = container as unknown as Container<undefined, VicoTokens, VicoConfigKeys>;
+  framework
     .registerConfig('agent', agentSchema)
     .registerConfig('skills', skillsSchema)
     .registerConfig('memory', memorySchema)

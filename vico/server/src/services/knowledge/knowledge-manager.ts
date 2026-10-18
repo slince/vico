@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { extname } from 'node:path';
 import { getDb, schema } from '../../db/db.js';
 import { ragManager } from '../../memory/rag.js';
-import { config } from '../../config.js';
+import { getContainer } from '../../container.js';
 import { documentManager } from './document-manager.js';
 import { storageManager } from './storage-manager.js';
 import {
@@ -133,8 +133,9 @@ class KnowledgeManager {
     if (!file || !file.name) throw new Error('No file uploaded');
 
     // 文件大小检查
-    if (file.size > config.upload.max_size_bytes) {
-      const limitMB = Math.round(config.upload.max_size_bytes / 1024 / 1024);
+    const upload = getContainer().getConfig('upload');
+    if (file.size > upload.max_size_bytes) {
+      const limitMB = Math.round(upload.max_size_bytes / 1024 / 1024);
       throw new Error(`File too large (max ${limitMB}MB)`);
     }
 
@@ -146,7 +147,7 @@ class KnowledgeManager {
     const declaredType = (!file.type || file.type === 'application/octet-stream')
       ? (EXT_TO_MIME[ext] || 'application/octet-stream')
       : file.type;
-    if (!config.upload.allowed_mime_types.includes(declaredType)) {
+    if (!upload.allowed_mime_types.includes(declaredType)) {
       throw new Error(`Unsupported file type: ${declaredType}`);
     }
 
