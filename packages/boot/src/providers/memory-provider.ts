@@ -73,6 +73,7 @@ export const memoryProvider: VicoServiceProvider = {
       new CheckpointPurge(
         resolve('checkpointStore'),
         getConfig('checkpoint').ttl_days * 24 * 60 * 60 * 1000,
+        resolve('logger'),
       ));
 
     c.register('vectorStore', ({ resolve, getConfig }) => {

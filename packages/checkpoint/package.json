@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@vico/tool": "workspace:*",
-    "@vico/types": "workspace:*"
+    "@vico/types": "workspace:*",
+    "pino": "^10.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
