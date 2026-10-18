@@ -1,4 +1,4 @@
-import { createVicoContainer, vicoProviders } from '@vico/boot';
+import { createVicoContainer } from '@vico/boot';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureCheckpointTables } from '@vico/checkpoint-libsql';
@@ -79,7 +79,7 @@ const serverProvider: ServerServiceProvider = {
 export async function bootstrap(): Promise<ServerContainer> {
   // ServerTokens 视角：framework 段由 boot 以 VicoTokens 视角注册，两种视角 token 名/类型
   // 完全一致，这里沿用 boot 内部同款断言，让业务服务（agentManager 等）可在此容器注册
-  const container = createVicoContainer<ServerConfigKeys>({ configPath: CONFIG_PATH }) as unknown as ServerContainer;
+  const container = await createVicoContainer<ServerConfigKeys>({ configPath: CONFIG_PATH }) as unknown as ServerContainer;
 
   // 提前记录容器，让 boot 阶段的 getDb()/getConfig('database') 可用
   setContainer(container);
@@ -88,11 +88,8 @@ export async function bootstrap(): Promise<ServerContainer> {
   container.register('db', () => getDb());
   container.register('client', () => getClient());
 
-  const providers: ServerServiceProvider[] = [
-    ...(vicoProviders as unknown as ServerServiceProvider[]),
-    serverProvider,
-    servicesProvider,
-  ];
+  // framework 领域 provider 已由 createVicoContainer 注册，这里只注册应用层 provider
+  const providers: ServerServiceProvider[] = [serverProvider, servicesProvider];
   for (const provider of providers) {
     await container.registerProvider(provider);
   }

@@ -12,10 +12,12 @@ import { InMemoryThreadStore } from '@vico/thread';
 import { LibSqlThreadStore, type LibSqlThreadStoreOptions } from '@vico/thread-libsql';
 import { MysqlThreadStore, type MysqlThreadStoreOptions } from '@vico/thread-mysql';
 import { InMemoryVectorStore } from '../lib/in-memory-vector-store.js';
+import { memorySchema, ragSchema, storageSchema } from '../config/schemas/index.js';
 import type { VicoServiceProvider, VicoTokens } from '../tokens.js';
 
 /**
- * 记忆 provider：注册 `thread` / `checkpointStore` / `embedder` / `vectorStore` / `memory`。
+ * 记忆 provider：声明 `memory`/`rag`/`storage` 配置段 schema，并注册
+ * `thread` / `checkpointStore` / `embedder` / `vectorStore` / `memory` 服务。
  *
  * 存储后端由 `storage` 配置段驱动（memory/libsql/mysql，vector 额外支持 chroma）；
  * 持久化后端所需的连接由使用方注入，其 token 名（service id）取自 `db_service` /
@@ -24,6 +26,11 @@ import type { VicoServiceProvider, VicoTokens } from '../tokens.js';
  */
 export const memoryProvider: VicoServiceProvider = {
   register(c) {
+    c
+      .registerConfig('memory', memorySchema)
+      .registerConfig('rag', ragSchema)
+      .registerConfig('storage', storageSchema);
+
     c.register('thread', ({ resolve, getConfig }) => {
       const { thread: backend, db_service } = getConfig('storage');
       const dbService = db_service as keyof VicoTokens & string;

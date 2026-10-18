@@ -25,8 +25,8 @@ function writeTempConfig(content: string): string {
 }
 
 describe('createVicoContainer', () => {
-  it('加载内置默认配置', () => {
-    const c = createVicoContainer();
+  it('加载内置默认配置', async () => {
+    const c = await createVicoContainer();
     expect(c.getConfig('agent').max_cached).toBe(50);
     expect(c.getConfig('skills').scan_paths).toEqual([]);
     expect(c.getConfig('rag').embedder).toBe('openai/text-embedding-3-small');
@@ -40,11 +40,11 @@ describe('createVicoContainer', () => {
     expect(c.getConfig('storage').client_service).toBe('client');
   });
 
-  it('用户配置整段覆盖默认配置', () => {
+  it('用户配置整段覆盖默认配置', async () => {
     const file = writeTempConfig(
       'rag:\n  chunk_size: 256\n  chunk_overlap: 32\n  retrieval_top_k: 3\n  embedder: local\n',
     );
-    const c = createVicoContainer({ configPath: file });
+    const c = await createVicoContainer({ configPath: file });
     expect(c.getConfig('rag').chunk_size).toBe(256);
     expect(c.getConfig('rag').embedder).toBe('local');
     // 未被覆盖的段仍来自默认配置
@@ -52,9 +52,9 @@ describe('createVicoContainer', () => {
     rmSync(join(file, '..'), { recursive: true, force: true });
   });
 
-  it('段内缺失字段由 schema 默认值兜底', () => {
+  it('段内缺失字段由 schema 默认值兜底', async () => {
     const file = writeTempConfig('workspace:\n  base_path: /tmp/ws\n');
-    const c = createVicoContainer({ configPath: file });
+    const c = await createVicoContainer({ configPath: file });
     expect(c.getConfig('workspace').base_path).toBe('/tmp/ws');
     expect(c.getConfig('workspace').contained).toBe(true);
     expect(c.getConfig('workspace').isolation).toBe('none');
@@ -73,7 +73,7 @@ describe('bootstrap 两阶段时序', () => {
         events.push(`${name}:boot`);
       },
     });
-    const c = createVicoContainer();
+    const c = await createVicoContainer();
     for (const provider of [mk('a'), mk('b'), mk('c')]) {
       await c.registerProvider(provider);
     }
@@ -117,15 +117,12 @@ describe('providers 真实装配', () => {
     const file = writeTempConfig(
       'storage:\n  thread: libsql\n  checkpoint: mysql\n  vector: chroma\n',
     );
-    const c = createVicoContainer({ configPath: file });
+    const c = await createVicoContainer({ configPath: file });
 
     // 持久化后端所需的连接由使用方注入（测试注入占位对象即可，构造阶段不校验）
     c.register('db', () => ({}));
     c.register('client', () => ({}));
 
-    for (const provider of vicoProviders) {
-      await c.registerProvider(provider);
-    }
     await c.boot();
     expect(c.resolve('thread')).toBeInstanceOf(LibSqlThreadStore);
     expect(c.resolve('checkpointStore')).toBeInstanceOf(MysqlCheckpointStore);
@@ -136,13 +133,10 @@ describe('providers 真实装配', () => {
 
   it('storage 配置为 libsql 向量后端时选择 LibSQLVectorStore', async () => {
     const file = writeTempConfig('storage:\n  vector: libsql\n');
-    const c = createVicoContainer({ configPath: file });
+    const c = await createVicoContainer({ configPath: file });
 
     c.register('client', () => ({}));
 
-    for (const provider of vicoProviders) {
-      await c.registerProvider(provider);
-    }
     await c.boot();
     expect(c.resolve('vectorStore')).toBeInstanceOf(LibSQLVectorStore);
 
@@ -151,14 +145,11 @@ describe('providers 真实装配', () => {
 
   it('storage 的 db_service 驱动连接 token 名（未注册对应 token 时按配置名报错）', async () => {
     const file = writeTempConfig('storage:\n  thread: libsql\n  db_service: mydb\n');
-    const c = createVicoContainer({ configPath: file });
+    const c = await createVicoContainer({ configPath: file });
 
     // 注册默认 'db'，但配置指向 'mydb'：provider 应去 resolve 'mydb' 而非硬编码 'db'
     c.register('db', () => ({}));
 
-    for (const provider of vicoProviders) {
-      await c.registerProvider(provider);
-    }
     await c.boot();
     expect(() => c.resolve('thread')).toThrow(/Dependency not registered: mydb/);
 
@@ -168,6 +159,6 @@ describe('providers 真实装配', () => {
 
 describe('vicoProviders', () => {
   it('按声明顺序导出领域 provider', () => {
-    expect(vicoProviders).toHaveLength(3);
+    expect(vicoProviders).toHaveLength(4);
   });
 });

@@ -24,10 +24,11 @@ packages/boot/src/
 ├── tokens.ts              # VicoTokens（token 名 → 实例类型）+ VicoContainer/VicoServiceProvider
 ├── lib/
 │   └── in-memory-vector-store.ts  # 内存 VectorStore（framework 默认装配）
-├── providers/             # 领域 provider（register 绑定 + boot 副作用）
+├── providers/             # 领域 provider（register 绑定服务 + 声明本领域配置段）
 │   ├── skills-provider.ts
 │   ├── memory-provider.ts
-│   └── agent-provider.ts
+│   ├── agent-provider.ts
+│   └── config-provider.ts  # 无对应服务的配置段（model/tool/workspace/checkpoint）
 ├── bootstrap.ts           # createVicoContainer / bootstrapVico / vicoProviders
 └── index.ts               # 导出
 ```
@@ -42,6 +43,9 @@ packages/boot/src/
 `storage`（thread/checkpoint 的 `memory`|`libsql`|`mysql`，vector 的 `memory`|`libsql`|`chroma`，
 以及连接 token 名 `db_service`/`client_service`，默认 `db`/`client`）。
 
+- 各领域 provider 在 `register` 阶段声明本领域配置段 schema（skills→`skills`，memory→`memory`/`rag`/`storage`，
+  agent→`agent`）；无对应服务的 `model`/`tool`/`workspace`/`checkpoint` 由 `configProvider` 集中声明。
+- `createVicoContainer` 只「逐个 `registerProvider`（声明 schema）→ `load` 默认/用户配置」，不再集中 `registerConfig`；因此其签名变为 async。
 - 默认值**只写在 `default.config.yaml`**，schema 的 `.default()` 仅兜底段内字段缺失，避免双写。
 - 加载顺序：内置默认 → 用户 `configPath`（复用 `@vico/di` 的「后加载同名段整段覆盖先加载」语义）。
 - 使用方扩展应用层配置：继续在容器上 `registerConfig('server', serverSchema)` 并 `load`，与 framework 段共存。
