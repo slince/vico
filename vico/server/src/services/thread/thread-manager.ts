@@ -1,7 +1,8 @@
 import {getThreadStore} from '../../vico.js';
 import {agentManager} from '../agent/agent-manager.js';
 import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
-import {type ContentPart, type Message, type ThreadStore, toUiMessages} from "@vico/core";
+import {type ContentPart} from '@vico/model';
+import {type Message, type ThreadStore, toUiMessages} from '@vico/thread';
 
 /**
  * 解析消息 content 为原生 parts 数组，解析失败时按纯文本兜底。

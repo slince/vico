@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {createTool} from "@vico/core";
+import {createTool} from '@vico/tool';
 
 interface GeocodingResponse {
   results: {

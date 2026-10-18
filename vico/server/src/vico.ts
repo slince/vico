@@ -4,8 +4,10 @@
  * 替代已废弃的 `Vico` 类：底层依赖（memory/thread/checkpoint/skills/runtime）
  * 均由 @vico/boot 容器装配，这里只做 AgentConfig 的全局 fallback 与 LRU 注册。
  */
-import { createAgent } from '@vico/core';
-import type { Agent, AgentConfig, Skill, ThreadStore } from '@vico/core';
+import { createAgent } from '@vico/agent';
+import type { Agent, AgentConfig } from '@vico/agent';
+import type { Skill } from '@vico/skill';
+import type { ThreadStore } from '@vico/thread';
 import { weatherTool } from './agent/tools/weather-tool.js';
 import { createApp } from './app.js';
 import { getContainer } from './container.js';

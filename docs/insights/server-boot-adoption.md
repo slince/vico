@@ -88,7 +88,7 @@ agent:
 | `services/agent/agent-manager.ts` | `config.workspace.base_path` → `getConfig('workspace')` + `expandHome` |
 | `services/knowledge/storage-manager.ts` | `config.storage` → `config.file_storage` |
 | `index.ts` | `runMigrations`/`seed`/`initVico` → `await bootstrap()` |
-| `package.json` | +`@vico/boot` +`@vico/di`；−`@vico/rag-libsql`（不再直接引用） |
+| `package.json` | −`@vico/core`（聚合 re-export，改直连底层包）；+`@vico/boot`/`@vico/di`/`@vico/agent`/`@vico/checkpoint`/`@vico/compaction`/`@vico/model`/`@vico/skill`/`@vico/thread`/`@vico/tool`/`@vico/types`；−`@vico/rag-libsql` |
 
 ## 验证
 

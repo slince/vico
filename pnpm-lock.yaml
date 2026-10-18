@@ -859,27 +859,48 @@ importers:
       '@lydell/node-pty':
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
+      '@vico/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@vico/boot':
         specifier: workspace:*
         version: link:../../packages/boot
+      '@vico/checkpoint':
+        specifier: workspace:*
+        version: link:../../packages/checkpoint
       '@vico/checkpoint-libsql':
         specifier: workspace:*
         version: link:../../packages/checkpoint-libsql
-      '@vico/core':
+      '@vico/compaction':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/compaction
       '@vico/di':
         specifier: workspace:*
         version: link:../../packages/di
       '@vico/memory-libsql':
         specifier: workspace:*
         version: link:../../packages/memory-libsql
+      '@vico/model':
+        specifier: workspace:*
+        version: link:../../packages/model
       '@vico/rag':
         specifier: workspace:*
         version: link:../../packages/rag
+      '@vico/skill':
+        specifier: workspace:*
+        version: link:../../packages/skill
+      '@vico/thread':
+        specifier: workspace:*
+        version: link:../../packages/thread
       '@vico/thread-libsql':
         specifier: workspace:*
         version: link:../../packages/thread-libsql
+      '@vico/tool':
+        specifier: workspace:*
+        version: link:../../packages/tool
+      '@vico/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@xterm/addon-serialize':
         specifier: ^0.14.0
         version: 0.14.0

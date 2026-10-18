@@ -1,7 +1,10 @@
 /**
  * Chat 执行引擎 — 纯 Vico 写法：getAgent 拿到实例，解析/创建 thread 后 stream 执行。
  */
-import type {Agent, ApprovalMode, ReasoningEffort, Thread, TurnOutput} from '@vico/core';
+import type {Agent, TurnOutput} from '@vico/agent';
+import type {ApprovalMode} from '@vico/tool';
+import type {ReasoningEffort} from '@vico/model';
+import type {Thread} from '@vico/thread';
 import {getAgent} from '../agent/get-agent.js';
 import type {UIMessage} from 'ai';
 

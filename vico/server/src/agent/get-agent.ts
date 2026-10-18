@@ -3,7 +3,8 @@
  *
  * 服务端各处可通过 getAgent(id) 直接拿到可交互的 agent 对象。
  */
-import type {AgentConfig, CompactionSettings} from '@vico/core';
+import type {AgentConfig} from '@vico/agent';
+import type {CompactionSettings} from '@vico/compaction';
 import {memorySchema} from '@vico/boot';
 import type {z} from 'zod';
 import {agentManager} from '../services/agent/agent-manager.js';

@@ -1,6 +1,8 @@
 import {Hono} from 'hono';
 import {createUIMessageStreamResponse, toUIMessageStream, UIMessage} from 'ai';
-import type {ApprovalMode, ReasoningEffort, UsageMetrics} from '@vico/core';
+import type {ApprovalMode} from '@vico/tool';
+import type {ReasoningEffort} from '@vico/model';
+import type {UsageMetrics} from '@vico/types';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
@@ -12,7 +14,7 @@ function extractLastMessage(body: Record<string, unknown>): UIMessage | undefine
   return messages[messages.length - 1];
 }
 
-/** 合法的推理力度取值（与 @vico/core 的 ReasoningEffort 一致） */
+/** 合法的推理力度取值（与 @vico/model 的 ReasoningEffort 一致） */
 const REASONING_EFFORTS: readonly ReasoningEffort[] = [
   'provider-default', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh',
 ];
@@ -25,7 +27,7 @@ function toReasoningEffort(value: unknown): ReasoningEffort | undefined {
     : undefined;
 }
 
-/** 合法的审批政策模式取值（与 @vico/core 的 ApprovalMode 一致） */
+/** 合法的审批政策模式取值（与 @vico/tool 的 ApprovalMode 一致） */
 const APPROVAL_MODES: readonly ApprovalMode[] = [
   'approve-all', 'readonly', 'workspace', 'full-access',
 ];

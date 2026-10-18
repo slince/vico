@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startCheckpointPurge } from '../../checkpoint-purge.js';
-import type { CheckpointStore } from '@vico/core';
+import type { CheckpointStore } from '@vico/checkpoint';
 
 describe('startCheckpointPurge', () => {
   afterEach(() => {

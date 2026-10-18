@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Variables } from '../index.js';
-import {ManualCompactionError, TargetPressureConfigError} from '@vico/core';
+import {ManualCompactionError, TargetPressureConfigError} from '@vico/compaction';
 import { getAuthContext } from './helpers.js';
 import { threadManager } from '../services/thread/thread-manager.js';
 import { getAgent } from '../agent/get-agent.js';

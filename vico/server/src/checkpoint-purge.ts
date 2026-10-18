@@ -1,4 +1,4 @@
-import type { CheckpointStore } from '@vico/core';
+import type { CheckpointStore } from '@vico/checkpoint';
 
 /** 清理周期：1 小时 */
 const PURGE_INTERVAL_MS = 60 * 60 * 1000;

@@ -1,4 +1,4 @@
-import type {Thread} from '@vico/core';
+import type {Thread} from '@vico/thread';
 import {UIMessage} from "ai";
 
 /** 列表返回的线程项 — 在 Thread 基础上附加可见消息计数 */
