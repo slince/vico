@@ -8,12 +8,12 @@ import { AgentRuntime } from '@vico/agent';
 import { MemoryCheckpointStore } from '@vico/checkpoint';
 import { MysqlCheckpointStore } from '@vico/checkpoint-mysql';
 import { MemoryStore } from '@vico/memory';
+import { InMemoryVectorStore } from '@vico/rag';
 import { ChromaVectorStore } from '@vico/rag-chroma';
 import { LibSQLVectorStore } from '@vico/rag-libsql';
 import { InMemoryThreadStore } from '@vico/thread';
 import { LibSqlThreadStore } from '@vico/thread-libsql';
 import { createVicoContainer, vicoProviders } from './bootstrap.js';
-import { InMemoryVectorStore } from './lib/in-memory-vector-store.js';
 import type { VicoServiceProvider } from './tokens.js';
 
 /** 写一个临时配置文件并返回其路径 */

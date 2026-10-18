@@ -19,8 +19,6 @@ export {
   storageSchema,
 } from './config/schemas/index.js';
 
-export { InMemoryVectorStore } from './lib/in-memory-vector-store.js';
-
 export type { VicoConfigKeys } from './config/keys.js';
 export type { VicoConfig } from './config/types.js';
 export type { VicoTokens, VicoContainer, VicoServiceProvider } from './tokens.js';

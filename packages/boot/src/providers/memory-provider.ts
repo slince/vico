@@ -5,13 +5,12 @@ import { LibSqlCheckpointStore } from '@vico/checkpoint-libsql';
 import { MysqlCheckpointStore } from '@vico/checkpoint-mysql';
 import { ConversationHistoryMemory, MemoryStore, VectorEpisodicRecall } from '@vico/memory';
 import { LibSqlSemanticMemory, type LibSqlSemanticMemoryOptions } from '@vico/memory-libsql';
-import { createEmbedder, type EmbedderConfig } from '@vico/rag';
+import { InMemoryVectorStore, createEmbedder, type EmbedderConfig } from '@vico/rag';
 import { ChromaVectorStore, type ChromaVectorStoreOptions } from '@vico/rag-chroma';
 import { LibSQLVectorStore, type LibSQLVectorStoreOptions } from '@vico/rag-libsql';
 import { InMemoryThreadStore } from '@vico/thread';
 import { LibSqlThreadStore, type LibSqlThreadStoreOptions } from '@vico/thread-libsql';
 import { MysqlThreadStore, type MysqlThreadStoreOptions } from '@vico/thread-mysql';
-import { InMemoryVectorStore } from '../lib/in-memory-vector-store.js';
 import { memorySchema, ragSchema, storageSchema } from '../config/schemas/index.js';
 import type { VicoServiceProvider, VicoTokens } from '../tokens.js';
 

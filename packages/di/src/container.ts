@@ -44,12 +44,6 @@ interface ConfigRegistration {
   value?: unknown;
 }
 
-/** 已加载但尚未注册的原始配置段（记录来源文件，便于补验证时定位报错） */
-interface RawConfig {
-  value: unknown;
-  source: string;
-}
-
 /**
  * Service Provider：负责把某个领域的一组服务绑定进容器（register），
  * 并在全部 provider 注册完成后统一初始化（boot）。
@@ -102,11 +96,9 @@ export class Container<
   private readonly resolving = new Set<string>();
   /** 已注册的配置 schema 及验证结果 */
   private readonly configs = new Map<string, ConfigRegistration>();
-  /** 已加载但尚未注册的原始配置段 */
-  private readonly raw = new Map<string, RawConfig>();
   /** 已按 register 顺序登记的 providers，`boot()` 时依序触发其 boot 钩子 */
   private readonly providers: ServiceProvider<TConfig, TTokens, TConfigKeys>[] = [];
-  /** 是否已冻结：冻结后禁止 register / registerConfig / registerProvider（load 或首次 resolve 后触发） */
+  /** 是否已冻结：load / boot / 首次 resolve 完成后自动冻结，禁止再注入 service */
   private frozen = false;
 
   constructor(private readonly config: TConfig) {}
@@ -146,8 +138,8 @@ export class Container<
   /**
    * 声明一个配置段：`key` 及其 zod schema。
    *
-   * 若该 key 已通过 `load` 提前加载（未注册先加载），此时立即用 schema 验证；
-   * 否则待后续 `load` 读到该 key 时再验证。
+   * 必须先在 `load` 之前声明（`load` 成功后容器即冻结，无法再补声明），
+   * 后续 `load` 读到该 key 时用 schema 验证。
    *
    * @param key 配置名，必须是 `TConfigKeys` 中声明的 key
    * @param schema zod schema，`getConfig` 返回 `z.infer` 后的类型
@@ -160,15 +152,7 @@ export class Container<
     if (this.configs.has(key)) {
       throw new Error(`[di] Duplicate config registration: ${String(key)}`);
     }
-    const reg: ConfigRegistration = { schema, hasValue: false };
-    // 先 load 后 register 的场景：此刻补验证
-    const rawEntry = this.raw.get(key);
-    if (rawEntry) {
-      reg.value = parseConfigValue(schema, rawEntry.value, String(key), rawEntry.source);
-      reg.hasValue = true;
-      this.raw.delete(key);
-    }
-    this.configs.set(key, reg);
+    this.configs.set(key, { schema, hasValue: false });
     return this;
   }
 
@@ -176,8 +160,10 @@ export class Container<
    * 加载一个 yaml/json 配置文件（可多次调用加载多个文件）。
    *
    * 文件顶层必须是「配置名 → 值」的对象；对已注册的 key 立即用 schema 验证
-   * （失败抛错），未注册的 key 暂存，待 `registerConfig` 时补验证。
+   * （失败抛错），未注册的 key 忽略（schema 必须在 load 前声明）。
    * 多次加载时，后加载的同名 key 覆盖先加载的（覆盖后同样重新验证）。
+   *
+   * 加载成功后容器自动冻结，禁止再注入 service（仍可继续 load 覆盖配置值）。
    *
    * @param path 配置文件路径，相对路径基于进程 cwd
    */
@@ -188,10 +174,10 @@ export class Container<
       if (reg) {
         reg.value = parseConfigValue(reg.schema, value, key, path);
         reg.hasValue = true;
-      } else {
-        this.raw.set(key, { value, source: path });
       }
+      // 未注册的 key 忽略：schema 必须先声明，load 成功后即冻结无法补声明
     }
+    this.freeze();
     return this;
   }
 
@@ -232,18 +218,21 @@ export class Container<
    * 阶段已完成，各 boot 可安全 resolve 依赖、执行异步初始化（建连、迁移、预热等）。
    *
    * 由调用方自行调度：先 `registerProvider` 全部绑定，再统一 `boot`。
+   * boot 完成后容器自动冻结，禁止再注入 service。
    */
   async boot(): Promise<void> {
     for (const provider of this.providers) {
       await provider.boot?.(this);
     }
+    this.freeze();
   }
 
   /**
    * 冻结容器：禁止后续 register / registerValue / registerConfig / registerProvider。
    *
-   * 装配完成后（配置加载完毕，或开始解析依赖）应冻结，阻止运行时再注入依赖，
-   * 保证依赖图在启动期定型。resolve / resolveAsync 首次调用时会自动冻结。
+   * 装配完成后应冻结，阻止运行时再注入依赖，保证依赖图在启动期定型。
+   * `load` / `boot` / `resolve` / `resolveAsync` 成功完成后都会自动冻结，
+   * 通常无需手动调用；仅在确需提前冻结（尚未 load/boot/resolve）时显式调用。
    */
   freeze(): this {
     this.frozen = true;
@@ -272,7 +261,6 @@ export class Container<
    * @throws 未注册的 token、循环依赖、异步工厂被同步解析
    */
   resolve<K extends keyof TTokens & string>(token: K): TTokens[K] {
-    this.freeze();
     const reg = this.getRegistration(token);
     if (reg.scope === 'singleton' && reg.resolved) {
       return reg.instance as TTokens[K];
@@ -288,6 +276,8 @@ export class Container<
         reg.resolved = true;
         reg.instance = value;
       }
+      // 解析完成即冻结，禁止运行时再注入 service
+      this.freeze();
       return value as TTokens[K];
     } finally {
       this.resolving.delete(token);
@@ -303,7 +293,6 @@ export class Container<
    * @throws 未注册的 token、循环依赖
    */
   async resolveAsync<K extends keyof TTokens & string>(token: K): Promise<TTokens[K]> {
-    this.freeze();
     const reg = this.getRegistration(token);
     if (reg.scope === 'singleton') {
       if (reg.resolved) return reg.instance as TTokens[K];
@@ -322,6 +311,8 @@ export class Container<
         reg.instance = value;
         reg.pending = undefined;
       }
+      // 解析完成即冻结，禁止运行时再注入 service
+      this.freeze();
       return value as TTokens[K];
     } catch (err) {
       // 构建失败不缓存，清掉 pending 让下次解析重试
@@ -430,8 +421,8 @@ function parseConfigValue(schema: z.ZodType, value: unknown, key: string, source
  * const container = createContainer<AppConfig, Tokens, ConfigKeys>(config);
  * container
  *   .registerConfig('storage', storageSchema)
- *   .load('server.config.yaml')
- *   .register('storage', ({ getConfig }) => createStorage(getConfig('storage')));
+ *   .register('storage', ({ getConfig }) => createStorage(getConfig('storage')))
+ *   .load('server.config.yaml');
  * ```
  */
 export function createContainer<

@@ -96,21 +96,13 @@ describe('配置加载', () => {
     expect(() => container.getConfig('memory')).toThrow(/Config not registered/);
   });
 
-  it('先 load 后 registerConfig，注册时补验证并可用', () => {
+  it('load 成功后自动冻结，禁止再注册配置段', () => {
     withTempFile('memory:\n  stm_window: 30\n  ltm_auto_extract: true\n', 'config.yaml', (path) => {
-      const container = configContainer();
-      container.load(path).registerConfig('memory', memorySchema);
-
-      expect(container.getConfig('memory').stm_window).toBe(30);
-    });
-  });
-
-  it('先 load 后 registerConfig，值非法时注册即抛错', () => {
-    withTempFile('memory:\n  stm_window: "bad"\n', 'config.yaml', (path) => {
       const container = configContainer();
       container.load(path);
 
-      expect(() => container.registerConfig('memory', memorySchema)).toThrow(/validation failed/);
+      expect(container.isFrozen).toBe(true);
+      expect(() => container.registerConfig('memory', memorySchema)).toThrow(/frozen/);
     });
   });
 
@@ -122,8 +114,8 @@ describe('配置加载', () => {
       const container = createContainer<undefined, Tokens, ConfigKeys>();
       container
         .registerConfig('memory', memorySchema)
-        .load(path)
-        .register('summary', ({ getConfig }) => `window=${getConfig('memory').stm_window}`);
+        .register('summary', ({ getConfig }) => `window=${getConfig('memory').stm_window}`)
+        .load(path);
 
       expect(container.resolve('summary')).toBe('window=42');
     });

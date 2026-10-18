@@ -147,4 +147,18 @@ describe('ServiceProvider / registerProvider + boot', () => {
     expect(container.isFrozen).toBe(true);
     expect(() => container.register('b', () => 'B')).toThrow(/frozen/);
   });
+
+  it('boot 后自动冻结，禁止再注册', async () => {
+    const container = createContainer<undefined, Tokens>();
+
+    await container.registerProvider({
+      register(c) {
+        c.register('a', () => 'A');
+      },
+    });
+    await container.boot();
+
+    expect(container.isFrozen).toBe(true);
+    expect(() => container.register('b', () => 'B')).toThrow(/frozen/);
+  });
 });

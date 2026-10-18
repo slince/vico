@@ -33,7 +33,7 @@ export interface CreateVicoContainerOptions<TConfigKeys extends VicoConfigKeys =
  * 加载顺序沿用 `@vico/di` 的「后加载覆盖先加载」语义：内置默认配置先加载，
  * 用户 `configPath`（可选）后加载，同名段整段覆盖、段内字段由 schema `.default()` 兜底。
  *
- * 本函数只做 provider 注册 + 配置加载，不触发 boot；配置加载完毕后容器冻结，
+ * 本函数只做 provider 注册 + 配置加载，不触发 boot；`load` 成功后容器自动冻结，
  * 不再允许注入新的 service。调用方随后自行 `boot()`。
  *
  * @typeParam TConfigKeys 扩展后的配置段映射（必须继承 `VicoConfigKeys`），
@@ -61,13 +61,11 @@ export async function createVicoContainer<
   }
 
   // 再读配置：内置默认 → 用户覆盖（后加载覆盖先加载）；此时 schema 已注册，load 即验证
+  // load 成功后容器自动冻结，无需显式 freeze
   container.load(DEFAULT_CONFIG_FILE);
   if (options?.configPath) {
     container.load(options.configPath);
   }
-
-  // 配置加载完毕即冻结，禁止运行时再注入 service
-  container.freeze();
 
   return container;
 }

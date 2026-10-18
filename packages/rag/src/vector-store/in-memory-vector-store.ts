@@ -1,6 +1,6 @@
-// @vico/boot - 内存向量存储（framework 默认装配，供情景记忆使用）
+// @vico/rag - 内存向量存储（进程内 Map 实现，供框架默认装配与测试使用）
 
-import type { DistanceMetric, VectorQueryResult, VectorStore } from '@vico/rag';
+import type { DistanceMetric, VectorQueryResult, VectorStore } from '../types/vector-store.js';
 
 /** 单个索引的存储结构 */
 interface VectorIndex {
@@ -31,8 +31,8 @@ function matches(metadata: Record<string, unknown>, filter: Record<string, unkno
 /**
  * 内存版 {@link VectorStore}：进程内 Map 存储，进程重启后丢失。
  *
- * 作为 framework 的默认向量存储装配（与 `InMemoryThreadStore` / `MemoryCheckpointStore`
- * 对齐），使用方可用持久化适配器（`@vico/rag-libsql` / `@vico/rag-chroma`）覆盖。
+ * 与持久化适配器（`@vico/rag-libsql` / `@vico/rag-chroma`）同接口，
+ * 供框架默认装配（boot 的 `vector: memory` 后端）及测试使用。
  */
 export class InMemoryVectorStore implements VectorStore {
   private indexes = new Map<string, VectorIndex>();
@@ -45,7 +45,7 @@ export class InMemoryVectorStore implements VectorStore {
 
   async upsert(params: { indexName: string; vectors: number[][]; ids: string[]; metadata: Record<string, unknown>[]; type?: string }): Promise<void> {
     const index = this.indexes.get(params.indexName);
-    if (!index) throw new Error(`[boot] Vector index not found: ${params.indexName}`);
+    if (!index) throw new Error(`[rag] Vector index not found: ${params.indexName}`);
     for (let i = 0; i < params.ids.length; i++) {
       index.rows.set(params.ids[i], { vector: params.vectors[i], metadata: params.metadata[i] });
     }

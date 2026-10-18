@@ -55,6 +55,9 @@ export { formatResults, joinResults } from './retrieval/formatter.js';
 export { DefaultQueryRewriter } from './retrieval/query-rewrite.js';
 export { DefaultRetrievalPipeline, type PipelineOptions } from './retrieval/pipeline.js';
 
+// Vector store
+export { InMemoryVectorStore } from './vector-store/index.js';
+
 // Tool
 export { createSearchTool } from './tool/rag-tool.js';
 export type { RagToolOptions, RagToolExecuteParams, RagToolResult } from './tool/rag-tool.js';
