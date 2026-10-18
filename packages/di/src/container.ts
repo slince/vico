@@ -175,10 +175,10 @@ export class Container<
   getConfig<K extends keyof TConfigKeys & string>(key: K): z.infer<TConfigKeys[K] & z.ZodType> {
     const reg = this.configs.get(key);
     if (!reg) {
-      throw new Error(`[di] 未注册的配置: ${String(key)}`);
+      throw new Error(`[di] Config not registered: ${String(key)}`);
     }
     if (!reg.hasValue) {
-      throw new Error(`[di] 配置 "${String(key)}" 未在加载的配置文件中提供`);
+      throw new Error(`[di] Config "${String(key)}" is not provided by any loaded file`);
     }
     return reg.value as z.infer<TConfigKeys[K] & z.ZodType>;
   }
@@ -202,7 +202,7 @@ export class Container<
       const value = reg.factory(this.buildContext());
       // 异步工厂被同步 resolve：结果必然无法同步取得，提示改用 resolveAsync
       if (value instanceof Promise) {
-        throw new Error(`[di] 工厂 "${String(token)}" 返回 Promise，请使用 resolveAsync()`);
+        throw new Error(`[di] Factory "${String(token)}" returned a Promise, use resolveAsync() instead`);
       }
       if (reg.scope === 'singleton') {
         reg.resolved = true;
@@ -262,7 +262,7 @@ export class Container<
   private getRegistration(token: string): Registration<unknown, TConfig, TTokens, TConfigKeys> {
     const reg = this.registrations.get(token);
     if (!reg) {
-      throw new Error(`[di] 未注册的依赖: ${token}`);
+      throw new Error(`[di] Dependency not registered: ${token}`);
     }
     return reg;
   }
@@ -270,7 +270,7 @@ export class Container<
   /** 进入解析前做循环依赖检测并登记 */
   private enterResolving(token: string): void {
     if (this.resolving.has(token)) {
-      throw new Error(`[di] 检测到循环依赖: ${token}`);
+      throw new Error(`[di] Circular dependency detected: ${token}`);
     }
     this.resolving.add(token);
   }
@@ -295,7 +295,7 @@ function readConfigFile(absPath: string): Record<string, unknown> {
   try {
     text = readFileSync(absPath, 'utf-8');
   } catch (err) {
-    throw new Error(`[di] 读取配置文件失败: ${absPath}`, { cause: err });
+    throw new Error(`[di] Failed to read config file: ${absPath}`, { cause: err });
   }
 
   const ext = extname(absPath).toLowerCase();
@@ -306,17 +306,17 @@ function readConfigFile(absPath: string): Record<string, unknown> {
     } else if (ext === '.json') {
       data = JSON.parse(text);
     } else {
-      throw new Error(`不支持的格式（仅支持 .yaml/.yml/.json）`);
+      throw new Error(`Unsupported format (only .yaml/.yml/.json are supported)`);
     }
   } catch (err) {
     throw new Error(
-      `[di] 解析配置文件失败: ${absPath}: ${err instanceof Error ? err.message : String(err)}`,
+      `[di] Failed to parse config file: ${absPath}: ${err instanceof Error ? err.message : String(err)}`,
       { cause: err },
     );
   }
 
   if (data === null || typeof data !== 'object' || Array.isArray(data)) {
-    throw new Error(`[di] 配置文件顶层必须是对象（{ 配置名: 值 }）: ${absPath}`);
+    throw new Error(`[di] Config file top level must be an object ({ name: value }): ${absPath}`);
   }
   return data as Record<string, unknown>;
 }
@@ -331,7 +331,7 @@ function parseConfigValue(schema: z.ZodType, value: unknown, key: string, source
     const detail = err instanceof ZodError
       ? err.issues.map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`).join('; ')
       : String(err);
-    throw new Error(`[di] 配置 "${key}" 校验失败（来源: ${source}）: ${detail}`, { cause: err });
+    throw new Error(`[di] Config "${key}" validation failed (source: ${source}): ${detail}`, { cause: err });
   }
 }
 

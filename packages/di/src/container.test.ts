@@ -66,13 +66,13 @@ describe('createContainer', () => {
 
   it('未注册的 token 抛错', () => {
     const container = createContainer<undefined, Tokens>();
-    expect(() => container.resolve('db')).toThrow(/未注册/);
+    expect(() => container.resolve('db')).toThrow(/not registered/);
   });
 
   it('重复注册同一 token 抛错', () => {
     const container = createContainer<undefined, Tokens>();
     container.register('db', () => ({ name: 'a' }));
-    expect(() => container.register('db', () => ({ name: 'b' }))).toThrow(/重复注册/);
+    expect(() => container.register('db', () => ({ name: 'b' }))).toThrow(/Duplicate registration/);
   });
 
   it('检测直接循环依赖', () => {
@@ -84,7 +84,7 @@ describe('createContainer', () => {
     container.register('a', ({ resolve }) => ({ name: resolve('b').name }));
     container.register('b', ({ resolve }) => ({ name: resolve('a').name }));
 
-    expect(() => container.resolve('a')).toThrow(/循环依赖/);
+    expect(() => container.resolve('a')).toThrow(/Circular dependency/);
   });
 
   describe('异步工厂', () => {

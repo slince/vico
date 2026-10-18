@@ -87,13 +87,13 @@ describe('配置加载', () => {
       const container = configContainer();
       container.registerConfig('memory', memorySchema).load(path);
 
-      expect(() => container.getConfig('memory')).toThrow(/未在加载的配置文件中提供/);
+      expect(() => container.getConfig('memory')).toThrow(/not provided by any loaded file/);
     });
   });
 
   it('getConfig 未注册的 key 报错', () => {
     const container = configContainer();
-    expect(() => container.getConfig('memory')).toThrow(/未注册的配置/);
+    expect(() => container.getConfig('memory')).toThrow(/Config not registered/);
   });
 
   it('先 load 后 registerConfig，注册时补验证并可用', () => {
@@ -110,7 +110,7 @@ describe('配置加载', () => {
       const container = configContainer();
       container.load(path);
 
-      expect(() => container.registerConfig('memory', memorySchema)).toThrow(/校验失败/);
+      expect(() => container.registerConfig('memory', memorySchema)).toThrow(/validation failed/);
     });
   });
 
@@ -144,13 +144,13 @@ describe('配置加载', () => {
 
   it('文件不存在时报错', () => {
     const container = configContainer();
-    expect(() => container.load('/no/such/file.yaml')).toThrow(/读取配置文件失败/);
+    expect(() => container.load('/no/such/file.yaml')).toThrow(/Failed to read config file/);
   });
 
   it('顶层非对象时报错', () => {
     withTempFile('- a\n- b\n', 'list.yaml', (path) => {
       const container = configContainer();
-      expect(() => container.load(path)).toThrow(/顶层必须是对象/);
+      expect(() => container.load(path)).toThrow(/top level must be an object/);
     });
   });
 });
