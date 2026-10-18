@@ -48,8 +48,9 @@ agent:
 
 - `createVicoContainer({ configPath: CONFIG_PATH })` — 复用 server.config.yaml；
 - `container.register('db'/'client', ...)` — 注入 libsql 连接，供 boot 的 thread/checkpoint/vector 工厂解析；
-- `container.bootstrap([...vicoProviders, serverProvider])` — serverProvider 的 `boot` 阶段
-  执行迁移 → seed → ensure*Tables → startCheckpointPurge（对应旧 `index.ts` main + `initVico`）。
+- 逐个 `container.registerProvider(...vicoProviders, serverProvider)` 后 `container.boot()` —
+  serverProvider 的 `boot` 阶段执行迁移 → seed → ensure*Tables → startCheckpointPurge
+  （对应旧 `index.ts` main + `initVico`）。
 
 ### 5. 薄适配层 `vico.ts`（独立函数，替代 Vico 类）
 

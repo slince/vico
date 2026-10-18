@@ -74,7 +74,10 @@ describe('bootstrap 两阶段时序', () => {
       },
     });
     const c = createVicoContainer();
-    await c.bootstrap([mk('a'), mk('b'), mk('c')]);
+    for (const provider of [mk('a'), mk('b'), mk('c')]) {
+      await c.registerProvider(provider);
+    }
+    await c.boot();
     expect(events).toEqual(['a:register', 'b:register', 'c:register', 'a:boot', 'b:boot', 'c:boot']);
   });
 });
@@ -120,7 +123,10 @@ describe('providers 真实装配', () => {
     c.register('db', () => ({}));
     c.register('client', () => ({}));
 
-    await c.bootstrap(vicoProviders);
+    for (const provider of vicoProviders) {
+      await c.registerProvider(provider);
+    }
+    await c.boot();
     expect(c.resolve('thread')).toBeInstanceOf(LibSqlThreadStore);
     expect(c.resolve('checkpointStore')).toBeInstanceOf(MysqlCheckpointStore);
     expect(c.resolve('vectorStore')).toBeInstanceOf(ChromaVectorStore);
@@ -134,7 +140,10 @@ describe('providers 真实装配', () => {
 
     c.register('client', () => ({}));
 
-    await c.bootstrap(vicoProviders);
+    for (const provider of vicoProviders) {
+      await c.registerProvider(provider);
+    }
+    await c.boot();
     expect(c.resolve('vectorStore')).toBeInstanceOf(LibSQLVectorStore);
 
     rmSync(join(file, '..'), { recursive: true, force: true });
@@ -147,7 +156,10 @@ describe('providers 真实装配', () => {
     // 注册默认 'db'，但配置指向 'mydb'：provider 应去 resolve 'mydb' 而非硬编码 'db'
     c.register('db', () => ({}));
 
-    await c.bootstrap(vicoProviders);
+    for (const provider of vicoProviders) {
+      await c.registerProvider(provider);
+    }
+    await c.boot();
     expect(() => c.resolve('thread')).toThrow(/Dependency not registered: mydb/);
 
     rmSync(join(file, '..'), { recursive: true, force: true });

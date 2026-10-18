@@ -59,7 +59,7 @@ interface RawConfig {
  * 2. `boot`（可选）在所有 provider 都 register 完后按声明顺序调用，此时可安全
  *    resolve 依赖、执行异步初始化（建连、迁移、预热等）。
  *
- * 两者均可返回 Promise，由 `Container.bootstrap` 依次等待。
+ * 两者均可返回 Promise，由 `Container.registerProvider` / `Container.boot` 依次等待。
  */
 export interface ServiceProvider<
   TConfig,
@@ -104,6 +104,8 @@ export class Container<
   private readonly configs = new Map<string, ConfigRegistration>();
   /** 已加载但尚未注册的原始配置段 */
   private readonly raw = new Map<string, RawConfig>();
+  /** 已按 register 顺序登记的 providers，`boot()` 时依序触发其 boot 钩子 */
+  private readonly providers: ServiceProvider<TConfig, TTokens, TConfigKeys>[] = [];
 
   constructor(private readonly config: TConfig) {}
 
@@ -206,16 +208,28 @@ export class Container<
   }
 
   /**
-   * 依序执行一组 Service Provider：先逐个 `register`（绑定），全部注册完成后
-   * 再逐个 `boot`（初始化）。register 与 boot 均可异步，依次等待。
+   * 注册单个 Service Provider：立即执行其 `register`（绑定）阶段。
    *
-   * @param providers 按声明顺序执行的 provider 列表
+   * 已注册的 provider 按调用顺序登记，`boot()` 时依此顺序触发各自的 `boot` 钩子。
+   * register 可异步，本方法会等待其完成后再登记。
+   *
+   * @param provider 要注册的 provider（只执行 register 阶段，不触发 boot）
    */
-  async bootstrap(providers: ServiceProvider<TConfig, TTokens, TConfigKeys>[]): Promise<void> {
-    for (const provider of providers) {
-      await provider.register(this);
-    }
-    for (const provider of providers) {
+  async registerProvider(provider: ServiceProvider<TConfig, TTokens, TConfigKeys>): Promise<void> {
+    await provider.register(this);
+    this.providers.push(provider);
+  }
+
+  /**
+   * 触发所有已通过 `registerProvider` 登记的 provider 的 `boot` 钩子。
+   *
+   * 按登记顺序依次调用（boot 可异步，逐个等待）。至此全部 provider 的 register
+   * 阶段已完成，各 boot 可安全 resolve 依赖、执行异步初始化（建连、迁移、预热等）。
+   *
+   * 由调用方自行调度：先 `registerProvider` 全部绑定，再统一 `boot`。
+   */
+  async boot(): Promise<void> {
+    for (const provider of this.providers) {
       await provider.boot?.(this);
     }
   }

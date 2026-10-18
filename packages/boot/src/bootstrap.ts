@@ -83,13 +83,16 @@ export const vicoProviders: VicoServiceProvider[] = [
 ];
 
 /**
- * 启动 Vico：创建容器并依序执行 providers 的 register/boot 两阶段。
+ * 启动 Vico：创建容器，先逐个 register 全部领域 providers，再统一 boot。
  *
  * @param options 可选启动选项；`configPath` 为用户自定义配置文件路径
  * @returns 完成启动后的容器（各依赖可安全 resolve）
  */
 export async function bootstrapVico(options?: { configPath?: string }): Promise<VicoContainer> {
   const container = createVicoContainer(options);
-  await container.bootstrap(vicoProviders);
+  for (const provider of vicoProviders) {
+    await container.registerProvider(provider);
+  }
+  await container.boot();
   return container;
 }

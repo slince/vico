@@ -88,10 +88,14 @@ export async function bootstrap(): Promise<ServerContainer> {
   container.register('db', () => getDb());
   container.register('client', () => getClient());
 
-  await container.bootstrap([
+  const providers: ServerServiceProvider[] = [
     ...(vicoProviders as unknown as ServerServiceProvider[]),
     serverProvider,
     servicesProvider,
-  ]);
+  ];
+  for (const provider of providers) {
+    await container.registerProvider(provider);
+  }
+  await container.boot();
   return container;
 }

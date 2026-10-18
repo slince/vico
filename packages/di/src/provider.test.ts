@@ -31,31 +31,30 @@ async function withTempFile(content: string, fn: (path: string) => Promise<void>
   }
 }
 
-describe('ServiceProvider / bootstrap', () => {
+describe('ServiceProvider / registerProvider + boot', () => {
   it('依次执行所有 register 后再依次 boot', async () => {
     const order: string[] = [];
     const container = createContainer<undefined, Tokens>();
 
-    await container.bootstrap([
-      {
-        register(c) {
-          order.push('r1');
-          c.register('a', () => 'A');
-        },
-        boot() {
-          order.push('b1');
-        },
+    await container.registerProvider({
+      register(c) {
+        order.push('r1');
+        c.register('a', () => 'A');
       },
-      {
-        register(c) {
-          order.push('r2');
-          c.register('b', () => 'B');
-        },
-        boot() {
-          order.push('b2');
-        },
+      boot() {
+        order.push('b1');
       },
-    ]);
+    });
+    await container.registerProvider({
+      register(c) {
+        order.push('r2');
+        c.register('b', () => 'B');
+      },
+      boot() {
+        order.push('b2');
+      },
+    });
+    await container.boot();
 
     expect(order).toEqual(['r1', 'r2', 'b1', 'b2']);
     expect(container.resolve('a')).toBe('A');
@@ -66,16 +65,15 @@ describe('ServiceProvider / bootstrap', () => {
     const container = createContainer<undefined, Tokens>();
     let resolved = '';
 
-    await container.bootstrap([
-      {
-        register(c) {
-          c.register('a', () => 'hello');
-        },
-        boot(c) {
-          resolved = c.resolve('a');
-        },
+    await container.registerProvider({
+      register(c) {
+        c.register('a', () => 'hello');
       },
-    ]);
+      boot(c) {
+        resolved = c.resolve('a');
+      },
+    });
+    await container.boot();
 
     expect(resolved).toBe('hello');
   });
@@ -84,19 +82,18 @@ describe('ServiceProvider / bootstrap', () => {
     const order: string[] = [];
     const container = createContainer<undefined, Tokens>();
 
-    await container.bootstrap([
-      {
-        async register(c) {
-          await Promise.resolve();
-          order.push('r1');
-          c.register('a', () => 'A');
-        },
-        async boot() {
-          await Promise.resolve();
-          order.push('b1');
-        },
+    await container.registerProvider({
+      async register(c) {
+        await Promise.resolve();
+        order.push('r1');
+        c.register('a', () => 'A');
       },
-    ]);
+      async boot() {
+        await Promise.resolve();
+        order.push('b1');
+      },
+    });
+    await container.boot();
 
     expect(order).toEqual(['r1', 'b1']);
   });
@@ -104,13 +101,12 @@ describe('ServiceProvider / bootstrap', () => {
   it('boot 是可选钩子', async () => {
     const container = createContainer<undefined, Tokens>();
 
-    await container.bootstrap([
-      {
-        register(c) {
-          c.register('a', () => 'A');
-        },
+    await container.registerProvider({
+      register(c) {
+        c.register('a', () => 'A');
       },
-    ]);
+    });
+    await container.boot();
 
     expect(container.resolve('a')).toBe('A');
   });
@@ -120,16 +116,15 @@ describe('ServiceProvider / bootstrap', () => {
       const container = createContainer<undefined, Tokens, ConfigKeys>();
       let windowSize = 0;
 
-      await container.bootstrap([
-        {
-          register(c) {
-            c.registerConfig('memory', memorySchema).load(path);
-          },
-          boot(c) {
-            windowSize = c.getConfig('memory').stm_window;
-          },
+      await container.registerProvider({
+        register(c) {
+          c.registerConfig('memory', memorySchema).load(path);
         },
-      ]);
+        boot(c) {
+          windowSize = c.getConfig('memory').stm_window;
+        },
+      });
+      await container.boot();
 
       expect(windowSize).toBe(11);
     });
