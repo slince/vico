@@ -2,7 +2,7 @@ import { migrate } from 'drizzle-orm/libsql/migrator';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getDb } from './db.js';
-import logger from '../lib/logger.js';
+import type { Logger } from 'pino';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Run Drizzle migrations.
  * Imports from index.ts — does not auto-execute.
  */
-export async function runMigrations() {
+export async function runMigrations(logger: Logger) {
   const db = getDb();
   const migrationsFolder = resolve(__dirname, '../../drizzle');
   try {

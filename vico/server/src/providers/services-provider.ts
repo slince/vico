@@ -38,6 +38,7 @@ export const servicesProvider: ServerServiceProvider = {
         resolve('vectorStore'),
         resolve('embedder'),
         getConfig('rag'),
+        resolve('logger'),
       ));
 
     c.register('agentManager', ({ resolve, getConfig }) =>
@@ -59,7 +60,7 @@ export const servicesProvider: ServerServiceProvider = {
         getConfig('upload'),
       ));
 
-    c.register('terminalManager', () => new TerminalManager(getThreadWorkspace));
+    c.register('terminalManager', ({ resolve }) => new TerminalManager(getThreadWorkspace, resolve('logger')));
 
     c.register('weatherTool', () => weatherTool);
 

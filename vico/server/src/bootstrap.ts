@@ -19,7 +19,6 @@ import {runMigrations} from './db/run-migrations.js';
 import {getDb} from './db/db.js';
 import {getClient} from './db/init-libsql.js';
 import {seedDefaultAdmin, seedMainAgent} from './auth/seed.js';
-import logger from './lib/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -44,9 +43,11 @@ const serverProvider: ServerServiceProvider = {
   },
 
   async boot(c) {
-    await runMigrations();
-    await seedDefaultAdmin();
-    await seedMainAgent();
+    const logger = c.resolve('logger');
+
+    await runMigrations(logger);
+    await seedDefaultAdmin(logger);
+    await seedMainAgent(logger);
 
     // 确保 Vico 持久化表存在（thread / checkpoint / memory 三域）
     const db = getDb();

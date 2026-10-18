@@ -6,7 +6,6 @@ import {WebSocketServer} from 'ws';
 import {registerRoutes} from './api/router.js';
 import {registerWsRoutes} from './api/ws/router.js';
 import {getContainer} from './container.js';
-import logger from './lib/logger.js';
 import type {Variables} from './index.js';
 
 /** WebSocket 升级服务器（noServer 模式，通过 serve({ websocket }) 注入 HTTP server） */
@@ -21,7 +20,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
   /** 自定义错误处理 — 返回原始错误信息，方便调试 */
   app.onError((err, c) => {
-    logger.error({ err }, 'Unhandled error');
+    getContainer().resolve('logger').error({ err }, 'Unhandled error');
     const message = err instanceof Error ? err.message : 'An internal error occurred';
     const stack = err instanceof Error ? err.stack : undefined;
     return c.json(

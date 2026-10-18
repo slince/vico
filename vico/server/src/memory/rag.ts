@@ -6,7 +6,7 @@ import type { Embedder, VectorStore } from '@vico/rag';
 import { ragSchema } from '@vico/boot';
 import type { z } from 'zod';
 import type { Client } from '@libsql/client';
-import logger from '../lib/logger.js';
+import type { Logger } from 'pino';
 import { schema } from '../db/db.js';
 import type { AppDb } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
@@ -24,6 +24,7 @@ export class RAGManager {
     private readonly vectorStore: VectorStore,
     private readonly embedder: Embedder | undefined,
     private readonly ragConfig: RagConfig,
+    private readonly logger: Logger,
   ) {}
 
   /**
@@ -115,9 +116,9 @@ export class RAGManager {
       if (statSync(fullPath).isFile()) {
         try {
           total += await this.indexFile(kbId, fullPath);
-          logger.info({ file }, 'RAG indexed');
+          this.logger.info({ file }, 'RAG indexed');
         } catch (err) {
-          logger.error({ err, file }, 'RAG index failed');
+          this.logger.error({ err, file }, 'RAG index failed');
         }
       }
     }

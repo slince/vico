@@ -13,7 +13,7 @@ import {type IPty, spawn} from '@lydell/node-pty';
 import type {Terminal as HeadlessTerminal} from '@xterm/headless';
 import type {SerializeAddon as SerializeAddonType} from '@xterm/addon-serialize';
 
-import logger from './logger.js';
+import type {Logger} from 'pino';
 
 // @xterm/headless 与 @xterm/addon-serialize 是 CJS 模块且无 exports 字段，
 // Node 的 ESM 命名导入无法静态识别其导出，运行时改用 createRequire 拿 CJS 对象
@@ -61,7 +61,10 @@ function sessionKey(threadId: string, terminalId: string): string {
  * attach / handleMessage / detach 三个方法驱动，不感知 pty / headless 细节。
  */
 export class TerminalManager {
-  constructor(private readonly resolveWorkspace: (threadId: string) => Promise<string>) {}
+  constructor(
+    private readonly resolveWorkspace: (threadId: string) => Promise<string>,
+    private readonly logger: Logger,
+  ) {}
 
   private sessions = new Map<string, TerminalSession>();
 
@@ -96,7 +99,7 @@ export class TerminalManager {
         env: process.env as Record<string, string>,
       });
     } catch (err) {
-      logger.error({ err, threadId, terminalId }, 'Failed to spawn terminal');
+      this.logger.error({ err, threadId, terminalId }, 'Failed to spawn terminal');
       return false;
     }
 
@@ -145,7 +148,7 @@ export class TerminalManager {
         try {
           session.pty.resize(msg.cols, msg.rows);
         } catch (err) {
-          logger.warn({ err, threadId, terminalId, cols: msg.cols, rows: msg.rows }, 'Failed to resize terminal');
+          this.logger.warn({ err, threadId, terminalId, cols: msg.cols, rows: msg.rows }, 'Failed to resize terminal');
         }
         session.screen.resize(msg.cols, msg.rows);
         return;
@@ -168,7 +171,7 @@ export class TerminalManager {
     try {
       follower.send(JSON.stringify(frame));
     } catch (err) {
-      logger.warn({ err, frame: frame.type }, 'Failed to send terminal frame');
+      this.logger.warn({ err, frame: frame.type }, 'Failed to send terminal frame');
     }
   }
 
@@ -186,7 +189,7 @@ export class TerminalManager {
       try {
         session.pty.kill();
       } catch (err) {
-        logger.warn({ err, key }, 'Failed to kill terminal pty');
+        this.logger.warn({ err, key }, 'Failed to kill terminal pty');
       }
       session.screen.dispose();
     }, IDLE_TIMEOUT_MS);

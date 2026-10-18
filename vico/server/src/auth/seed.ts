@@ -4,13 +4,13 @@ import {getDb} from '../db/db.js';
 import {account, user} from '../db/auth-schema.js';
 import {agents} from '../db/schema.js';
 import {hashPassword} from '../lib/password.js';
-import logger from '../lib/logger.js';
+import type { Logger } from 'pino';
 
 /**
  * 首次运行时创建默认管理员用户
  * 管理员凭据：admin / admin123
  */
-export async function seedDefaultAdmin() {
+export async function seedDefaultAdmin(logger: Logger) {
   const db = getDb();
 
   // 检查是否已有用户
@@ -54,7 +54,7 @@ export async function seedDefaultAdmin() {
  * 独立于 org seed，每次启动都会检查，不存在则创建。
  * 适用于已有 DB 但缺少 main agent 记录的场景。
  */
-export async function seedMainAgent() {
+export async function seedMainAgent(logger: Logger) {
   const db = getDb();
 
   const existing = await db.select({ id: agents.id }).from(agents)
