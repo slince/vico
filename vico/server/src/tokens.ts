@@ -13,7 +13,7 @@ import type { Client } from '@libsql/client';
 import type { VicoTokens } from '@vico/boot';
 import type { ServerConfigKeys } from './config/schemas.js';
 import type { AppDb } from './db/db.js';
-import type { getAuth } from './auth/index.js';
+import type { getAuth } from './auth/get-auth.js';
 import type { AgentManager } from './services/agent/agent-manager.js';
 import type { ModelManager } from './services/model/model-manager.js';
 import type { ThreadManager } from './services/thread/thread-manager.js';

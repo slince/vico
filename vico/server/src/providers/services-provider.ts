@@ -5,7 +5,7 @@
  * 构造注入（含 db/client 连接），不再有模块级单例。db/client 连接由 bootstrap()
  * 显式注入后，在此被各服务按需 resolve。
  */
-import { getAuth } from '../auth/index.js';
+import { getAuth } from '../auth/get-auth.js';
 import { AgentManager } from '../services/agent/agent-manager.js';
 import { ModelManager } from '../services/model/model-manager.js';
 import { ThreadManager } from '../services/thread/thread-manager.js';
