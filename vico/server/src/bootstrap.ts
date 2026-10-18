@@ -1,25 +1,25 @@
-import { createVicoContainer } from '@vico/boot';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { ensureCheckpointTables } from '@vico/checkpoint-libsql';
-import { ensureMemoryTables } from '@vico/memory-libsql';
-import { ensureThreadTables } from '@vico/thread-libsql';
-import { startCheckpointPurge } from './checkpoint-purge.js';
+import {createVicoContainer} from '@vico/boot';
+import {dirname, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {ensureCheckpointTables} from '@vico/checkpoint-libsql';
+import {ensureMemoryTables} from '@vico/memory-libsql';
+import {ensureThreadTables} from '@vico/thread-libsql';
+import {CheckpointPurge} from './lib/checkpoint-purge.js';
 import {
   authSchema,
   databaseSchema,
   fileStorageSchema,
+  type ServerConfigKeys,
   serverSchema,
   uploadSchema,
-  type ServerConfigKeys,
 } from './config/schemas.js';
-import type { ServerContainer, ServerServiceProvider, ServerTokens } from './tokens.js';
-import { servicesProvider } from './providers/services-provider.js';
-import { setContainer } from './container.js';
-import { runMigrations } from './db/run-migrations.js';
-import { getDb } from './db/db.js';
-import { getClient } from './db/init-libsql.js';
-import { seedDefaultAdmin, seedMainAgent } from './auth/seed.js';
+import type {ServerContainer, ServerServiceProvider, ServerTokens} from './tokens.js';
+import {servicesProvider} from './providers/services-provider.js';
+import {setContainer} from './container.js';
+import {runMigrations} from './db/run-migrations.js';
+import {getDb} from './db/db.js';
+import {getClient} from './db/init-libsql.js';
+import {seedDefaultAdmin, seedMainAgent} from './auth/seed.js';
 import logger from './lib/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -56,11 +56,10 @@ const serverProvider: ServerServiceProvider = {
     await ensureMemoryTables(db as any);
 
     // checkpoint 版本链 TTL 清理：启动一次 + 每小时一次
-    startCheckpointPurge(
+    new CheckpointPurge(
       c.resolve('checkpointStore'),
       c.getConfig('checkpoint').ttl_days * 24 * 60 * 60 * 1000,
-      logger,
-    );
+    ).start();
 
     logger.info('Vico agent framework initialized');
   },
