@@ -2,7 +2,8 @@ import {count, desc, eq} from 'drizzle-orm';
 import {v4 as uuid} from 'uuid';
 import {getDb, schema} from '../../db/db.js';
 import {modelManager} from '../model/model-manager.js';
-import {config} from '../../config.js';
+import {expandHome} from '../../config.js';
+import {getContainer} from '../../container.js';
 import {
   type AgentDetail,
   type AgentRuntimeConfig,
@@ -118,7 +119,7 @@ class AgentManager {
       model,
       instructions,
       agent: { ...agent, skills: parseSkills(agent.skills) } as AgentDetail,
-      workspace: config.workspace.base_path,
+      workspace: expandHome(getContainer().getConfig('workspace').base_path),
       builtin_tools,
     };
   }

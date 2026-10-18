@@ -1,52 +1,54 @@
 /**
- * Vico Agent 框架初始化 — 替代 Mastra。
+ * Vico 框架薄适配层 — 暴露全局 agent 服务与 Hono app 实例。
  *
- * 全局单例，统一管理：
- * - Skill 发现（文件系统扫描 + 兼容模式）
- * - MemoryStore（三层记忆 → MemoryProcessor + 记忆工具）
- * - DrizzleThreadStore（持久化 thread/turn/message，默认存储）
- * - EventRecorder / SpanTracker（共享观测设施）
- * - AgentRuntime（LRU 缓存）
- * - defaultModelFactory（自动匹配 OpenAI/Anthropic/DeepSeek 等 provider）
+ * 替代已废弃的 `Vico` 类：底层依赖（memory/thread/checkpoint/skills/runtime）
+ * 均由 @vico/boot 容器装配，这里只做 AgentConfig 的全局 fallback 与 LRU 注册。
  */
-import {Vico} from '@vico/core';
-import {ensureCheckpointTables} from '@vico/checkpoint-libsql';
-import {ensureMemoryTables} from '@vico/memory-libsql';
-import {ensureThreadTables} from '@vico/thread-libsql';
-import {startCheckpointPurge} from './checkpoint-purge.js';
-import {config} from './config.js';
-import {getDb} from './db/db.js';
-import {getCheckpointStore, getMemory, getThreadStore} from './memory/memory-setup.js';
-import {createApp} from './app.js';
-import logger from './lib/logger.js';
-import {weatherTool} from "./agent/tools/weather-tool";
+import { createAgent } from '@vico/core';
+import type { Agent, AgentConfig, Skill } from '@vico/core';
+import { weatherTool } from './agent/tools/weather-tool.js';
+import { createApp } from './app.js';
+import { getContainer } from './container.js';
 
-const db = getDb();
-
-/** 全局 Vico 容器单例 */
-export const vico = new Vico({
-  maxCached: 100,
-  skills: { skillDirs: config.skills.scan_paths, compatible: true },
-  tools: [weatherTool],
-  memory: getMemory(),
-  thread: getThreadStore(),
-  checkpointStore: getCheckpointStore(),
-});
-
-/** 创建 Hono app 实例（含 WebSocket 路由注册） */
+/** Hono app 实例（含 WebSocket 路由注册） */
 export const app = createApp();
 
-/** 系统初始化 */
-export async function initVico(): Promise<void> {
-  // 确保 Vico 持久化表存在（thread / checkpoint / memory 三域）
-  await ensureThreadTables(db as any);
-  await ensureCheckpointTables(db as any);
-  await ensureMemoryTables(db as any);
-  // checkpoint 版本链 TTL 清理：启动一次 + 每小时一次
-  startCheckpointPurge(
-    getCheckpointStore(),
-    config.checkpoint.ttl_days * 24 * 60 * 60 * 1000,
-    logger,
-  );
-  logger.info('Vico agent framework initialized');
+/** 列出当前可用的全部 Skill（来自 boot 容器的 skills 异步工厂） */
+export async function listSkills(): Promise<Skill[]> {
+  return getContainer().resolveAsync('skills');
 }
+
+/**
+ * 获取或注册 Agent 实例（不存在则创建，全局 LRU 缓存）。
+ *
+ * AgentConfig 未显式指定 tools/memory/thread/checkpointStore/events 时，
+ * fallback 到 boot 容器装配的全局实例，保持与旧 Vico 类一致的语义。
+ */
+export async function createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
+  const c = getContainer();
+  const runtime = c.resolve('agentRuntime');
+
+  const existing = runtime.getAgent(agentId);
+  if (existing) return existing;
+
+  const config = await factory();
+  const agent = await createAgent({
+    ...config,
+    tools: config.tools ?? [weatherTool],
+    memory: config.memory ?? c.resolve('memory'),
+    thread: config.thread ?? c.resolve('thread'),
+    checkpointStore: config.checkpointStore ?? c.resolve('checkpointStore'),
+    events: config.events ?? c.resolve('events'),
+  });
+  runtime.register(agent);
+  return agent;
+}
+
+/** 全局 vico 服务对象（保持既有消费点 `vico.listSkills()` / `vico.thread` 用法不变） */
+export const vico = {
+  listSkills,
+  createIfAbsent,
+  get thread() {
+    return getContainer().resolve('thread');
+  },
+};

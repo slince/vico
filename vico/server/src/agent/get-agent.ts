@@ -4,13 +4,17 @@
  * 服务端各处可通过 getAgent(id) 直接拿到可交互的 agent 对象。
  */
 import type {AgentConfig, CompactionSettings} from '@vico/core';
+import {memorySchema} from '@vico/boot';
+import type {z} from 'zod';
 import {agentManager} from '../services/agent/agent-manager.js';
 import {vico} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
-import {config} from '../config.js';
+import {getContainer} from '../container.js';
+
+type MemoryConfig = z.infer<typeof memorySchema>;
 
 /** config.yaml 的 snake_case compaction 配置 → core CompactionSettings（camelCase） */
-function toCompactionSettings(raw: NonNullable<typeof config.memory.compaction> | undefined): Partial<CompactionSettings> | undefined {
+function toCompactionSettings(raw: MemoryConfig['compaction']): Partial<CompactionSettings> | undefined {
   if (!raw) return undefined;
   return {
     auto: raw.auto,
@@ -29,6 +33,8 @@ function toCompactionSettings(raw: NonNullable<typeof config.memory.compaction> 
 /** 将 DB 运行时配置转换为 AgentConfig */
 async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<AgentConfig> {
   const { agent: a, model, workspace } = runtimeConfig;
+  const memoryConfig = getContainer().getConfig('memory');
+  const modelConfig = getContainer().getConfig('model');
 
   // 解析 Agent 绑定的 skills：名字列表 → 全局 Skill 对象（仅启用已绑定的）
   const allSkills = await vico.listSkills();
@@ -45,14 +51,14 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
       baseUrl: model.base_url,
       apiKey: model.api_key,
       // 模型级上下文窗口优先，缺失时回退全局默认（provider v4 不暴露 contextWindow）
-      contextWindow: model.context_window ?? config.model?.context_window,
+      contextWindow: model.context_window ?? modelConfig.context_window,
       // 模型级输出上限；缺失时不设上限，交给 provider 默认
       maxOutputTokens: model.max_output_tokens ?? undefined,
     },
     temperature: a.temperature ?? 0.7,
     maxSteps: a.max_steps ?? 10,
-    conversationWindow: config.memory.stm_window,
-    compaction: toCompactionSettings(config.memory.compaction),
+    conversationWindow: memoryConfig.stm_window,
+    compaction: toCompactionSettings(memoryConfig.compaction),
     workspace,
     skills,
   };

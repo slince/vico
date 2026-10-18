@@ -3,9 +3,8 @@ import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { RecursiveChunker, DefaultParserRegistry } from '@vico/rag';
 import type { Embedder } from '@vico/rag';
-import { DEFAULT_RAG_CONFIG } from '../config.js';
-import { getVector } from './memory-setup.js';
-import { createConfiguredEmbedder } from './embedder.js';
+import { getRagConfig } from '../config.js';
+import { getContainer } from '../container.js';
 import logger from '../lib/logger.js';
 import { getDb, schema } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
@@ -22,8 +21,8 @@ class RAGManager {
    * 向量化后存入 LibSQL 向量表。
    */
   async indexText(kbId: string, text: string, metadata: Record<string, any> = {}, documentId?: string): Promise<number> {
-    const vector = getVector();
-    const kbConfig = DEFAULT_RAG_CONFIG;
+    const vector = getContainer().resolve('vectorStore');
+    const kbConfig = getRagConfig();
 
     // 使用 @vico/rag RecursiveChunker 分块
     const chunker = new RecursiveChunker();
@@ -78,7 +77,7 @@ class RAGManager {
 
   /** 获取 embedder 单例（配置为 "none" 时抛错） */
   private getEmbedder(): Embedder {
-    const embedder = createConfiguredEmbedder();
+    const embedder = getContainer().resolve('embedder');
     if (!embedder) {
       throw new Error('RAG 索引需要 embedder，请在 server.config.yaml 配置 rag.embedder（当前为 "none"）');
     }
@@ -114,7 +113,7 @@ class RAGManager {
   }
 
   async deleteDocumentChunks(kbId: string, documentId: string): Promise<number> {
-    const vector = getVector();
+    const vector = getContainer().resolve('vectorStore');
     const indexName = kbIndexName(kbId);
     const client = getClient();
     const tableName = indexName;

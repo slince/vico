@@ -17,7 +17,7 @@ class StorageManager {
   /** 懒加载获取 Files 实例 */
   getFiles(): Files {
     if (this.filesInstance) return this.filesInstance;
-    const cfg: AppConfig['storage'] = config.storage;
+    const cfg: AppConfig['file_storage'] = config.file_storage;
     if (cfg.type === 's3') {
       this.filesInstance = new Files({
         adapter: s3({

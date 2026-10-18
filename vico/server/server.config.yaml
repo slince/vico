@@ -19,6 +19,7 @@ memory:
   stm_window: 20
   ltm_auto_extract: true
   ltm_max_entries: 10000
+  semantic: libsql
   compaction:
     auto: true
     threshold_ratio: 0.8
@@ -48,7 +49,16 @@ workspace:
   timeout_ms: 30000
   isolation: 'none'
 
+# framework 存储后端（thread/checkpoint/vector 均持久化到 libsql，连接由 server 注入 db/client）
 storage:
+  thread: libsql
+  checkpoint: libsql
+  vector: libsql
+  db_service: db
+  client_service: client
+
+# 应用层：知识库文件持久化存储
+file_storage:
   type: local
   root: ./data/storage
   # ── S3 兼容模式 (Aliyun OSS / MinIO / AWS S3) 示例 ──
@@ -59,6 +69,9 @@ storage:
   # access_key_id: your-access-key
   # secret_access_key: your-secret-key
   # bucket: vico-storage
+
+agent:
+  max_cached: 100
 
 checkpoint:
   ttl_days: 30

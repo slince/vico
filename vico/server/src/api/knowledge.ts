@@ -5,7 +5,7 @@ import { knowledgeManager } from '../services/knowledge/knowledge-manager.js';
 import { documentManager } from '../services/knowledge/document-manager.js';
 import { storageManager } from '../services/knowledge/storage-manager.js';
 import { ragManager } from '../memory/rag.js';
-import { getVector } from '../memory/memory-setup.js';
+import { getContainer } from '../container.js';
 import { kbIndexName } from '../lib/resource.js';
 import { getClient } from '../db/init-libsql.js';
 import { getDb, schema } from '../db/db.js';
@@ -255,7 +255,7 @@ export function knowledgeRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/knowledge-bases/:id/chunks/:chunkId', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const vector = getVector();
+    const vector = getContainer().resolve('vectorStore');
     const kbId = c.req.param('id');
     const chunkId = c.req.param('chunkId');
 

@@ -859,21 +859,24 @@ importers:
       '@lydell/node-pty':
         specifier: 1.2.0-beta.15
         version: 1.2.0-beta.15
+      '@vico/boot':
+        specifier: workspace:*
+        version: link:../../packages/boot
       '@vico/checkpoint-libsql':
         specifier: workspace:*
         version: link:../../packages/checkpoint-libsql
       '@vico/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@vico/di':
+        specifier: workspace:*
+        version: link:../../packages/di
       '@vico/memory-libsql':
         specifier: workspace:*
         version: link:../../packages/memory-libsql
       '@vico/rag':
         specifier: workspace:*
         version: link:../../packages/rag
-      '@vico/rag-libsql':
-        specifier: workspace:*
-        version: link:../../packages/rag-libsql
       '@vico/thread-libsql':
         specifier: workspace:*
         version: link:../../packages/thread-libsql

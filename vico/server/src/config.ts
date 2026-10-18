@@ -3,18 +3,22 @@ import {parse} from 'yaml';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {homedir} from 'node:os';
-import type {EmbedderConfig} from '@vico/rag';
+import {getContainer} from './container.js';
 
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+/** 配置文件路径（应用层与 framework 共用同一份 server.config.yaml） */
+export const CONFIG_PATH = process.env.CONFIG_PATH || resolve(__dirname, '../server.config.yaml');
+
 /** 展开路径开头的 `~` 为用户主目录（YAML 里 `~/xxx` 不会自动展开） */
-function expandHome(p: string): string {
+export function expandHome(p: string): string {
   if (p === '~') return homedir();
   if (p.startsWith('~/')) return join(homedir(), p.slice(2));
   return p;
 }
 
+/** 应用层专属配置段（framework 段由 @vico/boot 管理） */
 interface AppConfig {
   server: {
     port: number;
@@ -26,39 +30,8 @@ interface AppConfig {
   database: {
     url: string;
   };
-  skills: {
-    scan_paths: string[];
-  };
-  memory: {
-    stm_window: number;
-    ltm_auto_extract: boolean;
-    ltm_max_entries: number;
-    /** 上下文压缩配置（snake_case，对齐 server.config.yaml；由 get-agent 转 CompactionSettings） */
-    compaction?: {
-      auto?: boolean;
-      threshold_ratio?: number;
-      headroom_tokens?: number;
-      retain_ratio?: number;
-      retain_tokens?: number;
-      summarization_provider?: string;
-      summarization_model?: string;
-      max_tokens?: number;
-      compaction_retries?: number;
-      max_overflow_retries?: number;
-    };
-  };
-  /** 聊天模型全局默认上下文窗口（provider v4 不暴露 contextWindow，压缩判定需显式声明） */
-  model?: {
-    context_window?: number;
-  };
-  rag: {
-    chunk_size: number;
-    chunk_overlap: number;
-    retrieval_top_k: number;
-    embedder: string | EmbedderConfig;
-  };
-  /** 文件存储后端配置 */
-  storage: {
+  /** 文件存储后端配置（知识库文件持久化） */
+  file_storage: {
     type: 'local' | 's3';
     root: string;
     endpoint?: string;
@@ -67,26 +40,10 @@ interface AppConfig {
     secret_access_key?: string;
     bucket?: string;
   };
-  /** 工具执行超时配置 */
-  tool: {
-    timeout_ms: number;
-  };
   /** 文件上传配置 */
   upload: {
     max_size_bytes: number;
     allowed_mime_types: string[];
-  };
-  /** Workspace 基础工具配置（文件读写、命令执行等） */
-  workspace: {
-    base_path: string;
-    contained: boolean;
-    allowed_paths: string[];
-    timeout_ms: number;
-    isolation: 'none' | 'seatbelt' | 'bwrap';
-  };
-  /** checkpoint 版本链 TTL 配置 */
-  checkpoint: {
-    ttl_days: number;
   };
 }
 
@@ -100,81 +57,63 @@ interface RagConfig {
 }
 
 function loadConfig(): AppConfig {
-  const configPath = process.env.CONFIG_PATH || resolve(__dirname, '../server.config.yaml');
   const defaultConfig: AppConfig = {
     server: { port: 3001, deploy_mode: 'private' },
     auth: { session_expiry_days: 7 },
     database: { url: 'file:./data/vico.db' },
-    skills: { scan_paths: [resolve(__dirname, '../../skills'), resolve(__dirname, '../db/custom-skills')] },
-    memory: {
-      stm_window: 20, ltm_auto_extract: true, ltm_max_entries: 10000,
-      compaction: {
-        auto: true,
-        threshold_ratio: 0.8,
-        headroom_tokens: 65536,
-        retain_ratio: 0.16,
-        max_tokens: 65536,
-        compaction_retries: 1,
-        max_overflow_retries: 1,
-      },
+    upload: {
+      max_size_bytes: 50 * 1024 * 1024,
+      allowed_mime_types: ['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'text/x-python', 'text/javascript', 'application/json'],
     },
-    model: { context_window: 131072 },
-    rag: { chunk_size: 512, chunk_overlap: 64, retrieval_top_k: 5, embedder: 'openai/text-embedding-3-small' },
-    tool: { timeout_ms: 30000 },
-    upload: { max_size_bytes: 50 * 1024 * 1024, allowed_mime_types: ['application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'text/x-python', 'text/javascript', 'application/json'] },
-    storage: { type: 'local', root: './data/storage' },
-    workspace: { base_path: resolve(__dirname, '../../workspace'), contained: true, allowed_paths: [], timeout_ms: 30000, isolation: 'none' },
-    checkpoint: { ttl_days: 30 },
+    file_storage: { type: 'local', root: './data/storage' },
   };
 
-  if (existsSync(configPath)) {
-    const raw = readFileSync(configPath, 'utf-8');
+  if (existsSync(CONFIG_PATH)) {
+    const raw = readFileSync(CONFIG_PATH, 'utf-8');
     const parsed = parse(raw) as Partial<AppConfig>;
-    const merged: AppConfig = {
+    return {
       ...defaultConfig,
       ...parsed,
       server: { ...defaultConfig.server, ...parsed.server },
       auth: { ...defaultConfig.auth, ...parsed.auth },
       database: { ...defaultConfig.database, ...parsed.database },
-      skills: { ...defaultConfig.skills, ...parsed.skills },
-      memory: { ...defaultConfig.memory, ...parsed.memory, compaction: { ...defaultConfig.memory.compaction, ...parsed.memory?.compaction } },
-      model: { ...defaultConfig.model, ...parsed.model },
-      rag: { ...defaultConfig.rag, ...parsed.rag },
-      tool: { ...defaultConfig.tool, ...parsed.tool },
       upload: { ...defaultConfig.upload, ...parsed.upload },
-      storage: { ...defaultConfig.storage, ...parsed.storage },
-      workspace: { ...defaultConfig.workspace, ...parsed.workspace },
-      checkpoint: { ...defaultConfig.checkpoint, ...parsed.checkpoint },
+      file_storage: { ...defaultConfig.file_storage, ...parsed.file_storage },
     };
-    merged.workspace.base_path = expandHome(merged.workspace.base_path);
-    return merged;
   }
 
   return defaultConfig;
 }
 
+/** 应用层配置单例（framework 段不在此，读取时需注意） */
 export const config = loadConfig();
 
-/** RAG 全局默认配置（从 config.rag 读取，可通过 server.config.yaml 覆盖） */
-export const DEFAULT_RAG_CONFIG: RagConfig = {
-  chunk: {
-    size: config.rag.chunk_size,
-    overlap: config.rag.chunk_overlap,
-    strategy: 'recursive',
-  },
-  retrieval: {
-    top_k: config.rag.retrieval_top_k,
-    similarity_threshold: 0.7,
-  },
-  rerank: {
-    enabled: false,
-    model: 'Xenova/bge-reranker-base',
-  },
-  no_match: {
-    strategy: 'free_answer',
-    fallback_message: '抱歉，未找到相关知识。',
-  },
-  query_rewrite: { enabled: false },
-};
+/**
+ * RAG 全局默认配置：chunk/retrieval 取自 boot 容器的 rag 段，
+ * rerank/no_match/query_rewrite 为 server 应用层扩展。
+ */
+export function getRagConfig(): RagConfig {
+  const rag = getContainer().getConfig('rag');
+  return {
+    chunk: {
+      size: rag.chunk_size,
+      overlap: rag.chunk_overlap,
+      strategy: 'recursive',
+    },
+    retrieval: {
+      top_k: rag.retrieval_top_k,
+      similarity_threshold: 0.7,
+    },
+    rerank: {
+      enabled: false,
+      model: 'Xenova/bge-reranker-base',
+    },
+    no_match: {
+      strategy: 'free_answer',
+      fallback_message: '抱歉，未找到相关知识。',
+    },
+    query_rewrite: { enabled: false },
+  };
+}
 
 export type { AppConfig, RagConfig };

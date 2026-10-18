@@ -1,8 +1,7 @@
 import {serve} from '@hono/node-server';
 import {config} from './config.js';
-import {runMigrations} from './db/run-migrations.js';
-import {seedDefaultAdmin, seedMainAgent} from './auth/seed.js';
-import {app, initVico} from './vico.js';
+import {bootstrap} from './bootstrap.js';
+import {app} from './vico.js';
 import {wss} from './app.js';
 import {auth} from './auth';
 import logger from './lib/logger.js';
@@ -14,10 +13,8 @@ export type Variables = {
 };
 
 async function main() {
-  await runMigrations();
-  await seedDefaultAdmin();
-  await seedMainAgent();
-  await initVico();
+  // 装配 framework 依赖（boot）+ 应用层初始化（迁移/seed/建表/清理定时器）
+  await bootstrap();
 
   // websocket.server 注入 wss：@hono/node-server 在 HTTP upgrade 时把连接交给 WebSocketServer 处理
   serve({
