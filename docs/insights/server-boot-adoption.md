@@ -95,3 +95,25 @@ agent:
 - `vico/server` `npx tsc --noEmit` 通过
 - `@vico/boot` typecheck/test 不受影响（boot 未改动）
 - 运行期由用户验证：`pnpm dev` 启动、登录、聊天、知识库、文件浏览
+
+## 附：删除 `@vico/core` 聚合壳
+
+`@vico/core` 拆分后只余 `src/index.ts` 一个纯 re-export 聚合壳（`export *` 到 13 个子包），
+已无实际代码。server 直连底层包后，`vico/web` 与 `examples/quickstart` 是仅存的两个依赖方，一并改为直连后删除整包：
+
+| 消费方 | 变更 |
+|--------|------|
+| `vico/web` | `thread-adapter.ts` 的 `ContentPart` → `@vico/model`；`package.json` `@vico/core` → `@vico/model` |
+| `examples/quickstart` | `ModelClient/ModelRequest` → `@vico/model`、`MemoryStore` → `@vico/memory`、`Vico` → `@vico/agent`；不存在的 `ModelStreamChunk` 用本地兜底类型 |
+| `packages/core/` | 整目录删除 |
+
+验证：
+
+- `vico/server` `npx tsc --noEmit` 通过（`SERVER_EXIT=0`）
+- `pnpm install` 通过（lockfile 已更新）
+- ⚠️ `vico/web` `tsc -b` 有**既有**类型错误：web 未声明 `@types/node`，bundler resolution 追入
+  `packages/tool/src/builtin/**`（node 内建模块）时报 `Cannot find module 'node:*'`/`process`/`Buffer`；
+  另 tool 部分回调在 strict 下隐式 `any`。均与本次移除无关（错误列表无一条 `@vico/core`）。
+- ⚠️ `examples/quickstart` 本身已过时（旧 `Vico` API）：`skillRoots`/`init()`/`getSkillManager()`/
+  `runtime.createAgent()`/`invoke()` 均不存在，`FakeModelClient` 与现行 `ModelClient`（class，`stream`
+  返回 `Promise<ModelStreamResult>`）不匹配。本次仅替换 import 源，逻辑需单独重写才能运行。

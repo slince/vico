@@ -11,7 +11,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage
 } from '@assistant-ui/react';
-import type {ContentPart} from '@vico/core';
+import type {ContentPart} from '@vico/model';
 import {api} from '@/api/client';
 import {queryClient} from '@/lib/query-client';
 import {useAgentSelection} from '@/stores/agent-selection';

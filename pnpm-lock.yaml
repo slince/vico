@@ -193,9 +193,15 @@ importers:
 
   examples/quickstart:
     dependencies:
-      '@vico/core':
+      '@vico/agent':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/agent
+      '@vico/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
+      '@vico/model':
+        specifier: workspace:*
+        version: link:../../packages/model
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -440,61 +446,6 @@ importers:
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
-        version: 22.20.5
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/core:
-    dependencies:
-      '@vico/agent':
-        specifier: workspace:*
-        version: link:../agent
-      '@vico/checkpoint':
-        specifier: workspace:*
-        version: link:../checkpoint
-      '@vico/compaction':
-        specifier: workspace:*
-        version: link:../compaction
-      '@vico/context':
-        specifier: workspace:*
-        version: link:../context
-      '@vico/events':
-        specifier: workspace:*
-        version: link:../events
-      '@vico/memory':
-        specifier: workspace:*
-        version: link:../memory
-      '@vico/model':
-        specifier: workspace:*
-        version: link:../model
-      '@vico/rag':
-        specifier: workspace:*
-        version: link:../rag
-      '@vico/skill':
-        specifier: workspace:*
-        version: link:../skill
-      '@vico/stream':
-        specifier: workspace:*
-        version: link:../stream
-      '@vico/thread':
-        specifier: workspace:*
-        version: link:../thread
-      '@vico/tool':
-        specifier: workspace:*
-        version: link:../tool
-      '@vico/types':
-        specifier: workspace:*
-        version: link:../types
-      '@vico/utils':
-        specifier: workspace:*
-        version: link:../utils
-      ai:
-        specifier: 7.0.142
-        version: 7.0.142(zod@4.6.7)
-    devDependencies:
-      '@types/node':
-        specifier: ^22.20.5
         version: 22.20.5
       typescript:
         specifier: ^5.9.3
@@ -1064,9 +1015,9 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
-      '@vico/core':
+      '@vico/model':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/model
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0
