@@ -10,6 +10,7 @@ agent:
 
 skills:
   scan_paths: []
+  compatible: true
 
 memory:
   stm_window: 20

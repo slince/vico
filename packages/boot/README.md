@@ -102,7 +102,7 @@ skills → thread/checkpointStore/vectorStore → embedder → memory
   boot 只按配置选择实现、不自行建立连接。
 - `embedder`：由 `rag.embedder` 配置驱动；`"none"` 禁用（返回 undefined），episodic 记忆随之停用。
 - `memory`：`conversation`（短时窗口）+ `episodic`（embedder 可用时启用）。
-- `skills`：异步工厂，从 `skills.scan_paths` 扫描加载，需 `resolveAsync`。
+- `skills`：异步工厂，从 `skills.scan_paths` 扫描加载（`compatible` 开启时额外扫描全局第三方 Agent 产品的 Skills 目录），需 `resolveAsync`。
 
 ## 迁移 server（后续）
 

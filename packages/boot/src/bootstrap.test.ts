@@ -30,6 +30,7 @@ describe('createVicoContainer', () => {
     expect(c.getConfig('agent').max_cached).toBe(50);
     expect(c.getConfig('logger').level).toBe('info');
     expect(c.getConfig('skills').scan_paths).toEqual([]);
+    expect(c.getConfig('skills').compatible).toBe(false);
     expect(c.getConfig('rag').embedder).toBe('openai/text-embedding-3-small');
     expect(c.getConfig('memory').stm_window).toBe(20);
     expect(c.getConfig('tool').timeout_ms).toBe(30000);
