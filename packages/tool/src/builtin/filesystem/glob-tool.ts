@@ -1,4 +1,4 @@
-// src/tool/builtin/find-tool.ts
+// src/tool/builtin/glob-tool.ts
 import {readdirSync, statSync} from 'node:fs';
 import {relative, resolve} from 'node:path';
 import {z} from 'zod';
@@ -6,13 +6,13 @@ import {createTool} from '../../create-tool.js';
 import type {ToolCallContext} from '../../types.js';
 import {resolveWorkspacePath} from '../workspace.js';
 
-const findParams = z.object({
+const globParams = z.object({
   pattern: z.string().default('*').describe('匹配文件名的 glob 模式'),
   path: z.string().optional().describe('搜索目录（默认：工作区根目录）'),
   limit: z.number().int().default(200).describe('返回文件的最大数量'),
 });
 
-interface FindResult {
+interface GlobResult {
   path: string;
   mtime: number;
 }
@@ -25,8 +25,8 @@ function globToRegex(pattern: string): RegExp {
   return new RegExp(`^${escaped}$`);
 }
 
-function collectFiles(searchDir: string, regex: RegExp, maxResults: number): FindResult[] {
-  const results: FindResult[] = [];
+function collectFiles(searchDir: string, regex: RegExp, maxResults: number): GlobResult[] {
+  const results: GlobResult[] = [];
 
   function walk(dir: string) {
     if (results.length >= maxResults) return;
@@ -55,12 +55,12 @@ function collectFiles(searchDir: string, regex: RegExp, maxResults: number): Fin
   return results;
 }
 
-const findOutputSchema = z.object({
+const globOutputSchema = z.object({
   files: z.array(z.string()),
   count: z.number().int(),
 });
 
-async function executeFind(args: z.infer<typeof findParams>, ctx: ToolCallContext): Promise<z.infer<typeof findOutputSchema>> {
+async function executeGlob(args: z.infer<typeof globParams>, ctx: ToolCallContext): Promise<z.infer<typeof globOutputSchema>> {
   const workspace = ctx.session.workspace!;
 
   const searchDir = args.path
@@ -78,14 +78,14 @@ async function executeFind(args: z.infer<typeof findParams>, ctx: ToolCallContex
   return { files: sorted, count: sorted.length };
 }
 
-export const findTool = createTool({
-  name: 'find',
+export const globTool = createTool({
+  name: 'glob',
   description:
     '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。用于按命名模式定位文件。',
-  inputSchema: findParams,
-  outputSchema: findOutputSchema,
+  inputSchema: globParams,
+  outputSchema: globOutputSchema,
   policy: 'auto',
   kind: 'readonly',
   tags: ['requires-workspace'],
-  execute: executeFind,
+  execute: executeGlob,
 });

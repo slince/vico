@@ -8,12 +8,11 @@ import {defineToolkit} from '@assistant-ui/react';
 import {getWeatherTool} from './get-weather.tool';
 import {bashTool} from './bash.tool';
 import {knowledgeSearchTool} from './knowledge-search.tool';
-import {readTool, lsTool, findTool, grepTool, writeTool, editTool} from './filesystem.tool';
+import {readTool, globTool, grepTool, writeTool, editTool} from './filesystem.tool';
 import {browserNavigateTool, browserSnapshotTool, browserClickTool} from './browser.tool';
 import {todoWriteTool} from './simple.tool';
 import {askUserTool} from './ask-user.tool';
 import {webFetchTool} from './web-fetch.tool';
-import {lspTool} from './lsp.tool';
 import {delegateTool} from './delegate.tool';
 import {semanticMemoryTool} from './semantic-memory.tool';
 
@@ -24,8 +23,7 @@ export const toolkit = defineToolkit({
 
   // Filesystem
   read: readTool,
-  ls: lsTool,
-  find: findTool,
+  glob: globTool,
   grep: grepTool,
   write: writeTool,
   edit: editTool,
@@ -43,9 +41,6 @@ export const toolkit = defineToolkit({
 
   // Web fetch
   web_fetch: webFetchTool,
-
-  // LSP
-  lsp: lspTool,
 
   // Delegate
   delegate: delegateTool,

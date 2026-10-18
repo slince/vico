@@ -12,12 +12,10 @@ export { readTool } from './filesystem/read-tool.js';
 export { writeTool } from './filesystem/write-tool.js';
 export { editTool } from './filesystem/edit-tool.js';
 export { grepTool } from './filesystem/grep-tool.js';
-export { findTool } from './filesystem/find-tool.js';
-export { lsTool } from './filesystem/ls-tool.js';
+export { globTool } from './filesystem/glob-tool.js';
 
 // Coding tools
 export { bashTool } from './coding/bash-tool.js';
-export { lspTool } from './coding/lsp-tool.js';
 
 import { todoTool } from './basic/todo-tool.js';
 import { webFetchTool } from './basic/web-fetch-tool.js';
@@ -32,11 +30,9 @@ import { readTool } from './filesystem/read-tool.js';
 import { writeTool } from './filesystem/write-tool.js';
 import { editTool } from './filesystem/edit-tool.js';
 import { grepTool } from './filesystem/grep-tool.js';
-import { findTool } from './filesystem/find-tool.js';
-import { lsTool } from './filesystem/ls-tool.js';
+import { globTool } from './filesystem/glob-tool.js';
 
 import { bashTool } from './coding/bash-tool.js';
-import { lspTool } from './coding/lsp-tool.js';
 
 import type { Tool } from '../types.js';
 
@@ -56,14 +52,12 @@ export const filesystemTools: Tool[] = [
   writeTool,
   editTool,
   grepTool,
-  findTool,
-  lsTool,
+  globTool,
 ];
 
-/** Coding 工具（需要 workspace）：Shell、LSP */
+/** Coding 工具（需要 workspace）：Shell */
 export const codingTools: Tool[] = [
   bashTool,
-  lspTool,
 ];
 
 /** @deprecated 使用 basicTools */

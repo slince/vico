@@ -1,8 +1,8 @@
 /**
  * 文件系统工具定义（前端）。
  *
- * 对应 packages/core/src/tool/builtin/filesystem/*.tool.ts。
- * 只读组（read/ls/find/grep）共用 FileReadRenderer，
+ * 对应 packages/tool/src/builtin/filesystem/*.tool.ts。
+ * 只读组（read/glob/grep）共用 FileReadRenderer，
  * 写组（write/edit）共用 FileWriteRenderer。
  */
 import {z} from 'zod/v4';
@@ -24,31 +24,18 @@ const readOutputSchema = z.object({
 export type ReadArgs = z.infer<typeof readSchema>;
 export type ReadResult = z.infer<typeof readOutputSchema>;
 
-// ── ls ──
-const lsSchema = z.object({
-  path: z.string().optional().describe('要列出内容的目录路径'),
-  limit: z.number().int().default(200).describe('返回条目的最大数量'),
-});
-const lsOutputSchema = z.object({
-  entries: z.array(z.string()),
-  count: z.number().int(),
-  path: z.string(),
-});
-export type LsArgs = z.infer<typeof lsSchema>;
-export type LsResult = z.infer<typeof lsOutputSchema>;
-
-// ── find ──
-const findSchema = z.object({
+// ── glob ──
+const globSchema = z.object({
   pattern: z.string().default('*').describe('匹配文件名的 glob 模式'),
   path: z.string().optional().describe('搜索目录'),
   limit: z.number().int().default(200).describe('返回文件的最大数量'),
 });
-const findOutputSchema = z.object({
+const globOutputSchema = z.object({
   files: z.array(z.string()),
   count: z.number().int(),
 });
-export type FindArgs = z.infer<typeof findSchema>;
-export type FindResult = z.infer<typeof findOutputSchema>;
+export type GlobArgs = z.infer<typeof globSchema>;
+export type GlobResult = z.infer<typeof globOutputSchema>;
 
 // ── grep ──
 const grepSchema = z.object({
@@ -109,15 +96,9 @@ export const readTool: ToolkitDefinitionEntry<ReadArgs, ReadResult> = {
   render: FileReadRenderer,
 };
 
-export const lsTool: ToolkitDefinitionEntry<LsArgs, LsResult> = {
-  description: '列出工作区目录内容，按字母排序，目录以 "/" 结尾标记。',
-  parameters: lsSchema,
-  render: FileReadRenderer,
-};
-
-export const findTool: ToolkitDefinitionEntry<FindArgs, FindResult> = {
+export const globTool: ToolkitDefinitionEntry<GlobArgs, GlobResult> = {
   description: '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。',
-  parameters: findSchema,
+  parameters: globSchema,
   render: FileReadRenderer,
 };
 

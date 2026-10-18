@@ -84,7 +84,7 @@
       "executing": "正在執行命令..."
     },
     "fileRead": {
-      "title": { "read": "讀取檔案", "ls": "列出目錄", "find": "查找檔案", "grep": "搜尋內容" },
+      "title": { "read": "讀取檔案", "glob": "查找檔案", "grep": "搜尋內容" },
       "noMatch": "未找到符合項目"
     },
     "fileWrite": {
@@ -111,13 +111,6 @@
       "title": "網頁請求",
       "emptyBody": "（空回應內容）",
       "truncated": "回應已截斷（超過 100KB）"
-    },
-    "lsp": {
-      "title": "LSP 語言服務",
-      "action": { "diagnostics": "診斷", "go_to_definition": "跳轉定義", "completions": "程式碼補全", "hover": "懸停資訊" },
-      "operation": "操作：{{action}}",
-      "noResult": "（無結果）",
-      "notSupported": "當前語言伺服器不支援此操作"
     },
     "delegate": {
       "title": "委託子任務",

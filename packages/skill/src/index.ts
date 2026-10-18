@@ -4,7 +4,7 @@ export { type SkillLoader, type Skill } from './types.js';
 export { createFSSkillLoader } from './fs-skill-loader.js';
 export { SkillRegistry } from './skill-registry.js';
 export {
-  createSkillSearchTool,
-  createSkillExecuteTool,
+  createSkillListTool,
+  createSkillReadTool,
   createSkillTools,
 } from './tool/index.js';
