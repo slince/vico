@@ -1,7 +1,7 @@
 import {Hono} from 'hono';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
-import {listSkills} from '../vico.js';
+import {listSkills} from '../lib/utils.js';
 
 /**
  * Skill 路由 — 只读展示 Vico 扫描到的 Skill。

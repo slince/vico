@@ -12,6 +12,9 @@ import type {Variables} from './index.js';
 /** WebSocket 升级服务器（noServer 模式，通过 serve({ websocket }) 注入 HTTP server） */
 export const wss = new WebSocketServer({ noServer: true });
 
+/** Hono app 单例（含中间件与路由注册，模块加载即创建；由 index.ts 直接 serve） */
+export const app = createApp();
+
 /** 创建并配置 Hono app，注册所有中间件和路由 */
 export function createApp(): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();

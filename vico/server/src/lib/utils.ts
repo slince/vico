@@ -1,18 +1,14 @@
 /**
- * Vico 框架薄适配层 — 暴露全局 agent 服务与 Hono app 实例。
+ * Vico 框架工具集 — 暴露全局 agent 服务、Skill 列表与 ThreadStore 访问。
  *
- * 替代已废弃的 `Vico` 类：底层依赖（memory/thread/checkpoint/skills/runtime）
+ * 替代已废弃的 `vico.ts` 薄适配层：底层依赖（memory/thread/checkpoint/skills/runtime）
  * 均由 @vico/boot 容器装配，这里只做 AgentConfig 的全局 fallback 与 LRU 注册。
  */
 import { createAgent } from '@vico/agent';
 import type { Agent, AgentConfig } from '@vico/agent';
 import type { Skill } from '@vico/skill';
 import type { ThreadStore } from '@vico/thread';
-import { createApp } from './app.js';
-import { getContainer } from './container.js';
-
-/** Hono app 实例（含 WebSocket 路由注册） */
-export const app = createApp();
+import { getContainer } from '../container.js';
 
 /** 列出当前可用的全部 Skill（来自 boot 容器的 skills 异步工厂） */
 export async function listSkills(): Promise<Skill[]> {

@@ -18,7 +18,7 @@ type UpgradeWebSocketFn = UpgradeWebSocket;
  * 注册终端 WebSocket 路由。
  *
  * 终端路由需要 `upgradeWebSocket`（由 @hono/node-server 提供），故不在
- * `api/router.ts` 的 registerRoutes 中注册，而由 `vico.ts` 单独调用。
+ * `api/router.ts` 的 registerRoutes 中注册，而由 `app.ts` 的 createApp 调用。
  *
  * @param app - Hono 应用实例
  * @param upgradeWebSocket - @hono/node-server 提供的升级助手

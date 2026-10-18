@@ -7,7 +7,7 @@
  * 3. 空（返回空列表）
  */
 import { getAgent } from '../agent/get-agent.js';
-import { getThreadStore } from '../vico.js';
+import { getThreadStore } from './utils.js';
 
 /**
  * 获取线程当前的工作目录。

@@ -1,7 +1,6 @@
 import {serve} from '@hono/node-server';
 import {bootstrap} from './bootstrap.js';
-import {app} from './vico.js';
-import {wss} from './app.js';
+import {app, wss} from './app.js';
 import {getContainer} from './container.js';
 import logger from './lib/logger.js';
 

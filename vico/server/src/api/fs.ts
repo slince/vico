@@ -14,7 +14,7 @@ import { homedir } from 'node:os';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { resolveWorkspacePath } from '@vico/tool';
-import { getThreadStore } from '../vico.js';
+import { getThreadStore } from '../lib/utils.js';
 import { getThreadWorkspace } from '../lib/workspace.js';
 
 const MAX_READ_BYTES = 1_048_576; // 1 MB

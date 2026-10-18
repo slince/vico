@@ -7,7 +7,7 @@ import type {AgentConfig} from '@vico/agent';
 import type {CompactionSettings} from '@vico/compaction';
 import {memorySchema} from '@vico/boot';
 import type {z} from 'zod';
-import {createIfAbsent, listSkills} from '../vico.js';
+import {createIfAbsent, listSkills} from '../lib/utils.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
 import {getContainer} from '../container.js';
 
