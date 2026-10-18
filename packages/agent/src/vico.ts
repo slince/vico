@@ -34,6 +34,9 @@ export interface VicoOptions {
 /**
  * Vico — 一键装配所有 Agent 服务。
  *
+ * @deprecated 请改用 `@vico/boot`：以 ServiceProvider 形式把 skills/tools/memory/thread/
+ * checkpoint 等注册进 DI 容器，通过 `bootstrap` 启动，避免全局单例与模块求值期副作用。
+ *
  * @example
  * ```ts
  * const vico = new Vico({ skillRoots: ['./skills'] });

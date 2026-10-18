@@ -1,0 +1,41 @@
+# Vico Agent Framework 默认配置 —— 各配置段的完整默认值。
+# 使用方自定义 yaml 会整段覆盖同名段，段内字段由 schema 的 .default() 兜底。
+# 应用层专属配置（HTTP 服务、认证、数据库连接、文件存储/上传）不在此列。
+
+skills:
+  scan_paths: []
+
+memory:
+  stm_window: 20
+  ltm_auto_extract: true
+  ltm_max_entries: 10000
+  compaction:
+    auto: true
+    threshold_ratio: 0.8
+    headroom_tokens: 65536
+    retain_ratio: 0.16
+    max_tokens: 65536
+    compaction_retries: 1
+    max_overflow_retries: 1
+
+model:
+  context_window: 131072
+
+rag:
+  chunk_size: 512
+  chunk_overlap: 64
+  retrieval_top_k: 5
+  embedder: openai/text-embedding-3-small
+
+tool:
+  timeout_ms: 30000
+
+workspace:
+  base_path: ./workspace
+  contained: true
+  allowed_paths: []
+  timeout_ms: 30000
+  isolation: none
+
+checkpoint:
+  ttl_days: 30
