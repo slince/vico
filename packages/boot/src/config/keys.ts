@@ -8,7 +8,7 @@ import type {
   skillsSchema,
   toolSchema,
   workspaceSchema,
-} from './schemas.js';
+} from './schemas/index.js';
 
 /**
  * Vico Agent Framework 配置段映射：声明后 `registerConfig` 校验 schema 类型、

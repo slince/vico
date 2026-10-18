@@ -10,7 +10,7 @@ import {
   skillsSchema,
   toolSchema,
   workspaceSchema,
-} from './config/schemas.js';
+} from './config/schemas/index.js';
 import type { VicoConfigKeys } from './config/keys.js';
 import type { VicoContainer, VicoServiceProvider, VicoTokens } from './tokens.js';
 import { skillsProvider } from './providers/skills-provider.js';

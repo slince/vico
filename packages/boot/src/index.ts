@@ -15,7 +15,7 @@ export {
   toolSchema,
   workspaceSchema,
   checkpointSchema,
-} from './config/schemas.js';
+} from './config/schemas/index.js';
 
 export type { VicoConfigKeys } from './config/keys.js';
 export type { VicoConfig } from './config/types.js';

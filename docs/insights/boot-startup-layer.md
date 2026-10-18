@@ -18,7 +18,7 @@
 ```
 packages/boot/src/
 ├── config/
-│   ├── schemas.ts         # 7 个配置段 zod schema（字段级 .default() 兜底）
+│   ├── schemas/           # 7 个配置段 zod schema（按领域拆分，index.ts 聚合导出）
 │   ├── default.config.yaml  # 内置默认配置（默认值唯一来源）
 │   ├── keys.ts            # VicoConfigKeys（段名 → schema 类型）
 │   └── types.ts           # VicoConfig（各段 z.infer 合并）

@@ -1,0 +1,9 @@
+// @vico/boot - 配置段 schema 聚合导出（按领域拆分，见同目录各文件）
+
+export { skillsSchema } from './skills.js';
+export { memoryCompactionSchema, memorySchema } from './memory.js';
+export { modelSchema } from './model.js';
+export { ragSchema } from './rag.js';
+export { toolSchema } from './tool.js';
+export { workspaceSchema } from './workspace.js';
+export { checkpointSchema } from './checkpoint.js';
