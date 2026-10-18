@@ -91,6 +91,22 @@ describe('配置加载', () => {
     });
   });
 
+  it('整段缺失但字段全有默认值时，getConfig 用 schema 默认值兜底', () => {
+    const defaultedSchema = z.object({
+      port: z.number().default(3001),
+      mode: z.enum(['private', 'saas']).default('private'),
+    });
+    interface DefaultedKeys {
+      server: typeof defaultedSchema;
+    }
+    withTempFile('other:\n  x: 1\n', 'config.yaml', (path) => {
+      const container = createContainer<Record<string, unknown>, DefaultedKeys>();
+      container.registerConfig('server', defaultedSchema).load(path);
+
+      expect(container.getConfig('server')).toEqual({ port: 3001, mode: 'private' });
+    });
+  });
+
   it('getConfig 未注册的 key 报错', () => {
     const container = configContainer();
     expect(() => container.getConfig('memory')).toThrow(/Config not registered/);

@@ -178,7 +178,10 @@ export class Container<
   /**
    * 获取已验证的配置段。
    *
-   * @throws 未注册的 key、已注册但加载的文件中未提供对应 key
+   * 段存在时返回验证后的值；整段未被任何加载的文件提供时，若 schema 全部字段都有
+   * 默认值（`.default()` / `.optional()`），则用 schema 默认值兜底；否则视为配置缺失。
+   *
+   * @throws 未注册的 key；已注册但未提供、且 schema 无法整段兜底默认值的 key
    */
   getConfig<K extends keyof TConfigKeys & string>(key: K): z.infer<TConfigKeys[K] & z.ZodType> {
     const reg = this.configs.get(key);
@@ -186,7 +189,13 @@ export class Container<
       throw new Error(`[di] Config not registered: ${String(key)}`);
     }
     if (!reg.hasValue) {
-      throw new Error(`[di] Config "${String(key)}" is not provided by any loaded file`);
+      // 整段缺失：尝试用 schema 默认值兜底（全字段有默认值时 parse({}) 成功）
+      const result = reg.schema.safeParse({});
+      if (!result.success) {
+        throw new Error(`[di] Config "${String(key)}" is not provided by any loaded file`);
+      }
+      reg.value = result.data;
+      reg.hasValue = true;
     }
     return reg.value as z.infer<TConfigKeys[K] & z.ZodType>;
   }

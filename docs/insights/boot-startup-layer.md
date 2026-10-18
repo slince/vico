@@ -51,6 +51,8 @@ packages/boot/src/
   **自动冻结**，冻结后禁止 `register`/`registerValue`/`registerConfig`/`registerProvider`
   （抛 `Container is frozen`），保证依赖图在启动期定型。
 - 默认值**只写在 `default.config.yaml`**，schema 的 `.default()` 仅兜底段内字段缺失，避免双写。
+- 使用方扩展的应用层段（无默认配置文件）可整段缺失：`getConfig` 时若 schema 字段全有默认值
+  （`.default()`/`.optional()`），则用 schema 默认值兜底；有必填字段仍报「not provided」。
 - 加载顺序：内置默认 → 用户 `configPath`（复用 `@vico/di` 的「后加载同名段整段覆盖先加载」语义）。
 - 使用方扩展应用层配置：在 `setup` 回调内 `registerConfig`/`register`（须在 load/freeze 前完成），与 framework 段共存。
 
