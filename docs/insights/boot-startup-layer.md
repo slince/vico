@@ -47,6 +47,10 @@ packages/boot/src/
   agent→`agent`）；无对应服务的 `model`/`tool`/`workspace`/`checkpoint` 由 `configProvider` 集中声明。
 - `createVicoContainer` 装配顺序：逐个 `registerProvider`（声明 schema + 绑定服务）→ `setup` 回调（使用方注入连接 /
   注册应用层 provider）→ `load` 默认/用户配置（`load` 成功后自动冻结）；因此其签名变为 async，且返回后容器已冻结。
+- `createVicoContainer` 同时泛型化 `TTokens`（extends `VicoTokens`）与 `TConfigKeys`（extends `VicoConfigKeys`），
+  使用方传 `interface ServerTokens extends VicoTokens` / `interface ServerConfigKeys extends VicoConfigKeys` 即可
+  拿到 `Container<ServerTokens, ServerConfigKeys>`，`setup` 回调与返回值都是扩展视角，无需再 `as unknown as` 强转；
+  framework provider 内部以 Vico 基础视角注册（局部收窄断言）。
 - `@vico/di` 容器支持 `freeze()`：`load` / `boot` / `resolve` / `resolveAsync` 成功完成后
   **自动冻结**，冻结后禁止 `register`/`registerValue`/`registerConfig`/`registerProvider`
   （抛 `Container is frozen`），保证依赖图在启动期定型。

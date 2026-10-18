@@ -13,7 +13,7 @@ import {
   uploadSchema,
   type ServerConfigKeys,
 } from './config/schemas.js';
-import type { ServerContainer, ServerServiceProvider } from './tokens.js';
+import type { ServerContainer, ServerServiceProvider, ServerTokens } from './tokens.js';
 import { servicesProvider } from './services-provider.js';
 import { setContainer } from './container.js';
 import { runMigrations } from './db/run-migrations.js';
@@ -77,19 +77,19 @@ const serverProvider: ServerServiceProvider = {
  * @returns 完成启动后的 server 容器
  */
 export async function bootstrap(): Promise<ServerContainer> {
-  // framework 领域 provider 由 createVicoContainer 注册；setup 在 load/冻结前注入连接与业务 provider
-  const container = await createVicoContainer<ServerConfigKeys>({
+  // framework 领域 provider 由 createVicoContainer 以 Vico 基础视角注册；
+  // setup 以 ServerTokens/ServerConfigKeys 扩展视角注入连接与业务 provider
+  const container = await createVicoContainer<ServerTokens, ServerConfigKeys>({
     configPath: CONFIG_PATH,
     setup: async (c) => {
-      // ServerTokens 视角：注入 libsql 连接（token 名与 storage.db_service / client_service 对齐）
-      const sc = c as unknown as ServerContainer;
-      sc.register('db', () => getDb());
-      sc.register('client', () => getClient());
-      for (const provider of [serverProvider, servicesProvider] as ServerServiceProvider[]) {
-        await sc.registerProvider(provider);
+      // c 类型即 ServerContainer：注入 libsql 连接（token 名与 storage.db_service / client_service 对齐）
+      c.register('db', () => getDb());
+      c.register('client', () => getClient());
+      for (const provider of [serverProvider, servicesProvider]) {
+        await c.registerProvider(provider);
       }
     },
-  }) as unknown as ServerContainer;
+  });
 
   // 记录容器，让 boot 阶段的 getDb()/getConfig('database') 可用
   setContainer(container);

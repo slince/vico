@@ -16,11 +16,14 @@ const DEFAULT_CONFIG_FILE = fileURLToPath(
 );
 
 /** createVicoContainer 启动选项 */
-export interface CreateVicoContainerOptions<TConfigKeys extends VicoConfigKeys = VicoConfigKeys> {
+export interface CreateVicoContainerOptions<
+  TTokens extends VicoTokens = VicoTokens,
+  TConfigKeys extends VicoConfigKeys = VicoConfigKeys,
+> {
   /** 用户自定义配置文件路径（覆盖内置默认，后加载覆盖先加载） */
   configPath?: string;
   /** 在 framework providers 注册后、加载配置/冻结前调用，用于注入连接或注册应用层 provider */
-  setup?: (container: Container<VicoTokens, TConfigKeys>) => void | Promise<void>;
+  setup?: (container: Container<TTokens, TConfigKeys>) => void | Promise<void>;
 }
 
 /**
@@ -36,21 +39,28 @@ export interface CreateVicoContainerOptions<TConfigKeys extends VicoConfigKeys =
  * 本函数只做 provider 注册 + 配置加载，不触发 boot；`load` 成功后容器自动冻结，
  * 不再允许注入新的 service。调用方随后自行 `boot()`。
  *
+ * framework 领域 provider 以 `VicoTokens`/`VicoConfigKeys` 基础视角注册（内部收窄断言），
+ * 使用方可在 `setup` 里以扩展视角注册自己的 token/config 段。
+ *
+ * @typeParam TTokens 扩展后的 token 映射（必须继承 `VicoTokens`），
+ *   使用方传入 `interface ServerTokens extends VicoTokens { ... }` 即可追加应用层依赖
  * @typeParam TConfigKeys 扩展后的配置段映射（必须继承 `VicoConfigKeys`），
  *   使用方传入 `interface ServerConfigKeys extends VicoConfigKeys { ... }` 即可追加应用层段
  * @param options 可选启动选项；`configPath` 为用户配置路径，`setup` 为冻结前的扩展回调
  * @returns 已完成 provider 注册与配置加载（已冻结，未 boot）的容器
  */
 export async function createVicoContainer<
+  TTokens extends VicoTokens = VicoTokens,
   TConfigKeys extends VicoConfigKeys = VicoConfigKeys,
 >(
-  options?: CreateVicoContainerOptions<TConfigKeys>,
-): Promise<Container<VicoTokens, TConfigKeys>> {
-  const container = createContainer<VicoTokens, TConfigKeys>();
+  options?: CreateVicoContainerOptions<TTokens, TConfigKeys>,
+): Promise<Container<TTokens, TConfigKeys>> {
+  const container = createContainer<TTokens, TConfigKeys>();
 
-  // provider 以 VicoConfigKeys 视角注册 framework 段（其 schema 类型在两种视角下完全一致）
+  // framework provider 以 Vico 基础视角注册（token/config 均为基础视角，两种视角下类型一致）
+  const framework = container as unknown as Container<VicoTokens, VicoConfigKeys>;
   for (const provider of vicoProviders) {
-    await container.registerProvider(provider);
+    await framework.registerProvider(provider);
   }
 
   // 使用方扩展：注入连接 / 注册应用层 provider（须在 load/freeze 前完成）
