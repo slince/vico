@@ -1,16 +1,17 @@
 # @vico/di
 
-轻量、类型安全的依赖注入容器。除了解析依赖，同时解决「构建对象时需要读取配置」的问题。
+轻量、类型安全的依赖注入容器。除了解析依赖，同时解决「构建对象时需要读取配置」与「配置定义加载验证」两个问题。
 
 ## 特性
 
 - **工厂 Provider**：依赖与配置在同一个工厂函数里汇合，支持按配置条件构建（如 s3/local 切实现）
 - **类型安全的 TokenMap**：声明 token → 实例类型映射后，`register` 校验工厂返回类型、`resolve` 推断返回类型
+- **配置定义加载**：`registerConfig` 声明 zod schema，`load` 从 yaml/json 读取并用 schema 验证，`getConfig` 取用
 - **作用域**：`singleton`（默认，全容器唯一）/ `transient`（每次新建）
 - **异步工厂**：`resolveAsync` 解析返回 Promise 的工厂，并发调用共享同一 pending Promise（工厂只执行一次）
 - **循环依赖检测**：同步/异步解析统一检测
 
-## 用法
+## 依赖注入
 
 ```ts
 import { createContainer } from '@vico/di';
@@ -44,6 +45,33 @@ container.register('embedder', async ({ config, resolve }) => {
 const embedder = await container.resolveAsync('embedder');
 ```
 
+## 配置定义加载
+
+```ts
+import { z } from 'zod';
+
+const memorySchema = z.object({
+  stm_window: z.number(),
+  ltm_auto_extract: z.boolean(),
+});
+
+interface ConfigKeys { memory: typeof memorySchema }
+
+const container = createContainer<AppConfig, Tokens, ConfigKeys>(config);
+
+container
+  .registerConfig('memory', memorySchema)
+  .load('server.config.yaml')     // 支持 .yaml/.yml/.json，可多次 load 多个文件
+  .load('custom.json');
+
+const memory = container.getConfig('memory'); // 类型为 { stm_window: number; ltm_auto_extract: boolean }
+```
+
+- 文件顶层是「配置名 → 值」的对象，`load` 后按已注册的 key 抽取对应段并验证
+- 验证失败、文件缺失、顶层非对象、`getConfig` 缺 key 均抛错
+- 多次加载同名 key，后加载覆盖先加载（覆盖后重新验证）
+- 工厂内也可读取：`ctx.getConfig('memory')`
+
 ## API
 
 | 方法 | 说明 |
@@ -54,6 +82,9 @@ const embedder = await container.resolveAsync('embedder');
 | `container.resolve(token)` | 同步解析（异步工厂会抛错） |
 | `container.resolveAsync(token)` | 异步解析，兼容同步工厂 |
 | `container.has(token)` | 是否已注册 |
+| `container.registerConfig(key, schema)` | 声明配置段及其 zod schema |
+| `container.load(path)` | 加载 yaml/json 配置文件，对已注册 key 立即验证 |
+| `container.getConfig(key)` | 获取已验证的配置段 |
 
 ## 命令
 

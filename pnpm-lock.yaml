@@ -434,6 +434,13 @@ importers:
         version: 5.9.3
 
   packages/di:
+    dependencies:
+      yaml:
+        specifier: ^2.6.0
+        version: 2.9.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
