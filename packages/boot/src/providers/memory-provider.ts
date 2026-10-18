@@ -4,6 +4,7 @@ import { MemoryCheckpointStore } from '@vico/checkpoint';
 import { LibSqlCheckpointStore } from '@vico/checkpoint-libsql';
 import { MysqlCheckpointStore } from '@vico/checkpoint-mysql';
 import { ConversationHistoryMemory, MemoryStore, VectorEpisodicRecall } from '@vico/memory';
+import { LibSqlSemanticMemory, type LibSqlSemanticMemoryOptions } from '@vico/memory-libsql';
 import { createEmbedder, type EmbedderConfig } from '@vico/rag';
 import { ChromaVectorStore, type ChromaVectorStoreOptions } from '@vico/rag-chroma';
 import { LibSQLVectorStore, type LibSQLVectorStoreOptions } from '@vico/rag-libsql';
@@ -87,9 +88,15 @@ export const memoryProvider: VicoServiceProvider = {
     });
 
     c.register('memory', ({ resolve, getConfig }) => {
+      const memoryConfig = getConfig('memory');
+      const dbService = getConfig('storage').db_service as keyof VicoTokens & string;
       const embedder = resolve('embedder');
+
       return new MemoryStore({
-        conversation: new ConversationHistoryMemory(resolve('thread'), getConfig('memory').stm_window),
+        conversation: new ConversationHistoryMemory(resolve('thread'), memoryConfig.stm_window),
+        semantic: memoryConfig.semantic === 'libsql'
+          ? new LibSqlSemanticMemory({ db: resolve(dbService) as LibSqlSemanticMemoryOptions['db'] })
+          : undefined,
         episodic: embedder
           ? new VectorEpisodicRecall({ embedder, vectorStore: resolve('vectorStore') })
           : undefined,

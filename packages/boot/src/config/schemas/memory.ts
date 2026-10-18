@@ -16,10 +16,12 @@ export const memoryCompactionSchema = z.object({
   max_overflow_retries: z.number().optional(),
 });
 
-/** 记忆配置（短期窗口 / 长期抽取 / 上下文压缩） */
+/** 记忆配置（短期窗口 / 长期抽取 / 上下文压缩 / 语义记忆后端） */
 export const memorySchema = z.object({
   stm_window: z.number().default(20),
   ltm_auto_extract: z.boolean().default(true),
   ltm_max_entries: z.number().default(10000),
+  /** 语义记忆后端：none 不启用，libsql 用 LibSqlSemanticMemory（需注入 db） */
+  semantic: z.enum(['none', 'libsql']).default('none'),
   compaction: memoryCompactionSchema.optional(),
 });

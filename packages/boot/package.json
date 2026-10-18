@@ -18,6 +18,7 @@
     "@vico/di": "workspace:*",
     "@vico/events": "workspace:*",
     "@vico/memory": "workspace:*",
+    "@vico/memory-libsql": "workspace:*",
     "@vico/rag": "workspace:*",
     "@vico/rag-chroma": "workspace:*",
     "@vico/rag-libsql": "workspace:*",
