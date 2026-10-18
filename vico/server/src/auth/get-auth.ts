@@ -2,16 +2,85 @@
  * Vico 认证模块 — 基于 better-auth
  * 提供邮箱/用户名密码认证、Session 管理
  */
-import { betterAuth } from 'better-auth';
+import { betterAuth, type Auth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { username } from 'better-auth/plugins';
 import { getDb } from '../db/db.js';
 import * as authSchema from '../db/auth-schema.js';
 
-// better-auth 返回类型涉及 zod v4 内部泛型，跨文件引用不可移植，且
-// ReturnType<typeof betterAuth> 会捕获字面量 options 类型，与 BetterAuthOptions 协变不兼容。
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _auth: any;
+/**
+ * 构建 better-auth options。
+ *
+ * 抽成工厂函数而非模块级常量：drizzleAdapter 初始化会调用 getDb()，而 getDb() 依赖
+ * 容器的 database 配置，容器在 bootstrap() 后才可用，因此必须延迟到首次 getAuth() 调用。
+ */
+function createAuthOptions() {
+  return {
+    database: drizzleAdapter(getDb(), {
+      provider: 'sqlite',
+      schema: authSchema,
+    }),
+
+    /** 邮箱密码登录（同时启用 username 插件，支持用户名登录） */
+    emailAndPassword: {
+      enabled: true,
+      autoSignIn: true,
+      requireEmailVerification: false,
+    },
+
+    /** 用户名登录插件 */
+    plugins: [
+      username({
+        minUsernameLength: 2,
+        maxUsernameLength: 50,
+      }),
+    ],
+
+    /** 自定义用户字段 — 声明 role 以便 better-auth 在 session 输出中返回它 */
+    user: {
+      additionalFields: {
+        role: {
+          type: 'string',
+          required: false,
+          defaultValue: 'user',
+        },
+      },
+    },
+
+    /** Session 配置 — 7 天有效期，与旧 JWT token_expiry 一致 */
+    session: {
+      expiresIn: 60 * 60 * 24 * 7,
+      updateAge: 60 * 60 * 24,
+    },
+
+    /** Cookie 配置 — 开发环境（localhost HTTP） */
+    advanced: {
+      cookiePrefix: 'vico',
+      defaultCookieAttributes: {
+        sameSite: 'lax',
+        secure: false,
+        httpOnly: true,
+      },
+      crossSubDomainCookies: {
+        enabled: false,
+      },
+    },
+
+    /** 信任 Vite 开发服务器来源 */
+    trustedOrigins: ['http://localhost:5173'],
+
+    /** 服务端基础 URL — 消除 "Base URL is not set" 警告 */
+    baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
+
+    /** 密钥 — 替代原 jwt_secret */
+    secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-change-me-in-production',
+  } satisfies BetterAuthOptions;
+}
+
+/** better-auth 实例类型 — 由 options 字面量推导，api/handler 均为具体类型 */
+export type AuthInstance = Auth<ReturnType<typeof createAuthOptions>>;
+
+let _auth: AuthInstance | undefined;
 
 /**
  * 获取 better-auth 实例（懒加载单例）。
@@ -20,68 +89,9 @@ let _auth: any;
  * database 配置，容器在 bootstrap() 后才可用。首次调用发生在请求处理阶段，
  * 此时容器已就绪。
  */
-export function getAuth(): any {
+export function getAuth(): AuthInstance {
   if (!_auth) {
-    _auth = betterAuth({
-      database: drizzleAdapter(getDb(), {
-        provider: 'sqlite',
-        schema: authSchema,
-      }),
-
-      /** 邮箱密码登录（同时启用 username 插件，支持用户名登录） */
-      emailAndPassword: {
-        enabled: true,
-        autoSignIn: true,
-        requireEmailVerification: false,
-      },
-
-      /** 用户名登录插件 */
-      plugins: [
-        username({
-          minUsernameLength: 2,
-          maxUsernameLength: 50,
-        }),
-      ],
-
-      /** 自定义用户字段 — 声明 role 以便 better-auth 在 session 输出中返回它 */
-      user: {
-        additionalFields: {
-          role: {
-            type: 'string',
-            required: false,
-            defaultValue: 'user',
-          },
-        },
-      },
-
-      /** Session 配置 — 7 天有效期，与旧 JWT token_expiry 一致 */
-      session: {
-        expiresIn: 60 * 60 * 24 * 7,
-        updateAge: 60 * 60 * 24,
-      },
-
-      /** Cookie 配置 — 开发环境（localhost HTTP） */
-      advanced: {
-        cookiePrefix: 'vico',
-        defaultCookieAttributes: {
-          sameSite: 'lax',
-          secure: false,
-          httpOnly: true,
-        },
-        crossSubDomainCookies: {
-          enabled: false,
-        },
-      },
-
-      /** 信任 Vite 开发服务器来源 */
-      trustedOrigins: ['http://localhost:5173'],
-
-      /** 服务端基础 URL — 消除 "Base URL is not set" 警告 */
-      baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3001',
-
-      /** 密钥 — 替代原 jwt_secret */
-      secret: process.env.BETTER_AUTH_SECRET || 'dev-secret-change-me-in-production',
-    });
+    _auth = betterAuth(createAuthOptions());
   }
   return _auth;
 }
