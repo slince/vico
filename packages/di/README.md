@@ -10,6 +10,7 @@
 - **作用域**：`singleton`（默认，全容器唯一）/ `transient`（每次新建）
 - **异步工厂**：`resolveAsync` 解析返回 Promise 的工厂，并发调用共享同一 pending Promise（工厂只执行一次）
 - **循环依赖检测**：同步/异步解析统一检测
+- **Service Provider**：按领域组织组装逻辑，`register`（绑定）+ `boot`（初始化）两阶段，支持异步
 
 ## 依赖注入
 
@@ -72,6 +73,32 @@ const memory = container.getConfig('memory'); // 类型为 { stm_window: number;
 - 多次加载同名 key，后加载覆盖先加载（覆盖后重新验证）
 - 工厂内也可读取：`ctx.getConfig('memory')`
 
+## Service Provider
+
+按领域把组装逻辑组织成 provider：`register` 只做绑定，`boot`（可选）在所有 provider 注册完成后统一初始化。
+
+```ts
+const storageProvider = {
+  register(c) {
+    c.registerConfig('storage', storageSchema).load('storage.yaml');
+    c.register('db', ({ config }) => initDb(config.database));
+    c.register('storage', ({ config, resolve }) =>
+      config.storage.type === 's3'
+        ? new S3Storage(config.storage, resolve('db'))
+        : new LocalStorage(config.storage, resolve('db')),
+    );
+  },
+  async boot(c) {
+    await c.resolve('db').migrate();   // 全部绑定完成后再统一初始化
+  },
+};
+
+await container.bootstrap([storageProvider, memoryProvider]);
+```
+
+- `register` 与 `boot` 均可返回 Promise，由 `bootstrap` 依次等待
+- `register` 阶段只做绑定（register / registerConfig / load），副作用与初始化放 `boot`
+
 ## API
 
 | 方法 | 说明 |
@@ -85,6 +112,7 @@ const memory = container.getConfig('memory'); // 类型为 { stm_window: number;
 | `container.registerConfig(key, schema)` | 声明配置段及其 zod schema |
 | `container.load(path)` | 加载 yaml/json 配置文件，对已注册 key 立即验证 |
 | `container.getConfig(key)` | 获取已验证的配置段 |
+| `container.bootstrap(providers)` | 依序执行各 provider 的 `register` 再 `boot` |
 
 ## 命令
 

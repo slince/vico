@@ -51,6 +51,28 @@ interface RawConfig {
 }
 
 /**
+ * Service Provider：负责把某个领域的一组服务绑定进容器（register），
+ * 并在全部 provider 注册完成后统一初始化（boot）。
+ *
+ * 两阶段约定：
+ * 1. `register` 只做绑定（register / registerConfig / load），不实例化、不做副作用；
+ * 2. `boot`（可选）在所有 provider 都 register 完后按声明顺序调用，此时可安全
+ *    resolve 依赖、执行异步初始化（建连、迁移、预热等）。
+ *
+ * 两者均可返回 Promise，由 `Container.bootstrap` 依次等待。
+ */
+export interface ServiceProvider<
+  TConfig,
+  TTokens extends TokenMap,
+  TConfigKeys extends ConfigSchemaMap,
+> {
+  /** 阶段一：只做绑定，不实例化、不做副作用 */
+  register(container: Container<TConfig, TTokens, TConfigKeys>): void | Promise<void>;
+  /** 阶段二：所有 provider 注册完成后调用，可 resolve 依赖、执行初始化 */
+  boot?(container: Container<TConfig, TTokens, TConfigKeys>): void | Promise<void>;
+}
+
+/**
  * 轻量、类型安全的依赖注入容器。
  *
  * 职责：
@@ -181,6 +203,21 @@ export class Container<
       throw new Error(`[di] Config "${String(key)}" is not provided by any loaded file`);
     }
     return reg.value as z.infer<TConfigKeys[K] & z.ZodType>;
+  }
+
+  /**
+   * 依序执行一组 Service Provider：先逐个 `register`（绑定），全部注册完成后
+   * 再逐个 `boot`（初始化）。register 与 boot 均可异步，依次等待。
+   *
+   * @param providers 按声明顺序执行的 provider 列表
+   */
+  async bootstrap(providers: ServiceProvider<TConfig, TTokens, TConfigKeys>[]): Promise<void> {
+    for (const provider of providers) {
+      await provider.register(this);
+    }
+    for (const provider of providers) {
+      await provider.boot?.(this);
+    }
   }
 
   /**

@@ -10,6 +10,7 @@
 // 异步工厂（resolveAsync）、并发解析去重、循环依赖检测、多配置文件加载。
 
 export { Container, createContainer } from './container.js';
+export type { ServiceProvider } from './container.js';
 export type {
   ConfigSchemaMap,
   Factory,
