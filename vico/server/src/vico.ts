@@ -5,7 +5,7 @@
  * 均由 @vico/boot 容器装配，这里只做 AgentConfig 的全局 fallback 与 LRU 注册。
  */
 import { createAgent } from '@vico/core';
-import type { Agent, AgentConfig, Skill } from '@vico/core';
+import type { Agent, AgentConfig, Skill, ThreadStore } from '@vico/core';
 import { weatherTool } from './agent/tools/weather-tool.js';
 import { createApp } from './app.js';
 import { getContainer } from './container.js';
@@ -44,11 +44,7 @@ export async function createIfAbsent(agentId: string, factory: () => Promise<Age
   return agent;
 }
 
-/** 全局 vico 服务对象（保持既有消费点 `vico.listSkills()` / `vico.thread` 用法不变） */
-export const vico = {
-  listSkills,
-  createIfAbsent,
-  get thread() {
-    return getContainer().resolve('thread');
-  },
-};
+/** 获取 boot 容器装配的全局 ThreadStore（thread 后端由 storage 配置决定） */
+export function getThreadStore(): ThreadStore {
+  return getContainer().resolve('thread');
+}

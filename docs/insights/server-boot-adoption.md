@@ -51,17 +51,19 @@ agent:
 - `container.bootstrap([...vicoProviders, serverProvider])` — serverProvider 的 `boot` 阶段
   执行迁移 → seed → ensure*Tables → startCheckpointPurge（对应旧 `index.ts` main + `initVico`）。
 
-### 5. 薄适配层 `vico.ts`（保留消费点兼容）
+### 5. 薄适配层 `vico.ts`（独立函数，替代 Vico 类）
 
 旧代码通过 `vico.listSkills()` / `vico.createIfAbsent()` / `vico.thread` 访问。新 `vico.ts`
-导出同名对象，内部委托容器：
+不再导出全局 `vico` 对象，改为独立函数，内部委托容器：
 
 - `listSkills()` → `resolveAsync('skills')`（skills 是异步工厂）；
 - `createIfAbsent(id, factory)` → `resolve('agentRuntime')` 查缓存，未命中则 `createAgent`，
   并做 `tools/memory/thread/checkpointStore/events` 的全局 fallback（复制旧 `Vico.buildAgent` 语义）；
-- `thread` getter → `resolve('thread')`。
+- `getThreadStore()` → `resolve('thread')`。
 
-`api/skills.ts`、`api/fs.ts`、`lib/workspace.ts` 无需改动。
+消费点（`api/skills.ts`、`api/fs.ts`、`lib/workspace.ts`、`services/thread/thread-manager.ts`、
+`agent/get-agent.ts`）改为按需 `import { listSkills / createIfAbsent / getThreadStore }`，
+同时删掉原先针对 `thread` 可能为空的 `if (!store)` 防御（容器保证 ThreadStore 一定存在）。
 
 ### 6. RAG 配置函数化 + `~` 展开移到消费点
 

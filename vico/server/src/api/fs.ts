@@ -14,7 +14,7 @@ import { homedir } from 'node:os';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
 import { resolveWorkspacePath } from '@vico/core';
-import { vico } from '../vico.js';
+import { getThreadStore } from '../vico.js';
 import { getThreadWorkspace } from '../lib/workspace.js';
 
 const MAX_READ_BYTES = 1_048_576; // 1 MB
@@ -66,8 +66,7 @@ function listSubDirectories(
 
 /** 将 workspace 路径写入 thread.metadata */
 async function bindThreadWorkspace(threadId: string, workspace: string): Promise<void> {
-  const store = vico.thread;
-  if (!store) return;
+  const store = getThreadStore();
 
   const thread = await store.getThread(threadId);
   const metadata = { ...(thread?.metadata ?? {}), workspace };
@@ -76,8 +75,7 @@ async function bindThreadWorkspace(threadId: string, workspace: string): Promise
 
 /** 清除 thread.metadata.workspace */
 async function unbindThreadWorkspace(threadId: string): Promise<void> {
-  const store = vico.thread;
-  if (!store) return;
+  const store = getThreadStore();
 
   const thread = await store.getThread(threadId);
   if (!thread?.metadata?.workspace) return;
@@ -371,11 +369,9 @@ export function fsRoutes(app: Hono<{ Variables: Variables }>) {
 
     // 判断是否显式绑定
     let bound = false;
-    const store = vico.thread;
-    if (store) {
-      const thread = await store.getThread(threadId);
-      bound = !!thread?.metadata?.workspace;
-    }
+    const store = getThreadStore();
+    const thread = await store.getThread(threadId);
+    bound = !!thread?.metadata?.workspace;
 
     return c.json({
       cwd: workspace || null,

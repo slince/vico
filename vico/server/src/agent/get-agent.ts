@@ -7,7 +7,7 @@ import type {AgentConfig, CompactionSettings} from '@vico/core';
 import {memorySchema} from '@vico/boot';
 import type {z} from 'zod';
 import {agentManager} from '../services/agent/agent-manager.js';
-import {vico} from '../vico.js';
+import {createIfAbsent, listSkills} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
 import {getContainer} from '../container.js';
 
@@ -37,7 +37,7 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
   const modelConfig = getContainer().getConfig('model');
 
   // 解析 Agent 绑定的 skills：名字列表 → 全局 Skill 对象（仅启用已绑定的）
-  const allSkills = await vico.listSkills();
+  const allSkills = await listSkills();
   const boundNames = new Set(a.skills ?? []);
   const skills = allSkills.filter((s) => boundNames.has(s.name));
 
@@ -67,11 +67,11 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
 /**
  * 获取或注册 Vico Agent 实例（不存在则创建，全局缓存）。
  *
- * 组合 agentManager.getAgentRuntimeConfig → buildAgentConfig → vico.createIfAbsent，
+ * 组合 agentManager.getAgentRuntimeConfig → buildAgentConfig → createIfAbsent，
  * 方便各层按 agentId 直接拿到可交互的 agent 对象。
  */
 export async function getAgent(agentId: string) {
-  return vico.createIfAbsent(agentId, async (): Promise<AgentConfig> => {
+  return createIfAbsent(agentId, async (): Promise<AgentConfig> => {
     const runtimeConfig = await agentManager.getAgentRuntimeConfig(agentId);
     if (!runtimeConfig) throw new Error('Agent not found');
     return buildAgentConfig(runtimeConfig!);

@@ -1,4 +1,4 @@
-import {vico} from '../../vico.js';
+import {getThreadStore} from '../../vico.js';
 import {agentManager} from '../agent/agent-manager.js';
 import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
 import {type ContentPart, type Message, type ThreadStore, toUiMessages} from "@vico/core";
@@ -20,7 +20,7 @@ const VISIBLE_ROLES = ['user', 'assistant', 'system', 'tool'];
 class ThreadManager {
   /** Vico 容器的共享 ThreadStore */
   private get store(): ThreadStore {
-    return vico.thread!;
+    return getThreadStore();
   }
 
   async list(

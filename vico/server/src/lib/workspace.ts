@@ -7,7 +7,7 @@
  * 3. 空（返回空列表）
  */
 import { getAgent } from '../agent/get-agent.js';
-import { vico } from '../vico.js';
+import { getThreadStore } from '../vico.js';
 
 /**
  * 获取线程当前的工作目录。
@@ -16,8 +16,7 @@ import { vico } from '../vico.js';
  * 若 agent 也无 workspace 则返回空字符串。
  */
 export async function getThreadWorkspace(threadId: string): Promise<string> {
-  const store = vico.thread;
-  if (!store) return '';
+  const store = getThreadStore();
 
   const thread = await store.getThread(threadId);
   const bound = thread?.metadata?.workspace as string | undefined;

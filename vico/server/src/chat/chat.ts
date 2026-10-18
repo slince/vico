@@ -90,7 +90,7 @@ async function resolveThread(
   return agent.createThread({ userId, title: deriveTitle(message), workspace });
 }
 
-/** 执行 Agent 对话 — 通过 vico.stream，自动处理新对话和暂停恢复 */
+/** 执行 Agent 对话 — 通过 agent.stream，自动处理新对话和暂停恢复 */
 export async function executeAgentChat(
   params: ExecuteChatParams,
 ): Promise<ExecuteChatResult> {
