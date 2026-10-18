@@ -77,22 +77,23 @@ const serverProvider: ServerServiceProvider = {
  * @returns 完成启动后的 server 容器
  */
 export async function bootstrap(): Promise<ServerContainer> {
-  // ServerTokens 视角：framework 段由 boot 以 VicoTokens 视角注册，两种视角 token 名/类型
-  // 完全一致，这里沿用 boot 内部同款断言，让业务服务（agentManager 等）可在此容器注册
-  const container = await createVicoContainer<ServerConfigKeys>({ configPath: CONFIG_PATH }) as unknown as ServerContainer;
+  // framework 领域 provider 由 createVicoContainer 注册；setup 在 load/冻结前注入连接与业务 provider
+  const container = await createVicoContainer<ServerConfigKeys>({
+    configPath: CONFIG_PATH,
+    setup: async (c) => {
+      // ServerTokens 视角：注入 libsql 连接（token 名与 storage.db_service / client_service 对齐）
+      const sc = c as unknown as ServerContainer;
+      sc.register('db', () => getDb());
+      sc.register('client', () => getClient());
+      for (const provider of [serverProvider, servicesProvider] as ServerServiceProvider[]) {
+        await sc.registerProvider(provider);
+      }
+    },
+  }) as unknown as ServerContainer;
 
-  // 提前记录容器，让 boot 阶段的 getDb()/getConfig('database') 可用
+  // 记录容器，让 boot 阶段的 getDb()/getConfig('database') 可用
   setContainer(container);
 
-  // 注入 libsql 连接（token 名与 storage.db_service / client_service 对齐）
-  container.register('db', () => getDb());
-  container.register('client', () => getClient());
-
-  // framework 领域 provider 已由 createVicoContainer 注册，这里只注册应用层 provider
-  const providers: ServerServiceProvider[] = [serverProvider, servicesProvider];
-  for (const provider of providers) {
-    await container.registerProvider(provider);
-  }
   await container.boot();
   return container;
 }

@@ -129,4 +129,22 @@ describe('ServiceProvider / registerProvider + boot', () => {
       expect(windowSize).toBe(11);
     });
   });
+
+  it('freeze 后禁止再注册 service 或 provider', () => {
+    const container = createContainer<undefined, Tokens>();
+    container.freeze();
+
+    expect(container.isFrozen).toBe(true);
+    expect(() => container.register('a', () => 'A')).toThrow(/frozen/);
+    expect(() => container.registerConfig('memory', memorySchema)).toThrow(/frozen/);
+  });
+
+  it('resolve 后自动冻结，禁止再注册', () => {
+    const container = createContainer<undefined, Tokens>();
+    container.register('a', () => 'A');
+    expect(container.resolve('a')).toBe('A');
+
+    expect(container.isFrozen).toBe(true);
+    expect(() => container.register('b', () => 'B')).toThrow(/frozen/);
+  });
 });

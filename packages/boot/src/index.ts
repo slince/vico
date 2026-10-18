@@ -1,6 +1,6 @@
 // @vico/boot - Vico Agent Framework 启动层（配置定义 + 领域 provider + bootstrap 入口）
 
-export { createVicoContainer, bootstrapVico, vicoProviders } from './bootstrap.js';
+export { createVicoContainer, vicoProviders } from './bootstrap.js';
 
 export { skillsProvider } from './providers/skills-provider.js';
 export { memoryProvider } from './providers/memory-provider.js';

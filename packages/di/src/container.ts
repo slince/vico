@@ -106,6 +106,8 @@ export class Container<
   private readonly raw = new Map<string, RawConfig>();
   /** 已按 register 顺序登记的 providers，`boot()` 时依序触发其 boot 钩子 */
   private readonly providers: ServiceProvider<TConfig, TTokens, TConfigKeys>[] = [];
+  /** 是否已冻结：冻结后禁止 register / registerConfig / registerProvider（load 或首次 resolve 后触发） */
+  private frozen = false;
 
   constructor(private readonly config: TConfig) {}
 
@@ -121,6 +123,7 @@ export class Container<
     factory: Factory<TTokens[K], TConfig, TTokens, TConfigKeys>,
     options?: RegisterOptions,
   ): this {
+    this.assertNotFrozen(`register "${String(token)}"`);
     if (this.registrations.has(token)) {
       throw new Error(`[di] Duplicate registration: ${String(token)}`);
     }
@@ -153,6 +156,7 @@ export class Container<
     key: K,
     schema: TConfigKeys[K] & z.ZodType,
   ): this {
+    this.assertNotFrozen(`register config "${String(key)}"`);
     if (this.configs.has(key)) {
       throw new Error(`[di] Duplicate config registration: ${String(key)}`);
     }
@@ -216,6 +220,7 @@ export class Container<
    * @param provider 要注册的 provider（只执行 register 阶段，不触发 boot）
    */
   async registerProvider(provider: ServiceProvider<TConfig, TTokens, TConfigKeys>): Promise<void> {
+    this.assertNotFrozen('register a service provider');
     await provider.register(this);
     this.providers.push(provider);
   }
@@ -235,6 +240,29 @@ export class Container<
   }
 
   /**
+   * 冻结容器：禁止后续 register / registerValue / registerConfig / registerProvider。
+   *
+   * 装配完成后（配置加载完毕，或开始解析依赖）应冻结，阻止运行时再注入依赖，
+   * 保证依赖图在启动期定型。resolve / resolveAsync 首次调用时会自动冻结。
+   */
+  freeze(): this {
+    this.frozen = true;
+    return this;
+  }
+
+  /** 容器是否已冻结 */
+  get isFrozen(): boolean {
+    return this.frozen;
+  }
+
+  /** 冻结状态下拒绝任何注册动作 */
+  private assertNotFrozen(action: string): void {
+    if (this.frozen) {
+      throw new Error(`[di] Container is frozen: cannot ${action}`);
+    }
+  }
+
+  /**
    * 同步解析依赖。
    *
    * - singleton：首次解析后缓存实例，后续直接返回缓存；
@@ -244,6 +272,7 @@ export class Container<
    * @throws 未注册的 token、循环依赖、异步工厂被同步解析
    */
   resolve<K extends keyof TTokens & string>(token: K): TTokens[K] {
+    this.freeze();
     const reg = this.getRegistration(token);
     if (reg.scope === 'singleton' && reg.resolved) {
       return reg.instance as TTokens[K];
@@ -274,6 +303,7 @@ export class Container<
    * @throws 未注册的 token、循环依赖
    */
   async resolveAsync<K extends keyof TTokens & string>(token: K): Promise<TTokens[K]> {
+    this.freeze();
     const reg = this.getRegistration(token);
     if (reg.scope === 'singleton') {
       if (reg.resolved) return reg.instance as TTokens[K];

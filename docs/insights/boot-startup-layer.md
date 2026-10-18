@@ -45,10 +45,13 @@ packages/boot/src/
 
 - 各领域 provider 在 `register` 阶段声明本领域配置段 schema（skills→`skills`，memory→`memory`/`rag`/`storage`，
   agent→`agent`）；无对应服务的 `model`/`tool`/`workspace`/`checkpoint` 由 `configProvider` 集中声明。
-- `createVicoContainer` 只「逐个 `registerProvider`（声明 schema）→ `load` 默认/用户配置」，不再集中 `registerConfig`；因此其签名变为 async。
+- `createVicoContainer` 装配顺序：逐个 `registerProvider`（声明 schema + 绑定服务）→ `setup` 回调（使用方注入连接 /
+  注册应用层 provider）→ `load` 默认/用户配置 → `freeze`；因此其签名变为 async，且返回后容器已冻结。
+- `@vico/di` 容器支持 `freeze()`：`resolve`/`resolveAsync` 首次调用自动冻结，冻结后禁止
+  `register`/`registerValue`/`registerConfig`/`registerProvider`（抛 `Container is frozen`），保证依赖图在启动期定型。
 - 默认值**只写在 `default.config.yaml`**，schema 的 `.default()` 仅兜底段内字段缺失，避免双写。
 - 加载顺序：内置默认 → 用户 `configPath`（复用 `@vico/di` 的「后加载同名段整段覆盖先加载」语义）。
-- 使用方扩展应用层配置：继续在容器上 `registerConfig('server', serverSchema)` 并 `load`，与 framework 段共存。
+- 使用方扩展应用层配置：在 `setup` 回调内 `registerConfig`/`register`（须在 load/freeze 前完成），与 framework 段共存。
 
 ### 依赖装配（VicoTokens 真实类型）
 

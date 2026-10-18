@@ -12,7 +12,7 @@ import { ChromaVectorStore } from '@vico/rag-chroma';
 import { LibSQLVectorStore } from '@vico/rag-libsql';
 import { InMemoryThreadStore } from '@vico/thread';
 import { LibSqlThreadStore } from '@vico/thread-libsql';
-import { bootstrapVico, createVicoContainer, vicoProviders } from './bootstrap.js';
+import { createVicoContainer, vicoProviders } from './bootstrap.js';
 import { InMemoryVectorStore } from './lib/in-memory-vector-store.js';
 import type { VicoServiceProvider } from './tokens.js';
 
@@ -73,18 +73,22 @@ describe('bootstrap 两阶段时序', () => {
         events.push(`${name}:boot`);
       },
     });
-    const c = await createVicoContainer();
-    for (const provider of [mk('a'), mk('b'), mk('c')]) {
-      await c.registerProvider(provider);
-    }
+    const c = await createVicoContainer({
+      setup: async (container) => {
+        for (const provider of [mk('a'), mk('b'), mk('c')]) {
+          await container.registerProvider(provider);
+        }
+      },
+    });
     await c.boot();
     expect(events).toEqual(['a:register', 'b:register', 'c:register', 'a:boot', 'b:boot', 'c:boot']);
   });
 });
 
 describe('providers 真实装配', () => {
-  it('bootstrapVico 后可 resolve 出 framework 核心依赖', async () => {
-    const c = await bootstrapVico();
+  it('createVicoContainer + boot 后可 resolve 出 framework 核心依赖', async () => {
+    const c = await createVicoContainer();
+    await c.boot();
     expect(c.resolve('thread')).toBeInstanceOf(InMemoryThreadStore);
     expect(c.resolve('checkpointStore')).toBeInstanceOf(MemoryCheckpointStore);
     expect(c.resolve('vectorStore')).toBeInstanceOf(InMemoryVectorStore);
@@ -94,21 +98,24 @@ describe('providers 真实装配', () => {
   });
 
   it('skills 异步扫描（默认空路径 → 空列表）', async () => {
-    const c = await bootstrapVico();
+    const c = await createVicoContainer();
+    await c.boot();
     const skills = await c.resolveAsync('skills');
     expect(skills).toEqual([]);
   });
 
   it('embedder 配置为 none 时禁用 episodic', async () => {
     const file = writeTempConfig('rag:\n  embedder: none\n');
-    const c = await bootstrapVico({ configPath: file });
+    const c = await createVicoContainer({ configPath: file });
+    await c.boot();
     expect(c.resolve('embedder')).toBeUndefined();
     expect(c.resolve('memory').episodic).toBeUndefined();
     rmSync(join(file, '..'), { recursive: true, force: true });
   });
 
   it('默认 embedder 启用 episodic', async () => {
-    const c = await bootstrapVico();
+    const c = await createVicoContainer();
+    await c.boot();
     expect(c.resolve('embedder')).toBeTruthy();
     expect(c.resolve('memory').episodic).toBeTruthy();
   });
@@ -117,11 +124,14 @@ describe('providers 真实装配', () => {
     const file = writeTempConfig(
       'storage:\n  thread: libsql\n  checkpoint: mysql\n  vector: chroma\n',
     );
-    const c = await createVicoContainer({ configPath: file });
-
-    // 持久化后端所需的连接由使用方注入（测试注入占位对象即可，构造阶段不校验）
-    c.register('db', () => ({}));
-    c.register('client', () => ({}));
+    const c = await createVicoContainer({
+      configPath: file,
+      setup: (container) => {
+        // 持久化后端所需的连接由使用方注入（测试注入占位对象即可，构造阶段不校验）
+        container.register('db', () => ({}));
+        container.register('client', () => ({}));
+      },
+    });
 
     await c.boot();
     expect(c.resolve('thread')).toBeInstanceOf(LibSqlThreadStore);
@@ -133,9 +143,12 @@ describe('providers 真实装配', () => {
 
   it('storage 配置为 libsql 向量后端时选择 LibSQLVectorStore', async () => {
     const file = writeTempConfig('storage:\n  vector: libsql\n');
-    const c = await createVicoContainer({ configPath: file });
-
-    c.register('client', () => ({}));
+    const c = await createVicoContainer({
+      configPath: file,
+      setup: (container) => {
+        container.register('client', () => ({}));
+      },
+    });
 
     await c.boot();
     expect(c.resolve('vectorStore')).toBeInstanceOf(LibSQLVectorStore);
@@ -145,10 +158,13 @@ describe('providers 真实装配', () => {
 
   it('storage 的 db_service 驱动连接 token 名（未注册对应 token 时按配置名报错）', async () => {
     const file = writeTempConfig('storage:\n  thread: libsql\n  db_service: mydb\n');
-    const c = await createVicoContainer({ configPath: file });
-
-    // 注册默认 'db'，但配置指向 'mydb'：provider 应去 resolve 'mydb' 而非硬编码 'db'
-    c.register('db', () => ({}));
+    const c = await createVicoContainer({
+      configPath: file,
+      setup: (container) => {
+        // 注册默认 'db'，但配置指向 'mydb'：provider 应去 resolve 'mydb' 而非硬编码 'db'
+        container.register('db', () => ({}));
+      },
+    });
 
     await c.boot();
     expect(() => c.resolve('thread')).toThrow(/Dependency not registered: mydb/);
