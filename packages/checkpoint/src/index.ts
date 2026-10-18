@@ -12,3 +12,4 @@ export {
   type CheckpointStore,
 } from './checkpoint.js';
 export { MemoryCheckpointStore } from './memory-checkpoint-store.js';
+export { CheckpointPurge } from './checkpoint-purge.js';

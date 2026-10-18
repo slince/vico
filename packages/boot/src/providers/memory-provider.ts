@@ -1,6 +1,6 @@
 // @vico/boot - 记忆领域 provider（线程 / 检查点 / 嵌入器 / 向量存储 / 三层记忆）
 
-import { MemoryCheckpointStore } from '@vico/checkpoint';
+import { CheckpointPurge, MemoryCheckpointStore } from '@vico/checkpoint';
 import { LibSqlCheckpointStore } from '@vico/checkpoint-libsql';
 import { MysqlCheckpointStore } from '@vico/checkpoint-mysql';
 import { ConversationHistoryMemory, MemoryStore, VectorEpisodicRecall } from '@vico/memory';
@@ -11,7 +11,7 @@ import { LibSQLVectorStore, type LibSQLVectorStoreOptions } from '@vico/rag-libs
 import { InMemoryThreadStore } from '@vico/thread';
 import { LibSqlThreadStore, type LibSqlThreadStoreOptions } from '@vico/thread-libsql';
 import { MysqlThreadStore, type MysqlThreadStoreOptions } from '@vico/thread-mysql';
-import { memorySchema, ragSchema, storageSchema } from '../config/schemas/index.js';
+import { checkpointSchema, memorySchema, ragSchema, storageSchema } from '../config/schemas/index.js';
 import type { VicoServiceProvider, VicoTokens } from '../tokens.js';
 
 /**
@@ -28,7 +28,8 @@ export const memoryProvider: VicoServiceProvider = {
     c
       .registerConfig('memory', memorySchema)
       .registerConfig('rag', ragSchema)
-      .registerConfig('storage', storageSchema);
+      .registerConfig('storage', storageSchema)
+      .registerConfig('checkpoint', checkpointSchema);
 
     c.register('thread', ({ resolve, getConfig }) => {
       const { thread: backend, db_service } = getConfig('storage');
@@ -67,6 +68,12 @@ export const memoryProvider: VicoServiceProvider = {
           return new MemoryCheckpointStore();
       }
     });
+
+    c.register('checkpointPurge', ({ resolve, getConfig }) =>
+      new CheckpointPurge(
+        resolve('checkpointStore'),
+        getConfig('checkpoint').ttl_days * 24 * 60 * 60 * 1000,
+      ));
 
     c.register('vectorStore', ({ resolve, getConfig }) => {
       const { vector: backend, client_service } = getConfig('storage');

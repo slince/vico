@@ -2,7 +2,7 @@
 
 import type { Container, ServiceProvider } from '@vico/di';
 import type { AgentRuntime } from '@vico/agent';
-import type { CheckpointStore } from '@vico/checkpoint';
+import type { CheckpointPurge, CheckpointStore } from '@vico/checkpoint';
 import type { EventRecorder } from '@vico/events';
 import type { MemoryStore } from '@vico/memory';
 import type { Embedder, VectorStore } from '@vico/rag';
@@ -24,6 +24,8 @@ export interface VicoTokens {
   thread: ThreadStore;
   /** checkpoint 存储 */
   checkpointStore: CheckpointStore;
+  /** checkpoint 版本链 TTL 清理器（后台定时清理） */
+  checkpointPurge: CheckpointPurge;
   /** 嵌入器（配置为 "none" 时禁用，值为 undefined） */
   embedder: Embedder | undefined;
   /** 向量存储 */

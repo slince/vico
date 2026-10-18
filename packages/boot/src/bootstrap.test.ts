@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AgentRuntime } from '@vico/agent';
-import { MemoryCheckpointStore } from '@vico/checkpoint';
+import { CheckpointPurge, MemoryCheckpointStore } from '@vico/checkpoint';
 import { MysqlCheckpointStore } from '@vico/checkpoint-mysql';
 import { MemoryStore } from '@vico/memory';
 import { InMemoryVectorStore } from '@vico/rag';
@@ -91,6 +91,7 @@ describe('providers 真实装配', () => {
     await c.boot();
     expect(c.resolve('thread')).toBeInstanceOf(InMemoryThreadStore);
     expect(c.resolve('checkpointStore')).toBeInstanceOf(MemoryCheckpointStore);
+    expect(c.resolve('checkpointPurge')).toBeInstanceOf(CheckpointPurge);
     expect(c.resolve('vectorStore')).toBeInstanceOf(InMemoryVectorStore);
     expect(c.resolve('memory')).toBeInstanceOf(MemoryStore);
     expect(c.resolve('agentRuntime')).toBeInstanceOf(AgentRuntime);

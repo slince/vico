@@ -13,7 +13,6 @@ import { KnowledgeManager } from '../services/knowledge/knowledge-manager.js';
 import { StorageManager } from '../services/knowledge/storage-manager.js';
 import { DocumentManager } from '../services/knowledge/document-manager.js';
 import { RAGManager } from '../memory/rag.js';
-import { CheckpointPurge } from '../lib/checkpoint-purge.js';
 import { TerminalManager } from '../lib/terminal-manager.js';
 import { weatherTool } from '../agent/tools/weather-tool.js';
 import { meta, providers } from '../llm/providers/index.js';
@@ -39,12 +38,6 @@ export const servicesProvider: ServerServiceProvider = {
         resolve('vectorStore'),
         resolve('embedder'),
         getConfig('rag'),
-      ));
-
-    c.register('checkpointPurge', ({ resolve, getConfig }) =>
-      new CheckpointPurge(
-        resolve('checkpointStore'),
-        getConfig('checkpoint').ttl_days * 24 * 60 * 60 * 1000,
       ));
 
     c.register('agentManager', ({ resolve, getConfig }) =>

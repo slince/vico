@@ -1,5 +1,6 @@
-import type { CheckpointStore } from '@vico/checkpoint';
-import logger from './logger.js';
+// @vico/checkpoint - Checkpoint 版本链 TTL 清理器（后台定时清理）
+
+import type { CheckpointStore } from './checkpoint.js';
 
 /** 清理周期：1 小时 */
 const PURGE_INTERVAL_MS = 60 * 60 * 1000;
@@ -44,10 +45,10 @@ export class CheckpointPurge {
     try {
       const purged = await this.store.purgeExpired(this.ttlMs);
       if (purged.length > 0) {
-        logger.info({ turns: purged }, 'purged expired checkpoint chains');
+        console.info(`[checkpoint] purged ${purged.length} expired checkpoint chain(s)`);
       }
     } catch (err) {
-      logger.error({ err }, 'purgeExpired failed');
+      console.error('[checkpoint] purgeExpired failed', err);
     }
   }
 }
