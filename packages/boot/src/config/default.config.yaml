@@ -42,3 +42,10 @@ workspace:
 
 checkpoint:
   ttl_days: 30
+
+storage:
+  thread: memory
+  checkpoint: memory
+  vector: memory
+  db_service: db
+  client_service: client

@@ -34,6 +34,10 @@ export interface VicoTokens {
   skills: Skill[];
   /** Agent 运行时（LRU 缓存） */
   agentRuntime: AgentRuntime;
+  /** 持久化后端数据库连接（libsql/mysql 的 drizzle db），由使用方注入；memory 后端无需。token 名可由 storage.db_service 覆盖 */
+  db: unknown;
+  /** 向量存储客户端（libsql 的 Client 或 chroma 的 ChromaClient），由使用方注入；memory 后端无需。token 名可由 storage.client_service 覆盖 */
+  client: unknown;
 }
 
 /** Vico 容器类型：构造时不注入 config，配置全部走 registerConfig/load */

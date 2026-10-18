@@ -9,6 +9,7 @@ import {
   modelSchema,
   ragSchema,
   skillsSchema,
+  storageSchema,
   toolSchema,
   workspaceSchema,
 } from './config/schemas/index.js';
@@ -29,7 +30,7 @@ const DEFAULT_CONFIG_FILE = fileURLToPath(
  * 加载顺序沿用 `@vico/di` 的「后加载覆盖先加载」语义：内置默认配置先加载，
  * 用户 `configPath`（可选）后加载，同名段整段覆盖、段内字段由 schema `.default()` 兜底。
  *
- * 只注册 framework 自身配置段（agent/skills/memory/model/rag/tool/workspace/checkpoint）；
+ * 只注册 framework 自身配置段（agent/skills/memory/model/rag/tool/workspace/checkpoint/storage）；
  * 应用层专属配置由使用方通过 `registerConfig` 扩展。
  *
  * @param options 可选启动选项；`configPath` 为用户自定义配置文件路径
@@ -47,7 +48,8 @@ export function createVicoContainer(options?: { configPath?: string }): VicoCont
     .registerConfig('rag', ragSchema)
     .registerConfig('tool', toolSchema)
     .registerConfig('workspace', workspaceSchema)
-    .registerConfig('checkpoint', checkpointSchema);
+    .registerConfig('checkpoint', checkpointSchema)
+    .registerConfig('storage', storageSchema);
 
   // 内置默认 → 用户覆盖（后加载覆盖先加载）
   container.load(DEFAULT_CONFIG_FILE);

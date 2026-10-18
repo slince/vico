@@ -12,6 +12,7 @@ import type { VicoServiceProvider } from '../tokens.js';
 export const agentProvider: VicoServiceProvider = {
   register(c) {
     c.register('events', () => new MittEventRecorder<TurnEvent>());
+
     c.register('agentRuntime', ({ getConfig }) => new AgentRuntime(getConfig('agent').max_cached));
   },
 };

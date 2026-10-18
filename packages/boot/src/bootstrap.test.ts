@@ -6,8 +6,12 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AgentRuntime } from '@vico/agent';
 import { MemoryCheckpointStore } from '@vico/checkpoint';
+import { MysqlCheckpointStore } from '@vico/checkpoint-mysql';
 import { MemoryStore } from '@vico/memory';
+import { ChromaVectorStore } from '@vico/rag-chroma';
+import { LibSQLVectorStore } from '@vico/rag-libsql';
 import { InMemoryThreadStore } from '@vico/thread';
+import { LibSqlThreadStore } from '@vico/thread-libsql';
 import { bootstrapVico, createVicoContainer, vicoProviders } from './bootstrap.js';
 import { InMemoryVectorStore } from './lib/in-memory-vector-store.js';
 import type { VicoServiceProvider } from './tokens.js';
@@ -29,6 +33,11 @@ describe('createVicoContainer', () => {
     expect(c.getConfig('memory').stm_window).toBe(20);
     expect(c.getConfig('tool').timeout_ms).toBe(30000);
     expect(c.getConfig('checkpoint').ttl_days).toBe(30);
+    expect(c.getConfig('storage').thread).toBe('memory');
+    expect(c.getConfig('storage').checkpoint).toBe('memory');
+    expect(c.getConfig('storage').vector).toBe('memory');
+    expect(c.getConfig('storage').db_service).toBe('db');
+    expect(c.getConfig('storage').client_service).toBe('client');
   });
 
   it('用户配置整段覆盖默认配置', () => {
@@ -99,6 +108,49 @@ describe('providers 真实装配', () => {
     const c = await bootstrapVico();
     expect(c.resolve('embedder')).toBeTruthy();
     expect(c.resolve('memory').episodic).toBeTruthy();
+  });
+
+  it('storage 配置驱动后端选择（libsql / mysql / chroma）', async () => {
+    const file = writeTempConfig(
+      'storage:\n  thread: libsql\n  checkpoint: mysql\n  vector: chroma\n',
+    );
+    const c = createVicoContainer({ configPath: file });
+
+    // 持久化后端所需的连接由使用方注入（测试注入占位对象即可，构造阶段不校验）
+    c.register('db', () => ({}));
+    c.register('client', () => ({}));
+
+    await c.bootstrap(vicoProviders);
+    expect(c.resolve('thread')).toBeInstanceOf(LibSqlThreadStore);
+    expect(c.resolve('checkpointStore')).toBeInstanceOf(MysqlCheckpointStore);
+    expect(c.resolve('vectorStore')).toBeInstanceOf(ChromaVectorStore);
+
+    rmSync(join(file, '..'), { recursive: true, force: true });
+  });
+
+  it('storage 配置为 libsql 向量后端时选择 LibSQLVectorStore', async () => {
+    const file = writeTempConfig('storage:\n  vector: libsql\n');
+    const c = createVicoContainer({ configPath: file });
+
+    c.register('client', () => ({}));
+
+    await c.bootstrap(vicoProviders);
+    expect(c.resolve('vectorStore')).toBeInstanceOf(LibSQLVectorStore);
+
+    rmSync(join(file, '..'), { recursive: true, force: true });
+  });
+
+  it('storage 的 db_service 驱动连接 token 名（未注册对应 token 时按配置名报错）', async () => {
+    const file = writeTempConfig('storage:\n  thread: libsql\n  db_service: mydb\n');
+    const c = createVicoContainer({ configPath: file });
+
+    // 注册默认 'db'，但配置指向 'mydb'：provider 应去 resolve 'mydb' 而非硬编码 'db'
+    c.register('db', () => ({}));
+
+    await c.bootstrap(vicoProviders);
+    expect(() => c.resolve('thread')).toThrow(/Dependency not registered: mydb/);
+
+    rmSync(join(file, '..'), { recursive: true, force: true });
   });
 });
 

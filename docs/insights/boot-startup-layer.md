@@ -17,7 +17,7 @@
 ```
 packages/boot/src/
 ├── config/
-│   ├── schemas/           # 8 个配置段 zod schema（按领域拆分，index.ts 聚合导出）
+│   ├── schemas/           # 9 个配置段 zod schema（按领域拆分，index.ts 聚合导出）
 │   ├── default.config.yaml  # 内置默认配置（默认值唯一来源）
 │   ├── keys.ts            # VicoConfigKeys（段名 → schema 类型）
 │   └── types.ts           # VicoConfig（各段 z.infer 合并）
@@ -34,11 +34,13 @@ packages/boot/src/
 
 ## 关键设计
 
-### 配置约定（8 个 framework 段）
+### 配置约定（9 个 framework 段）
 
 `agent`（max_cached）/ `skills`（scan_paths）/ `memory`（stm_window、ltm_*、compaction）/
 `model`（context_window）/ `rag`（chunk_*、retrieval_top_k、embedder）/ `tool`（timeout_ms）/
-`workspace`（base_path、contained、allowed_paths、timeout_ms、isolation）/ `checkpoint`（ttl_days）。
+`workspace`（base_path、contained、allowed_paths、timeout_ms、isolation）/ `checkpoint`（ttl_days）/
+`storage`（thread/checkpoint 的 `memory`|`libsql`|`mysql`，vector 的 `memory`|`libsql`|`chroma`，
+以及连接 token 名 `db_service`/`client_service`，默认 `db`/`client`）。
 
 - 默认值**只写在 `default.config.yaml`**，schema 的 `.default()` 仅兜底段内字段缺失，避免双写。
 - 加载顺序：内置默认 → 用户 `configPath`（复用 `@vico/di` 的「后加载同名段整段覆盖先加载」语义）。
@@ -53,12 +55,16 @@ events: EventRecorder<TurnEvent>   thread: ThreadStore
 checkpointStore: CheckpointStore   embedder: Embedder | undefined
 vectorStore: VectorStore           memory: MemoryStore
 skills: Skill[]                    agentRuntime: AgentRuntime
+db: unknown（使用方注入）            client: unknown（使用方注入）
 ```
 
 默认装配（`bootstrapVico` 后可直接 resolve）：
 
-- `thread` / `checkpointStore` / `vectorStore`：内存实现（`InMemoryThreadStore` /
-  `MemoryCheckpointStore` / boot 自带的 `InMemoryVectorStore`），使用方可覆盖为持久化适配器。
+- `thread` / `checkpointStore` / `vectorStore`：后端由 `storage` 配置段驱动
+  （thread/checkpoint 支持 `memory`/`libsql`/`mysql`，vector 支持 `memory`/`libsql`/`chroma`），
+  默认均为 `memory`（`InMemoryThreadStore` / `MemoryCheckpointStore` / boot 自带的
+  `InMemoryVectorStore`）。持久化后端的连接由使用方注入，其 token 名（service id）由
+  `storage.db_service` / `storage.client_service` 指定（默认 `db`/`client`），boot 不建连接。
 - `embedder`：由 `rag.embedder` 配置驱动，`"none"` 禁用（undefined），episodic 随之停用。
 - `memory`：`conversation`（短时窗口）+ `episodic`（embedder 可用时启用）。
 - `skills`：异步工厂（`createFSSkillLoader`），需 `resolveAsync`。
@@ -89,5 +95,5 @@ skills → thread/checkpointStore/vectorStore → embedder → memory
 ## 验证
 
 - `pnpm --filter @vico/boot typecheck` 通过
-- `pnpm --filter @vico/boot test` 通过（默认配置加载、用户覆盖、段内字段兜底、两阶段时序、真实装配 9 个用例）
+- `pnpm --filter @vico/boot test` 通过（默认配置加载、用户覆盖、段内字段兜底、两阶段时序、真实装配、存储后端选择、service id 配置 12 个用例）
 - `vico/server` `tsc --noEmit` 通过（`@deprecated` 不破坏现有 `vico.ts` 用法）

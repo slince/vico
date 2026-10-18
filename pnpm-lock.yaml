@@ -270,6 +270,12 @@ importers:
       '@vico/checkpoint':
         specifier: workspace:*
         version: link:../checkpoint
+      '@vico/checkpoint-libsql':
+        specifier: workspace:*
+        version: link:../checkpoint-libsql
+      '@vico/checkpoint-mysql':
+        specifier: workspace:*
+        version: link:../checkpoint-mysql
       '@vico/di':
         specifier: workspace:*
         version: link:../di
@@ -282,6 +288,12 @@ importers:
       '@vico/rag':
         specifier: workspace:*
         version: link:../rag
+      '@vico/rag-chroma':
+        specifier: workspace:*
+        version: link:../rag-chroma
+      '@vico/rag-libsql':
+        specifier: workspace:*
+        version: link:../rag-libsql
       '@vico/skill':
         specifier: workspace:*
         version: link:../skill
@@ -291,6 +303,12 @@ importers:
       '@vico/thread':
         specifier: workspace:*
         version: link:../thread
+      '@vico/thread-libsql':
+        specifier: workspace:*
+        version: link:../thread-libsql
+      '@vico/thread-mysql':
+        specifier: workspace:*
+        version: link:../thread-mysql
       yaml:
         specifier: ^2.6.0
         version: 2.9.1

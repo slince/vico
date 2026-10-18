@@ -16,6 +16,7 @@ export {
   toolSchema,
   workspaceSchema,
   checkpointSchema,
+  storageSchema,
 } from './config/schemas/index.js';
 
 export { InMemoryVectorStore } from './lib/in-memory-vector-store.js';
