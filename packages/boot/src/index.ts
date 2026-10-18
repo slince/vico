@@ -2,12 +2,14 @@
 
 export { createVicoContainer, vicoProviders } from './bootstrap.js';
 
+export { loggerProvider } from './providers/logger-provider.js';
 export { skillsProvider } from './providers/skills-provider.js';
 export { memoryProvider } from './providers/memory-provider.js';
 export { agentProvider } from './providers/agent-provider.js';
 
 export {
   agentSchema,
+  loggerSchema,
   skillsSchema,
   memoryCompactionSchema,
   memorySchema,

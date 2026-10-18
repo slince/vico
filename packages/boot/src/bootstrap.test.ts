@@ -28,6 +28,7 @@ describe('createVicoContainer', () => {
   it('加载内置默认配置', async () => {
     const c = await createVicoContainer();
     expect(c.getConfig('agent').max_cached).toBe(50);
+    expect(c.getConfig('logger').level).toBe('info');
     expect(c.getConfig('skills').scan_paths).toEqual([]);
     expect(c.getConfig('rag').embedder).toBe('openai/text-embedding-3-small');
     expect(c.getConfig('memory').stm_window).toBe(20);
@@ -92,6 +93,7 @@ describe('providers 真实装配', () => {
     expect(c.resolve('thread')).toBeInstanceOf(InMemoryThreadStore);
     expect(c.resolve('checkpointStore')).toBeInstanceOf(MemoryCheckpointStore);
     expect(c.resolve('checkpointPurge')).toBeInstanceOf(CheckpointPurge);
+    expect(c.resolve('logger')).toBeTruthy();
     expect(c.resolve('vectorStore')).toBeInstanceOf(InMemoryVectorStore);
     expect(c.resolve('memory')).toBeInstanceOf(MemoryStore);
     expect(c.resolve('agentRuntime')).toBeInstanceOf(AgentRuntime);
@@ -176,6 +178,6 @@ describe('providers 真实装配', () => {
 
 describe('vicoProviders', () => {
   it('按声明顺序导出领域 provider', () => {
-    expect(vicoProviders).toHaveLength(4);
+    expect(vicoProviders).toHaveLength(5);
   });
 });

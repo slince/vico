@@ -296,6 +296,12 @@ importers:
       '@vico/thread-mysql':
         specifier: workspace:*
         version: link:../thread-mysql
+      pino:
+        specifier: ^10.4.0
+        version: 10.4.0
+      pino-pretty:
+        specifier: ^13.1.3
+        version: 13.2.0
       yaml:
         specifier: ^2.6.0
         version: 2.9.1

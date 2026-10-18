@@ -3,6 +3,7 @@
 import type {
   agentSchema,
   checkpointSchema,
+  loggerSchema,
   memorySchema,
   modelSchema,
   ragSchema,
@@ -21,6 +22,7 @@ import type {
  */
 export interface VicoConfigKeys {
   agent: typeof agentSchema;
+  logger: typeof loggerSchema;
   skills: typeof skillsSchema;
   memory: typeof memorySchema;
   model: typeof modelSchema;

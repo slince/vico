@@ -9,6 +9,7 @@ import type { Embedder, VectorStore } from '@vico/rag';
 import type { Skill } from '@vico/skill';
 import type { TurnEvent } from '@vico/stream';
 import type { ThreadStore } from '@vico/thread';
+import type { Logger } from 'pino';
 import type { VicoConfigKeys } from './config/keys.js';
 
 /**
@@ -18,6 +19,8 @@ import type { VicoConfigKeys } from './config/keys.js';
  * HTTP 服务、认证等应用层依赖由使用方自行扩展。
  */
 export interface VicoTokens {
+  /** 结构化日志实例（pino） */
+  logger: Logger;
   /** 事件广播器（turn 级事件） */
   events: EventRecorder<TurnEvent>;
   /** 线程存储 */

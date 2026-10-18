@@ -5,6 +5,7 @@ import type {Container} from '@vico/di';
 import {createContainer} from '@vico/di';
 import type {VicoConfigKeys} from './config/keys.js';
 import type {VicoServiceProvider, VicoTokens} from './tokens.js';
+import {loggerProvider} from './providers/logger-provider.js';
 import {skillsProvider} from './providers/skills-provider.js';
 import {memoryProvider} from './providers/memory-provider.js';
 import {agentProvider} from './providers/agent-provider.js';
@@ -82,10 +83,11 @@ export async function createVicoContainer<
  * Vico Agent Framework 的全部领域 providers，按声明顺序执行 register 再 boot。
  *
  * 依赖拓扑（注册顺序的自然依据）：
- * skills → thread/checkpointStore/vectorStore → embedder → memory
+ * logger → skills → thread/checkpointStore/vectorStore → embedder → memory
  * → events → agentRuntime；`configProvider` 兜底声明纯配置段。
  */
 export const vicoProviders: VicoServiceProvider[] = [
+  loggerProvider,
   skillsProvider,
   memoryProvider,
   agentProvider,
