@@ -111,9 +111,10 @@ agent:
 
 - `vico/server` `npx tsc --noEmit` 通过（`SERVER_EXIT=0`）
 - `pnpm install` 通过（lockfile 已更新）
-- ⚠️ `vico/web` `tsc -b` 有**既有**类型错误：web 未声明 `@types/node`，bundler resolution 追入
-  `packages/tool/src/builtin/**`（node 内建模块）时报 `Cannot find module 'node:*'`/`process`/`Buffer`；
-  另 tool 部分回调在 strict 下隐式 `any`。均与本次移除无关（错误列表无一条 `@vico/core`）。
+- ✅ `vico/web` 构建：web 缺 `@types/node`，`tsc -b` 沿 re-export 链追入
+  `packages/tool/src/builtin/**`（node 内建模块）时报 `Cannot find module 'node:*'`/`process`/`Buffer`
+  及回调参数隐式 `any`（tool 自身 typecheck 因有 `@types/node` 而通过）。在 devDependencies 补
+  `@types/node` 后，`tsc -b` 与 `vite build` 均通过。
 - ⚠️ `examples/quickstart` 本身已过时（旧 `Vico` API）：`skillRoots`/`init()`/`getSkillManager()`/
   `runtime.createAgent()`/`invoke()` 均不存在，`FakeModelClient` 与现行 `ModelClient`（class，`stream`
   返回 `Promise<ModelStreamResult>`）不匹配。本次仅替换 import 源，逻辑需单独重写才能运行。
