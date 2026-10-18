@@ -47,7 +47,8 @@ export function userRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/users', async (c) => {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
-    const rows = await getContainer().resolve('db').select({
+    const db = getContainer().resolve('db');
+    const rows = await db.select({
       id: user.id,
       username: user.username,
       displayUsername: user.displayUsername,

@@ -26,22 +26,24 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/threads', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
+    const threadManager = getContainer().resolve('threadManager');
     const filters = {
       search: c.req.query('search')?.toLowerCase(),
       agent_id: c.req.query('agent_id'),
     };
-    return c.json(await getContainer().resolve('threadManager').list(auth.userId, filters));
+    return c.json(await threadManager.list(auth.userId, filters));
   });
 
   /** GET /api/v1/threads/:id — 线程详情（含消息，支持分页） */
   app.get('/api/v1/threads/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
+    const threadManager = getContainer().resolve('threadManager');
     const rawLimit = c.req.query('limit');
     const rawStart = c.req.query('start');
     const limit = rawLimit ? parseInt(rawLimit, 10) : undefined;
     const start = rawStart ? parseInt(rawStart, 10) : undefined;
-    const thread = await getContainer().resolve('threadManager').getById(auth.userId, c.req.param('id'), { limit, start });
+    const thread = await threadManager.getById(auth.userId, c.req.param('id'), { limit, start });
     if (!thread) return c.json({ error: 'Thread not found' }, 404);
     return c.json(thread);
   });
@@ -50,7 +52,8 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/threads/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const deleted = await getContainer().resolve('threadManager').delete(auth.userId, c.req.param('id'));
+    const threadManager = getContainer().resolve('threadManager');
+    const deleted = await threadManager.delete(auth.userId, c.req.param('id'));
     if (!deleted) return c.json({ error: 'Thread not found' }, 404);
     return c.json({ success: true });
   });
@@ -61,13 +64,14 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const body = await c.req.json();
+    const threadManager = getContainer().resolve('threadManager');
     const title = typeof body.title === 'string' ? (body.title as string) : undefined;
     const archived = typeof body.archived === 'boolean' ? (body.archived as boolean) : undefined;
     if (title === undefined && archived === undefined) {
       return c.json({ error: 'title or archived is required' }, 400);
     }
 
-    const ok = await getContainer().resolve('threadManager').update(auth.userId, c.req.param('id'), { title, archived });
+    const ok = await threadManager.update(auth.userId, c.req.param('id'), { title, archived });
     if (!ok) return c.json({ error: 'Thread not found' }, 404);
     return c.json({ success: true });
   });
@@ -78,7 +82,8 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const threadId = c.req.param('id');
-    const thread = await getContainer().resolve('threadManager').getById(auth.userId, threadId);
+    const threadManager = getContainer().resolve('threadManager');
+    const thread = await threadManager.getById(auth.userId, threadId);
     if (!thread) return c.json({ error: 'Thread not found' }, 404);
 
     const agent = await getAgent(thread.agentId);

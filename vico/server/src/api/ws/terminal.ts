@@ -41,21 +41,23 @@ export function terminalRoutes(
         };
       }
 
+      const terminalManager = getContainer().resolve('terminalManager');
+
       return {
         /** 连接建立：复用会话并回放屏幕，或派生 shell；spawn 失败则关闭 */
         async onOpen(_evt, ws) {
-          const ok = await getContainer().resolve('terminalManager').attach(threadId, terminalId, ws);
+          const ok = await terminalManager.attach(threadId, terminalId, ws);
           if (!ok) ws.close();
         },
 
         /** 接收消息：resize JSON 或原始输入，交给会话管理器处理 */
         onMessage(evt) {
-          getContainer().resolve('terminalManager').handleMessage(threadId, terminalId, String(evt.data));
+          terminalManager.handleMessage(threadId, terminalId, String(evt.data));
         },
 
         /** 连接关闭：仅移除该连接，不终止进程（保活） */
         onClose(_evt, ws) {
-          getContainer().resolve('terminalManager').detach(threadId, terminalId, ws);
+          terminalManager.detach(threadId, terminalId, ws);
         },
       };
     }),

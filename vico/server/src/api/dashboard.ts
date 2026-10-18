@@ -8,6 +8,10 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
+    const agentManager = getContainer().resolve('agentManager');
+    const knowledgeManager = getContainer().resolve('knowledgeManager');
+    const threadManager = getContainer().resolve('threadManager');
+
     const [
       activeAgents,
       totalAgents,
@@ -15,11 +19,11 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
       totalThreads,
       recentThreads,
     ] = await Promise.all([
-      getContainer().resolve('agentManager').countEnabled(),
-      getContainer().resolve('agentManager').count(),
-      getContainer().resolve('knowledgeManager').count(),
-      getContainer().resolve('threadManager').count(auth.userId),
-      getContainer().resolve('threadManager').recent(auth.userId, 5),
+      agentManager.countEnabled(),
+      agentManager.count(),
+      knowledgeManager.count(),
+      threadManager.count(auth.userId),
+      threadManager.recent(auth.userId, 5),
     ]);
 
     return c.json({

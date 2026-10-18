@@ -71,8 +71,9 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
  * 方便各层按 agentId 直接拿到可交互的 agent 对象。
  */
 export async function getAgent(agentId: string) {
+  const agentManager = getContainer().resolve('agentManager');
   return createIfAbsent(agentId, async (): Promise<AgentConfig> => {
-    const runtimeConfig = await getContainer().resolve('agentManager').getAgentRuntimeConfig(agentId);
+    const runtimeConfig = await agentManager.getAgentRuntimeConfig(agentId);
     if (!runtimeConfig) throw new Error('Agent not found');
     return buildAgentConfig(runtimeConfig!);
   });

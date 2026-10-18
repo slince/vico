@@ -91,7 +91,8 @@ export function createApp(): Hono<{ Variables: Variables }> {
       return next();
     }
 
-    const result = await getContainer().resolve('auth').api.getSession({
+    const auth = getContainer().resolve('auth');
+    const result = await auth.api.getSession({
       headers: c.req.raw.headers,
     });
 
@@ -125,7 +126,10 @@ export function createApp(): Hono<{ Variables: Variables }> {
   });
 
   /** 挂载 better-auth 路由处理器 */
-  app.on(['POST', 'GET'], '/api/auth/*', (c) => getContainer().resolve('auth').handler(c.req.raw));
+  app.on(['POST', 'GET'], '/api/auth/*', (c) => {
+    const auth = getContainer().resolve('auth');
+    return auth.handler(c.req.raw);
+  });
 
   /** 注册业务路由 */
   registerRoutes(app);
