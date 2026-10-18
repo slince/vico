@@ -6,7 +6,8 @@
  */
 import { eq, and, desc, count, isNull } from 'drizzle-orm';
 import { v4 as uuid } from 'uuid';
-import { getDb, schema } from '../../db/db.js';
+import { schema } from '../../db/db.js';
+import type { AppDb } from '../../db/db.js';
 
 const { documents } = schema;
 
@@ -45,10 +46,12 @@ export interface PaginatedDocuments {
   page_size: number;
 }
 
-class DocumentManager {
+export class DocumentManager {
+  constructor(private readonly db: AppDb) {}
+
   /** 获取知识库内文档列表（分页 + 可选父级目录过滤） */
   async listByKb(kbId: string, opts?: DocumentListOptions): Promise<PaginatedDocuments> {
-    const db = getDb();
+    const db = this.db;
     const page = Math.max(1, opts?.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, opts?.pageSize ?? 20));
     const offset = (page - 1) * pageSize;
@@ -79,7 +82,7 @@ class DocumentManager {
 
   /** 获取指定目录下的子目录列表 */
   async listFolders(kbId: string, parentId?: string | null): Promise<DocumentRow[]> {
-    const db = getDb();
+    const db = this.db;
     const conditions = [
       eq(documents.kb_id, kbId),
       eq(documents.file_type, 'application/x-directory'),
@@ -94,7 +97,7 @@ class DocumentManager {
 
   /** 获取文件夹的祖先链（从根到当前） */
   async getAncestors(folderId: string): Promise<DocumentRow[]> {
-    const db = getDb();
+    const db = this.db;
     const ancestors: DocumentRow[] = [];
     let currentId: string | null = folderId;
     // 最多查询 20 层防止死循环
@@ -114,7 +117,7 @@ class DocumentManager {
 
   /** 获取单个文档 */
   async getById(docId: string): Promise<DocumentRow | null> {
-    const db = getDb();
+    const db = this.db;
     const row = await db.select().from(documents)
       .where(eq(documents.id, docId))
       .get();
@@ -127,7 +130,7 @@ class DocumentManager {
     fileSize: number; fileHash?: string; source?: string; sourceUrl?: string;
     path?: string; storageKey?: string; parentId?: string | null;
   }): Promise<DocumentRow> {
-    const db = getDb();
+    const db = this.db;
     const id = uuid();
     const now = Date.now();
 
@@ -167,7 +170,7 @@ class DocumentManager {
 
   /** 按 file_hash 查找已存在文档（去重） */
   async findByHash(kbId: string, hash: string): Promise<DocumentRow | null> {
-    const db = getDb();
+    const db = this.db;
     const row = await db.select().from(documents)
       .where(and(
         eq(documents.kb_id, kbId),
@@ -179,7 +182,7 @@ class DocumentManager {
 
   /** 更新文档状态 */
   async updateStatus(id: string, status: string, errorMsg?: string): Promise<void> {
-    const db = getDb();
+    const db = this.db;
     await db.update(documents).set({
       status,
       error_msg: errorMsg ?? null,
@@ -189,7 +192,7 @@ class DocumentManager {
 
   /** 更新文档 chunk_count */
   async updateChunkCount(id: string, delta: number): Promise<void> {
-    const db = getDb();
+    const db = this.db;
     const doc = await db.select().from(documents)
       .where(eq(documents.id, id))
       .get();
@@ -202,7 +205,7 @@ class DocumentManager {
 
   /** 更新文档标签或元数据 */
   async updateMeta(id: string, data: { tags?: string[]; metadata?: Record<string, unknown> }): Promise<void> {
-    const db = getDb();
+    const db = this.db;
     const updates: Record<string, any> = { updated_at: Date.now() };
     if (data.tags) updates.tags = JSON.stringify(data.tags);
     if (data.metadata) updates.metadata = JSON.stringify(data.metadata);
@@ -212,7 +215,7 @@ class DocumentManager {
 
   /** 更新文档 storage_key */
   async updateStorageKey(id: string, storageKey: string): Promise<void> {
-    const db = getDb();
+    const db = this.db;
     await db.update(documents).set({
       storage_key: storageKey,
       updated_at: Date.now(),
@@ -221,7 +224,7 @@ class DocumentManager {
 
   /** 删除文档 */
   async remove(id: string): Promise<void> {
-    const db = getDb();
+    const db = this.db;
     await db.delete(documents)
       .where(eq(documents.id, id))
       .run();
@@ -229,12 +232,10 @@ class DocumentManager {
 
   /** 统计知识库内文档数 */
   async countByKb(kbId: string): Promise<number> {
-    const db = getDb();
+    const db = this.db;
     const [row] = await db.select({ c: count() }).from(documents)
       .where(eq(documents.kb_id, kbId))
       .all();
     return row?.c ?? 0;
   }
 }
-
-export const documentManager = new DocumentManager();

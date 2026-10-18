@@ -7,7 +7,6 @@ import type {AgentConfig} from '@vico/agent';
 import type {CompactionSettings} from '@vico/compaction';
 import {memorySchema} from '@vico/boot';
 import type {z} from 'zod';
-import {agentManager} from '../services/agent/agent-manager.js';
 import {createIfAbsent, listSkills} from '../vico.js';
 import type {AgentRuntimeConfig} from "../services/agent/types";
 import {getContainer} from '../container.js';
@@ -73,7 +72,7 @@ async function buildAgentConfig(runtimeConfig: AgentRuntimeConfig): Promise<Agen
  */
 export async function getAgent(agentId: string) {
   return createIfAbsent(agentId, async (): Promise<AgentConfig> => {
-    const runtimeConfig = await agentManager.getAgentRuntimeConfig(agentId);
+    const runtimeConfig = await getContainer().resolve('agentManager').getAgentRuntimeConfig(agentId);
     if (!runtimeConfig) throw new Error('Agent not found');
     return buildAgentConfig(runtimeConfig!);
   });

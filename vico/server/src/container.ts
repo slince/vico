@@ -1,4 +1,4 @@
-import type { ServerContainer } from './config/schemas.js';
+import type { ServerContainer } from './tokens.js';
 
 let container: ServerContainer | undefined;
 

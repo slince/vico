@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Variables } from '../index.js';
 import {ManualCompactionError, TargetPressureConfigError} from '@vico/compaction';
 import { getAuthContext } from './helpers.js';
-import { threadManager } from '../services/thread/thread-manager.js';
+import { getContainer } from '../container.js';
 import { getAgent } from '../agent/get-agent.js';
 
 export function threadRoutes(app: Hono<{ Variables: Variables }>) {
@@ -30,7 +30,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
       search: c.req.query('search')?.toLowerCase(),
       agent_id: c.req.query('agent_id'),
     };
-    return c.json(await threadManager.list(auth.userId, filters));
+    return c.json(await getContainer().resolve('threadManager').list(auth.userId, filters));
   });
 
   /** GET /api/v1/threads/:id — 线程详情（含消息，支持分页） */
@@ -41,7 +41,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
     const rawStart = c.req.query('start');
     const limit = rawLimit ? parseInt(rawLimit, 10) : undefined;
     const start = rawStart ? parseInt(rawStart, 10) : undefined;
-    const thread = await threadManager.getById(auth.userId, c.req.param('id'), { limit, start });
+    const thread = await getContainer().resolve('threadManager').getById(auth.userId, c.req.param('id'), { limit, start });
     if (!thread) return c.json({ error: 'Thread not found' }, 404);
     return c.json(thread);
   });
@@ -50,7 +50,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/threads/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const deleted = await threadManager.delete(auth.userId, c.req.param('id'));
+    const deleted = await getContainer().resolve('threadManager').delete(auth.userId, c.req.param('id'));
     if (!deleted) return c.json({ error: 'Thread not found' }, 404);
     return c.json({ success: true });
   });
@@ -67,7 +67,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
       return c.json({ error: 'title or archived is required' }, 400);
     }
 
-    const ok = await threadManager.update(auth.userId, c.req.param('id'), { title, archived });
+    const ok = await getContainer().resolve('threadManager').update(auth.userId, c.req.param('id'), { title, archived });
     if (!ok) return c.json({ error: 'Thread not found' }, 404);
     return c.json({ success: true });
   });
@@ -78,7 +78,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const threadId = c.req.param('id');
-    const thread = await threadManager.getById(auth.userId, threadId);
+    const thread = await getContainer().resolve('threadManager').getById(auth.userId, threadId);
     if (!thread) return c.json({ error: 'Thread not found' }, 404);
 
     const agent = await getAgent(thread.agentId);

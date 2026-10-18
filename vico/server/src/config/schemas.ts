@@ -7,8 +7,7 @@
  * `getConfig('upload')` 等在容器上类型可用。
  */
 import { z } from 'zod';
-import type { VicoConfigKeys, VicoTokens } from '@vico/boot';
-import type { Container, ServiceProvider } from '@vico/di';
+import type { VicoConfigKeys } from '@vico/boot';
 
 /** HTTP 服务配置 */
 export const serverSchema = z.object({
@@ -60,8 +59,8 @@ export interface ServerConfigKeys extends VicoConfigKeys {
   upload: typeof uploadSchema;
 }
 
-/** server 容器类型（framework + 应用层配置段） */
-export type ServerContainer = Container<undefined, VicoTokens, ServerConfigKeys>;
+/** 文件持久化存储配置切片（供 StorageManager 构造注入） */
+export type FileStorageConfig = z.infer<typeof fileStorageSchema>;
 
-/** server provider 类型 */
-export type ServerServiceProvider = ServiceProvider<undefined, VicoTokens, ServerConfigKeys>;
+/** 文件上传配置切片（供 KnowledgeManager 构造注入） */
+export type UploadConfig = z.infer<typeof uploadSchema>;

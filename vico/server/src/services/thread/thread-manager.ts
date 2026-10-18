@@ -1,8 +1,7 @@
-import {getThreadStore} from '../../vico.js';
-import {agentManager} from '../agent/agent-manager.js';
 import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
 import {type ContentPart} from '@vico/model';
 import {type Message, type ThreadStore, toUiMessages} from '@vico/thread';
+import type {AgentManager} from '../agent/agent-manager.js';
 
 /**
  * 解析消息 content 为原生 parts 数组，解析失败时按纯文本兜底。
@@ -18,11 +17,11 @@ function parseMessageContent(msg: Message): string | ContentPart[] {
 /** 前台展示的消息角色 */
 const VISIBLE_ROLES = ['user', 'assistant', 'system', 'tool'];
 
-class ThreadManager {
-  /** Vico 容器的共享 ThreadStore */
-  private get store(): ThreadStore {
-    return getThreadStore();
-  }
+export class ThreadManager {
+  constructor(
+    private readonly store: ThreadStore,
+    private readonly agentManager: AgentManager,
+  ) {}
 
   async list(
     userId: string,
@@ -83,7 +82,7 @@ class ThreadManager {
     const items: RecentThread[] = [];
     for (const thread of threads) {
       const agentName = thread.agentId
-        ? await agentManager.getName(thread.agentId)
+        ? await this.agentManager.getName(thread.agentId)
         : undefined;
 
       let lastMessage: string | undefined;
@@ -154,5 +153,3 @@ class ThreadManager {
     }
   }
 }
-
-export const threadManager = new ThreadManager();

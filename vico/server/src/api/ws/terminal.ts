@@ -9,7 +9,7 @@ import { Hono } from 'hono';
 import type { UpgradeWebSocket } from 'hono/ws';
 
 import type { Variables } from '../../index.js';
-import { terminalManager } from '../../lib/terminal-manager.js';
+import { getContainer } from '../../container.js';
 
 /** upgradeWebSocket 助手类型（@hono/node-server 导出，底层为 hono/ws 的 UpgradeWebSocket） */
 type UpgradeWebSocketFn = UpgradeWebSocket;
@@ -44,18 +44,18 @@ export function terminalRoutes(
       return {
         /** 连接建立：复用会话并回放屏幕，或派生 shell；spawn 失败则关闭 */
         async onOpen(_evt, ws) {
-          const ok = await terminalManager.attach(threadId, terminalId, ws);
+          const ok = await getContainer().resolve('terminalManager').attach(threadId, terminalId, ws);
           if (!ok) ws.close();
         },
 
         /** 接收消息：resize JSON 或原始输入，交给会话管理器处理 */
         onMessage(evt) {
-          terminalManager.handleMessage(threadId, terminalId, String(evt.data));
+          getContainer().resolve('terminalManager').handleMessage(threadId, terminalId, String(evt.data));
         },
 
         /** 连接关闭：仅移除该连接，不终止进程（保活） */
         onClose(_evt, ws) {
-          terminalManager.detach(threadId, terminalId, ws);
+          getContainer().resolve('terminalManager').detach(threadId, terminalId, ws);
         },
       };
     }),

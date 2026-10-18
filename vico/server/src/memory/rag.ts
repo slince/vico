@@ -2,17 +2,30 @@ import { v4 as uuid } from 'uuid';
 import { statSync, readdirSync } from 'node:fs';
 import { resolve, basename } from 'node:path';
 import { RecursiveChunker, DefaultParserRegistry } from '@vico/rag';
-import type { Embedder } from '@vico/rag';
-import { getContainer } from '../container.js';
+import type { Embedder, VectorStore } from '@vico/rag';
+import { ragSchema } from '@vico/boot';
+import type { z } from 'zod';
+import type { Client } from '@libsql/client';
 import logger from '../lib/logger.js';
-import { getDb, schema } from '../db/db.js';
+import { schema } from '../db/db.js';
+import type { AppDb } from '../db/db.js';
 import { eq, sql } from 'drizzle-orm';
 import { kbIndexName } from '../lib/resource.js';
-import { getClient } from '../db/init-libsql.js';
+
+/** RAG 配置切片类型（来自 @vico/boot 的 ragSchema） */
+type RagConfig = z.infer<typeof ragSchema>;
 
 const parserRegistry = new DefaultParserRegistry();
 
-class RAGManager {
+export class RAGManager {
+  constructor(
+    private readonly db: AppDb,
+    private readonly client: Client,
+    private readonly vectorStore: VectorStore,
+    private readonly embedder: Embedder | undefined,
+    private readonly ragConfig: RagConfig,
+  ) {}
+
   /**
    * 索引文本内容到指定知识库。
    *
@@ -20,8 +33,8 @@ class RAGManager {
    * 向量化后存入 LibSQL 向量表。
    */
   async indexText(kbId: string, text: string, metadata: Record<string, any> = {}, documentId?: string): Promise<number> {
-    const vector = getContainer().resolve('vectorStore');
-    const kbConfig = getContainer().getConfig('rag');
+    const vector = this.vectorStore;
+    const kbConfig = this.ragConfig;
 
     // 使用 @vico/rag RecursiveChunker 分块
     const chunker = new RecursiveChunker();
@@ -64,7 +77,7 @@ class RAGManager {
     });
 
     // 更新知识库分块计数
-    const db = getDb();
+    const db = this.db;
     const { knowledge_bases } = schema;
     await db
       .update(knowledge_bases)
@@ -76,7 +89,7 @@ class RAGManager {
 
   /** 获取 embedder 单例（配置为 "none" 时抛错） */
   private getEmbedder(): Embedder {
-    const embedder = getContainer().resolve('embedder');
+    const embedder = this.embedder;
     if (!embedder) {
       throw new Error('RAG 索引需要 embedder，请在 server.config.yaml 配置 rag.embedder（当前为 "none"）');
     }
@@ -112,9 +125,9 @@ class RAGManager {
   }
 
   async deleteDocumentChunks(kbId: string, documentId: string): Promise<number> {
-    const vector = getContainer().resolve('vectorStore');
+    const vector = this.vectorStore;
     const indexName = kbIndexName(kbId);
-    const client = getClient();
+    const client = this.client;
     const tableName = indexName;
     const { rows } = await client.execute({
       sql: `SELECT vector_id FROM ${tableName} WHERE json_extract(metadata, '$.document_id') = ?`,
@@ -123,7 +136,7 @@ class RAGManager {
     const ids = rows.map((r: any) => r.vector_id as string);
     if (ids.length === 0) return 0;
     await vector.deleteVectors({ indexName, ids });
-    const db = getDb();
+    const db = this.db;
     const { knowledge_bases } = schema;
     await db.update(knowledge_bases)
       .set({ chunk_count: sql`MAX(0, ${knowledge_bases.chunk_count} - ${ids.length})` })
@@ -131,5 +144,3 @@ class RAGManager {
     return ids.length;
   }
 }
-
-export const ragManager = new RAGManager();

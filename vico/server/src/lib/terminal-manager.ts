@@ -13,7 +13,6 @@ import {type IPty, spawn} from '@lydell/node-pty';
 import type {Terminal as HeadlessTerminal} from '@xterm/headless';
 import type {SerializeAddon as SerializeAddonType} from '@xterm/addon-serialize';
 
-import {getThreadWorkspace} from './workspace.js';
 import logger from './logger.js';
 
 // @xterm/headless 与 @xterm/addon-serialize 是 CJS 模块且无 exports 字段，
@@ -62,6 +61,8 @@ function sessionKey(threadId: string, terminalId: string): string {
  * attach / handleMessage / detach 三个方法驱动，不感知 pty / headless 细节。
  */
 export class TerminalManager {
+  constructor(private readonly resolveWorkspace: (threadId: string) => Promise<string>) {}
+
   private sessions = new Map<string, TerminalSession>();
 
   /**
@@ -81,7 +82,7 @@ export class TerminalManager {
     }
 
     // 派生 shell（cwd = 线程 workspace），失败则告知调用方关闭连接
-    const workspace = await getThreadWorkspace(threadId);
+    const workspace = await this.resolveWorkspace(threadId);
     const cwd = workspace || homedir();
     const shell = process.env.SHELL || '/bin/bash';
 
@@ -191,6 +192,3 @@ export class TerminalManager {
     }, IDLE_TIMEOUT_MS);
   }
 }
-
-/** 模块级单例 */
-export const terminalManager = new TerminalManager();

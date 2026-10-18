@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid';
 import { z } from 'zod';
 import type { Variables } from '../index.js';
 import { requireAdmin } from './helpers.js';
-import { getDb } from '../db/db.js';
+import { getContainer } from '../container.js';
 import { account, user } from '../db/auth-schema.js';
 import { hashPassword } from '../lib/password.js';
 
@@ -47,7 +47,7 @@ export function userRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/users', async (c) => {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
-    const rows = await getDb().select({
+    const rows = await getContainer().resolve('db').select({
       id: user.id,
       username: user.username,
       displayUsername: user.displayUsername,
@@ -68,7 +68,7 @@ export function userRoutes(app: Hono<{ Variables: Variables }>) {
       return c.json({ error: parsed.error.issues[0]?.message ?? '参数错误' }, 400);
     }
     const { username, name, email, password } = parsed.data;
-    const db = getDb();
+    const db = getContainer().resolve('db');
 
     const dupUsername = await db.select({ id: user.id }).from(user)
       .where(eq(user.username, username)).get();
@@ -109,7 +109,7 @@ export function userRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
     const id = c.req.param('id');
-    const db = getDb();
+    const db = getContainer().resolve('db');
     const users = await db.select({ id: user.id, role: user.role }).from(user).all();
     const check = checkDeleteUser(id, auth.userId, users);
     if (!check.allowed) return c.json({ error: check.error }, check.status);

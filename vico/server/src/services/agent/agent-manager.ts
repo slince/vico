@@ -1,9 +1,8 @@
 import {count, desc, eq} from 'drizzle-orm';
 import {v4 as uuid} from 'uuid';
-import {getDb, schema} from '../../db/db.js';
-import {modelManager} from '../model/model-manager.js';
-import {expandHome} from '../../lib/path.js';
-import {getContainer} from '../../container.js';
+import {schema} from '../../db/db.js';
+import type {AppDb} from '../../db/db.js';
+import type {ModelManager} from '../model/model-manager.js';
 import {
   type AgentDetail,
   type AgentRuntimeConfig,
@@ -29,9 +28,15 @@ function parseSkills(raw: string | null | undefined): string[] {
   }
 }
 
-class AgentManager {
+export class AgentManager {
+  constructor(
+    private readonly db: AppDb,
+    private readonly modelManager: ModelManager,
+    private readonly workspacePath: string,
+  ) {}
+
   async countEnabled(): Promise<number> {
-    const db = getDb();
+    const db = this.db;
     const [row] = await db.select({ c: count() }).from(agents)
       .where(eq(agents.enabled, 1))
       .all();
@@ -39,14 +44,14 @@ class AgentManager {
   }
 
   async count(): Promise<number> {
-    const db = getDb();
+    const db = this.db;
     const [row] = await db.select({ c: count() }).from(agents)
       .all();
     return row?.c ?? 0;
   }
 
   async list(): Promise<AgentDetail[]> {
-    const db = getDb();
+    const db = this.db;
     const rows = await db.select().from(agents)
       .orderBy(desc(agents.updated_at))
       .all();
@@ -56,7 +61,7 @@ class AgentManager {
       const detail = { ...a, skills: parseSkills(a.skills) } as AgentDetail;
       // 解析模型配置，供前端模型选择器读取 provider + model
       if (a.model_id) {
-        const model = await modelManager.getById(a.model_id);
+        const model = await this.modelManager.getById(a.model_id);
         if (model) {
           detail.llm = {
             provider: model.provider,
@@ -72,7 +77,7 @@ class AgentManager {
   }
 
   async getById(id: string): Promise<AgentDetail | null> {
-    const db = getDb();
+    const db = this.db;
     const agent = await db.select().from(agents)
       .where(eq(agents.id, id))
       .get();
@@ -86,7 +91,7 @@ class AgentManager {
    * agentId 为全局唯一 UUID。
    */
   async getName(agentId: string): Promise<string | undefined> {
-    const db = getDb();
+    const db = this.db;
     const agent = await db
       .select({ name: agents.name })
       .from(agents)
@@ -96,7 +101,7 @@ class AgentManager {
   }
 
   async getAgentRuntimeConfig(agentId: string): Promise<AgentRuntimeConfig | null> {
-    const db = getDb();
+    const db = this.db;
     const agent = await db.select().from(agents)
       .where(eq(agents.id, agentId))
       .get();
@@ -104,7 +109,7 @@ class AgentManager {
 
     let model: AgentRuntimeConfig['model'] | null = null;
     if (agent.model_id) {
-      model = await modelManager.getById(agent.model_id);
+      model = await this.modelManager.getById(agent.model_id);
     }
     if (!model) throw new Error('未配置模型，请先在模型管理中至少添加一个模型');
 
@@ -119,14 +124,14 @@ class AgentManager {
       model,
       instructions,
       agent: { ...agent, skills: parseSkills(agent.skills) } as AgentDetail,
-      workspace: expandHome(getContainer().getConfig('workspace').base_path),
+      workspace: this.workspacePath,
       builtin_tools,
     };
   }
 
   async create(input: unknown): Promise<AgentDetail> {
     const data = createAgentSchema.parse(input) as CreateAgentInput;
-    const db = getDb();
+    const db = this.db;
     const id = uuid();
     const now = Date.now();
 
@@ -148,7 +153,7 @@ class AgentManager {
   }
 
   async update(id: string, input: unknown): Promise<void> {
-    const db = getDb();
+    const db = this.db;
 
     const existing = await db.select({ id: agents.id, is_default: agents.is_default }).from(agents)
       .where(eq(agents.id, id))
@@ -184,7 +189,7 @@ class AgentManager {
   }
 
   async remove(id: string): Promise<void> {
-    const db = getDb();
+    const db = this.db;
     const agent = await db.select({ is_default: agents.is_default }).from(agents)
       .where(eq(agents.id, id))
       .get();
@@ -196,7 +201,7 @@ class AgentManager {
   }
 
   async getDefault(): Promise<AgentDetail | null> {
-    const db = getDb();
+    const db = this.db;
     const agent = await db.select().from(agents)
       .where(eq(agents.is_default, 1))
       .get();
@@ -206,7 +211,7 @@ class AgentManager {
 
   async replaceKnowledge(id: string, input: unknown): Promise<void> {
     const { kb_id, mode } = replaceKnowledgeSchema.parse(input);
-    const db = getDb();
+    const db = this.db;
 
     await db.update(agents)
       .set({ kb_id: kb_id ?? null, updated_at: Date.now() })
@@ -217,7 +222,7 @@ class AgentManager {
   /** 设置/替换 Agent 绑定的 Skill 名称列表 */
   async replaceSkills(id: string, input: unknown): Promise<void> {
     const { skills } = replaceSkillsSchema.parse(input);
-    const db = getDb();
+    const db = this.db;
 
     await db.update(agents)
       .set({ skills: JSON.stringify(skills), updated_at: Date.now() })
@@ -225,6 +230,3 @@ class AgentManager {
       .run();
   }
 }
-
-/** Agent 业务管理器单例 */
-export const agentManager = new AgentManager();

@@ -3,11 +3,12 @@ import { v4 as uuid } from 'uuid';
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
 import { extname } from 'node:path';
-import { getDb, schema } from '../../db/db.js';
-import { ragManager } from '../../memory/rag.js';
-import { getContainer } from '../../container.js';
-import { documentManager } from './document-manager.js';
-import { storageManager } from './storage-manager.js';
+import { schema } from '../../db/db.js';
+import type { AppDb } from '../../db/db.js';
+import type { RAGManager } from '../../memory/rag.js';
+import type { DocumentManager } from './document-manager.js';
+import type { StorageManager } from './storage-manager.js';
+import type { UploadConfig } from '../../config/schemas.js';
 import {
   createKbSchema, updateKbSchema,
   type CreateKbInput, type UpdateKbInput,
@@ -43,17 +44,25 @@ const { knowledge_bases, agents } = schema;
  * 知识库业务管理器。
  * 封装知识库 CRUD 和文件上传索引逻辑。
  */
-class KnowledgeManager {
+export class KnowledgeManager {
+  constructor(
+    private readonly db: AppDb,
+    private readonly ragManager: RAGManager,
+    private readonly documentManager: DocumentManager,
+    private readonly storageManager: StorageManager,
+    private readonly uploadConfig: UploadConfig,
+  ) {}
+
   /** 获取知识库总数 */
   async count(): Promise<number> {
-    const db = getDb();
+    const db = this.db;
     const [row] = await db.select({ c: count() }).from(knowledge_bases).all();
     return row?.c ?? 0;
   }
 
   /** 获取所有知识库 */
   async list(): Promise<KnowledgeBaseRow[]> {
-    const db = getDb();
+    const db = this.db;
     return db.select().from(knowledge_bases)
       .orderBy(desc(knowledge_bases.created_at))
       .all();
@@ -61,7 +70,7 @@ class KnowledgeManager {
 
   /** 获取单个知识库 */
   async getById(id: string): Promise<KnowledgeBaseRow | null> {
-    const db = getDb();
+    const db = this.db;
     const kb = await db.select().from(knowledge_bases)
       .where(eq(knowledge_bases.id, id))
       .get();
@@ -71,7 +80,7 @@ class KnowledgeManager {
   /** 创建知识库 */
   async create(input: unknown): Promise<KnowledgeBaseRow> {
     const data = createKbSchema.parse(input) as CreateKbInput;
-    const db = getDb();
+    const db = this.db;
     const id = uuid();
     await db.insert(knowledge_bases).values({
       id,
@@ -86,7 +95,7 @@ class KnowledgeManager {
 
   /** 删除知识库，级联解除 Agent 绑定 */
   async remove(id: string): Promise<void> {
-    const db = getDb();
+    const db = this.db;
     // 清除绑定此 KB 的 Agent 的 kb_id
     await db.update(agents).set({ kb_id: null }).where(eq(agents.kb_id, id)).run();
     await db.delete(knowledge_bases)
@@ -97,7 +106,7 @@ class KnowledgeManager {
   /** 更新知识库基本信息 */
   async update(id: string, input: unknown): Promise<KnowledgeBaseRow> {
     const data = updateKbSchema.parse(input) as UpdateKbInput;
-    const db = getDb();
+    const db = this.db;
     const updates: Record<string, unknown> = {};
     if (data.name !== undefined) updates.name = data.name;
     if (data.description !== undefined) updates.description = data.description;
@@ -118,7 +127,7 @@ class KnowledgeManager {
    * 包含文件大小校验、MIME 白名单、magic bytes 校验、SHA256 去重。
    */
   async uploadFile(kbId: string, formData: FormData): Promise<{ chunkCount: number; documentId: string }> {
-    const db = getDb();
+    const db = this.db;
 
     const kb = await db.select().from(knowledge_bases)
       .where(eq(knowledge_bases.id, kbId))
@@ -133,9 +142,8 @@ class KnowledgeManager {
     if (!file || !file.name) throw new Error('No file uploaded');
 
     // 文件大小检查
-    const upload = getContainer().getConfig('upload');
-    if (file.size > upload.max_size_bytes) {
-      const limitMB = Math.round(upload.max_size_bytes / 1024 / 1024);
+    if (file.size > this.uploadConfig.max_size_bytes) {
+      const limitMB = Math.round(this.uploadConfig.max_size_bytes / 1024 / 1024);
       throw new Error(`File too large (max ${limitMB}MB)`);
     }
 
@@ -147,7 +155,7 @@ class KnowledgeManager {
     const declaredType = (!file.type || file.type === 'application/octet-stream')
       ? (EXT_TO_MIME[ext] || 'application/octet-stream')
       : file.type;
-    if (!upload.allowed_mime_types.includes(declaredType)) {
+    if (!this.uploadConfig.allowed_mime_types.includes(declaredType)) {
       throw new Error(`Unsupported file type: ${declaredType}`);
     }
 
@@ -169,7 +177,7 @@ class KnowledgeManager {
 
     // SHA256 去重检查
     const fileHash = createHash('sha256').update(buf).digest('hex');
-    const existing = await documentManager.findByHash(kbId, fileHash);
+    const existing = await this.documentManager.findByHash(kbId, fileHash);
     if (existing) {
       try { unlinkSync(tmpPath); } catch {}
       throw new Error(`Duplicate file: ${existing.filename} already indexed as document ${existing.id}`);
@@ -179,7 +187,7 @@ class KnowledgeManager {
     const parentId = (formData.get('parent_id') as string) || null;
 
     // 创建文档记录
-    const doc = await documentManager.create({
+    const doc = await this.documentManager.create({
       kbId,
       filename: safeName,
       fileType: declaredType,
@@ -190,29 +198,29 @@ class KnowledgeManager {
     });
 
     try {
-      await documentManager.updateStatus(doc.id, 'indexing');
-      const count = await ragManager.indexFile(kbId, tmpPath, doc.id);
+      await this.documentManager.updateStatus(doc.id, 'indexing');
+      const count = await this.ragManager.indexFile(kbId, tmpPath, doc.id);
 
       // 持久化到文件存储
-      const storageKey = storageManager.generateKey(kb.name, safeName);
-      await storageManager.put(tmpPath, storageKey);
-      await documentManager.updateStorageKey(doc.id, storageKey);
+      const storageKey = this.storageManager.generateKey(kb.name, safeName);
+      await this.storageManager.put(tmpPath, storageKey);
+      await this.documentManager.updateStorageKey(doc.id, storageKey);
 
       unlinkSync(tmpPath);
-      await documentManager.updateChunkCount(doc.id, count);
-      await documentManager.updateStatus(doc.id, 'ready');
+      await this.documentManager.updateChunkCount(doc.id, count);
+      await this.documentManager.updateStatus(doc.id, 'ready');
       return { chunkCount: count, documentId: doc.id };
     } catch (err) {
       try { unlinkSync(tmpPath); } catch {}
       const message = err instanceof Error ? err.message : 'Unknown error';
-      await documentManager.updateStatus(doc.id, 'error', message);
+      await this.documentManager.updateStatus(doc.id, 'error', message);
       throw new Error(message);
     }
   }
 
   /** 从 URL 导入网页内容到知识库 */
   async importUrl(kbId: string, url: string): Promise<{ chunkCount: number; documentId: string }> {
-    const db = getDb();
+    const db = this.db;
     const kb = await db.select().from(knowledge_bases)
       .where(eq(knowledge_bases.id, kbId))
       .get();
@@ -237,7 +245,7 @@ class KnowledgeManager {
     const filename = `${urlObj.hostname}${urlObj.pathname.replace(/\//g, '_')}`.slice(0, 200) + '.html';
 
     // 创建文档记录
-    const doc = await documentManager.create({
+    const doc = await this.documentManager.create({
       kbId, filename,
       fileType: 'text/html',
       fileSize: html.length,
@@ -246,18 +254,15 @@ class KnowledgeManager {
     });
 
     try {
-      await documentManager.updateStatus(doc.id, 'indexing');
-      const count = await ragManager.indexText(kbId, text, { filename, source: url }, doc.id);
-      await documentManager.updateChunkCount(doc.id, count);
-      await documentManager.updateStatus(doc.id, 'ready');
+      await this.documentManager.updateStatus(doc.id, 'indexing');
+      const count = await this.ragManager.indexText(kbId, text, { filename, source: url }, doc.id);
+      await this.documentManager.updateChunkCount(doc.id, count);
+      await this.documentManager.updateStatus(doc.id, 'ready');
       return { chunkCount: count, documentId: doc.id };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      await documentManager.updateStatus(doc.id, 'error', message);
+      await this.documentManager.updateStatus(doc.id, 'error', message);
       throw err;
     }
   }
 }
-
-/** 知识库业务管理器单例 */
-export const knowledgeManager = new KnowledgeManager();

@@ -58,3 +58,6 @@ export function getDatabaseUrl(): string {
 }
 
 export { combinedSchema as schema };
+
+/** Drizzle ORM 数据库实例类型（server 各处 `import type { AppDb }` 复用） */
+export type AppDb = LibSQLDatabase<typeof combinedSchema>;

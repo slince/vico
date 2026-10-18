@@ -9,32 +9,33 @@ import { fs } from 'files-sdk/fs';
 import { s3 } from 'files-sdk/s3';
 import { v4 as uuid } from 'uuid';
 import { readFileSync } from 'node:fs';
-import { getContainer } from '../../container.js';
+import type { FileStorageConfig } from '../../config/schemas.js';
 
-class StorageManager {
+export class StorageManager {
+  constructor(private readonly cfg: FileStorageConfig) {}
+
   private filesInstance: Files | null = null;
 
   /** 懒加载获取 Files 实例 */
   getFiles(): Files {
     if (this.filesInstance) return this.filesInstance;
-    const cfg = getContainer().getConfig('file_storage');
-    if (cfg.type === 's3') {
+    if (this.cfg.type === 's3') {
       this.filesInstance = new Files({
         adapter: s3({
-          bucket: cfg.bucket || 'vico-storage',
-          region: cfg.region || 'us-east-1',
-          endpoint: cfg.endpoint,
+          bucket: this.cfg.bucket || 'vico-storage',
+          region: this.cfg.region || 'us-east-1',
+          endpoint: this.cfg.endpoint,
           forcePathStyle: true,
-          credentials: cfg.access_key_id ? {
-            accessKeyId: cfg.access_key_id,
-            secretAccessKey: cfg.secret_access_key || '',
+          credentials: this.cfg.access_key_id ? {
+            accessKeyId: this.cfg.access_key_id,
+            secretAccessKey: this.cfg.secret_access_key || '',
           } : undefined,
         }),
-        prefix: cfg.root || 'knowledge-bases',
+        prefix: this.cfg.root || 'knowledge-bases',
       });
     } else {
       this.filesInstance = new Files({
-        adapter: fs({ root: cfg.root || './data/storage' }),
+        adapter: fs({ root: this.cfg.root || './data/storage' }),
       });
     }
     return this.filesInstance;
@@ -76,6 +77,3 @@ class StorageManager {
     return files.exists(key);
   }
 }
-
-/** 存储管理器单例 */
-export const storageManager = new StorageManager();

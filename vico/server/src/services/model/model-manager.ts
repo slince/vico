@@ -1,6 +1,7 @@
 import {eq} from 'drizzle-orm';
 import {v4 as uuid} from 'uuid';
-import {getDb, schema} from '../../db/db.js';
+import {schema} from '../../db/db.js';
+import type {AppDb} from '../../db/db.js';
 import {decryptApiKey, encryptApiKey} from '../../lib/crypto.js';
 import type {ModelConfigRow} from './types.js';
 
@@ -10,17 +11,19 @@ const { model_configs } = schema;
  * 模型管理服务。
  * 封装 LLM 模型配置的 CRUD 和加密/解密逻辑。
  */
-class ModelManager {
+export class ModelManager {
+  constructor(private readonly db: AppDb) {}
+
   /** 获取所有模型配置 */
   async list(): Promise<ModelConfigRow[]> {
-    const db = getDb();
+    const db = this.db;
     const rows = await db.select().from(model_configs).all();
     return rows.map((r) => ({ ...r, api_key: decryptApiKey(r.api_key) })) as ModelConfigRow[];
   }
 
   /** 按 ID 获取模型配置 */
   async getById(id: string): Promise<ModelConfigRow | null> {
-    const db = getDb();
+    const db = this.db;
     const row = await db.select().from(model_configs)
       .where(eq(model_configs.id, id))
       .get();
@@ -30,7 +33,7 @@ class ModelManager {
 
   /** 新增模型配置，若设为默认则先取消同类型下的其他默认 */
   async create(data: Omit<ModelConfigRow, 'id' | 'created_at'>): Promise<ModelConfigRow> {
-    const db = getDb();
+    const db = this.db;
     const id = uuid();
     const now = Date.now();
     const modelType = data.model_type ?? 'chat';
@@ -53,7 +56,7 @@ class ModelManager {
 
   /** 更新模型配置，若设为默认则先取消目标类型下的其他默认 */
   async update(id: string, data: Partial<ModelConfigRow>): Promise<void> {
-    const db = getDb();
+    const db = this.db;
     const existing = await db.select().from(model_configs)
       .where(eq(model_configs.id, id)).get();
     if (!existing) return;
@@ -77,11 +80,8 @@ class ModelManager {
 
   /** 删除模型配置 */
   async remove(id: string): Promise<void> {
-    await getDb().delete(model_configs)
+    await this.db.delete(model_configs)
       .where(eq(model_configs.id, id))
       .run();
   }
 }
-
-/** 模型管理服务单例 */
-export const modelManager = new ModelManager();

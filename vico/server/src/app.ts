@@ -3,7 +3,6 @@ import {cors} from 'hono/cors';
 import {upgradeWebSocket} from '@hono/node-server';
 import {WebSocketServer} from 'ws';
 
-import {getAuth} from './auth';
 import {registerRoutes} from './api/router.js';
 import {registerWsRoutes} from './api/ws/router.js';
 import {getContainer} from './container.js';
@@ -92,7 +91,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
       return next();
     }
 
-    const result = await getAuth().api.getSession({
+    const result = await getContainer().resolve('auth').api.getSession({
       headers: c.req.raw.headers,
     });
 
@@ -126,7 +125,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
   });
 
   /** 挂载 better-auth 路由处理器 */
-  app.on(['POST', 'GET'], '/api/auth/*', (c) => getAuth().handler(c.req.raw));
+  app.on(['POST', 'GET'], '/api/auth/*', (c) => getContainer().resolve('auth').handler(c.req.raw));
 
   /** 注册业务路由 */
   registerRoutes(app);

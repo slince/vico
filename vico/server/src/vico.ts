@@ -8,7 +8,6 @@ import { createAgent } from '@vico/agent';
 import type { Agent, AgentConfig } from '@vico/agent';
 import type { Skill } from '@vico/skill';
 import type { ThreadStore } from '@vico/thread';
-import { weatherTool } from './agent/tools/weather-tool.js';
 import { createApp } from './app.js';
 import { getContainer } from './container.js';
 
@@ -36,7 +35,7 @@ export async function createIfAbsent(agentId: string, factory: () => Promise<Age
   const config = await factory();
   const agent = await createAgent({
     ...config,
-    tools: config.tools ?? [weatherTool],
+    tools: config.tools ?? [c.resolve('weatherTool')],
     memory: config.memory ?? c.resolve('memory'),
     thread: config.thread ?? c.resolve('thread'),
     checkpointStore: config.checkpointStore ?? c.resolve('checkpointStore'),
