@@ -5,20 +5,20 @@
  * 构造注入（含 db/client 连接），不再有模块级单例。db/client 连接由 bootstrap()
  * 显式注入后，在此被各服务按需 resolve。
  */
-import { getAuth } from './auth/index.js';
-import { AgentManager } from './services/agent/agent-manager.js';
-import { ModelManager } from './services/model/model-manager.js';
-import { ThreadManager } from './services/thread/thread-manager.js';
-import { KnowledgeManager } from './services/knowledge/knowledge-manager.js';
-import { StorageManager } from './services/knowledge/storage-manager.js';
-import { DocumentManager } from './services/knowledge/document-manager.js';
-import { RAGManager } from './memory/rag.js';
-import { TerminalManager } from './lib/terminal-manager.js';
-import { weatherTool } from './agent/tools/weather-tool.js';
-import { meta, providers } from './llm/providers/index.js';
-import { getThreadWorkspace } from './lib/workspace.js';
-import { expandHome } from './lib/path.js';
-import type { ServerServiceProvider } from './tokens.js';
+import { getAuth } from '../auth/index.js';
+import { AgentManager } from '../services/agent/agent-manager.js';
+import { ModelManager } from '../services/model/model-manager.js';
+import { ThreadManager } from '../services/thread/thread-manager.js';
+import { KnowledgeManager } from '../services/knowledge/knowledge-manager.js';
+import { StorageManager } from '../services/knowledge/storage-manager.js';
+import { DocumentManager } from '../services/knowledge/document-manager.js';
+import { RAGManager } from '../memory/rag.js';
+import { TerminalManager } from '../lib/terminal-manager.js';
+import { weatherTool } from '../agent/tools/weather-tool.js';
+import { meta, providers } from '../llm/providers/index.js';
+import { getThreadWorkspace } from '../lib/workspace.js';
+import { expandHome } from '../lib/path.js';
+import type { ServerServiceProvider } from '../tokens.js';
 
 export const servicesProvider: ServerServiceProvider = {
   register(c) {

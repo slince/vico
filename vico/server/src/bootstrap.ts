@@ -14,7 +14,7 @@ import {
   type ServerConfigKeys,
 } from './config/schemas.js';
 import type { ServerContainer, ServerServiceProvider, ServerTokens } from './tokens.js';
-import { servicesProvider } from './services-provider.js';
+import { servicesProvider } from './providers/services-provider.js';
 import { setContainer } from './container.js';
 import { runMigrations } from './db/run-migrations.js';
 import { getDb } from './db/db.js';
