@@ -1,21 +1,19 @@
 // src/skill/tool/skill-execute.ts
-import {execSync} from 'node:child_process';
-import {existsSync} from 'node:fs';
-import {resolve} from 'node:path';
-import {z} from 'zod';
-import {createTool} from '@vico/tool';
-import type {ToolCallContext} from '@vico/tool';
-import type {Skill} from '../types.js';
 
-export interface SkillExecuteOptions {
-  /** 获取当前可用的 skills 列表 */
-  getSkills(): Skill[];
-}
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { z } from 'zod';
+import { createTool } from '@vico/tool';
+import type { ToolCallContext } from '@vico/tool';
+import type { SkillRegistry } from '../skill-registry.js';
 
 /**
  * 创建 skill_execute 工具，用于执行 Skill scripts 目录下的脚本。
+ * @param manager - SkillRegistry 实例
+ * @returns 配置好的 Tool 对象
  */
-export function createSkillExecuteTool(options: SkillExecuteOptions) {
+export function createSkillExecuteTool(manager: SkillRegistry) {
   const params = z.object({
     skillName: z.string().describe('Skill 名称'),
     scriptName: z.string().describe('要执行的脚本文件名（必须在 Skill scripts 列表中）'),
@@ -29,8 +27,7 @@ export function createSkillExecuteTool(options: SkillExecuteOptions) {
   });
 
   async function execute(args: z.infer<typeof params>, ctx: ToolCallContext) {
-    const skills = options.getSkills();
-    const skill = skills.find((s) => s.name === args.skillName);
+    const skill = manager.get(args.skillName);
     if (!skill) {
       return { output: '', exitCode: 1, error: `Skill "${args.skillName}" 未找到` };
     }
