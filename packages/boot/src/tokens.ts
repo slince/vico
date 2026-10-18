@@ -40,8 +40,8 @@ export interface VicoTokens {
   client: unknown;
 }
 
-/** Vico 容器类型：构造时不注入 config，配置全部走 registerConfig/load */
-export type VicoContainer = Container<undefined, VicoTokens, VicoConfigKeys>;
+/** Vico 容器类型：配置全部走 registerConfig/load */
+export type VicoContainer = Container<VicoTokens, VicoConfigKeys>;
 
 /** Vico 领域 provider 类型（register 绑定依赖，boot 执行初始化副作用） */
-export type VicoServiceProvider = ServiceProvider<undefined, VicoTokens, VicoConfigKeys>;
+export type VicoServiceProvider = ServiceProvider<VicoTokens, VicoConfigKeys>;

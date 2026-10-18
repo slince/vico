@@ -29,7 +29,7 @@ packages/boot/src/
 │   ├── memory-provider.ts
 │   ├── agent-provider.ts
 │   └── config-provider.ts  # 无对应服务的配置段（model/tool/workspace/checkpoint）
-├── bootstrap.ts           # createVicoContainer / bootstrapVico / vicoProviders
+├── bootstrap.ts           # createVicoContainer / vicoProviders
 └── index.ts               # 导出
 ```
 

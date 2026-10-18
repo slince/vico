@@ -21,11 +21,10 @@ import type {
  */
 interface Registration<
   TValue,
-  TConfig,
   TTokens extends TokenMap,
   TConfigKeys extends ConfigSchemaMap,
 > {
-  factory: Factory<TValue, TConfig, TTokens, TConfigKeys>;
+  factory: Factory<TValue, TTokens, TConfigKeys>;
   scope: Scope;
   /** singleton 是否已成功解析过 */
   resolved: boolean;
@@ -56,14 +55,13 @@ interface ConfigRegistration {
  * 两者均可返回 Promise，由 `Container.registerProvider` / `Container.boot` 依次等待。
  */
 export interface ServiceProvider<
-  TConfig,
   TTokens extends TokenMap,
   TConfigKeys extends ConfigSchemaMap,
 > {
   /** 阶段一：只做绑定，不实例化、不做副作用 */
-  register(container: Container<TConfig, TTokens, TConfigKeys>): void | Promise<void>;
+  register(container: Container<TTokens, TConfigKeys>): void | Promise<void>;
   /** 阶段二：所有 provider 注册完成后调用，可 resolve 依赖、执行初始化 */
-  boot?(container: Container<TConfig, TTokens, TConfigKeys>): void | Promise<void>;
+  boot?(container: Container<TTokens, TConfigKeys>): void | Promise<void>;
 }
 
 /**
@@ -71,37 +69,33 @@ export interface ServiceProvider<
  *
  * 职责：
  * 1. 依赖解析——工厂 Provider 通过 `ctx.resolve` 递归获取其他依赖；
- * 2. 配置驱动构建——`config` 构造时注入，工厂通过 `ctx.config` 读取配置切片并条件构建对象；
- * 3. 配置定义加载——`registerConfig` 声明配置段的 zod schema，`load` 从 yaml/json
- *    文件读取并按 schema 验证，`getConfig`（或工厂内 `ctx.getConfig`）取用。
+ * 2. 配置定义加载——`registerConfig` 声明配置段的 zod schema，`load` 从 yaml/json
+ *    文件读取并按 schema 验证，`getConfig`（或工厂内 `ctx.getConfig`）取用，
+ *    配置值驱动工厂条件构建对象。
  *
  * 作用域：默认 `singleton`（全容器唯一），可注册为 `transient`（每次新建）。
  * 异步：工厂返回 `Promise` 时用 `resolveAsync` 解析，并发调用共享同一个
  * pending Promise（去重，工厂只执行一次）。
  *
- * @typeParam TConfig 配置对象类型
  * @typeParam TTokens Token 映射表（token 名 → 实例类型）
  * @typeParam TConfigKeys 配置 schema 映射表（配置名 → zod schema 类型）
  */
 export class Container<
-  TConfig,
   TTokens extends TokenMap,
   TConfigKeys extends ConfigSchemaMap,
 > {
   private readonly registrations = new Map<
     string,
-    Registration<unknown, TConfig, TTokens, TConfigKeys>
+    Registration<unknown, TTokens, TConfigKeys>
   >();
   /** 正在解析中的 token，用于循环依赖检测（同步/异步解析共享） */
   private readonly resolving = new Set<string>();
   /** 已注册的配置 schema 及验证结果 */
   private readonly configs = new Map<string, ConfigRegistration>();
   /** 已按 register 顺序登记的 providers，`boot()` 时依序触发其 boot 钩子 */
-  private readonly providers: ServiceProvider<TConfig, TTokens, TConfigKeys>[] = [];
+  private readonly providers: ServiceProvider<TTokens, TConfigKeys>[] = [];
   /** 是否已冻结：load / boot / 首次 resolve 完成后自动冻结，禁止再注入 service */
   private frozen = false;
-
-  constructor(private readonly config: TConfig) {}
 
   /**
    * 注册一个工厂 Provider：解析 `token` 时调用 `factory` 构建实例。
@@ -112,7 +106,7 @@ export class Container<
    */
   register<K extends keyof TTokens & string>(
     token: K,
-    factory: Factory<TTokens[K], TConfig, TTokens, TConfigKeys>,
+    factory: Factory<TTokens[K], TTokens, TConfigKeys>,
     options?: RegisterOptions,
   ): this {
     this.assertNotFrozen(`register "${String(token)}"`);
@@ -120,7 +114,7 @@ export class Container<
       throw new Error(`[di] Duplicate registration: ${String(token)}`);
     }
     this.registrations.set(token, {
-      factory: factory as Factory<unknown, TConfig, TTokens, TConfigKeys>,
+      factory: factory as Factory<unknown, TTokens, TConfigKeys>,
       scope: options?.scope ?? 'singleton',
       resolved: false,
     });
@@ -205,7 +199,7 @@ export class Container<
    *
    * @param provider 要注册的 provider（只执行 register 阶段，不触发 boot）
    */
-  async registerProvider(provider: ServiceProvider<TConfig, TTokens, TConfigKeys>): Promise<void> {
+  async registerProvider(provider: ServiceProvider<TTokens, TConfigKeys>): Promise<void> {
     this.assertNotFrozen('register a service provider');
     await provider.register(this);
     this.providers.push(provider);
@@ -331,7 +325,7 @@ export class Container<
   }
 
   /** 取出注册项，未注册时抛错 */
-  private getRegistration(token: string): Registration<unknown, TConfig, TTokens, TConfigKeys> {
+  private getRegistration(token: string): Registration<unknown, TTokens, TConfigKeys> {
     const reg = this.registrations.get(token);
     if (!reg) {
       throw new Error(`[di] Dependency not registered: ${token}`);
@@ -347,10 +341,9 @@ export class Container<
     this.resolving.add(token);
   }
 
-  /** 构建传给工厂的上下文：配置 + 同步依赖解析器 + 配置读取器 */
-  private buildContext(): FactoryContext<TConfig, TTokens, TConfigKeys> {
+  /** 构建传给工厂的上下文：同步依赖解析器 + 配置读取器 */
+  private buildContext(): FactoryContext<TTokens, TConfigKeys> {
     return {
-      config: this.config,
       resolve: <K extends keyof TTokens & string>(token: K): TTokens[K] => this.resolve(token),
       getConfig: <K extends keyof TConfigKeys & string>(key: K) => this.getConfig(key),
     };
@@ -408,9 +401,8 @@ function parseConfigValue(schema: z.ZodType, value: unknown, key: string, source
 }
 
 /**
- * 创建容器。`config` 为注入工厂的只读配置（可省略）。
+ * 创建容器。
  *
- * @typeParam TConfig 配置对象类型（缺省 undefined）
  * @typeParam TTokens Token 映射表，显式声明后获得类型安全的 `register` / `resolve`
  * @typeParam TConfigKeys 配置 schema 映射表，显式声明后获得类型安全的 `registerConfig` / `getConfig`
  *
@@ -418,7 +410,7 @@ function parseConfigValue(schema: z.ZodType, value: unknown, key: string, source
  * ```ts
  * interface Tokens { db: Db; storage: Storage }
  * interface ConfigKeys { storage: typeof storageSchema }
- * const container = createContainer<AppConfig, Tokens, ConfigKeys>(config);
+ * const container = createContainer<Tokens, ConfigKeys>();
  * container
  *   .registerConfig('storage', storageSchema)
  *   .register('storage', ({ getConfig }) => createStorage(getConfig('storage')))
@@ -426,9 +418,8 @@ function parseConfigValue(schema: z.ZodType, value: unknown, key: string, source
  * ```
  */
 export function createContainer<
-  TConfig = undefined,
   TTokens extends TokenMap = Record<string, unknown>,
   TConfigKeys extends ConfigSchemaMap = Record<string, z.ZodType>,
->(config: TConfig = undefined as TConfig): Container<TConfig, TTokens, TConfigKeys> {
-  return new Container<TConfig, TTokens, TConfigKeys>(config);
+>(): Container<TTokens, TConfigKeys> {
+  return new Container<TTokens, TConfigKeys>();
 }

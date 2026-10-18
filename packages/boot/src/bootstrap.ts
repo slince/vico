@@ -20,7 +20,7 @@ export interface CreateVicoContainerOptions<TConfigKeys extends VicoConfigKeys =
   /** 用户自定义配置文件路径（覆盖内置默认，后加载覆盖先加载） */
   configPath?: string;
   /** 在 framework providers 注册后、加载配置/冻结前调用，用于注入连接或注册应用层 provider */
-  setup?: (container: Container<undefined, VicoTokens, TConfigKeys>) => void | Promise<void>;
+  setup?: (container: Container<VicoTokens, TConfigKeys>) => void | Promise<void>;
 }
 
 /**
@@ -45,12 +45,12 @@ export async function createVicoContainer<
   TConfigKeys extends VicoConfigKeys = VicoConfigKeys,
 >(
   options?: CreateVicoContainerOptions<TConfigKeys>,
-): Promise<Container<undefined, VicoTokens, TConfigKeys>> {
-  const container = createContainer<undefined, VicoTokens, TConfigKeys>();
+): Promise<Container<VicoTokens, TConfigKeys>> {
+  const container = createContainer<VicoTokens, TConfigKeys>();
 
   // 先注册 framework 领域 provider（register 阶段声明配置段 schema 并绑定服务）
   // provider 以 VicoConfigKeys 视角注册 framework 段（其 schema 类型在两种视角下完全一致）
-  const framework = container as unknown as Container<undefined, VicoTokens, VicoConfigKeys>;
+  const framework = container as unknown as Container<VicoTokens, VicoConfigKeys>;
   for (const provider of vicoProviders) {
     await framework.registerProvider(provider);
   }

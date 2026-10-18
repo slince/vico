@@ -34,7 +34,7 @@ async function withTempFile(content: string, fn: (path: string) => Promise<void>
 describe('ServiceProvider / registerProvider + boot', () => {
   it('依次执行所有 register 后再依次 boot', async () => {
     const order: string[] = [];
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
 
     await container.registerProvider({
       register(c) {
@@ -62,7 +62,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
   });
 
   it('boot 阶段可解析 register 阶段注册的服务', async () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     let resolved = '';
 
     await container.registerProvider({
@@ -80,7 +80,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
 
   it('register 与 boot 返回 Promise 时被依次等待', async () => {
     const order: string[] = [];
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
 
     await container.registerProvider({
       async register(c) {
@@ -99,7 +99,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
   });
 
   it('boot 是可选钩子', async () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
 
     await container.registerProvider({
       register(c) {
@@ -113,7 +113,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
 
   it('provider 内可 load 配置并在 boot 中 getConfig', async () => {
     await withTempFile('memory:\n  stm_window: 11\n  ltm_auto_extract: true\n', async (path) => {
-      const container = createContainer<undefined, Tokens, ConfigKeys>();
+      const container = createContainer<Tokens, ConfigKeys>();
       let windowSize = 0;
 
       await container.registerProvider({
@@ -131,7 +131,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
   });
 
   it('freeze 后禁止再注册 service 或 provider', () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     container.freeze();
 
     expect(container.isFrozen).toBe(true);
@@ -140,7 +140,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
   });
 
   it('resolve 后自动冻结，禁止再注册', () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     container.register('a', () => 'A');
     expect(container.resolve('a')).toBe('A');
 
@@ -149,7 +149,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
   });
 
   it('boot 后自动冻结，禁止再注册', async () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
 
     await container.registerProvider({
       register(c) {

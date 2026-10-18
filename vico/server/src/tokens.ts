@@ -48,7 +48,7 @@ export interface ServerTokens extends VicoTokens {
 }
 
 /** server 容器类型（framework + 应用层配置段、ServerTokens 视角） */
-export type ServerContainer = Container<undefined, ServerTokens, ServerConfigKeys>;
+export type ServerContainer = Container<ServerTokens, ServerConfigKeys>;
 
 /** server provider 类型 */
-export type ServerServiceProvider = ServiceProvider<undefined, ServerTokens, ServerConfigKeys>;
+export type ServerServiceProvider = ServiceProvider<ServerTokens, ServerConfigKeys>;

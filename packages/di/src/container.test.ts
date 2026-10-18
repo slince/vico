@@ -14,13 +14,9 @@ interface Tokens {
   storage: Storage;
 }
 
-interface AppConfig {
-  storage: { root: string };
-}
-
 describe('createContainer', () => {
   it('注册并解析单例，多次 resolve 返回同一实例', () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     let built = 0;
     container.register('db', () => {
       built += 1;
@@ -35,29 +31,22 @@ describe('createContainer', () => {
   });
 
   it('transient 作用域每次解析新建实例', () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     container.register('db', () => ({ name: 'sqlite' }), { scope: 'transient' });
 
     expect(container.resolve('db')).not.toBe(container.resolve('db'));
   });
 
   it('工厂里通过 resolve 注入其他依赖', () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     container.register('db', () => ({ name: 'sqlite' }));
     container.register('storage', ({ resolve }) => ({ root: `/data/${resolve('db').name}` }));
 
     expect(container.resolve('storage').root).toBe('/data/sqlite');
   });
 
-  it('工厂里读取注入的配置切片做条件构建', () => {
-    const container = createContainer<AppConfig, Tokens>({ storage: { root: '/var/lib' } });
-    container.register('storage', ({ config }) => ({ root: config.storage.root }));
-
-    expect(container.resolve('storage').root).toBe('/var/lib');
-  });
-
   it('registerValue 注册已构建好的实例', () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     const prebuilt = { name: 'prebuilt' };
     container.registerValue('db', prebuilt);
 
@@ -65,12 +54,12 @@ describe('createContainer', () => {
   });
 
   it('未注册的 token 抛错', () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     expect(() => container.resolve('db')).toThrow(/not registered/);
   });
 
   it('重复注册同一 token 抛错', () => {
-    const container = createContainer<undefined, Tokens>();
+    const container = createContainer<Tokens>();
     container.register('db', () => ({ name: 'a' }));
     expect(() => container.register('db', () => ({ name: 'b' }))).toThrow(/Duplicate registration/);
   });
@@ -80,7 +69,7 @@ describe('createContainer', () => {
       a: { name: string };
       b: { name: string };
     }
-    const container = createContainer<undefined, CycleTokens>();
+    const container = createContainer<CycleTokens>();
     container.register('a', ({ resolve }) => ({ name: resolve('b').name }));
     container.register('b', ({ resolve }) => ({ name: resolve('a').name }));
 
@@ -89,7 +78,7 @@ describe('createContainer', () => {
 
   describe('异步工厂', () => {
     it('resolveAsync 解析异步工厂并缓存结果', async () => {
-      const container = createContainer<undefined, Tokens>();
+      const container = createContainer<Tokens>();
       let built = 0;
       container.register('db', async () => {
         built += 1;
@@ -103,7 +92,7 @@ describe('createContainer', () => {
     });
 
     it('并发 resolveAsync 共享同一 pending Promise，工厂只执行一次', async () => {
-      const container = createContainer<undefined, Tokens>();
+      const container = createContainer<Tokens>();
       let built = 0;
       container.register('db', async () => {
         built += 1;
@@ -120,14 +109,14 @@ describe('createContainer', () => {
     });
 
     it('异步工厂被同步 resolve 时抛错提示', () => {
-      const container = createContainer<undefined, Tokens>();
+      const container = createContainer<Tokens>();
       container.register('db', async () => ({ name: 'sqlite' }));
 
       expect(() => container.resolve('db')).toThrow(/resolveAsync/);
     });
 
     it('异步工厂失败后清空缓存，允许下次重试', async () => {
-      const container = createContainer<undefined, Tokens>();
+      const container = createContainer<Tokens>();
       let built = 0;
       container.register('db', async () => {
         built += 1;

@@ -17,7 +17,7 @@ import type { z } from 'zod';
  *   db: Db;
  *   storageManager: StorageManager;
  * }
- * const container = createContainer<AppConfig, Tokens>(config);
+ * const container = createContainer<Tokens>();
  * const db = container.resolve('db'); // 类型为 Db
  * ```
  */
@@ -33,24 +33,22 @@ export type TokenMap = object;
  * ```ts
  * const memorySchema = z.object({ stm_window: z.number() });
  * interface ConfigKeys { memory: typeof memorySchema }
- * const container = createContainer<undefined, Tokens, ConfigKeys>();
+ * const container = createContainer<Tokens, ConfigKeys>();
  * const memory = container.getConfig('memory'); // 类型为 { stm_window: number }
  * ```
  */
 export type ConfigSchemaMap = object;
 
 /**
- * 工厂上下文：工厂函数唯一入参，同时携带配置切片、依赖解析器与已加载的配置。
+ * 工厂上下文：工厂函数唯一入参，携带依赖解析器与配置读取器。
  *
- * 配置与依赖在同一个显式位置汇合，正是「容器除了解析依赖，还要解决配置驱动构建」的落点。
+ * 依赖与配置在同一个显式位置汇合：`resolve` 递归获取其他依赖，
+ * `getConfig` 读取 `registerConfig` + `load` 加载并验证的配置段。
  */
 export interface FactoryContext<
-  TConfig,
   TTokens extends TokenMap,
   TConfigKeys extends ConfigSchemaMap,
 > {
-  /** 容器构造时注入的只读配置（可能是 undefined，表示无配置） */
-  config: TConfig;
   /** 同步解析其他依赖；被解析的依赖必须是同步可解析的，否则请用 `resolveAsync` */
   resolve: <K extends keyof TTokens & string>(token: K) => TTokens[K];
   /** 读取已通过 `registerConfig` + `load` 加载并验证的配置段 */
@@ -58,17 +56,16 @@ export interface FactoryContext<
 }
 
 /**
- * 工厂函数：读取配置切片 + 依赖，产出实例。
+ * 工厂函数：读配置 + 解析依赖，产出实例。
  *
  * 返回 `Promise` 表示异步构建（如需要 `await` 加载模型、建连等），
  * 异步工厂只能通过 `resolveAsync` 解析。
  */
 export type Factory<
   TValue,
-  TConfig,
   TTokens extends TokenMap,
   TConfigKeys extends ConfigSchemaMap,
-> = (ctx: FactoryContext<TConfig, TTokens, TConfigKeys>) => TValue | Promise<TValue>;
+> = (ctx: FactoryContext<TTokens, TConfigKeys>) => TValue | Promise<TValue>;
 
 /**
  * 实例作用域。

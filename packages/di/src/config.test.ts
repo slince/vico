@@ -16,7 +16,7 @@ interface ConfigKeys {
 
 /** 配置加载测试无需依赖解析，用宽松 TokenMap */
 function configContainer() {
-  return createContainer<undefined, Record<string, unknown>, ConfigKeys>();
+  return createContainer<Record<string, unknown>, ConfigKeys>();
 }
 
 /** 在临时目录写入配置文件，执行断言后清理 */
@@ -111,7 +111,7 @@ describe('配置加载', () => {
       summary: string;
     }
     withTempFile('memory:\n  stm_window: 42\n  ltm_auto_extract: true\n', 'config.yaml', (path) => {
-      const container = createContainer<undefined, Tokens, ConfigKeys>();
+      const container = createContainer<Tokens, ConfigKeys>();
       container
         .registerConfig('memory', memorySchema)
         .register('summary', ({ getConfig }) => `window=${getConfig('memory').stm_window}`)
