@@ -84,7 +84,7 @@
       "executing": "Executing command..."
     },
     "fileRead": {
-      "title": { "read": "Read File", "ls": "List Directory", "find": "Find Files", "grep": "Search Content" },
+      "title": { "read": "Read File", "glob": "Find Files", "grep": "Search Content" },
       "noMatch": "No matches found"
     },
     "fileWrite": {
@@ -111,13 +111,6 @@
       "title": "Web Request",
       "emptyBody": "(Empty response body)",
       "truncated": "Response truncated (over 100KB)"
-    },
-    "lsp": {
-      "title": "LSP Language Service",
-      "action": { "diagnostics": "Diagnostics", "go_to_definition": "Go to Definition", "completions": "Completions", "hover": "Hover" },
-      "operation": "Action: {{action}}",
-      "noResult": "(No result)",
-      "notSupported": "This action is not supported by the current language server"
     },
     "delegate": {
       "title": "Delegate Subtask",
