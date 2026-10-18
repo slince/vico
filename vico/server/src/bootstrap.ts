@@ -4,7 +4,6 @@ import {fileURLToPath} from 'node:url';
 import {ensureCheckpointTables} from '@vico/checkpoint-libsql';
 import {ensureMemoryTables} from '@vico/memory-libsql';
 import {ensureThreadTables} from '@vico/thread-libsql';
-import {CheckpointPurge} from './lib/checkpoint-purge.js';
 import {
   authSchema,
   databaseSchema,
@@ -56,10 +55,7 @@ const serverProvider: ServerServiceProvider = {
     await ensureMemoryTables(db as any);
 
     // checkpoint 版本链 TTL 清理：启动一次 + 每小时一次
-    new CheckpointPurge(
-      c.resolve('checkpointStore'),
-      c.getConfig('checkpoint').ttl_days * 24 * 60 * 60 * 1000,
-    ).start();
+    c.resolve('checkpointPurge').start();
 
     logger.info('Vico agent framework initialized');
   },
