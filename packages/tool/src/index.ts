@@ -3,7 +3,6 @@
 export { createTool, type ToolOptions } from './create-tool.js';
 export {
   ToolExecutor,
-  type AgentHost,
   type ToolExecutionContext,
   type ToolExecutorOptions,
 } from './tool-executor.js';

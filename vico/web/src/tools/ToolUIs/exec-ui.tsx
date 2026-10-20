@@ -8,7 +8,7 @@
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';
 import { Terminal, Check, X } from 'lucide-react';
-import { ToolApprovalCard } from '@/components/assistant-ui/tool-approval-card';
+import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card';
 import type { BashArgs } from '../bash.tool';
 
 export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> = ({ status, args, respondToApproval, approval, interrupt, resume, addResult, result }) => {
@@ -42,7 +42,7 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> =
   // 需要审批
   if (status.type === 'requires-action') {
     return (
-      <ToolApprovalCard
+      <ApprovalCard
         toolName={t('tool.exec.name')}
         title={t('tool.exec.approvalTitle')}
         icon={Terminal}
@@ -55,7 +55,7 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> =
         <pre className="text-xs bg-background p-2 rounded border overflow-x-auto whitespace-pre-wrap break-all max-h-32">
           {command}
         </pre>
-      </ToolApprovalCard>
+      </ApprovalCard>
     );
   }
 

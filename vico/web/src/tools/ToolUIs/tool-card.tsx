@@ -10,7 +10,7 @@ import {useState, type ReactNode} from 'react';
 import { useTranslation } from 'react-i18next';
 import {Loader2, Wrench, X, ChevronDown} from 'lucide-react';
 import type {ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartStatus} from '@assistant-ui/react';
-import {ToolApprovalCard} from '@/components/assistant-ui/tool-approval-card';
+import {ApprovalCard} from '@/components/assistant-ui/elements/approval-card';
 import {cn} from '@/lib/utils';
 
 export interface ToolCardProps {
@@ -61,7 +61,7 @@ type ToolCardResult = {
  * - isError / incomplete → destructive 错误态（isError 时 result 可能携带 { error: ... }，须优先于完成态判断）
  * - approval 被拒绝 → destructive 拒绝态
  * - complete 且有 result → 卡片（header + 可折叠的 renderResult）
- * - requires-action → ToolApprovalCard 审批
+ * - requires-action → ApprovalCard 审批
  * - running → 加载占位
  */
 export function ToolCard({
@@ -156,7 +156,7 @@ export function ToolCard({
   // 需要审批
   if (status?.type === 'requires-action') {
     return (
-      <ToolApprovalCard
+      <ApprovalCard
         toolName={title}
         subtitle={subtitle}
         description={approvalDescription}

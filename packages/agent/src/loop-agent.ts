@@ -34,7 +34,7 @@ import {createDefaultProcessors, normalizeUserMessage} from './utils.js';
 import {fromModelMessage, type MessageWithUsage} from '@vico/thread';
 import {addUsage, emptyUsage} from '@vico/stream';
 import {TurnOutput} from './turn-output.js';
-import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart,} from '@vico/stream';
+import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart, toolResultPart} from '@vico/stream';
 import {
   buildAssistantMessage,
   buildToolResultMessage,
@@ -108,7 +108,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.checkpointStore = rest.checkpointStore;
     this.logger = rest.logger ?? pino();
 
-    this.toolExecutor = new ToolExecutor({ tools: rest.tools, host: this });
+    this.toolExecutor = new ToolExecutor({ tools: rest.tools });
     this.pipeline = new ProcessorPipeline(processors ?? createDefaultProcessors(rest.skills, rest.memory));
   }
 
@@ -604,7 +604,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     })
 
     // 执行本轮批准的调用；拒绝结果一并落消息链
-    const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context);
+    const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context, (call, result) => {
+      context.controller.enqueue(toolResultPart(result, call.args));
+      this.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
+    });
     await this.appendToolResults([...toolResults, ...deniedResults], context);
 
     await this.saveCheckpoint(context, 'model')

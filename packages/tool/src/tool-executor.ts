@@ -1,39 +1,29 @@
-// @vico/core - ToolExecutor: 工具注册、执行、结果上流
-import type {Tool, ToolCall, ToolCallContext, ToolResult} from './types.js';
-import {StormBreaker} from './storm-breaker.js';
-import type {TextStreamPart, ToolSet} from 'ai';
-import type {TurnEvent} from '@vico/stream';
-import type {TurnSession} from '@vico/thread';
-import type {ToolCallApproval} from '@vico/types';
-import {toolResultPart} from '@vico/stream';
+// @vico/tool - ToolExecutor: 工具注册与执行
 
-/** ToolExecutor 所需的宿主最小接口（依赖倒置：LoopAgent 满足此结构） */
-export interface AgentHost {
-  emit(event: TurnEvent): void;
-}
+import type { Tool, ToolCall, ToolCallContext, ToolResult } from './types.js';
+import { StormBreaker } from './storm-breaker.js';
+import type { ToolSet } from 'ai';
+import type { TurnSession } from '@vico/thread';
+import type { ToolCallApproval } from '@vico/types';
 
 /** ToolExecutor 执行工具所需的最小上下文（依赖倒置：引擎的 TurnContext 满足此结构） */
 export interface ToolExecutionContext<TToolSet extends ToolSet = ToolSet> {
   session: TurnSession;
   signal: AbortSignal;
   decisions: Map<string, ToolCallApproval>;
-  controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
 }
 
 /** ToolExecutor 构造选项 */
 export interface ToolExecutorOptions<TToolSet extends ToolSet = ToolSet> {
   tools?: Tool[];
-  host: AgentHost;
 }
 
-/** ToolExecutor — 工具注册、执行、结果上流 */
+/** ToolExecutor — 工具注册与执行 */
 export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   private tools: Map<string, Tool> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();
-  private host: AgentHost;
 
   constructor(options: ToolExecutorOptions<TToolSet>) {
-    this.host = options.host;
     for (const tool of options.tools ?? []) {
       this.tools.set(tool.name, tool);
     }
@@ -106,36 +96,40 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   }
 
   /**
-   * 执行工具调用，逐条上流结果。
+   * 执行工具调用并返回结果列表。每个结果完成时经 onResult 回调通知调用方，
+   * 由调用方负责上流（转流 part / 事件），本模块不依赖流协议。
    * readonly 并行执行（无副作用），其余串行逐条执行。
    * 工具结果只落消息链（由调用方 appendToolResults 持久化），本方法不写 checkpoint。
+   *
+   * @param toolCalls - 待执行的工具调用列表
+   * @param context - 工具执行上下文（会话、信号、审批决策）
+   * @param onResult - 单个工具结果完成时的回调（含调用与结果），可选
+   * @returns 全部执行结果（与 toolCalls 一一对应）
    */
-  async executeToolCalls(toolCalls: ToolCall[], context: ToolExecutionContext<TToolSet>): Promise<ToolResult[]> {
+  async executeToolCalls(
+    toolCalls: ToolCall[],
+    context: ToolExecutionContext<TToolSet>,
+    onResult?: (call: ToolCall, result: ToolResult) => void,
+  ): Promise<ToolResult[]> {
     if (toolCalls.length === 0) return [];
 
     const { readonlyCalls, sequentialCalls } = this.partitionCalls(toolCalls);
 
     const results: ToolResult[] = [];
 
-    // 工具执行结果上流：success → tool-result part，error → tool-error part
-    const emitResult = (call: ToolCall, result: ToolResult): void => {
-      context.controller.enqueue(toolResultPart(result, call.args));
-      this.host.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
-    };
-
-    // readonly：并行执行（无副作用），结果串行上流
+    // readonly：并行执行（无副作用），结果串行回调
     const executed = await Promise.all(
       readonlyCalls.map(async (call) => ({ call, result: await this.execute(call, context) })),
     );
     for (const { call, result } of executed) {
-      emitResult(call, result);
+      onResult?.(call, result);
       results.push(result);
     }
 
     // sequential：串行逐条执行（mutation 有副作用，串行避免并发干扰）
     for (const call of sequentialCalls) {
       const result = await this.execute(call, context);
-      emitResult(call, result);
+      onResult?.(call, result);
       results.push(result);
     }
 

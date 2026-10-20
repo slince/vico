@@ -3,9 +3,9 @@ packages:
   - "examples/*"
   - "vico/*"
 
-# 放行 workspace 内 type-only 循环依赖（见 packages/core/SPLIT-PLAN.md）：
-# model → tool → stream → model 中仅 tool → stream 为运行时 value 依赖，其余边
-# 均为 `import type`，编译期擦除后不构成运行时环。
+# 放行 workspace 内 type-only 循环依赖（历史遗留：packages/core 拆分后各包间
+# 仍存在 model → tool、stream → model、stream → tool 等 `import type` 边，
+# 编译期擦除后不构成运行时环；tool → stream 的运行时 value 依赖已移除）。
 ignoreWorkspaceCycles: true
 
 # 放行刚发布（未满 24h）的 assistant-ui 相关包，保留其余包的供应链保护

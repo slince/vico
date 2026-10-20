@@ -736,9 +736,6 @@ importers:
 
   packages/tool:
     dependencies:
-      '@vico/stream':
-        specifier: workspace:*
-        version: link:../stream
       '@vico/thread':
         specifier: workspace:*
         version: link:../thread

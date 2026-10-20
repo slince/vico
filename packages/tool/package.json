@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vico/stream": "workspace:*",
     "@vico/thread": "workspace:*",
     "@vico/types": "workspace:*",
     "ai": "7.0.142",
