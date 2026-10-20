@@ -57,8 +57,8 @@ describe('ServiceProvider / registerProvider + boot', () => {
     await container.boot();
 
     expect(order).toEqual(['r1', 'r2', 'b1', 'b2']);
-    expect(container.resolve('a')).toBe('A');
-    expect(container.resolve('b')).toBe('B');
+    expect(container.get('a')).toBe('A');
+    expect(container.get('b')).toBe('B');
   });
 
   it('boot 阶段可解析 register 阶段注册的服务', async () => {
@@ -70,7 +70,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
         c.register('a', () => 'hello');
       },
       boot(c) {
-        resolved = c.resolve('a');
+        resolved = c.get('a');
       },
     });
     await container.boot();
@@ -108,7 +108,7 @@ describe('ServiceProvider / registerProvider + boot', () => {
     });
     await container.boot();
 
-    expect(container.resolve('a')).toBe('A');
+    expect(container.get('a')).toBe('A');
   });
 
   it('provider 内可 load 配置并在 boot 中 getConfig', async () => {
@@ -139,10 +139,10 @@ describe('ServiceProvider / registerProvider + boot', () => {
     expect(() => container.registerConfig('memory', memorySchema)).toThrow(/frozen/);
   });
 
-  it('resolve 后自动冻结，禁止再注册', () => {
+  it('get 后自动冻结，禁止再注册', () => {
     const container = createContainer<Tokens>();
     container.register('a', () => 'A');
-    expect(container.resolve('a')).toBe('A');
+    expect(container.get('a')).toBe('A');
 
     expect(container.isFrozen).toBe(true);
     expect(() => container.register('b', () => 'B')).toThrow(/frozen/);

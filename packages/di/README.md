@@ -5,10 +5,10 @@
 ## 特性
 
 - **工厂 Provider**：依赖与配置在同一个工厂函数里汇合，支持按配置条件构建（如 s3/local 切实现）
-- **类型安全的 TokenMap**：声明 token → 实例类型映射后，`register` 校验工厂返回类型、`resolve` 推断返回类型
+- **类型安全的 TokenMap**：声明 token → 实例类型映射后，`register` 校验工厂返回类型、`get` 推断返回类型
 - **配置定义加载**：`registerConfig` 声明 zod schema，`load` 从 yaml/json 读取并用 schema 验证，`getConfig` 取用
 - **作用域**：`singleton`（默认，全容器唯一）/ `transient`（每次新建）
-- **异步工厂**：`resolveAsync` 解析返回 Promise 的工厂，并发调用共享同一 pending Promise（工厂只执行一次）
+- **异步工厂**：`resolve` 解析返回 Promise 的工厂，并发调用共享同一 pending Promise（工厂只执行一次）
 - **循环依赖检测**：同步/异步解析统一检测
 - **Service Provider**：按领域组织组装逻辑，`register`（绑定）+ `boot`（初始化）两阶段，支持异步
 
@@ -27,23 +27,23 @@ const container = createContainer<AppConfig, Tokens>(config);
 
 container
   .register('db', ({ config }) => initDb(config.database))
-  .register('storage', ({ config, resolve }) =>
+  .register('storage', ({ config, get }) =>
     config.storage.type === 's3'
-      ? new S3Storage(config.storage, resolve('db'))
-      : new LocalStorage(config.storage, resolve('db')),
+      ? new S3Storage(config.storage, get('db'))
+      : new LocalStorage(config.storage, get('db')),
   );
 
-const storage = container.resolve('storage'); // 类型为 Storage
+const storage = container.get('storage'); // 类型为 Storage
 ```
 
-异步工厂用 `resolveAsync`：
+异步工厂用 `resolve`：
 
 ```ts
-container.register('embedder', async ({ config, resolve }) => {
-  const db = resolve('db');
+container.register('embedder', async ({ config, get }) => {
+  const db = get('db');
   return loadEmbedder(config.rag.embedder);
 });
-const embedder = await container.resolveAsync('embedder');
+const embedder = await container.resolve('embedder');
 ```
 
 ## 配置定义加载
@@ -82,14 +82,14 @@ const storageProvider = {
   register(c) {
     c.registerConfig('storage', storageSchema).load('storage.yaml');
     c.register('db', ({ config }) => initDb(config.database));
-    c.register('storage', ({ config, resolve }) =>
+    c.register('storage', ({ config, get }) =>
       config.storage.type === 's3'
-        ? new S3Storage(config.storage, resolve('db'))
-        : new LocalStorage(config.storage, resolve('db')),
+        ? new S3Storage(config.storage, get('db'))
+        : new LocalStorage(config.storage, get('db')),
     );
   },
   async boot(c) {
-    await c.resolve('db').migrate();   // 全部绑定完成后再统一初始化
+    await c.get('db').migrate();   // 全部绑定完成后再统一初始化
   },
 };
 
@@ -106,8 +106,8 @@ await container.bootstrap([storageProvider, memoryProvider]);
 | `createContainer(config?)` | 创建容器，注入只读配置 |
 | `container.register(token, factory, options?)` | 注册工厂 Provider，`options.scope` 默认 `singleton` |
 | `container.registerValue(token, value)` | 注册已构建好的实例 |
-| `container.resolve(token)` | 同步解析（异步工厂会抛错） |
-| `container.resolveAsync(token)` | 异步解析，兼容同步工厂 |
+| `container.get(token)` | 同步解析（异步工厂会抛错） |
+| `container.resolve(token)` | 异步解析，兼容同步工厂 |
 | `container.has(token)` | 是否已注册 |
 | `container.registerConfig(key, schema)` | 声明配置段及其 zod schema |
 | `container.load(path)` | 加载 yaml/json 配置文件，对已注册 key 立即验证 |

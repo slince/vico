@@ -1,9 +1,9 @@
 /**
  * server 业务服务 provider — 把业务 Manager 与工具依赖按依赖拓扑装配进容器。
  *
- * 全部依赖在 register 阶段以懒工厂绑定（`resolve` 递归触发构建）；各服务类已彻底
+ * 全部依赖在 register 阶段以懒工厂绑定（`get` 递归触发构建）；各服务类已彻底
  * 构造注入（含 db/client 连接），不再有模块级单例。db/client 连接由 bootstrap()
- * 显式注入后，在此被各服务按需 resolve。
+ * 显式注入后，在此被各服务按需 get。
  */
 import { getAuth } from '../auth/get-auth.js';
 import { AgentFactory } from '../lib/agent-factory.js';
@@ -23,54 +23,54 @@ import type { ServerServiceProvider } from '../tokens.js';
 
 export const servicesProvider: ServerServiceProvider = {
   register(c) {
-    // 认证实例（懒加载 betterAuth，首次 resolve 时才初始化连接）
+    // 认证实例（懒加载 betterAuth，首次 get 时才初始化连接）
     c.register('auth', () => getAuth());
 
-    c.register('modelManager', ({ resolve }) => new ModelManager(resolve('db')));
+    c.register('modelManager', ({ get }) => new ModelManager(get('db')));
 
-    c.register('documentManager', ({ resolve }) => new DocumentManager(resolve('db')));
+    c.register('documentManager', ({ get }) => new DocumentManager(get('db')));
 
     c.register('storageManager', ({ getConfig }) => new StorageManager(getConfig('file_storage')));
 
-    c.register('ragManager', ({ resolve, getConfig }) =>
+    c.register('ragManager', ({ get, getConfig }) =>
       new RAGManager(
-        resolve('db'),
-        resolve('client'),
-        resolve('vectorStore'),
-        resolve('embedder'),
+        get('db'),
+        get('client'),
+        get('vectorStore'),
+        get('embedder'),
         getConfig('rag'),
-        resolve('logger'),
+        get('logger'),
       ));
 
-    c.register('agentManager', ({ resolve, getConfig }) =>
+    c.register('agentManager', ({ get, getConfig }) =>
       new AgentManager(
-        resolve('db'),
-        resolve('modelManager'),
+        get('db'),
+        get('modelManager'),
         expandHome(getConfig('workspace').base_path),
       ));
 
-    c.register('agentFactory', ({ resolve, getConfig }) =>
+    c.register('agentFactory', ({ get, getConfig }) =>
       new AgentFactory(
-        resolve('agentManager'),
-        // skill 列表是异步工厂，FactoryContext 只暴露同步 resolve，这里经容器 resolveAsync 装配
-        () => c.resolveAsync('skills'),
+        get('agentManager'),
+        // skill 列表是异步工厂，FactoryContext 只暴露同步 get，这里经容器 resolve 装配
+        () => c.resolve('skills'),
         getConfig('memory'),
         getConfig('model'),
       ));
 
-    c.register('threadManager', ({ resolve }) =>
-      new ThreadManager(resolve('thread'), resolve('agentManager')));
+    c.register('threadManager', ({ get }) =>
+      new ThreadManager(get('thread'), get('agentManager')));
 
-    c.register('knowledgeManager', ({ resolve, getConfig }) =>
+    c.register('knowledgeManager', ({ get, getConfig }) =>
       new KnowledgeManager(
-        resolve('db'),
-        resolve('ragManager'),
-        resolve('documentManager'),
-        resolve('storageManager'),
+        get('db'),
+        get('ragManager'),
+        get('documentManager'),
+        get('storageManager'),
         getConfig('upload'),
       ));
 
-    c.register('terminalManager', ({ resolve }) => new TerminalManager(getThreadWorkspace, resolve('logger')));
+    c.register('terminalManager', ({ get }) => new TerminalManager(getThreadWorkspace, get('logger')));
 
     c.register('weatherTool', () => weatherTool);
 

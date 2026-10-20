@@ -43,7 +43,7 @@ const serverProvider: ServerServiceProvider = {
   },
 
   async boot(c) {
-    const logger = c.resolve('logger');
+    const logger = c.get('logger');
 
     await runMigrations(logger);
     await seedDefaultAdmin(logger);
@@ -56,7 +56,7 @@ const serverProvider: ServerServiceProvider = {
     await ensureMemoryTables(db as any);
 
     // checkpoint 版本链 TTL 清理：启动一次 + 每小时一次
-    c.resolve('checkpointPurge').start();
+    c.get('checkpointPurge').start();
 
     logger.info('Vico agent framework initialized');
   },

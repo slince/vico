@@ -31,16 +31,16 @@ export const memoryProvider: VicoServiceProvider = {
       .registerConfig('storage', storageSchema)
       .registerConfig('checkpoint', checkpointSchema);
 
-    c.register('thread', ({ resolve, getConfig }) => {
+    c.register('thread', ({ get, getConfig }) => {
       const { thread: backend, db_service } = getConfig('storage');
       const dbService = db_service as keyof VicoTokens & string;
 
       switch (backend) {
         case 'libsql':
-          return new LibSqlThreadStore({ db: resolve(dbService) as LibSqlThreadStoreOptions['db'] });
+          return new LibSqlThreadStore({ db: get(dbService) as LibSqlThreadStoreOptions['db'] });
 
         case 'mysql':
-          return new MysqlThreadStore({ db: resolve(dbService) as MysqlThreadStoreOptions['db'] });
+          return new MysqlThreadStore({ db: get(dbService) as MysqlThreadStoreOptions['db'] });
 
         case 'memory':
         default:
@@ -48,19 +48,19 @@ export const memoryProvider: VicoServiceProvider = {
       }
     });
 
-    c.register('checkpointStore', ({ resolve, getConfig }) => {
+    c.register('checkpointStore', ({ get, getConfig }) => {
       const { checkpoint: backend, db_service } = getConfig('storage');
       const dbService = db_service as keyof VicoTokens & string;
 
       switch (backend) {
         case 'libsql':
           return new LibSqlCheckpointStore(
-            resolve(dbService) as ConstructorParameters<typeof LibSqlCheckpointStore>[0],
+            get(dbService) as ConstructorParameters<typeof LibSqlCheckpointStore>[0],
           );
 
         case 'mysql':
           return new MysqlCheckpointStore(
-            resolve(dbService) as ConstructorParameters<typeof MysqlCheckpointStore>[0],
+            get(dbService) as ConstructorParameters<typeof MysqlCheckpointStore>[0],
           );
 
         case 'memory':
@@ -69,23 +69,23 @@ export const memoryProvider: VicoServiceProvider = {
       }
     });
 
-    c.register('checkpointPurge', ({ resolve, getConfig }) =>
+    c.register('checkpointPurge', ({ get, getConfig }) =>
       new CheckpointPurge(
-        resolve('checkpointStore'),
+        get('checkpointStore'),
         getConfig('checkpoint').ttl_days * 24 * 60 * 60 * 1000,
-        resolve('logger'),
+        get('logger'),
       ));
 
-    c.register('vectorStore', ({ resolve, getConfig }) => {
+    c.register('vectorStore', ({ get, getConfig }) => {
       const { vector: backend, client_service } = getConfig('storage');
       const clientService = client_service as keyof VicoTokens & string;
 
       switch (backend) {
         case 'libsql':
-          return new LibSQLVectorStore({ client: resolve(clientService) as LibSQLVectorStoreOptions['client'] });
+          return new LibSQLVectorStore({ client: get(clientService) as LibSQLVectorStoreOptions['client'] });
 
         case 'chroma':
-          return new ChromaVectorStore({ client: resolve(clientService) as ChromaVectorStoreOptions['client'] });
+          return new ChromaVectorStore({ client: get(clientService) as ChromaVectorStoreOptions['client'] });
 
         case 'memory':
         default:
@@ -101,18 +101,18 @@ export const memoryProvider: VicoServiceProvider = {
       return createEmbedder(configured as unknown as EmbedderConfig);
     });
 
-    c.register('memory', ({ resolve, getConfig }) => {
+    c.register('memory', ({ get, getConfig }) => {
       const memoryConfig = getConfig('memory');
       const dbService = getConfig('storage').db_service as keyof VicoTokens & string;
-      const embedder = resolve('embedder');
+      const embedder = get('embedder');
 
       return new MemoryStore({
-        conversation: new ConversationHistoryMemory(resolve('thread'), memoryConfig.stm_window),
+        conversation: new ConversationHistoryMemory(get('thread'), memoryConfig.stm_window),
         semantic: memoryConfig.semantic === 'libsql'
-          ? new LibSqlSemanticMemory({ db: resolve(dbService) as LibSqlSemanticMemoryOptions['db'] })
+          ? new LibSqlSemanticMemory({ db: get(dbService) as LibSqlSemanticMemoryOptions['db'] })
           : undefined,
         episodic: embedder
-          ? new VectorEpisodicRecall({ embedder, vectorStore: resolve('vectorStore') })
+          ? new VectorEpisodicRecall({ embedder, vectorStore: get('vectorStore') })
           : undefined,
       });
     });

@@ -25,7 +25,7 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
     const fromDate = c.req.query('fromDate');
     const toDate = c.req.query('toDate');
 
-    const client = getContainer().resolve('client');
+    const client = getContainer().get('client');
     const offset = (page - 1) * perPage;
 
     // 构建时间过滤条件
@@ -81,7 +81,7 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const traceId = c.req.param('id');
-    const client = getContainer().resolve('client');
+    const client = getContainer().get('client');
 
     // 存在性验证
     const verifySql = `
@@ -145,7 +145,7 @@ export function observabilityRoutes(app: Hono<{ Variables: Variables }>) {
     const fromDate = c.req.query('fromDate');
     const toDate = c.req.query('toDate');
 
-    const client = getContainer().resolve('client');
+    const client = getContainer().get('client');
 
     const timeConditions: string[] = [];
     const timeParams: InValue[] = [];

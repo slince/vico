@@ -12,7 +12,7 @@ export function providerRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/llm-providers', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const llmProviders = getContainer().resolve('llmProviders');
+    const llmProviders = getContainer().get('llmProviders');
     return c.json(llmProviders);
   });
 }

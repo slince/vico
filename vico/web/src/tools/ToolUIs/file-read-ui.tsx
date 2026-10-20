@@ -116,18 +116,15 @@ export const FileReadRenderer: ToolCallMessagePartComponent<FileReadArgs, FileRe
       resume={resume}
       addResult={addResult}
       respondToApproval={respondToApproval}
-      renderResult={(r) => {
-        switch (toolName) {
-          case 'read':
-            return <ReadView result={r as ReadResult} />;
-          case 'glob':
-            return <GlobView result={r as GlobResult} />;
-          case 'grep':
-            return <GrepView result={r as GrepResult} />;
-          default:
-            return null;
-        }
-      }}
-    />
+    >
+      {result &&
+        (toolName === 'read' ? (
+          <ReadView result={result as ReadResult} />
+        ) : toolName === 'glob' ? (
+          <GlobView result={result as GlobResult} />
+        ) : toolName === 'grep' ? (
+          <GrepView result={result as GrepResult} />
+        ) : null)}
+    </ToolCard>
   );
 };

@@ -88,23 +88,23 @@ describe('bootstrap 两阶段时序', () => {
 });
 
 describe('providers 真实装配', () => {
-  it('createVicoContainer + boot 后可 resolve 出 framework 核心依赖', async () => {
+  it('createVicoContainer + boot 后可 get 出 framework 核心依赖', async () => {
     const c = await createVicoContainer();
     await c.boot();
-    expect(c.resolve('thread')).toBeInstanceOf(InMemoryThreadStore);
-    expect(c.resolve('checkpointStore')).toBeInstanceOf(MemoryCheckpointStore);
-    expect(c.resolve('checkpointPurge')).toBeInstanceOf(CheckpointPurge);
-    expect(c.resolve('logger')).toBeTruthy();
-    expect(c.resolve('vectorStore')).toBeInstanceOf(InMemoryVectorStore);
-    expect(c.resolve('memory')).toBeInstanceOf(MemoryStore);
-    expect(c.resolve('agentRuntime')).toBeInstanceOf(AgentRuntime);
-    expect(c.resolve('events')).toBeTruthy();
+    expect(c.get('thread')).toBeInstanceOf(InMemoryThreadStore);
+    expect(c.get('checkpointStore')).toBeInstanceOf(MemoryCheckpointStore);
+    expect(c.get('checkpointPurge')).toBeInstanceOf(CheckpointPurge);
+    expect(c.get('logger')).toBeTruthy();
+    expect(c.get('vectorStore')).toBeInstanceOf(InMemoryVectorStore);
+    expect(c.get('memory')).toBeInstanceOf(MemoryStore);
+    expect(c.get('agentRuntime')).toBeInstanceOf(AgentRuntime);
+    expect(c.get('events')).toBeTruthy();
   });
 
   it('skills 异步扫描（默认空路径 → 空列表）', async () => {
     const c = await createVicoContainer();
     await c.boot();
-    const skills = await c.resolveAsync('skills');
+    const skills = await c.resolve('skills');
     expect(skills).toEqual([]);
   });
 
@@ -112,16 +112,16 @@ describe('providers 真实装配', () => {
     const file = writeTempConfig('rag:\n  embedder: none\n');
     const c = await createVicoContainer({ configPath: file });
     await c.boot();
-    expect(c.resolve('embedder')).toBeUndefined();
-    expect(c.resolve('memory').episodic).toBeUndefined();
+    expect(c.get('embedder')).toBeUndefined();
+    expect(c.get('memory').episodic).toBeUndefined();
     rmSync(join(file, '..'), { recursive: true, force: true });
   });
 
   it('默认 embedder 启用 episodic', async () => {
     const c = await createVicoContainer();
     await c.boot();
-    expect(c.resolve('embedder')).toBeTruthy();
-    expect(c.resolve('memory').episodic).toBeTruthy();
+    expect(c.get('embedder')).toBeTruthy();
+    expect(c.get('memory').episodic).toBeTruthy();
   });
 
   it('storage 配置驱动后端选择（libsql / mysql / chroma）', async () => {
@@ -138,9 +138,9 @@ describe('providers 真实装配', () => {
     });
 
     await c.boot();
-    expect(c.resolve('thread')).toBeInstanceOf(LibSqlThreadStore);
-    expect(c.resolve('checkpointStore')).toBeInstanceOf(MysqlCheckpointStore);
-    expect(c.resolve('vectorStore')).toBeInstanceOf(ChromaVectorStore);
+    expect(c.get('thread')).toBeInstanceOf(LibSqlThreadStore);
+    expect(c.get('checkpointStore')).toBeInstanceOf(MysqlCheckpointStore);
+    expect(c.get('vectorStore')).toBeInstanceOf(ChromaVectorStore);
 
     rmSync(join(file, '..'), { recursive: true, force: true });
   });
@@ -155,7 +155,7 @@ describe('providers 真实装配', () => {
     });
 
     await c.boot();
-    expect(c.resolve('vectorStore')).toBeInstanceOf(LibSQLVectorStore);
+    expect(c.get('vectorStore')).toBeInstanceOf(LibSQLVectorStore);
 
     rmSync(join(file, '..'), { recursive: true, force: true });
   });
@@ -165,13 +165,13 @@ describe('providers 真实装配', () => {
     const c = await createVicoContainer({
       configPath: file,
       setup: (container) => {
-        // 注册默认 'db'，但配置指向 'mydb'：provider 应去 resolve 'mydb' 而非硬编码 'db'
+        // 注册默认 'db'，但配置指向 'mydb'：provider 应去 get 'mydb' 而非硬编码 'db'
         container.register('db', () => ({}));
       },
     });
 
     await c.boot();
-    expect(() => c.resolve('thread')).toThrow(/Dependency not registered: mydb/);
+    expect(() => c.get('thread')).toThrow(/Dependency not registered: mydb/);
 
     rmSync(join(file, '..'), { recursive: true, force: true });
   });

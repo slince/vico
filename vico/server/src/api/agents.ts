@@ -8,7 +8,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/agents', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agentManager = getContainer().resolve('agentManager');
+    const agentManager = getContainer().get('agentManager');
     return c.json(await agentManager.list());
   });
 
@@ -16,7 +16,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.post('/api/v1/agents', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agentManager = getContainer().resolve('agentManager');
+    const agentManager = getContainer().get('agentManager');
     const agent = await agentManager.create(await c.req.json());
     return c.json({ id: agent.id, message: 'created' });
   });
@@ -25,7 +25,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/agents/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agentManager = getContainer().resolve('agentManager');
+    const agentManager = getContainer().get('agentManager');
     const agent = await agentManager.getById(c.req.param('id'));
     if (!agent) return c.json({ error: 'Agent not found' }, 404);
     return c.json(agent);
@@ -35,7 +35,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.patch('/api/v1/agents/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agentManager = getContainer().resolve('agentManager');
+    const agentManager = getContainer().get('agentManager');
     try {
       await agentManager.update(c.req.param('id'), await c.req.json());
     } catch (e: any) {
@@ -51,7 +51,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/agents/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agentManager = getContainer().resolve('agentManager');
+    const agentManager = getContainer().get('agentManager');
     try {
       await agentManager.remove(c.req.param('id'));
     } catch (e: any) {
@@ -67,7 +67,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.put('/api/v1/agents/:id/knowledge', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agentManager = getContainer().resolve('agentManager');
+    const agentManager = getContainer().get('agentManager');
     await agentManager.replaceKnowledge(c.req.param('id'), await c.req.json());
     return c.json({ message: 'updated' });
   });
@@ -76,7 +76,7 @@ export function agentRoutes(app: Hono<{ Variables: Variables }>) {
   app.put('/api/v1/agents/:id/skills', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const agentManager = getContainer().resolve('agentManager');
+    const agentManager = getContainer().get('agentManager');
     await agentManager.replaceSkills(c.req.param('id'), await c.req.json());
     return c.json({ message: 'updated' });
   });

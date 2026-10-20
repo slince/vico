@@ -20,7 +20,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
   /** 自定义错误处理 — 返回原始错误信息，方便调试 */
   app.onError((err, c) => {
-    getContainer().resolve('logger').error({ err }, 'Unhandled error');
+    getContainer().get('logger').error({ err }, 'Unhandled error');
     const message = err instanceof Error ? err.message : 'An internal error occurred';
     const stack = err instanceof Error ? err.stack : undefined;
     return c.json(
@@ -93,7 +93,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
       return next();
     }
 
-    const auth = getContainer().resolve('auth');
+    const auth = getContainer().get('auth');
     const result = await auth.api.getSession({
       headers: c.req.raw.headers,
     });
@@ -129,7 +129,7 @@ export function createApp(): Hono<{ Variables: Variables }> {
 
   /** 挂载 better-auth 路由处理器 */
   app.on(['POST', 'GET'], '/api/auth/*', (c) => {
-    const auth = getContainer().resolve('auth');
+    const auth = getContainer().get('auth');
     return auth.handler(c.req.raw);
   });
 

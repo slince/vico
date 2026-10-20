@@ -15,7 +15,7 @@ interface Tokens {
 }
 
 describe('createContainer', () => {
-  it('注册并解析单例，多次 resolve 返回同一实例', () => {
+  it('注册并解析单例，多次 get 返回同一实例', () => {
     const container = createContainer<Tokens>();
     let built = 0;
     container.register('db', () => {
@@ -23,8 +23,8 @@ describe('createContainer', () => {
       return { name: 'sqlite' };
     });
 
-    const a = container.resolve('db');
-    const b = container.resolve('db');
+    const a = container.get('db');
+    const b = container.get('db');
 
     expect(a).toBe(b);
     expect(built).toBe(1);
@@ -34,15 +34,15 @@ describe('createContainer', () => {
     const container = createContainer<Tokens>();
     container.register('db', () => ({ name: 'sqlite' }), { scope: 'transient' });
 
-    expect(container.resolve('db')).not.toBe(container.resolve('db'));
+    expect(container.get('db')).not.toBe(container.get('db'));
   });
 
-  it('工厂里通过 resolve 注入其他依赖', () => {
+  it('工厂里通过 get 注入其他依赖', () => {
     const container = createContainer<Tokens>();
     container.register('db', () => ({ name: 'sqlite' }));
-    container.register('storage', ({ resolve }) => ({ root: `/data/${resolve('db').name}` }));
+    container.register('storage', ({ get }) => ({ root: `/data/${get('db').name}` }));
 
-    expect(container.resolve('storage').root).toBe('/data/sqlite');
+    expect(container.get('storage').root).toBe('/data/sqlite');
   });
 
   it('registerValue 注册已构建好的实例', () => {
@@ -50,12 +50,12 @@ describe('createContainer', () => {
     const prebuilt = { name: 'prebuilt' };
     container.registerValue('db', prebuilt);
 
-    expect(container.resolve('db')).toBe(prebuilt);
+    expect(container.get('db')).toBe(prebuilt);
   });
 
   it('未注册的 token 抛错', () => {
     const container = createContainer<Tokens>();
-    expect(() => container.resolve('db')).toThrow(/not registered/);
+    expect(() => container.get('db')).toThrow(/not registered/);
   });
 
   it('重复注册同一 token 抛错', () => {
@@ -70,14 +70,14 @@ describe('createContainer', () => {
       b: { name: string };
     }
     const container = createContainer<CycleTokens>();
-    container.register('a', ({ resolve }) => ({ name: resolve('b').name }));
-    container.register('b', ({ resolve }) => ({ name: resolve('a').name }));
+    container.register('a', ({ get }) => ({ name: get('b').name }));
+    container.register('b', ({ get }) => ({ name: get('a').name }));
 
-    expect(() => container.resolve('a')).toThrow(/Circular dependency/);
+    expect(() => container.get('a')).toThrow(/Circular dependency/);
   });
 
   describe('异步工厂', () => {
-    it('resolveAsync 解析异步工厂并缓存结果', async () => {
+    it('resolve 解析异步工厂并缓存结果', async () => {
       const container = createContainer<Tokens>();
       let built = 0;
       container.register('db', async () => {
@@ -85,13 +85,13 @@ describe('createContainer', () => {
         return { name: 'sqlite' };
       });
 
-      const db = await container.resolveAsync('db');
+      const db = await container.resolve('db');
       expect(db.name).toBe('sqlite');
-      expect((await container.resolveAsync('db'))).toBe(db);
+      expect((await container.resolve('db'))).toBe(db);
       expect(built).toBe(1);
     });
 
-    it('并发 resolveAsync 共享同一 pending Promise，工厂只执行一次', async () => {
+    it('并发 resolve 共享同一 pending Promise，工厂只执行一次', async () => {
       const container = createContainer<Tokens>();
       let built = 0;
       container.register('db', async () => {
@@ -100,19 +100,19 @@ describe('createContainer', () => {
       });
 
       const [a, b] = await Promise.all([
-        container.resolveAsync('db'),
-        container.resolveAsync('db'),
+        container.resolve('db'),
+        container.resolve('db'),
       ]);
 
       expect(a).toBe(b);
       expect(built).toBe(1);
     });
 
-    it('异步工厂被同步 resolve 时抛错提示', () => {
+    it('异步工厂被同步 get 时抛错提示', () => {
       const container = createContainer<Tokens>();
       container.register('db', async () => ({ name: 'sqlite' }));
 
-      expect(() => container.resolve('db')).toThrow(/resolveAsync/);
+      expect(() => container.get('db')).toThrow(/resolve/);
     });
 
     it('异步工厂失败后清空缓存，允许下次重试', async () => {
@@ -124,8 +124,8 @@ describe('createContainer', () => {
         return { name: 'recovered' };
       });
 
-      await expect(container.resolveAsync('db')).rejects.toThrow('boom');
-      await expect(container.resolveAsync('db')).resolves.toEqual({ name: 'recovered' });
+      await expect(container.resolve('db')).rejects.toThrow('boom');
+      await expect(container.resolve('db')).resolves.toEqual({ name: 'recovered' });
       expect(built).toBe(2);
     });
   });

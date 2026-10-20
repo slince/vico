@@ -19,7 +19,7 @@ export function execApprovalRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
-    const db = getContainer().resolve('db');
+    const db = getContainer().get('db');
     const rows = await db.select()
       .from(schema.exec_approvals)
       .where(eq(schema.exec_approvals.status, 'pending'))
@@ -45,7 +45,7 @@ export function execApprovalRoutes(app: Hono<{ Variables: Variables }>) {
       return c.json({ error: 'action must be "approve" or "reject"' }, 400);
     }
 
-    const db = getContainer().resolve('db');
+    const db = getContainer().get('db');
     const record = await db.select({ id: schema.exec_approvals.id })
       .from(schema.exec_approvals)
       .where(eq(schema.exec_approvals.id, approvalId))

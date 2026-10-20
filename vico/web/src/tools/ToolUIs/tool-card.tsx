@@ -2,9 +2,9 @@
  * 通用工具卡片 — 工具渲染器的共享状态机骨架。
  *
  * 统一处理 error/incomplete → rejected → complete → requires-action → running 的流转，
- * 各工具只需提供标题、图标、审批文案和完成态内容（renderResult），
+ * 各工具只需提供标题、图标、审批文案和完成态内容（children），
  * 避免每个工具重复实现相同状态机。
- * 完成态默认折叠，标题行右侧提供展开/折叠按钮；completeMode="bare" 时整卡交给 renderResult 自定义。
+ * 完成态默认折叠，标题行右侧提供展开/折叠按钮；completeMode="bare" 时整卡交给 children 自定义。
  * 审批态复用框架的 elements/ApprovalCard（HITL 决议 + i18n 文案在此落地）。
  */
 import {useState, type ElementType, type ReactNode} from 'react';
@@ -49,10 +49,10 @@ export interface ToolCardProps {
   runningLabel?: string;
   /** 拒绝态文案，默认 "{title} 已被拒绝" */
   rejectedLabel?: string;
-  /** 完成态渲染模式：card=标题头+折叠体（默认）；bare=整卡交给 renderResult 自定义 */
+  /** 完成态渲染模式：card=标题头+折叠体（默认）；bare=整卡交给 children 自定义 */
   completeMode?: 'card' | 'bare';
-  /** 完成态内容渲染（card 模式为折叠体，bare 模式为整卡） */
-  renderResult: (result: unknown) => ReactNode;
+  /** 完成态内容（card 模式为折叠体，bare 模式为整卡） */
+  children?: ReactNode;
 }
 
 /**
@@ -61,7 +61,7 @@ export interface ToolCardProps {
  * 状态机（优先级从高到低）：
  * - isError / incomplete → destructive 错误态（isError 时 result 可能携带 { error: ... }，须优先于完成态判断）
  * - approval 被拒绝 → destructive 拒绝态
- * - complete 且有 result → 卡片（header + 可折叠 renderResult）或 bare 自定义整卡
+ * - complete 且有 result → 卡片（header + 可折叠 children）或 bare 自定义整卡
  * - requires-action → 框架 ApprovalCard 审批
  * - running → 加载占位
  */
@@ -84,7 +84,7 @@ export function ToolCard({
   runningLabel,
   rejectedLabel,
   completeMode = 'card',
-  renderResult,
+  children,
 }: ToolCardProps) {
   const {t} = useTranslation('assistant');
   // 完成态结果折叠状态（默认折叠，可手动展开）
@@ -135,7 +135,7 @@ export function ToolCard({
     if (status?.type === 'complete' && result !== undefined) {
       // bare：完成态整卡交给工具自定义（如天气渐变大卡、检索结果列表）
       if (completeMode === 'bare') {
-        return <>{renderResult(result)}</>;
+        return <>{children}</>;
       }
 
       return (
@@ -165,7 +165,7 @@ export function ToolCard({
           </div>
           {open && (
             <div className="mt-2 pt-2 border-t border-border/50">
-              {renderResult(result)}
+              {children}
             </div>
           )}
         </div>

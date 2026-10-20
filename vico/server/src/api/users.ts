@@ -47,7 +47,7 @@ export function userRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/users', async (c) => {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
-    const db = getContainer().resolve('db');
+    const db = getContainer().get('db');
     const rows = await db.select({
       id: user.id,
       username: user.username,
@@ -69,7 +69,7 @@ export function userRoutes(app: Hono<{ Variables: Variables }>) {
       return c.json({ error: parsed.error.issues[0]?.message ?? '参数错误' }, 400);
     }
     const { username, name, email, password } = parsed.data;
-    const db = getContainer().resolve('db');
+    const db = getContainer().get('db');
 
     const dupUsername = await db.select({ id: user.id }).from(user)
       .where(eq(user.username, username)).get();
@@ -110,7 +110,7 @@ export function userRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
     const id = c.req.param('id');
-    const db = getContainer().resolve('db');
+    const db = getContainer().get('db');
     const users = await db.select({ id: user.id, role: user.role }).from(user).all();
     const check = checkDeleteUser(id, auth.userId, users);
     if (!check.allowed) return c.json({ error: check.error }, check.status);

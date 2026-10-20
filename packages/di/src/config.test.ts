@@ -133,7 +133,7 @@ describe('配置加载', () => {
         .register('summary', ({ getConfig }) => `window=${getConfig('memory').stm_window}`)
         .load(path);
 
-      expect(container.resolve('summary')).toBe('window=42');
+      expect(container.get('summary')).toBe('window=42');
     });
   });
 

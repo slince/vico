@@ -100,18 +100,15 @@ export const BrowserToolRenderer: ToolCallMessagePartComponent = ({
       addResult={addResult}
       respondToApproval={respondToApproval}
       approvalDescription={approvalDescription}
-      renderResult={(r) => {
-        switch (toolName) {
-          case 'browser_navigate':
-            return <NavigateView result={r as BrowserNavigateResult} />;
-          case 'browser_snapshot':
-            return <SnapshotView result={r as BrowserSnapshotResult} />;
-          case 'browser_click':
-            return <ClickView result={r as BrowserClickResult} />;
-          default:
-            return null;
-        }
-      }}
-    />
+    >
+      {result &&
+        (toolName === 'browser_navigate' ? (
+          <NavigateView result={result} />
+        ) : toolName === 'browser_snapshot' ? (
+          <SnapshotView result={result} />
+        ) : toolName === 'browser_click' ? (
+          <ClickView result={result} />
+        ) : null)}
+    </ToolCard>
   );
 };

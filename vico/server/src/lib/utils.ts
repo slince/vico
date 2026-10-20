@@ -12,7 +12,7 @@ import { getContainer } from '../container.js';
 
 /** 列出当前可用的全部 Skill（来自 boot 容器的 skills 异步工厂） */
 export async function listSkills(): Promise<Skill[]> {
-  return getContainer().resolveAsync('skills');
+  return getContainer().resolve('skills');
 }
 
 /**
@@ -23,7 +23,7 @@ export async function listSkills(): Promise<Skill[]> {
  */
 export async function createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
   const c = getContainer();
-  const runtime = c.resolve('agentRuntime');
+  const runtime = c.get('agentRuntime');
 
   const existing = runtime.getAgent(agentId);
   if (existing) return existing;
@@ -31,11 +31,11 @@ export async function createIfAbsent(agentId: string, factory: () => Promise<Age
   const config = await factory();
   const agent = await createAgent({
     ...config,
-    tools: config.tools ?? [c.resolve('weatherTool')],
-    memory: config.memory ?? c.resolve('memory'),
-    thread: config.thread ?? c.resolve('thread'),
-    checkpointStore: config.checkpointStore ?? c.resolve('checkpointStore'),
-    events: config.events ?? c.resolve('events'),
+    tools: config.tools ?? [c.get('weatherTool')],
+    memory: config.memory ?? c.get('memory'),
+    thread: config.thread ?? c.get('thread'),
+    checkpointStore: config.checkpointStore ?? c.get('checkpointStore'),
+    events: config.events ?? c.get('events'),
   });
   runtime.register(agent);
   return agent;
@@ -43,5 +43,5 @@ export async function createIfAbsent(agentId: string, factory: () => Promise<Age
 
 /** 获取 boot 容器装配的全局 ThreadStore（thread 后端由 storage 配置决定） */
 export function getThreadStore(): ThreadStore {
-  return getContainer().resolve('thread');
+  return getContainer().get('thread');
 }

@@ -15,7 +15,7 @@ async function main() {
   await bootstrap();
 
   const container = getContainer();
-  const logger = container.resolve('logger');
+  const logger = container.get('logger');
   const serverConfig = container.getConfig('server');
 
   // websocket.server 注入 wss：@hono/node-server 在 HTTP upgrade 时把连接交给 WebSocketServer 处理

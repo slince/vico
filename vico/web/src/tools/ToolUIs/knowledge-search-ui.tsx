@@ -96,7 +96,8 @@ export const KnowledgeSearchToolRenderer: ToolCallMessagePartComponent<Knowledge
       runningLabel={t('tool.knowledgeSearch.searching')}
       rejectedLabel={t('tool.knowledgeSearch.rejected')}
       completeMode="bare"
-      renderResult={(r) => <SearchResult result={r as KnowledgeSearchResult} fallbackQuery={fallbackQuery} />}
-    />
+    >
+      {result && <SearchResult result={result} fallbackQuery={fallbackQuery} />}
+    </ToolCard>
   );
 };

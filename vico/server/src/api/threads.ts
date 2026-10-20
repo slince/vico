@@ -26,7 +26,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/threads', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const threadManager = getContainer().resolve('threadManager');
+    const threadManager = getContainer().get('threadManager');
     const filters = {
       search: c.req.query('search')?.toLowerCase(),
       agent_id: c.req.query('agent_id'),
@@ -38,7 +38,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/threads/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const threadManager = getContainer().resolve('threadManager');
+    const threadManager = getContainer().get('threadManager');
     const rawLimit = c.req.query('limit');
     const rawStart = c.req.query('start');
     const limit = rawLimit ? parseInt(rawLimit, 10) : undefined;
@@ -52,7 +52,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/threads/:id', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const threadManager = getContainer().resolve('threadManager');
+    const threadManager = getContainer().get('threadManager');
     const deleted = await threadManager.delete(auth.userId, c.req.param('id'));
     if (!deleted) return c.json({ error: 'Thread not found' }, 404);
     return c.json({ success: true });
@@ -64,7 +64,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const body = await c.req.json();
-    const threadManager = getContainer().resolve('threadManager');
+    const threadManager = getContainer().get('threadManager');
     const title = typeof body.title === 'string' ? (body.title as string) : undefined;
     const archived = typeof body.archived === 'boolean' ? (body.archived as boolean) : undefined;
     if (title === undefined && archived === undefined) {
@@ -82,7 +82,7 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     const threadId = c.req.param('id');
-    const threadManager = getContainer().resolve('threadManager');
+    const threadManager = getContainer().get('threadManager');
     const thread = await threadManager.getById(auth.userId, threadId);
     if (!thread) return c.json({ error: 'Thread not found' }, 404);
 

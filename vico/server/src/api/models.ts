@@ -8,7 +8,7 @@ export function modelRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/models', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    const modelManager = getContainer().resolve('modelManager');
+    const modelManager = getContainer().get('modelManager');
     const models = await modelManager.list();
     // 掩码 API Key 后再返回给前端
     const masked = models.map((m) => ({ ...m, api_key: maskApiKey(m.api_key) }));
@@ -18,7 +18,7 @@ export function modelRoutes(app: Hono<{ Variables: Variables }>) {
   app.post('/api/v1/models', async (c) => {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
-    const modelManager = getContainer().resolve('modelManager');
+    const modelManager = getContainer().get('modelManager');
     const body = await c.req.json();
     return c.json(await modelManager.create(body));
   });
@@ -26,7 +26,7 @@ export function modelRoutes(app: Hono<{ Variables: Variables }>) {
   app.patch('/api/v1/models/:id', async (c) => {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
-    const modelManager = getContainer().resolve('modelManager');
+    const modelManager = getContainer().get('modelManager');
     const id = c.req.param('id');
     const body = await c.req.json();
     await modelManager.update(id, body);
@@ -36,7 +36,7 @@ export function modelRoutes(app: Hono<{ Variables: Variables }>) {
   app.delete('/api/v1/models/:id', async (c) => {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
-    const modelManager = getContainer().resolve('modelManager');
+    const modelManager = getContainer().get('modelManager');
     const id = c.req.param('id');
     await modelManager.remove(id);
     return c.json({ message: 'deleted' });

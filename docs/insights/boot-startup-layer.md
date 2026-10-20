@@ -51,7 +51,7 @@ packages/boot/src/
   使用方传 `interface ServerTokens extends VicoTokens` / `interface ServerConfigKeys extends VicoConfigKeys` 即可
   拿到 `Container<ServerTokens, ServerConfigKeys>`，`setup` 回调与返回值都是扩展视角，无需再 `as unknown as` 强转；
   framework provider 内部以 Vico 基础视角注册（局部收窄断言）。
-- `@vico/di` 容器支持 `freeze()`：`load` / `boot` / `resolve` / `resolveAsync` 成功完成后
+- `@vico/di` 容器支持 `freeze()`：`load` / `boot` / `get` / `resolve` 成功完成后
   **自动冻结**，冻结后禁止 `register`/`registerValue`/`registerConfig`/`registerProvider`
   （抛 `Container is frozen`），保证依赖图在启动期定型。
 - 默认值**只写在 `default.config.yaml`**，schema 的 `.default()` 仅兜底段内字段缺失，避免双写。
@@ -72,7 +72,7 @@ skills: Skill[]                    agentRuntime: AgentRuntime
 db: unknown（使用方注入）            client: unknown（使用方注入）
 ```
 
-默认装配（`bootstrapVico` 后可直接 resolve）：
+默认装配（`bootstrapVico` 后可直接 get）：
 
 - `thread` / `checkpointStore` / `vectorStore`：后端由 `storage` 配置段驱动
   （thread/checkpoint 支持 `memory`/`libsql`/`mysql`，vector 支持 `memory`/`libsql`/`chroma`），
@@ -81,7 +81,7 @@ db: unknown（使用方注入）            client: unknown（使用方注入）
   `storage.db_service` / `storage.client_service` 指定（默认 `db`/`client`），boot 不建连接。
 - `embedder`：由 `rag.embedder` 配置驱动，`"none"` 禁用（undefined），episodic 随之停用。
 - `memory`：`conversation`（短时窗口）+ `episodic`（embedder 可用时启用）。
-- `skills`：异步工厂（`createFSSkillLoader`），需 `resolveAsync`。
+- `skills`：异步工厂（`createFSSkillLoader`），需 `resolve`。
 - `agentRuntime`：`AgentRuntime`，`max_cached` 来自 `agent` 配置段。
 
 ### Provider 约定
@@ -89,7 +89,7 @@ db: unknown（使用方注入）            client: unknown（使用方注入）
 每个领域一个 `ServiceProvider` 对象，两阶段：
 
 1. `register`：只做绑定（`c.register`），不实例化、不做副作用；
-2. `boot`（可选）：所有 provider 注册完成后按声明顺序调用，此时可安全 resolve 依赖、执行异步初始化。
+2. `boot`（可选）：所有 provider 注册完成后按声明顺序调用，此时可安全 get 依赖、执行异步初始化。
 
 依赖拓扑（provider 注册顺序的自然依据）：
 

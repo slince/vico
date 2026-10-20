@@ -10,6 +10,22 @@ import {Brain, Check} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {SemanticMemoryResult} from '../semantic-memory.tool';
 
+/** 完成态结果视图 — 更新状态 + 记忆内容 */
+function SemanticMemoryView({result, memory}: {result: SemanticMemoryResult; memory: string}) {
+  const {t} = useTranslation('assistant');
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+        <Check size={14} />
+        <span>{result.status === 'updated' ? t('tool.semanticMemory.updated') : result.status}</span>
+      </div>
+      <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
+        {memory || t('tool.semanticMemory.empty')}
+      </pre>
+    </div>
+  );
+}
+
 /**
  * 语义记忆渲染器 — 展示本次写入的记忆内容。
  */
@@ -42,20 +58,8 @@ export const SemanticMemoryRenderer: ToolCallMessagePartComponent = ({
       resume={resume}
       addResult={addResult}
       respondToApproval={respondToApproval}
-      renderResult={(r) => {
-        const res = r as SemanticMemoryResult;
-        return (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
-              <Check size={14} />
-              <span>{res.status === 'updated' ? t('tool.semanticMemory.updated') : res.status}</span>
-            </div>
-            <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
-              {memory || t('tool.semanticMemory.empty')}
-            </pre>
-          </div>
-        );
-      }}
-    />
+    >
+      {result && <SemanticMemoryView result={result} memory={memory} />}
+    </ToolCard>
   );
 };

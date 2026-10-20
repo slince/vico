@@ -57,10 +57,10 @@ agent:
 旧代码通过 `vico.listSkills()` / `vico.createIfAbsent()` / `vico.thread` 访问。新 `vico.ts`
 不再导出全局 `vico` 对象，改为独立函数，内部委托容器：
 
-- `listSkills()` → `resolveAsync('skills')`（skills 是异步工厂）；
-- `createIfAbsent(id, factory)` → `resolve('agentRuntime')` 查缓存，未命中则 `createAgent`，
+- `listSkills()` → `resolve('skills')`（skills 是异步工厂）；
+- `createIfAbsent(id, factory)` → `get('agentRuntime')` 查缓存，未命中则 `createAgent`，
   并做 `tools/memory/thread/checkpointStore/events` 的全局 fallback（复制旧 `Vico.buildAgent` 语义）；
-- `getThreadStore()` → `resolve('thread')`。
+- `getThreadStore()` → `get('thread')`。
 
 消费点（`api/skills.ts`、`api/fs.ts`、`lib/workspace.ts`、`services/thread/thread-manager.ts`、
 `agent/get-agent.ts`）改为按需 `import { listSkills / createIfAbsent / getThreadStore }`，
@@ -84,7 +84,7 @@ agent:
 | `memory/memory-setup.ts` | 删除（职责并入 boot memoryProvider） |
 | `memory/embedder.ts` | 删除（职责并入 boot memoryProvider） |
 | `memory/rag.ts` | `getVector`/`createConfiguredEmbedder`/`DEFAULT_RAG_CONFIG` → 容器 |
-| `api/knowledge.ts` | `getVector()` → `resolve('vectorStore')` |
+| `api/knowledge.ts` | `getVector()` → `get('vectorStore')` |
 | `agent/get-agent.ts` | `config.memory/model` → `getConfig('memory'/'model')` |
 | `services/agent/agent-manager.ts` | `config.workspace.base_path` → `getConfig('workspace')` + `expandHome` |
 | `services/knowledge/storage-manager.ts` | `config.storage` → `config.file_storage` |

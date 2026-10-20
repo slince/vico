@@ -101,11 +101,13 @@ export const FileWriteRenderer: ToolCallMessagePartComponent<FileWriteArgs, File
       resume={resume}
       addResult={addResult}
       respondToApproval={respondToApproval}
-      renderResult={(r) => {
-        if (toolName === 'write') return <WriteView result={r as WriteResult} />;
-        if (toolName === 'edit') return <EditView result={r as EditResult} />;
-        return null;
-      }}
-    />
+    >
+      {result &&
+        (toolName === 'write' ? (
+          <WriteView result={result as WriteResult} />
+        ) : (
+          <EditView result={result as EditResult} />
+        ))}
+    </ToolCard>
   );
 };

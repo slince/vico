@@ -41,7 +41,7 @@ export function terminalRoutes(
         };
       }
 
-      const terminalManager = getContainer().resolve('terminalManager');
+      const terminalManager = getContainer().get('terminalManager');
 
       return {
         /** 连接建立：复用会话并回放屏幕，或派生 shell；spawn 失败则关闭 */

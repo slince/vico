@@ -73,7 +73,8 @@ export const WeatherToolRenderer: ToolCallMessagePartComponent<GetWeatherArgs, G
       runningLabel={t('tool.weather.querying')}
       rejectedLabel={t('tool.weather.rejected')}
       completeMode="bare"
-      renderResult={(r) => <WeatherResult result={r as GetWeatherResult} />}
-    />
+    >
+      {result && <WeatherResult result={result} />}
+    </ToolCard>
   );
 };

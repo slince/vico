@@ -9,11 +9,29 @@ import {Bot} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {DelegateResult} from '../delegate.tool';
 
+/** 完成态结果视图 — 子 agent 结果 + 执行步数 */
+function DelegateView({result}: {result: DelegateResult}) {
+  const {t} = useTranslation('assistant');
+  return (
+    <div className="space-y-1.5">
+      {result.error ? (
+        <p className="text-xs text-destructive whitespace-pre-wrap">{result.error}</p>
+      ) : (
+        <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
+          {result.result || t('tool.delegate.noResult')}
+        </pre>
+      )}
+      {result.steps !== undefined && (
+        <p className="text-[10px] text-muted-foreground">{t('tool.delegate.steps', {steps: result.steps})}</p>
+      )}
+    </div>
+  );
+}
+
 /**
  * 委托渲染器 — 展示子 agent 返回结果。
  */
 export const DelegateRenderer: ToolCallMessagePartComponent = ({
-  toolName,
   status,
   result,
   isError,
@@ -36,23 +54,8 @@ export const DelegateRenderer: ToolCallMessagePartComponent = ({
       resume={resume}
       addResult={addResult}
       respondToApproval={respondToApproval}
-      renderResult={(r) => {
-        const res = r as DelegateResult;
-        return (
-          <div className="space-y-1.5">
-            {res.error ? (
-              <p className="text-xs text-destructive whitespace-pre-wrap">{res.error}</p>
-            ) : (
-              <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
-                {res.result || t('tool.delegate.noResult')}
-              </pre>
-            )}
-            {res.steps !== undefined && (
-              <p className="text-[10px] text-muted-foreground">{t('tool.delegate.steps', {steps: res.steps})}</p>
-            )}
-          </div>
-        );
-      }}
-    />
+    >
+      {result && <DelegateView result={result} />}
+    </ToolCard>
   );
 };

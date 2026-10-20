@@ -9,7 +9,7 @@ import type { VicoServiceProvider } from '../tokens.js';
  * （通过 `buildSkills` 从 `skills.scan_paths` 扫描加载；`compatible` 开启时
  * 额外扫描全局第三方 Agent 产品的 Skills 目录）。
  *
- * 工厂为异步（文件系统扫描），需通过 `resolveAsync('skills')` 解析。
+ * 工厂为异步（文件系统扫描），需通过 `resolve('skills')` 解析。
  */
 export const skillsProvider: VicoServiceProvider = {
   register(c) {

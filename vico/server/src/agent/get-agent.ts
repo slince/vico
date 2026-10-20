@@ -11,5 +11,5 @@ import { getContainer } from '../container.js';
  * 获取或注册 Vico Agent 实例（不存在则创建，全局缓存）。
  */
 export async function getAgent(agentId: string): Promise<Agent> {
-  return getContainer().resolve('agentFactory').create(agentId);
+  return getContainer().get('agentFactory').create(agentId);
 }

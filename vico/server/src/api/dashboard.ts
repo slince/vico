@@ -8,9 +8,9 @@ export function dashboardRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
-    const agentManager = getContainer().resolve('agentManager');
-    const knowledgeManager = getContainer().resolve('knowledgeManager');
-    const threadManager = getContainer().resolve('threadManager');
+    const agentManager = getContainer().get('agentManager');
+    const knowledgeManager = getContainer().get('knowledgeManager');
+    const threadManager = getContainer().get('threadManager');
 
     const [
       activeAgents,

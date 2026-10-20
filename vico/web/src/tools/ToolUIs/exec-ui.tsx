@@ -52,7 +52,8 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, unknown> =
       runningLabel={t('tool.exec.executing')}
       rejectedLabel={t('tool.exec.rejected')}
       completeMode="bare"
-      renderResult={() => <ExecReceipt command={command} />}
-    />
+    >
+      <ExecReceipt command={command} />
+    </ToolCard>
   );
 };

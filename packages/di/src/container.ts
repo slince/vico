@@ -50,7 +50,7 @@ interface ConfigRegistration {
  * 两阶段约定：
  * 1. `register` 只做绑定（register / registerConfig / load），不实例化、不做副作用；
  * 2. `boot`（可选）在所有 provider 都 register 完后按声明顺序调用，此时可安全
- *    resolve 依赖、执行异步初始化（建连、迁移、预热等）。
+ *    解析依赖、执行异步初始化（建连、迁移、预热等）。
  *
  * 两者均可返回 Promise，由 `Container.registerProvider` / `Container.boot` 依次等待。
  */
@@ -60,7 +60,7 @@ export interface ServiceProvider<
 > {
   /** 阶段一：只做绑定，不实例化、不做副作用 */
   register(container: Container<TTokens, TConfigKeys>): void | Promise<void>;
-  /** 阶段二：所有 provider 注册完成后调用，可 resolve 依赖、执行初始化 */
+  /** 阶段二：所有 provider 注册完成后调用，可解析依赖、执行初始化 */
   boot?(container: Container<TTokens, TConfigKeys>): void | Promise<void>;
 }
 
@@ -94,7 +94,7 @@ export class Container<
   private readonly configs = new Map<string, ConfigRegistration>();
   /** 已按 register 顺序登记的 providers，`boot()` 时依序触发其 boot 钩子 */
   private readonly providers: ServiceProvider<TTokens, TConfigKeys>[] = [];
-  /** 是否已冻结：load / boot / 首次 resolve 完成后自动冻结，禁止再注入 service */
+  /** 是否已冻结：load / boot / 首次解析完成后自动冻结，禁止再注入 service */
   private frozen = false;
 
   /**
@@ -218,7 +218,7 @@ export class Container<
    * 触发所有已通过 `registerProvider` 登记的 provider 的 `boot` 钩子。
    *
    * 按登记顺序依次调用（boot 可异步，逐个等待）。至此全部 provider 的 register
-   * 阶段已完成，各 boot 可安全 resolve 依赖、执行异步初始化（建连、迁移、预热等）。
+   * 阶段已完成，各 boot 可安全解析依赖、执行异步初始化（建连、迁移、预热等）。
    *
    * 由调用方自行调度：先 `registerProvider` 全部绑定，再统一 `boot`。
    * boot 完成后容器自动冻结，禁止再注入 service。
@@ -235,7 +235,7 @@ export class Container<
    *
    * 装配完成后应冻结，阻止运行时再注入依赖，保证依赖图在启动期定型。
    * `load` / `boot` / `get` / `resolve` 成功完成后都会自动冻结，
-   * 通常无需手动调用；仅在确需提前冻结（尚未 load/boot/resolve）时显式调用。
+   * 通常无需手动调用；仅在确需提前冻结（尚未 load/boot/解析）时显式调用。
    */
   freeze(): this {
     this.frozen = true;

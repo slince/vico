@@ -3,7 +3,7 @@
  *
  * `VicoTokens` 把 `db`/`client` 声明为 `unknown`（framework 不限定持久化后端）；server 固定
  * libsql 后端，在此窄化为 `AppDb`/`Client`，并登记全部业务 service、认证实例、天气工具与
- * LLM 厂商目录，供各处 `resolve('xxx')` 类型安全取用。
+ * LLM 厂商目录，供各处 `get('xxx')` / `resolve('xxx')` 类型安全取用。
  *
  * 本文件只做类型映射，全部依赖均用 `import type`（`typeof` 查询），运行时零导入，
  * 不与 `db → container` 链路形成循环。
@@ -34,7 +34,7 @@ export interface ServerTokens extends VicoTokens {
   db: AppDb;
   /** 向量表客户端（libsql Client，窄化自 VicoTokens 的 unknown） */
   client: Client;
-  /** better-auth 实例（懒加载，首次 resolve 时初始化） */
+  /** better-auth 实例（懒加载，首次 get 时初始化） */
   auth: ReturnType<typeof getAuth>;
   agentManager: AgentManager;
   agentFactory: AgentFactory;

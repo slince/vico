@@ -16,11 +16,34 @@ function statusClass(status: number): string {
   return 'text-muted-foreground';
 }
 
+/** 完成态结果视图 — 状态行 + 响应体 */
+function WebFetchView({result}: {result: WebFetchResult}) {
+  const {t} = useTranslation('assistant');
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-mono">
+        <span className={statusClass(result.status)}>
+          {result.status} {result.statusText}
+        </span>
+      </p>
+      {result.error ? (
+        <p className="text-xs text-destructive whitespace-pre-wrap">{result.error}</p>
+      ) : (
+        <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
+          {result.body || t('tool.webFetch.emptyBody')}
+        </pre>
+      )}
+      {result.truncated && (
+        <p className="text-[10px] text-muted-foreground">{t('tool.webFetch.truncated')}</p>
+      )}
+    </div>
+  );
+}
+
 /**
  * Web 请求渲染器 — 展示状态行与响应体。
  */
 export const WebFetchRenderer: ToolCallMessagePartComponent = ({
-  toolName,
   status,
   result,
   isError,
@@ -43,28 +66,8 @@ export const WebFetchRenderer: ToolCallMessagePartComponent = ({
       resume={resume}
       addResult={addResult}
       respondToApproval={respondToApproval}
-      renderResult={(r) => {
-        const res = r as WebFetchResult;
-        return (
-          <div className="space-y-1.5">
-            <p className="text-xs font-mono">
-              <span className={statusClass(res.status)}>
-                {res.status} {res.statusText}
-              </span>
-            </p>
-            {res.error ? (
-              <p className="text-xs text-destructive whitespace-pre-wrap">{res.error}</p>
-            ) : (
-              <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2 max-h-64 overflow-y-auto">
-                {res.body || t('tool.webFetch.emptyBody')}
-              </pre>
-            )}
-            {res.truncated && (
-              <p className="text-[10px] text-muted-foreground">{t('tool.webFetch.truncated')}</p>
-            )}
-          </div>
-        );
-      }}
-    />
+    >
+      {result && <WebFetchView result={result} />}
+    </ToolCard>
   );
 };

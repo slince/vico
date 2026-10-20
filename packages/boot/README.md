@@ -40,11 +40,11 @@ import { bootstrapVico, createVicoContainer } from '@vico/boot';
 // 一键启动（内置默认配置，可用 configPath 覆盖）
 const container = await bootstrapVico({ configPath: './vico.config.yaml' });
 
-container.resolve('agentRuntime');        // AgentRuntime（LRU 缓存）
-container.resolve('memory');              // MemoryStore（conversation + episodic）
-container.resolve('thread');              // 默认 memory 后端：InMemoryThreadStore
-container.resolve('checkpointStore');     // 默认 memory 后端：MemoryCheckpointStore
-await container.resolveAsync('skills');   // Skill[]（异步扫描）
+container.get('agentRuntime');        // AgentRuntime（LRU 缓存）
+container.get('memory');              // MemoryStore（conversation + episodic）
+container.get('thread');              // 默认 memory 后端：InMemoryThreadStore
+container.get('checkpointStore');     // 默认 memory 后端：MemoryCheckpointStore
+await container.resolve('skills');   // Skill[]（异步扫描）
 ```
 
 持久化后端通过 `storage` 配置段选择，连接由使用方注入：
@@ -83,7 +83,7 @@ await c.bootstrap(vicoProviders);
 每个领域一个 `ServiceProvider` 对象，遵循两阶段：
 
 1. `register`：只做绑定（`c.register`），不实例化、不做副作用；
-2. `boot`（可选）：所有 provider 注册完成后按声明顺序调用，此时可安全 resolve
+2. `boot`（可选）：所有 provider 注册完成后按声明顺序调用，此时可安全 get
    依赖、执行异步初始化（预热、起定时器等）。
 
 依赖拓扑（provider 注册顺序的自然依据）：
@@ -102,7 +102,7 @@ skills → thread/checkpointStore/vectorStore → embedder → memory
   boot 只按配置选择实现、不自行建立连接。
 - `embedder`：由 `rag.embedder` 配置驱动；`"none"` 禁用（返回 undefined），episodic 记忆随之停用。
 - `memory`：`conversation`（短时窗口）+ `episodic`（embedder 可用时启用）。
-- `skills`：异步工厂，从 `skills.scan_paths` 扫描加载（`compatible` 开启时额外扫描全局第三方 Agent 产品的 Skills 目录），需 `resolveAsync`。
+- `skills`：异步工厂，从 `skills.scan_paths` 扫描加载（`compatible` 开启时额外扫描全局第三方 Agent 产品的 Skills 目录），需 `resolve`。
 
 ## 迁移 server（后续）
 

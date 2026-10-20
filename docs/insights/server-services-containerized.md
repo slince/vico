@@ -8,7 +8,7 @@
 方法里 `getDb()`/`getClient()`/`getContainer()`，服务间靠 `import` 单例；api 路由层 `import { xxx }` 直接消费。
 
 本次按用户确认的**彻底层次**收敛：服务类全部改为 `export class` + **构造函数注入全部依赖**（含 db/client、
-兄弟 service、配置切片），类内不再出现任何全局访问器；api 层经 `getContainer().resolve('xxx')` 取服务；
+兄弟 service、配置切片），类内不再出现任何全局访问器；api 层经 `getContainer().get('xxx')` 取服务；
 孤儿服务 `approvalService` 一并删除。
 
 ## 关键决策
@@ -49,7 +49,7 @@ client: Client; // @libsql/client
 
 ### 3. 装配（新建 `src/services-provider.ts`）
 
-`servicesProvider.register` 用懒工厂按拓扑绑定（`resolve` 递归触发，注册顺序无关）：
+`servicesProvider.register` 用懒工厂按拓扑绑定（`get` 递归触发，注册顺序无关）：
 
 ```
 db/client（bootstrap 注入）→ modelManager/documentManager/storageManager/ragManager
@@ -61,14 +61,14 @@ db/client（bootstrap 注入）→ modelManager/documentManager/storageManager/r
 
 ### 4. api 层消费点改造
 
-统一模式：删除 `import { 单例 }`，handler 内先 `const xxx = getContainer().resolve('xxx')` **提前取好局部变量**，
-再 `xxx.method(...)` 调用，不写 `getContainer().resolve('xxx').method(...)` 内联长链。涉及
+统一模式：删除 `import { 单例 }`，handler 内先 `const xxx = getContainer().get('xxx')` **提前取好局部变量**，
+再 `xxx.method(...)` 调用，不写 `getContainer().get('xxx').method(...)` 内联长链。涉及
 `api/{agents,models,dashboard,threads,knowledge,providers,exec-approvals,users,observability}.ts`、
-`api/ws/terminal.ts`、`agent/get-agent.ts`、`vico.ts`（`weatherTool`）、`app.ts`（`getAuth()` → `resolve('auth')`）。
+`api/ws/terminal.ts`、`agent/get-agent.ts`、`vico.ts`（`weatherTool`）、`app.ts`（`getAuth()` → `get('auth')`）。
 
 **时序约束**：api 路由模块在 `bootstrap()` 前加载（`vico.ts` 模块级 `export const app = createApp()` →
-`registerRoutes`），因此 `resolve()` **不能放在模块级或路由注册函数体内**（`getContainer()` 会抛「容器未初始化」），
-只能放在请求期执行的 handler 内——handler 顶部提前 resolve 是满足该时序约束的最靠前位置。
+`registerRoutes`），因此 `get()` **不能放在模块级或路由注册函数体内**（`getContainer()` 会抛「容器未初始化」），
+只能放在请求期执行的 handler 内——handler 顶部提前 `get()` 是满足该时序约束的最靠前位置。
 
 保留的薄适配层：`vico.ts` 的 `getThreadStore`/`getAgent`/`listSkills`、`workspace.ts` 的 `getThreadWorkspace`、
 `auth/index.ts` 的 `getAuth()`（作为 `auth` token 的 factory）。

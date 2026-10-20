@@ -76,14 +76,8 @@ export const SimpleToolRenderer: ToolCallMessagePartComponent = ({
       resume={resume}
       addResult={addResult}
       respondToApproval={respondToApproval}
-      renderResult={(r) => {
-        switch (toolName) {
-          case 'todo_write':
-            return <TodoView result={r as TodoWriteResult} />;
-          default:
-            return null;
-        }
-      }}
-    />
+    >
+      {result && toolName === 'todo_write' && <TodoView result={result} />}
+    </ToolCard>
   );
 };
