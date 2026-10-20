@@ -9,7 +9,7 @@ import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';
 import { Search, FileText, Loader2, Check, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { ApprovalCard } from '@/components/assistant-ui/elements/approval-card';
+import { ApprovalRequest } from './approval-request';
 import type { KnowledgeSearchArgs, KnowledgeSearchResult } from '../knowledge-search.tool';
 
 /** 解析 [source: filename#chunkN] content 格式 */
@@ -98,7 +98,7 @@ export const KnowledgeSearchToolRenderer: ToolCallMessagePartComponent<Knowledge
   // 需要审批
   if (status.type === 'requires-action') {
     return (
-      <ApprovalCard
+      <ApprovalRequest
         toolName={t('tool.knowledgeSearch.name')}
         title={t('tool.knowledgeSearch.approvalTitle')}
         description={t('tool.knowledgeSearch.query', {query: String(args?.query ?? '')})}

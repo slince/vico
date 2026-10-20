@@ -6,6 +6,7 @@
  * 显式注入后，在此被各服务按需 resolve。
  */
 import { getAuth } from '../auth/get-auth.js';
+import { AgentFactory } from '../lib/agent-factory.js';
 import { AgentManager } from '../services/agent/agent-manager.js';
 import { ModelManager } from '../services/model/model-manager.js';
 import { ThreadManager } from '../services/thread/thread-manager.js';
@@ -46,6 +47,15 @@ export const servicesProvider: ServerServiceProvider = {
         resolve('db'),
         resolve('modelManager'),
         expandHome(getConfig('workspace').base_path),
+      ));
+
+    c.register('agentFactory', ({ resolve, getConfig }) =>
+      new AgentFactory(
+        resolve('agentManager'),
+        // skill 列表是异步工厂，FactoryContext 只暴露同步 resolve，这里经容器 resolveAsync 装配
+        () => c.resolveAsync('skills'),
+        getConfig('memory'),
+        getConfig('model'),
       ));
 
     c.register('threadManager', ({ resolve }) =>

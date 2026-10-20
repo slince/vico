@@ -15,6 +15,7 @@ import type { ServerConfigKeys } from './config/schemas.js';
 import type { AppDb } from './db/db.js';
 import type { getAuth } from './auth/get-auth.js';
 import type { AgentManager } from './services/agent/agent-manager.js';
+import type { AgentFactory } from './lib/agent-factory.js';
 import type { ModelManager } from './services/model/model-manager.js';
 import type { ThreadManager } from './services/thread/thread-manager.js';
 import type { KnowledgeManager } from './services/knowledge/knowledge-manager.js';
@@ -36,6 +37,7 @@ export interface ServerTokens extends VicoTokens {
   /** better-auth 实例（懒加载，首次 resolve 时初始化） */
   auth: ReturnType<typeof getAuth>;
   agentManager: AgentManager;
+  agentFactory: AgentFactory;
   modelManager: ModelManager;
   threadManager: ThreadManager;
   knowledgeManager: KnowledgeManager;

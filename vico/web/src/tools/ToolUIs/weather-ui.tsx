@@ -8,7 +8,7 @@
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';
 import {Cloud, Droplets, MapPin, Thermometer, Wind, Check, X} from 'lucide-react';
-import {ApprovalCard} from '@/components/assistant-ui/elements/approval-card';
+import {ApprovalRequest} from './approval-request';
 import type {GetWeatherArgs, GetWeatherResult} from '../get-weather.tool';
 
 export const WeatherToolRenderer: ToolCallMessagePartComponent<GetWeatherArgs, GetWeatherResult> = ({ status, args, result, isError, approval, interrupt, resume, addResult, respondToApproval }) => {
@@ -79,7 +79,7 @@ export const WeatherToolRenderer: ToolCallMessagePartComponent<GetWeatherArgs, G
   // 需要审批
   if (status.type === 'requires-action') {
     return (
-      <ApprovalCard
+      <ApprovalRequest
         toolName={t('tool.weather.title')}
         title={t('tool.weather.approvalTitle')}
         description={t('tool.weather.location', {location: String(args?.location ?? t('tool.weather.unknown'))})}
