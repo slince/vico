@@ -2,28 +2,27 @@
 
 import type { Tool, ToolCall, ToolCallContext, ToolResult } from './types.js';
 import { StormBreaker } from './storm-breaker.js';
-import type { ToolSet } from 'ai';
 import type { TurnSession } from '@vico/thread';
 import type { ToolCallApproval } from '@vico/types';
 
 /** ToolExecutor 执行工具所需的最小上下文（依赖倒置：引擎的 TurnContext 满足此结构） */
-export interface ToolExecutionContext<TToolSet extends ToolSet = ToolSet> {
+export interface ToolExecutionContext {
   session: TurnSession;
   signal: AbortSignal;
   decisions: Map<string, ToolCallApproval>;
 }
 
 /** ToolExecutor 构造选项 */
-export interface ToolExecutorOptions<TToolSet extends ToolSet = ToolSet> {
+export interface ToolExecutorOptions {
   tools?: Tool[];
 }
 
 /** ToolExecutor — 工具注册与执行 */
-export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
+export class ToolExecutor {
   private tools: Map<string, Tool> = new Map();
   private stormBreaker: StormBreaker = new StormBreaker();
 
-  constructor(options: ToolExecutorOptions<TToolSet>) {
+  constructor(options: ToolExecutorOptions) {
     for (const tool of options.tools ?? []) {
       this.tools.set(tool.name, tool);
     }
@@ -63,7 +62,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
   }
 
   /** 执行单个工具调用 */
-  private async execute(call: ToolCall, context: ToolExecutionContext<TToolSet>): Promise<ToolResult> {
+  private async execute(call: ToolCall, context: ToolExecutionContext): Promise<ToolResult> {
     const tool = this.tools.get(call.name);
     if (!tool) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
@@ -108,7 +107,7 @@ export class ToolExecutor<TToolSet extends ToolSet = ToolSet> {
    */
   async executeToolCalls(
     toolCalls: ToolCall[],
-    context: ToolExecutionContext<TToolSet>,
+    context: ToolExecutionContext,
     onResult?: (call: ToolCall, result: ToolResult) => void,
   ): Promise<ToolResult[]> {
     if (toolCalls.length === 0) return [];

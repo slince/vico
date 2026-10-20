@@ -11,13 +11,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/provider-utils": "^5.0.61",
+    "@ai-sdk/provider-utils": "catalog:",
     "@vico/types": "workspace:*",
-    "ai": "7.0.142"
+    "ai": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.12"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

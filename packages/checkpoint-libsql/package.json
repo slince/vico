@@ -13,12 +13,12 @@
   },
   "dependencies": {
     "@vico/checkpoint": "workspace:*",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
-    "@libsql/client": "^0.17.0",
-    "@types/node": "^22.0.0",
-    "typescript": "^5.6.0",
-    "vitest": "^4.1.8"
+    "@libsql/client": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

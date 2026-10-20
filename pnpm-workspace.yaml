@@ -20,6 +20,26 @@ allowBuilds:
   protobufjs: true
   sharp: true
 
+# 统一 workspace 内共享第三方依赖版本（分包后 26 个包共同声明的依赖在此集中管理）。
+# 各包 package.json 以 "catalog:" 引用，升级只改此处一处；保证解析到同一物理副本。
+catalog:
+  # runtime
+  ai: 7.0.142
+  zod: ^4.6.7
+  pino: ^10.4.0
+  yaml: ^2.6.0
+  better-auth: ^1.7.3
+  "@ai-sdk/provider": ^4.0.28
+  "@ai-sdk/provider-utils": ^5.0.61
+  # db
+  drizzle-orm: ^0.45.2
+  "@libsql/client": ^0.17.0
+  mysql2: ^3.11.0
+  # dev 工具
+  typescript: ^5.9.3
+  vitest: ^4.1.12
+  "@types/node": ^22.20.5
+
 ## 强制对齐 assistant-ui 核心包版本（ai-sdk/react-mcp 仍声明 ^0.3.25/^0.3.18，官方未发跟进版，
 ## 此处统一到 react@0.15.27 所需的 core 0.3.26 / store 0.3.19，消除运行时重复加载）
 #overrides:

@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^4.0.28",
+    "@ai-sdk/provider": "catalog:",
     "@vico/checkpoint": "workspace:*",
     "@vico/compaction": "workspace:*",
     "@vico/context": "workspace:*",
@@ -22,12 +22,12 @@
     "@vico/thread": "workspace:*",
     "@vico/tool": "workspace:*",
     "@vico/types": "workspace:*",
-    "ai": "7.0.142",
-    "pino": "^10.4.0",
-    "zod": "^4.6.7"
+    "ai": "catalog:",
+    "pino": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }

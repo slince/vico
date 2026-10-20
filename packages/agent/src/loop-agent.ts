@@ -77,7 +77,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly checkpointStore: CheckpointStore;
   readonly logger: Logger;
 
-  private readonly toolExecutor: ToolExecutor<TToolSet>;
+  private readonly toolExecutor: ToolExecutor;
   private readonly pipeline: ProcessorPipeline;
   /** run 级覆盖模型客户端（key 为模型名），复用已构建实例，避免重复 createLanguageModel/new */
   private readonly modelOverrides = new Map<string, ModelClient>();

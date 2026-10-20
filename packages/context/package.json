@@ -16,10 +16,10 @@
     "@vico/skill": "workspace:*",
     "@vico/thread": "workspace:*",
     "@vico/tool": "workspace:*",
-    "ai": "7.0.142"
+    "ai": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }

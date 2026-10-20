@@ -12,10 +12,10 @@
   "dependencies": {
     "@vico/tool": "workspace:*",
     "gray-matter": "^4.0.3",
-    "zod": "^4.6.7"
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }
