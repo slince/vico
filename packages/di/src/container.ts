@@ -30,7 +30,7 @@ interface Registration<
   resolved: boolean;
   /** singleton 已解析出的实例值（值为 undefined 时靠 `resolved` 区分） */
   instance?: TValue;
-  /** singleton 异步解析进行中的共享 Promise，并发 `resolveAsync` 去重用 */
+  /** singleton 异步解析进行中的共享 Promise，并发 `resolve` 去重用 */
   pending?: Promise<TValue>;
 }
 
@@ -68,13 +68,13 @@ export interface ServiceProvider<
  * 轻量、类型安全的依赖注入容器。
  *
  * 职责：
- * 1. 依赖解析——工厂 Provider 通过 `ctx.resolve` 递归获取其他依赖；
+ * 1. 依赖解析——工厂 Provider 通过 `ctx.get` 递归获取其他依赖；
  * 2. 配置定义加载——`registerConfig` 声明配置段的 zod schema，`load` 从 yaml/json
  *    文件读取并按 schema 验证，`getConfig`（或工厂内 `ctx.getConfig`）取用，
  *    配置值驱动工厂条件构建对象。
  *
  * 作用域：默认 `singleton`（全容器唯一），可注册为 `transient`（每次新建）。
- * 异步：工厂返回 `Promise` 时用 `resolveAsync` 解析，并发调用共享同一个
+ * 异步：工厂返回 `Promise` 时用 `resolve` 解析，并发调用共享同一个
  * pending Promise（去重，工厂只执行一次）。
  *
  * @typeParam TTokens Token 映射表（token 名 → 实例类型）
@@ -234,7 +234,7 @@ export class Container<
    * 冻结容器：禁止后续 register / registerValue / registerConfig / registerProvider。
    *
    * 装配完成后应冻结，阻止运行时再注入依赖，保证依赖图在启动期定型。
-   * `load` / `boot` / `resolve` / `resolveAsync` 成功完成后都会自动冻结，
+   * `load` / `boot` / `get` / `resolve` 成功完成后都会自动冻结，
    * 通常无需手动调用；仅在确需提前冻结（尚未 load/boot/resolve）时显式调用。
    */
   freeze(): this {
@@ -259,11 +259,11 @@ export class Container<
    *
    * - singleton：首次解析后缓存实例，后续直接返回缓存；
    * - transient：每次调用工厂新建；
-   * - 工厂返回 Promise 时抛错（异步工厂必须用 `resolveAsync`）。
+   * - 工厂返回 Promise 时抛错（异步工厂必须用 `resolve`）。
    *
    * @throws 未注册的 token、循环依赖、异步工厂被同步解析
    */
-  resolve<K extends keyof TTokens & string>(token: K): TTokens[K] {
+  get<K extends keyof TTokens & string>(token: K): TTokens[K] {
     const reg = this.getRegistration(token);
     if (reg.scope === 'singleton' && reg.resolved) {
       return reg.instance as TTokens[K];
@@ -271,9 +271,9 @@ export class Container<
     this.enterResolving(token);
     try {
       const value = reg.factory(this.buildContext());
-      // 异步工厂被同步 resolve：结果必然无法同步取得，提示改用 resolveAsync
+      // 异步工厂被同步 get：结果必然无法同步取得，提示改用 resolve
       if (value instanceof Promise) {
-        throw new Error(`[di] Factory "${String(token)}" returned a Promise, use resolveAsync() instead`);
+        throw new Error(`[di] Factory "${String(token)}" returned a Promise, use resolve() instead`);
       }
       if (reg.scope === 'singleton') {
         reg.resolved = true;
@@ -295,7 +295,7 @@ export class Container<
    *
    * @throws 未注册的 token、循环依赖
    */
-  async resolveAsync<K extends keyof TTokens & string>(token: K): Promise<TTokens[K]> {
+  async resolve<K extends keyof TTokens & string>(token: K): Promise<TTokens[K]> {
     const reg = this.getRegistration(token);
     if (reg.scope === 'singleton') {
       if (reg.resolved) return reg.instance as TTokens[K];
@@ -353,7 +353,7 @@ export class Container<
   /** 构建传给工厂的上下文：同步依赖解析器 + 配置读取器 */
   private buildContext(): FactoryContext<TTokens, TConfigKeys> {
     return {
-      resolve: <K extends keyof TTokens & string>(token: K): TTokens[K] => this.resolve(token),
+      get: <K extends keyof TTokens & string>(token: K): TTokens[K] => this.get(token),
       getConfig: <K extends keyof TConfigKeys & string>(key: K) => this.getConfig(key),
     };
   }
@@ -412,7 +412,7 @@ function parseConfigValue(schema: z.ZodType, value: unknown, key: string, source
 /**
  * 创建容器。
  *
- * @typeParam TTokens Token 映射表，显式声明后获得类型安全的 `register` / `resolve`
+ * @typeParam TTokens Token 映射表，显式声明后获得类型安全的 `register` / `get`
  * @typeParam TConfigKeys 配置 schema 映射表，显式声明后获得类型安全的 `registerConfig` / `getConfig`
  *
  * @example

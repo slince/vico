@@ -6,7 +6,7 @@ import type { z } from 'zod';
  * Token 映射表：token 名 → 该 token 解析出的实例类型。
  *
  * 这是容器类型安全的根基：把「字符串 token → 实例类型」的映射显式声明出来，
- * 让 `register` 校验工厂返回类型、让 `resolve` 按 token 推断出正确返回类型。
+ * 让 `register` 校验工厂返回类型、让 `get` 按 token 推断出正确返回类型。
  *
  * 约束用 `object` 而非 `Record<string, unknown>`：后者要求 index signature，
  * 会导致无 index signature 的 `interface` 无法作为 TokenMap 使用。
@@ -18,7 +18,7 @@ import type { z } from 'zod';
  *   storageManager: StorageManager;
  * }
  * const container = createContainer<Tokens>();
- * const db = container.resolve('db'); // 类型为 Db
+ * const db = container.get('db'); // 类型为 Db
  * ```
  */
 export type TokenMap = object;
@@ -42,15 +42,15 @@ export type ConfigSchemaMap = object;
 /**
  * 工厂上下文：工厂函数唯一入参，携带依赖解析器与配置读取器。
  *
- * 依赖与配置在同一个显式位置汇合：`resolve` 递归获取其他依赖，
+ * 依赖与配置在同一个显式位置汇合：`get` 递归获取其他依赖，
  * `getConfig` 读取 `registerConfig` + `load` 加载并验证的配置段。
  */
 export interface FactoryContext<
   TTokens extends TokenMap,
   TConfigKeys extends ConfigSchemaMap,
 > {
-  /** 同步解析其他依赖；被解析的依赖必须是同步可解析的，否则请用 `resolveAsync` */
-  resolve: <K extends keyof TTokens & string>(token: K) => TTokens[K];
+  /** 同步解析其他依赖；被解析的依赖必须是同步可解析的，否则请用 `resolve` */
+  get: <K extends keyof TTokens & string>(token: K) => TTokens[K];
   /** 读取已通过 `registerConfig` + `load` 加载并验证的配置段 */
   getConfig: <K extends keyof TConfigKeys & string>(key: K) => z.infer<TConfigKeys[K] & z.ZodType>;
 }
@@ -59,7 +59,7 @@ export interface FactoryContext<
  * 工厂函数：读配置 + 解析依赖，产出实例。
  *
  * 返回 `Promise` 表示异步构建（如需要 `await` 加载模型、建连等），
- * 异步工厂只能通过 `resolveAsync` 解析。
+ * 异步工厂只能通过 `resolve` 解析。
  */
 export type Factory<
   TValue,
