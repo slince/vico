@@ -545,6 +545,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
+    // session 级审批工具名（循环内收集，循环结束后批量持久化）
+    const sessionScopedTools = new Set<string>();
 
     // 待审批的call
     for (const pendingCall of checkpoint.pendingApprovalCalls) {
@@ -570,9 +572,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           approved: true,
           approvedAt: Date.now(),
         });
-        // session 级审批：持久化到 thread.metadata，跨 turn 生效
+        // session 级审批：收集工具名，循环结束后批量持久化到 thread.metadata
         if (scope === 'session') {
-          await this.saveSessionApproval(context, pendingCall.name);
+          sessionScopedTools.add(pendingCall.name);
         }
       } else {
         context.controller.enqueue(toolOutputDeniedPart(pendingCall));
@@ -582,6 +584,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           error: 'Rejected by user',
         });
       }
+    }
+    // session 级审批批量落库：一次 updateThread，避免逐个写入
+    if (sessionScopedTools.size > 0) {
+      await this.saveSessionApprovals(context, [...sessionScopedTools]);
     }
     // 本轮次要执行的 tool calls
     const allApprovedCalls = [...checkpoint.approvedCalls, ...approvedCalls].filter(call => !completedToolCallIds.has(call.id))
@@ -764,12 +770,16 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 持久化 session 级工具审批到 thread.metadata。
+   * 批量持久化 session 级工具审批到 thread.metadata。
    */
-  private async saveSessionApproval(context: TurnContext<TToolSet>, toolName: string): Promise<void> {
+  private async saveSessionApprovals(context: TurnContext<TToolSet>, toolNames: string[]): Promise<void> {
+    if (toolNames.length === 0) return;
     const meta = context.session.thread.metadata ?? {};
     meta.approvedTools ??= {};
-    meta.approvedTools[toolName] = { approvedAt: Date.now() };
+    const now = Date.now();
+    for (const toolName of toolNames) {
+      meta.approvedTools[toolName] = { approvedAt: now };
+    }
     await this.thread.updateThread(context.session.thread.id, { metadata: meta });
   }
 
