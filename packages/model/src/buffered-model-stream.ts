@@ -89,35 +89,29 @@ export class BufferedModelStream implements ModelStreamResult {
   }
 
   /**
-   * 完整文本输出（text-delta 拼接）。
-   * stream 尚未被消费时主动消费一次以驱动收集；已被消费则等待其读完。
+   * 完整文本输出（text-delta 拼接）。委托 result()，语义一致。
    */
   async text(): Promise<string> {
-    await this.ensureConsumed();
-    await this.completionPromise;
-    return this.textBuffer;
+    return (await this.result()).text;
   }
 
   /**
-   * 完整推理内容（reasoning-delta 拼接）。语义同 text()。
+   * 完整推理内容（reasoning-delta 拼接）。委托 result()，语义一致。
    */
   async reasoning(): Promise<string> {
-    await this.ensureConsumed();
-    await this.completionPromise;
-    return this.reasoningBuffer;
+    return (await this.result()).reasoning;
   }
 
   /**
-   * 模型生成的工具调用列表（tool-call part 的 args 已 JSON 解析，不含 provider 端已执行调用）。语义同 text()。
+   * 模型生成的工具调用列表（tool-call part 的 args 已 JSON 解析，不含 provider 端已执行调用）。委托 result()，语义一致。
    */
   async toolCalls(): Promise<ToolCall[]> {
-    await this.ensureConsumed();
-    await this.completionPromise;
-    return this.collectedToolCalls;
+    return (await this.result()).toolCalls;
   }
 
   /**
-   * 完整模型调用结果（文本 / 推理 / 工具调用 / 用量 / 错误）。语义同 text()。
+   * 完整模型调用结果（文本 / 推理 / 工具调用 / 用量 / 错误）。
+   * stream 尚未被消费时主动消费一次以驱动收集；已被消费则等待其读完。
    */
   async result(): Promise<CallModelResult> {
     await this.ensureConsumed();
