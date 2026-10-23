@@ -586,9 +586,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
     }
     // session 级审批批量落库：一次 updateThread，避免逐个写入
-    if (sessionScopedTools.size > 0) {
-      await this.saveSessionApprovals(context, [...sessionScopedTools]);
-    }
+    await this.saveSessionApprovals(context, sessionScopedTools);
+
     // 本轮次要执行的 tool calls
     const allApprovedCalls = [...checkpoint.approvedCalls, ...approvedCalls].filter(call => !completedToolCallIds.has(call.id))
     const allDeniedResults = [...checkpoint.deniedResults, ...deniedResults].filter(result => !completedToolCallIds.has(result.callId))
@@ -772,14 +771,16 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 批量持久化 session 级工具审批到 thread.metadata。
    */
-  private async saveSessionApprovals(context: TurnContext<TToolSet>, toolNames: string[]): Promise<void> {
-    if (toolNames.length === 0) return;
+  private async saveSessionApprovals(context: TurnContext<TToolSet>, toolNames: Set<string>): Promise<void> {
+    if (toolNames.size === 0) return;
+
     const meta = context.session.thread.metadata ?? {};
     meta.approvedTools ??= {};
     const now = Date.now();
     for (const toolName of toolNames) {
       meta.approvedTools[toolName] = { approvedAt: now };
     }
+    
     await this.thread.updateThread(context.session.thread.id, { metadata: meta });
   }
 
