@@ -12,7 +12,7 @@ import type {
   ToolResultOutput,
 } from '@ai-sdk/provider-utils';
 import type {Tool, ToolCall, ToolResult} from '@vico/tool';
-import type {ToolCallApproval} from '@vico/types';
+import {SESSION_SCOPE_REASON, type ToolCallApproval} from '@vico/types';
 
 /**
  * 消息 content 的原生 part 联合类型，覆盖 AI SDK 生成/历史场景中的主要 part。
@@ -243,11 +243,14 @@ export function extractApprovalResponses(messages: ModelMessage[]): { decisions:
     const remaining = msg.content.filter((part) => {
       if (part.type === 'tool-approval-response') {
         const p = part as ToolApprovalResponse;
+        // 客户端「始终允许」通过 reason 携带会话级放行信号（AI SDK 无 scope 字段可透传），
+        // 识别后转为 scope: 'session' 并剥离该标记，避免进入模型上下文。
+        const isSessionScope = p.reason === SESSION_SCOPE_REASON;
         decisionMap.set(p.approvalId, {
           toolCallId: p.approvalId,
           approved: p.approved,
-          scope: 'turn',
-          reason: p.reason,
+          scope: isSessionScope ? 'session' : 'turn',
+          reason: isSessionScope ? undefined : p.reason,
         });
         hasApproval = true;
         return false;

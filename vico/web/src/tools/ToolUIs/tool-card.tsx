@@ -14,6 +14,12 @@ import type {ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartStatu
 import {ApprovalCard} from '@/components/assistant-ui/elements/approval-card';
 import {cn} from '@/lib/utils';
 
+/**
+ * 会话级放行信号 — 与服务端 @vico/types 的 SESSION_SCOPE_REASON 保持一致。
+ * web 无法引入后端包，故此处重复字面量；改动须两边同步。
+ */
+const SESSION_SCOPE_REASON = '__vico_scope_session__';
+
 export interface ToolCardProps {
   /** 卡片标题（工具中文名） */
   title: string;
@@ -183,7 +189,7 @@ export function ToolCard({
       return null;
     }
 
-    const respond = (approved: boolean) => {
+    const respond = (approved: boolean, scope: 'turn' | 'session' = 'turn') => {
       if (submitted) return;
       // 三种 HITL 机制分别处理：服务端 approval 门禁 / 前端 human 中断 / 直接写结果兜底
       if (
@@ -192,7 +198,11 @@ export function ToolCard({
         approval.resolution === undefined &&
         respondToApproval
       ) {
-        respondToApproval({approved});
+        // 会话级放行经 reason 字段 in-band 传递（AI SDK 只透传 approved/reason）
+        respondToApproval({
+          approved,
+          ...(scope === 'session' ? { reason: SESSION_SCOPE_REASON } : {}),
+        });
       } else if (interrupt) {
         resume?.({approved});
       } else {
@@ -210,8 +220,10 @@ export function ToolCard({
         command={approvalCommand}
         icon={<Icon className="size-4" />}
         onAllowOnce={() => respond(true)}
+        onAlwaysAllow={() => respond(true, 'session')}
         onDeny={() => respond(false)}
         allowOnceLabel={t('tool.allowOnce')}
+        alwaysAllowLabel={t('tool.allowAlways')}
         denyLabel={t('tool.denyOnce')}
         className="my-2"
       />

@@ -37,6 +37,15 @@ export interface ToolCallApproval {
   reason?: string;
 }
 
+/**
+ * 会话级放行信号（跨端协议约定）。
+ *
+ * AI SDK 的 tool-approval-response part 只有 approved/reason 两个可透传字段，
+ * 无法直接携带 scope，故约定：客户端点「始终允许」时，把 reason 置为此值，
+ * 服务端 extractApprovalResponses 识别后转为 scope: 'session' 并剥离，不进入模型上下文。
+ */
+export const SESSION_SCOPE_REASON = '__vico_scope_session__';
+
 /** 单次工具审批在 turn 内的状态记录 */
 export interface ToolApproval {
   /** 工具名称 */

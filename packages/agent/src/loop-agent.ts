@@ -699,6 +699,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         continue;
       }
 
+      // session 级放行：本 thread 内已「始终允许」的工具跳过 resolver 直接批准
+      // （loadSessionApprovals 在 turn 起始已把 thread.metadata.sessionApprovedTools 预填进来）
+      if (context.approvedTools.get(call.name)?.approved === true) {
+        approvedCalls.push(call);
+        continue;
+      }
+
       const decision = await this.approvalResolver(call, tool, policy, {
         toolArgs: call.args,
         workspace: context.session.workspace,
