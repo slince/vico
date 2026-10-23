@@ -16,7 +16,7 @@ function fakeClient(): ModelClient {
   return {
     stream: vi.fn(async () => {
       const parts = [{ type: 'text-delta', delta: 'compacted summary text' }];
-      return { stream: streamOf(parts), readText: async () => 'compacted summary text' };
+      return { stream: streamOf(parts), text: async () => 'compacted summary text' };
     }),
   } as unknown as ModelClient;
 }
@@ -135,7 +135,7 @@ describe('ModelContextCompactor 集成', () => {
     await seed(store, ['x'.repeat(1000), 'y'.repeat(1000), 'z'.repeat(1000)]);
     const thread = (await store.getThread('thread-1'))!;
     const emptyClient = {
-      stream: vi.fn(async () => ({ stream: streamOf([]), readText: async () => '' })),
+      stream: vi.fn(async () => ({ stream: streamOf([]), text: async () => '' })),
     } as unknown as ModelClient;
     const c = new ModelContextCompactor({
       thread: store,
@@ -158,7 +158,7 @@ describe('ModelContextCompactor 集成', () => {
       stream: vi.fn(async () => {
         const huge = 'A'.repeat(3000);
         const parts = [{ type: 'text-delta', delta: huge }];
-        return { stream: streamOf(parts), readText: async () => huge };
+        return { stream: streamOf(parts), text: async () => huge };
       }),
     } as unknown as ModelClient;
     const c = new ModelContextCompactor({
@@ -186,7 +186,7 @@ describe('ModelContextCompactor 集成', () => {
 
     // 第一次压缩产生旧摘要（约 286 token，head 432 > 286 通过 shrink check）
     const bigClient = {
-      stream: vi.fn(async () => ({ stream: streamOf([{ type: 'text-delta', delta: 'B'.repeat(1000) }]), readText: async () => 'B'.repeat(1000) })),
+      stream: vi.fn(async () => ({ stream: streamOf([{ type: 'text-delta', delta: 'B'.repeat(1000) }]), text: async () => 'B'.repeat(1000) })),
     } as unknown as ModelClient;
     expect(await c.compactNow(thread, bigClient, new AbortController().signal)).not.toBeNull();
 
@@ -197,7 +197,7 @@ describe('ModelContextCompactor 集成', () => {
 
     // 第二次压缩：新摘要约 186 token（>= head 33 但 < head+旧摘要 398）
     const smallClient = {
-      stream: vi.fn(async () => ({ stream: streamOf([{ type: 'text-delta', delta: 'C'.repeat(600) }]), readText: async () => 'C'.repeat(600) })),
+      stream: vi.fn(async () => ({ stream: streamOf([{ type: 'text-delta', delta: 'C'.repeat(600) }]), text: async () => 'C'.repeat(600) })),
     } as unknown as ModelClient;
     const second = await c.compactNow(thread, smallClient, new AbortController().signal);
     expect(second).not.toBeNull(); // 修复前基线仅 head（33），186 >= 33 被误拒为 null

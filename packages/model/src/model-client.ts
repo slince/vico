@@ -1,14 +1,15 @@
 // @vico/core - ModelClient：对 LanguageModelV4.doStream() 的薄封装层
 import {convertToLanguageModelPrompt, prepareTools, standardizePrompt} from 'ai/internal';
-import {LanguageModelV4, LanguageModelV4CallOptions} from '@ai-sdk/provider';
+import type {LanguageModelV4, LanguageModelV4CallOptions} from '@ai-sdk/provider';
 import {toToolSet} from './message-utils.js';
+import {BufferedModelStream} from './buffered-model-stream.js';
 import type {ModelRequest, ModelStreamResult} from './types.js';
 
 /**
  * Provider 层语言模型的薄封装。
  *
  * 用 ai/internal 积木将原生 ModelMessage / Vico Tool 转换为 provider 格式，
- * 调用 doStream()，透出原生 LanguageModelV4StreamPart 流。
+ * 调用 doStream()，透出 BufferedModelStream（可读流 + 完整文本 promise 的结合体）。
  */
 export class ModelClient {
   constructor(private model: LanguageModelV4) {}
@@ -17,7 +18,7 @@ export class ModelClient {
    * 流式调用模型。
    *
    * @param request - 模型请求参数（原生消息、Vico 工具、采样/推理配置、中断信号）
-   * @returns provider 原生 V4 流
+   * @returns provider 原生 V4 流 + 完整文本 promise 的结合体
    */
   async stream(request: ModelRequest): Promise<ModelStreamResult> {
     // 校验并标准化消息（system 合并进 instructions）
@@ -45,23 +46,6 @@ export class ModelClient {
 
     const result = await this.model.doStream(options);
 
-    const stream = result.stream;
-
-    return {
-      stream,
-      /** 消费 stream 收集全部 text-delta，返回完整文本（与 `stream` 二选一消费） */
-      readText: async (): Promise<string> => {
-        let text = '';
-        const reader = stream.getReader();
-        while (true) {
-          const { done, value: part } = await reader.read();
-          if (done) break;
-          if (part.type === 'text-delta') {
-            text += part.delta;
-          }
-        }
-        return text;
-      },
-    };
+    return new BufferedModelStream(result.stream);
   }
 }

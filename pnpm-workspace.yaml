@@ -10,6 +10,14 @@ packages:
 minimumReleaseAgeExclude:
   - "@assistant-ui/*"
   - "assistant-cloud"
+  - "@ai-sdk/openai-compatible@3.0.77"
+  - "@ai-sdk/provider-utils@5.0.67"
+  - "@ai-sdk/provider@4.0.33"
+  - "@ai-sdk/anthropic@4.0.87"
+  - "@ai-sdk/gateway@4.0.123"
+  - "@ai-sdk/openai@4.0.101"
+  - ai@7.0.150
+  - assistant-stream@0.3.54
 
 # 允许运行 build scripts 的依赖（pnpm 默认禁止，这里批准项目实际使用的原生/二进制包）
 allowBuilds:
@@ -22,13 +30,13 @@ allowBuilds:
 # 各包 package.json 以 "catalog:" 引用，升级只改此处一处；保证解析到同一物理副本。
 catalog:
   # runtime
-  ai: 7.0.142
+  ai: 7.0.150
   zod: ^4.6.7
   pino: ^10.4.0
   yaml: ^2.6.0
   better-auth: ^1.7.3
-  "@ai-sdk/provider": ^4.0.28
-  "@ai-sdk/provider-utils": ^5.0.61
+  "@ai-sdk/provider": ^4.0.33
+  "@ai-sdk/provider-utils": ^5.0.67
   # db
   drizzle-orm: ^0.45.2
   "@libsql/client": ^0.17.0

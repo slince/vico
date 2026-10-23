@@ -23,11 +23,12 @@ export interface ModelRequest {
   abortSignal?: AbortSignal;
 }
 
-/** ModelClient.stream() 返回值 — provider 原生 V4 流 */
+/** ModelClient.stream() 返回值 — 可读流与完整文本 promise 的结合体 */
 export interface ModelStreamResult {
+  /** provider 原生 V4 流；无论由谁消费，text-delta 都会同步累积进内部缓冲，供 text() 复用 */
   stream: ReadableStream<LanguageModelV4StreamPart>;
-  /** 消费 stream 并返回完整文本输出（text-delta 拼接）。调用后 stream 不可再被读取，与 `stream` 二选一消费。 */
-  readText(): Promise<string>;
+  /** 完整文本输出（text-delta 拼接）。stream 消费完毕（含外部消费）后 resolve；重复调用无副作用 */
+  text(): Promise<string>;
 }
 
 /** 模型配置：provider + 模型名 + 连接凭据，createLanguageModel 据此构建 LanguageModelV4 */
