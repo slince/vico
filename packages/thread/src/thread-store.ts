@@ -12,7 +12,7 @@ export interface SessionApprovedTool {
 export interface ThreadMetadata {
   workspace?: string;
   /** Session 级已审批工具映射，跨 turn 生效 */
-  sessionApprovedTools?: Record<string, SessionApprovedTool>;
+  approvedTools?: Record<string, SessionApprovedTool>;
   /** 线程累计 token 用量（所有已完结 turn 的 usage 之和，含分叉调用） */
   usage?: UsageMetrics;
   [key: string]: unknown;

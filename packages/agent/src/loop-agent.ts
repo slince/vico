@@ -700,7 +700,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       }
 
       // session 级放行：本 thread 内已「始终允许」的工具跳过 resolver 直接批准
-      // （loadSessionApprovals 在 turn 起始已把 thread.metadata.sessionApprovedTools 预填进来）
+      // （loadSessionApprovals 在 turn 起始已把 thread.metadata.approvedTools 预填进来）
       if (context.approvedTools.get(call.name)?.approved === true) {
         approvedCalls.push(call);
         continue;
@@ -762,8 +762,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    */
   private async saveSessionApproval(context: TurnContext<TToolSet>, toolName: string): Promise<void> {
     const meta = context.session.thread.metadata ?? {};
-    meta.sessionApprovedTools ??= {};
-    meta.sessionApprovedTools[toolName] = { approvedAt: Date.now() };
+    meta.approvedTools ??= {};
+    meta.approvedTools[toolName] = { approvedAt: Date.now() };
     await this.thread.updateThread(context.session.thread.id, { metadata: meta });
   }
 
@@ -771,7 +771,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 从 thread.metadata 加载 session 级审批，预填入 approvedTools Map。
    */
   private loadSessionApprovals(session: TurnSession, context: TurnContext<TToolSet>): void {
-    const sessionApproved = session.thread.metadata?.sessionApprovedTools;
+    const sessionApproved = session.thread.metadata?.approvedTools;
     if (!sessionApproved) return;
     for (const [name, entry] of Object.entries(sessionApproved)) {
       context.approvedTools.set(name, {

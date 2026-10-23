@@ -22,7 +22,7 @@
   → ai-sdk transport 只透传 {approvalId, approved, reason}
   → 服务端 extractApprovalResponses 解析 → scope:'session'（reason 剥离）
   → LoopAgent.loadCheckpoint 读 decision.scope → saveSessionApproval
-  → thread.metadata.sessionApprovedTools[toolName] 持久化
+  → thread.metadata.approvedTools[toolName] 持久化
   → 下一 turn loadSessionApprovals 预填 context.approvedTools
   → resolveToolApprovals 短路（approvedTools 命中直接批准，跳过 resolver）
 ```
