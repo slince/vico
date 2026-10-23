@@ -1,8 +1,14 @@
 // @vico/core - 模型模块类型定义（消息/流类型全部使用 AI SDK 原生类型）
 import type {ModelMessage} from 'ai';
-import type {LanguageModelV4, LanguageModelV4StreamPart} from '@ai-sdk/provider';
-import type {Tool} from '@vico/tool';
+import type {LanguageModelV4, LanguageModelV4StreamPart, LanguageModelV4ToolCall} from '@ai-sdk/provider';
+import type {Tool, ToolCall} from '@vico/tool';
 
+
+/** provider 流 part 别名，隔离 @ai-sdk/provider 版本；vico 其它包应引用此别名而非直接依赖 provider */
+export type ModelStreamPart = LanguageModelV4StreamPart;
+
+/** provider 工具调用 part 别名，语义同上 */
+export type ModelToolCall = LanguageModelV4ToolCall;
 
 /** 推理力度（透传 LanguageModelV4CallOptions.reasoning） */
 export type ReasoningEffort = 'provider-default' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
@@ -23,12 +29,16 @@ export interface ModelRequest {
   abortSignal?: AbortSignal;
 }
 
-/** ModelClient.stream() 返回值 — 可读流与完整文本 promise 的结合体 */
+/** ModelClient.stream() 返回值 — 可读流与完整文本/推理内容/工具调用 promise 的结合体 */
 export interface ModelStreamResult {
-  /** provider 原生 V4 流；无论由谁消费，text-delta 都会同步累积进内部缓冲，供 text() 复用 */
-  stream: ReadableStream<LanguageModelV4StreamPart>;
+  /** provider 原生 V4 流；无论由谁消费，text-delta / reasoning-delta / tool-call 都会同步累积，供 text()/reasoning()/toolCalls() 复用 */
+  stream: ReadableStream<ModelStreamPart>;
   /** 完整文本输出（text-delta 拼接）。stream 消费完毕（含外部消费）后 resolve；重复调用无副作用 */
   text(): Promise<string>;
+  /** 完整推理内容（reasoning-delta 拼接）。语义同 text()：stream 消费完毕（含外部消费）后 resolve */
+  reasoning(): Promise<string>;
+  /** 模型生成的工具调用列表（tool-call part 的 args 已 JSON 解析）。stream 消费完毕（含外部消费）后完整 */
+  toolCalls(): Promise<ToolCall[]>;
 }
 
 /** 模型配置：provider + 模型名 + 连接凭据，createLanguageModel 据此构建 LanguageModelV4 */

@@ -18,6 +18,8 @@ minimumReleaseAgeExclude:
   - "@ai-sdk/openai@4.0.101"
   - ai@7.0.150
   - assistant-stream@0.3.54
+  - "@ai-sdk/mcp@2.0.83"
+  - "@ai-sdk/react@4.0.154"
 
 # 允许运行 build scripts 的依赖（pnpm 默认禁止，这里批准项目实际使用的原生/二进制包）
 allowBuilds:
@@ -46,8 +48,17 @@ catalog:
   vitest: ^4.1.12
   "@types/node": ^22.20.5
 
-## 强制对齐 assistant-ui 核心包版本（ai-sdk/react-mcp 仍声明 ^0.3.25/^0.3.18，官方未发跟进版，
-## 此处统一到 react@0.15.27 所需的 core 0.3.26 / store 0.3.19，消除运行时重复加载）
-#overrides:
-#  "@assistant-ui/core": 0.3.26
-#  "@assistant-ui/store": 0.3.19
+## 强制对齐两族依赖到单一物理副本，消除 web 端重复加载与类型分裂：
+## 1) AI SDK 族：react/mcp 升级到 pin provider@4.0.33 的版本，避免旧版
+##    react(4.0.152→ai@7.0.148) / mcp(2.0.81→provider@4.0.31) 引入第二份 ai / provider；
+## 2) assistant-ui 族：core/store/assistant-cloud/assistant-stream 统一到 ai-sdk@0.0.15 所需的新版，
+##    否则 react@0.15.29 取 core@0.3.29、ai-sdk@0.0.15 取 core@0.3.31，模块增强（MCP state）
+##    与 useAuiState 各看一份 core，导致 AssistantState 类型分裂、web 无法通过 typecheck。
+overrides:
+  "@ai-sdk/react": 4.0.154
+  "@ai-sdk/mcp": 2.0.83
+  "@assistant-ui/core": 0.3.31
+  "@assistant-ui/store": 0.3.22
+  "@assistant-ui/tap": 0.9.24
+  "assistant-cloud": 0.2.8
+  "assistant-stream": 0.3.54

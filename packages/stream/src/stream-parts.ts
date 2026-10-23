@@ -1,6 +1,6 @@
 // @vico/core - LoopAgent 输出流协议（TextStreamPart）的 part 构造与 V4 映射辅助
 //
-// 分层约定：ModelClient 输出 provider 层协议（LanguageModelV4StreamPart），
+// 分层约定：ModelClient 输出 provider 层协议（ModelStreamPart，见 @vico/model 别名），
 // LoopAgent 将其转换为引擎层协议（TextStreamPart<TToolSet>）后对外输出，
 // turn-stream 再转换为 UI 层协议（UIMessageChunk）。本模块承载引擎层 part 的构造逻辑。
 import {

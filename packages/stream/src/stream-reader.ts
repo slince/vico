@@ -1,5 +1,4 @@
 // @vico/core - ModelStreamReader: 消费 provider 原生 V4 流，转换为引擎层 TextStreamPart 并累积结果
-import type {LanguageModelV4StreamPart} from '@ai-sdk/provider';
 import type {TextStreamPart, ToolSet} from 'ai';
 
 import type {ToolCall} from '@vico/tool';
@@ -7,7 +6,7 @@ import type {CallModelResult, TurnEvent} from './types.js';
 import type {UsageMetrics} from '@vico/types';
 import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart,} from './stream-parts.js';
 import {emptyUsage, fromV4Usage} from './usage.js';
-import type {ModelRequest} from '@vico/model';
+import type {ModelRequest, ModelStreamPart} from '@vico/model';
 
 /** ModelStreamReader 构造选项 */
 export interface ModelStreamReaderOptions<TToolSet extends ToolSet = ToolSet> {
@@ -43,7 +42,7 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
    * @param stream - 已获取的 provider 原生 V4 流
    * @returns 累积的完整文本 / 推理 / 工具调用 / usage（流内出错时带 error）
    */
-  async read(stream: ReadableStream<LanguageModelV4StreamPart>): Promise<CallModelResult> {
+  async read(stream: ReadableStream<ModelStreamPart>): Promise<CallModelResult> {
     let fullText = '';
     let fullReasoning = '';
     const toolCalls: ToolCall[] = [];
