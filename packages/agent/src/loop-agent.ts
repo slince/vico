@@ -359,17 +359,18 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const {session: {thread, turn}} = context
     let usage = context.usage;
-    const loopResult: StepLoopResult  = await this.runLoop(context);
-    usage = addUsage(usage, loopResult.usage);
+
+    const result  = await this.runLoop(context);
+    usage = addUsage(usage, result.usage);
 
     // 暂停时不 finalize trace session，保留会话供恢复时复用
-    if (loopResult.status === 'paused') {
-      this.log.info({ turnId: turn.id, steps: loopResult.steps }, 'turn paused');
+    if (result.status === 'paused') {
+      this.log.info({ turnId: turn.id, steps: result.steps }, 'turn paused');
       // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
       context.controller.enqueue(finishPart('stop', usage));
       return {
         status: 'paused',
-        steps: loopResult.steps,
+        steps: result.steps,
         usage,
         messages: context.messages,
         thread,
@@ -380,12 +381,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     await this.pipeline.leave(context.ctx);
 
     // 模型错误导致的失败
-    if (loopResult.status === 'failed') {
-      const err = loopResult.error!;
+    if (result.status === 'failed') {
+      const err = result.error!;
       // 失败态也落库本 turn 累计用量，供审计与 thread 累加
       await this.thread.updateTurn(turn.id, {
         status: 'failed',
-        steps: loopResult.steps,
+        steps: result.steps,
         metadata: { ...turn.metadata, usage },
       });
       await this.saveCheckpoint(context, 'failed')
@@ -395,19 +396,19 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
       return {
         status: 'failed',
-        steps: loopResult.steps,
+        steps: result.steps,
         usage, messages:
         context.messages,
         thread,
         turn,
-        error: loopResult.error,
+        error: result.error,
       };
     }
 
     // 更新turn的完结态，并把本 turn 累计用量写入 turn.metadata.usage
     await this.thread.updateTurn(turn.id, {
-      status: loopResult.status,
-      steps: loopResult.steps,
+      status: result.status,
+      steps: result.steps,
       metadata: { ...turn.metadata, usage },
     });
 
@@ -419,15 +420,15 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     await this.saveCheckpoint(context, 'end')
 
     // 终态生命周期 part：中断先发 abort，再统一发 finish
-    if (loopResult.status === 'aborted') {
+    if (result.status === 'aborted') {
       context.controller.enqueue({ type: 'abort' });
     }
-    context.controller.enqueue(finishPart(loopResult.status === 'aborted' ? 'other' : 'stop', usage));
+    context.controller.enqueue(finishPart(result.status === 'aborted' ? 'other' : 'stop', usage));
     this.emit({ type: 'done', usage });
 
     return {
-      status: loopResult.status,
-      steps: loopResult.steps,
+      status: result.status,
+      steps: result.steps,
       usage,
       messages: context.messages,
       thread,
