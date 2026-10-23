@@ -18,7 +18,7 @@ export interface AgentOptions {
   id: string;
   name: string;
   systemPrompt: string;
-  /** 模型引用（LanguageModelV4 实例或 ModelConfig 配置），内部解析为 LanguageModelV4 */
+  /** 模型引用（LanguageModel 实例或 ModelConfig 配置），内部解析为 LanguageModel */
   model: ModelRef;
   temperature: number;
   /** 推理力度，不传则 provider 默认 */

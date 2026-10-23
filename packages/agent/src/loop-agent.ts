@@ -13,7 +13,7 @@ import {
   createLanguageModel,
   ensureToolCallConsistency,
   extractApprovalResponses,
-  isLanguageModelV4,
+  isLanguageModel,
   ModelClient,
   type ModelRef
 } from '@vico/model';
@@ -65,7 +65,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly name: string;
   readonly systemPrompt: string;
   readonly modelClient: ModelClient;
-  /** 原始模型引用（LanguageModelV4 实例或 ModelConfig 配置），run 级仅切换模型名时复用 */
+  /** 原始模型引用（LanguageModel 实例或 ModelConfig 配置），run 级仅切换模型名时复用 */
   readonly model: ModelRef;
   readonly temperature: number;
   readonly reasoning?: ReasoningEffort;
@@ -95,7 +95,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.model = rest.model;
 
     // 构建大语言模型
-    const languageModel = isLanguageModelV4(rest.model) ? rest.model : createLanguageModel(rest.model)
+    const languageModel = isLanguageModel(rest.model) ? rest.model : createLanguageModel(rest.model)
     this.modelClient = new ModelClient(languageModel);
 
     this.temperature = rest.temperature;
@@ -237,7 +237,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    *
    * 仅切换模型名，provider/apiKey/baseUrl 复用 agent 原始 ModelConfig；
    * 未传模型名时回退默认 modelClient。
-   * agent 由 LanguageModelV4 实例构建时无法重建模型：切换到自身 modelId 视为不切换，
+   * agent 由 LanguageModel 实例构建时无法重建模型：切换到自身 modelId 视为不切换，
    * 切换到其它模型名则直接报错。
    *
    * @param modelName - run 级模型名（可选）
@@ -247,9 +247,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     if (!modelName) {
       return this.modelClient;
     }
-    if (isLanguageModelV4(this.model)) {
+    if (isLanguageModel(this.model)) {
       if (modelName !== this.model.modelId) {
-        throw new Error(`Cannot switch to model "${modelName}": this agent was built from a LanguageModelV4 instance and only supports its own model "${this.model.modelId}"`);
+        throw new Error(`Cannot switch to model "${modelName}": this agent was built from a LanguageModel instance and only supports its own model "${this.model.modelId}"`);
       }
       return this.modelClient;
     }

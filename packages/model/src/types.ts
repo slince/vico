@@ -4,6 +4,9 @@ import type {LanguageModelV4, LanguageModelV4StreamPart, LanguageModelV4ToolCall
 import type {Tool, ToolCall} from '@vico/tool';
 
 
+/** provider 语言模型实例别名，隔离 @ai-sdk/provider 版本；vico 其它包应引用此别名而非直接依赖 provider */
+export type LanguageModel = LanguageModelV4;
+
 /** provider 流 part 别名，隔离 @ai-sdk/provider 版本；vico 其它包应引用此别名而非直接依赖 provider */
 export type ModelStreamPart = LanguageModelV4StreamPart;
 
@@ -41,7 +44,7 @@ export interface ModelStreamResult {
   toolCalls(): Promise<ToolCall[]>;
 }
 
-/** 模型配置：provider + 模型名 + 连接凭据，createLanguageModel 据此构建 LanguageModelV4 */
+/** 模型配置：provider + 模型名 + 连接凭据，createLanguageModel 据此构建 LanguageModel */
 export interface ModelConfig {
   provider: string;
   model: string;
@@ -54,11 +57,11 @@ export interface ModelConfig {
 }
 
 /**
- * 模型引用：已解析的 LanguageModelV4 实例，或待解析的 ModelConfig
+ * 模型引用：已解析的 LanguageModel 实例，或待解析的 ModelConfig
  */
-export type ModelRef = LanguageModelV4 | ModelConfig;
+export type ModelRef = LanguageModel | ModelConfig;
 
-/** 判断 ModelRef 是否为已解析的 LanguageModelV4 实例（配置对象无 modelId 字段） */
-export function isLanguageModelV4(ref: ModelRef): ref is LanguageModelV4 {
+/** 判断 ModelRef 是否为已解析的 LanguageModel 实例（配置对象无 modelId 字段） */
+export function isLanguageModel(ref: ModelRef): ref is LanguageModel {
   return 'modelId' in ref;
 }

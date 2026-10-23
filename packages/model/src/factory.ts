@@ -2,8 +2,7 @@
 import {createOpenAI} from '@ai-sdk/openai';
 import {createOpenAICompatible} from '@ai-sdk/openai-compatible';
 import {createAnthropic} from '@ai-sdk/anthropic';
-import type {LanguageModelV4} from '@ai-sdk/provider';
-import type {ModelConfig} from './types.js';
+import type {LanguageModel, ModelConfig} from './types.js';
 
 /**
  * OpenAI 兼容第三方 provider 的默认 baseURL 兜底。
@@ -27,9 +26,9 @@ const COMPATIBLE_DEFAULT_BASE_URLS: Record<string, string> = {
  * anthropic 使用原生 SDK。
  *
  * @param config - 模型配置，包含 provider、model、apiKey、baseUrl 等
- * @returns AI SDK 的 LanguageModelV4 实例
+ * @returns AI SDK 的 LanguageModel 实例
  */
-export function createLanguageModel(config: ModelConfig): LanguageModelV4 {
+export function createLanguageModel(config: ModelConfig): LanguageModel {
   const apiKey = config.apiKey ?? undefined;
   const baseURL = config.baseUrl ?? undefined;
   const provider = config.provider.toLowerCase();

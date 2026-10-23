@@ -1,9 +1,9 @@
-// @vico/core - ModelClient：对 LanguageModelV4.doStream() 的薄封装层
+// @vico/core - ModelClient：对 LanguageModel.doStream() 的薄封装层
 import {convertToLanguageModelPrompt, prepareTools, standardizePrompt} from 'ai/internal';
-import type {LanguageModelV4, LanguageModelV4CallOptions} from '@ai-sdk/provider';
+import type {LanguageModelV4CallOptions} from '@ai-sdk/provider';
 import {toToolSet} from './message-utils.js';
 import {BufferedModelStream} from './buffered-model-stream.js';
-import type {ModelRequest, ModelStreamResult} from './types.js';
+import type {LanguageModel, ModelRequest, ModelStreamResult} from './types.js';
 
 /**
  * Provider 层语言模型的薄封装。
@@ -12,7 +12,7 @@ import type {ModelRequest, ModelStreamResult} from './types.js';
  * 调用 doStream()，透出 BufferedModelStream（可读流 + 完整文本 promise 的结合体）。
  */
 export class ModelClient {
-  constructor(private model: LanguageModelV4) {}
+  constructor(private model: LanguageModel) {}
 
   /**
    * 流式调用模型。

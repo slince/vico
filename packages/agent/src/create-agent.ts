@@ -1,8 +1,7 @@
 // @vico/core — 独立 Agent 构建函数，不依赖 Vico 容器
-import type {LanguageModelV4} from '@ai-sdk/provider';
 import type {Agent} from './agent.js';
 import {LoopAgent} from './loop-agent.js';
-import {isLanguageModelV4, type ModelConfig, type ModelRef, type ReasoningEffort} from '@vico/model';
+import {isLanguageModel, type LanguageModel, type ModelConfig, type ModelRef, type ReasoningEffort} from '@vico/model';
 import type {TurnEvent} from '@vico/stream';
 import type {ApprovalResolver, Tool} from '@vico/tool';
 import type {Skill} from '@vico/skill';
@@ -27,7 +26,7 @@ import type {CompactionSettings} from '@vico/compaction';
 
 
 /** LanguageModel 工厂类型 */
-export type LanguageModelFactory = (config: ModelConfig) => LanguageModelV4;
+export type LanguageModelFactory = (config: ModelConfig) => LanguageModel;
 
 type ToolSetting<T extends Tool[] = Tool[]> = {
   tools: T;
@@ -137,7 +136,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
   const tools = buildTools(config.tools, memory.semantic, skills);
 
   // 上下文压缩器：仅在显式配置 compaction 时构造；模型为 ModelConfig 时才能拿到 contextWindow/摘要模型
-  const modelConfig = !isLanguageModelV4(config.model) ? config.model : undefined;
+  const modelConfig = !isLanguageModel(config.model) ? config.model : undefined;
   // 输出上限来自模型级 maxOutputTokens（AgentConfig 不再暴露独立 maxTokens）
   const maxTokens = modelConfig?.maxOutputTokens;
   const compactor = config.compaction
