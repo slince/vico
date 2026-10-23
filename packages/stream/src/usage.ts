@@ -1,4 +1,4 @@
-// @vico/core - UsageMetrics 构造与累加工具
+// @vico/stream - UsageMetrics 构造与累加工具
 
 import type {UsageMetrics} from '@vico/types';
 

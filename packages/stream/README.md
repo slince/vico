@@ -24,4 +24,3 @@ const result = await reader.read(v4Stream); // { text, reasoning, toolCalls, usa
 ## 相关文档
 
 - [AI SDK 流式 chunk 协议](../../docs/insights/ai-sdk-stream-chunk-protocols.md)
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

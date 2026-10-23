@@ -15,6 +15,3 @@ events.on('ping', (e) => console.log(e.value));
 events.emit({ type: 'ping', value: 1 });
 ```
 
-## 相关文档
-
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

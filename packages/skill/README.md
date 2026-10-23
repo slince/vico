@@ -19,6 +19,3 @@ const skill = registry.get('my-skill');
 const matches = registry.search('关键词', 10);
 ```
 
-## 相关文档
-
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

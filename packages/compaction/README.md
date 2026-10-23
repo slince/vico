@@ -36,4 +36,3 @@ if (isContextOverflowError(err)) { /* ... */ }
 ## 相关文档
 
 - [context-compaction 实现说明](../../docs/insights/context-compaction-实现说明.md)
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

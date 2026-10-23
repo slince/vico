@@ -23,4 +23,3 @@ const modelMessages = toModelMessages(await store.getEntries('thread-1'));
 ## 相关文档
 
 - [thread token 用量](../../docs/insights/thread-token-usage.md)
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

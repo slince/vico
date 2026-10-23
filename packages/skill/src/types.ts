@@ -1,4 +1,4 @@
-// @vico/core - Skill module type definitions
+// @vico/skill - Skill module type definitions
 
 /** Skill 插件元数据 */
 export interface Skill {

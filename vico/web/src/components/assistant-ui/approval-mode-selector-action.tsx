@@ -30,7 +30,7 @@ import {
 // 3. Hooks
 import { useChat } from "@/providers/chat-provider";
 
-/** 审批政策模式取值（与 @vico/core 的 ApprovalMode 一致） */
+/** 审批政策模式取值（与 @vico/tool 的 ApprovalMode 一致） */
 type ApprovalMode = "approve-all" | "readonly" | "workspace" | "full-access";
 
 /** 单个审批政策模式的展示元数据 */

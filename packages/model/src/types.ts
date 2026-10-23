@@ -1,4 +1,4 @@
-// @vico/core - 模型模块类型定义（消息/流类型全部使用 AI SDK 原生类型）
+// @vico/model - 模型模块类型定义（消息/流类型全部使用 AI SDK 原生类型）
 import type {ModelMessage} from 'ai';
 import type {
   LanguageModelV4,

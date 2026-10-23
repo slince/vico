@@ -1,4 +1,4 @@
-// @vico/core - LoopAgent: Agent 默认实现，驱动单个 turn 的 model→tool→repeat 循环
+// @vico/agent - LoopAgent: Agent 默认实现，驱动单个 turn 的 model→tool→repeat 循环
 import {randomUUID} from 'node:crypto';
 import type {Logger} from 'pino';
 import pino from 'pino';

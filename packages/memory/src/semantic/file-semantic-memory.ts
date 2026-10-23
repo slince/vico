@@ -1,4 +1,4 @@
-// @vico/core - FileSemanticMemory: 基于 Markdown 文件的语义记忆实现
+// @vico/memory - FileSemanticMemory: 基于 Markdown 文件的语义记忆实现
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { SemanticMemory } from '../types.js';

@@ -1,4 +1,4 @@
-// @vico/core — In-memory CheckpointStore implementation（版本树，append-only）
+// @vico/checkpoint — In-memory CheckpointStore implementation（版本树，append-only）
 import type {Checkpoint, CheckpointAppendPatch, CheckpointStore} from './checkpoint.js';
 import {CHECKPOINT_CURRENT_VERSION, checkpointMigrations, createCheckpoint} from './checkpoint.js';
 import {randomUUID} from 'node:crypto';

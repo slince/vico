@@ -1,4 +1,4 @@
-// @vico/core - 按 key 分片的异步互斥锁
+// @vico/utils - 按 key 分片的异步互斥锁
 
 /**
  * 按 key 分片的异步互斥锁 — 同一 key 的任务严格串行，不同 key 互不阻塞。

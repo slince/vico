@@ -1,4 +1,4 @@
-// @vico/core - 事件类型定义
+// @vico/events - 事件类型定义
 
 /** 事件基础约束：每个事件必须包含 type 判别字段 */
 export interface TypedEvent {

@@ -1,4 +1,4 @@
-// @vico/core - UI 流类型（直接复用 AI SDK 原生类型）
+// @vico/stream - UI 流类型（直接复用 AI SDK 原生类型）
 import type { ModelMessage, UIMessage } from 'ai';
 import type { UsageMetrics } from '@vico/types';
 

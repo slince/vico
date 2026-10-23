@@ -1,4 +1,4 @@
-// @vico/core - Agent 对外契约（interface）与构造参数
+// @vico/agent - Agent 对外契约（interface）与构造参数
 import type {ModelClient} from '@vico/model';
 import type {ModelRef, ReasoningEffort} from '@vico/model';
 import type {ApprovalDecider, Tool} from '@vico/tool';

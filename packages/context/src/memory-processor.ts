@@ -1,4 +1,4 @@
-// @vico/core - MemoryProcessor: injects conversation history, semantic memory, and episodic recall
+// @vico/context - MemoryProcessor: injects conversation history, semantic memory, and episodic recall
 import {randomUUID} from 'node:crypto';
 import type {ContextProcessor} from './context-processor.js';
 import {Priority} from './context-processor.js';

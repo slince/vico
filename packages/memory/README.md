@@ -25,4 +25,3 @@ const profile = await memory.semantic?.get('user-1');
 ## 相关文档
 
 - [memory 术语重命名](../../docs/insights/memory-terminology-rename.md)
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

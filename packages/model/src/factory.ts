@@ -1,4 +1,4 @@
-// @vico/core - LanguageModel 工厂：根据 ModelConfig 创建 AI SDK LanguageModel
+// @vico/model - LanguageModel 工厂：根据 ModelConfig 创建 AI SDK LanguageModel
 import {createOpenAI} from '@ai-sdk/openai';
 import {createOpenAICompatible} from '@ai-sdk/openai-compatible';
 import {createAnthropic} from '@ai-sdk/anthropic';

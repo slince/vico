@@ -32,6 +32,3 @@ const latest = await store.getLatest('turn-1');
 const versions = await store.listVersions('turn-1');
 ```
 
-## 相关文档
-
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

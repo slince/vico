@@ -31,6 +31,3 @@ const result = await agent.invoke('Hello'); // 非流式
 const output = await agent.stream('Hello'); // 流式（TurnOutput）
 ```
 
-## 相关文档
-
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

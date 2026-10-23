@@ -1,4 +1,4 @@
-// @vico/core - 审批策略：support/resolve 两段式 resolver 及内置规则集
+// @vico/tool - 审批策略：support/resolve 两段式 resolver 及内置规则集
 import {resolve} from 'node:path';
 import type {ApprovalDecider, ApprovalResolver} from './types.js';
 

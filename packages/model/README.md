@@ -32,4 +32,3 @@ const text = await readText();
 ## 相关文档
 
 - [模型设置说明](../../docs/insights/model-settings-advanced-options.md)
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

@@ -1,4 +1,4 @@
-// @vico/core - WorkspaceToolProcessor: filters workspace-dependent tools when session has no workspace
+// @vico/context - WorkspaceToolProcessor: filters workspace-dependent tools when session has no workspace
 import type {ContextProcessor} from './context-processor.js';
 import type {ModelRequestContext} from './model-request-context.js';
 import {Priority} from './context-processor.js';

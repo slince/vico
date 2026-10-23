@@ -37,6 +37,3 @@ ctx.appendSystemPrompt('你可以使用工作区工具。');
 const request = buildModelRequest(ctx); // { system, messages, tools, maxTokens, temperature }
 ```
 
-## 相关文档
-
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

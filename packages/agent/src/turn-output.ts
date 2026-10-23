@@ -1,4 +1,4 @@
-// @vico/core - TurnOutput: runTurn 的返回值，封装流和结果
+// @vico/agent - TurnOutput: runTurn 的返回值，封装流和结果
 import type {TextStreamPart, ToolSet} from 'ai';
 import type {TurnResult} from './loop-agent-options.js';
 

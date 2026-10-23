@@ -1,4 +1,4 @@
-// @vico/core - Memory module type definitions
+// @vico/memory - Memory module type definitions
 
 export interface MemoryRecord {
   id: string;

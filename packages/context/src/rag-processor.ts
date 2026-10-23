@@ -1,4 +1,4 @@
-// @vico/core - RagProcessor: retrieves RAG knowledge and appends to system prompt
+// @vico/context - RagProcessor: retrieves RAG knowledge and appends to system prompt
 import type {ContextProcessor} from './context-processor.js';
 import type {ModelRequestContext} from './model-request-context.js';
 import {Priority} from './context-processor.js';

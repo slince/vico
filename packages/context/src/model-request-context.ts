@@ -1,4 +1,4 @@
-// @vico/core - ModelRequestContext: 穿过洋葱层各处理器的可变上下文
+// @vico/context - ModelRequestContext: 穿过洋葱层各处理器的可变上下文
 import type {ModelMessage} from 'ai';
 import {getMessageText, pickPrimaryUserMessage} from '@vico/model';
 import type {Tool} from '@vico/tool';

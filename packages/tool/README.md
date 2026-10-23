@@ -26,4 +26,3 @@ const tools = [...basicTools, ...filesystemTools, ...codingTools];
 ## 相关文档
 
 - [ask_user 工具协议](../../docs/insights/tool-ask-user-protocol.md)
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

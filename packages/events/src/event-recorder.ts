@@ -1,4 +1,4 @@
-// @vico/core - Mitt-based EventRecorder 实现
+// @vico/events - Mitt-based EventRecorder 实现
 import mitt, { type Emitter } from 'mitt';
 import type { EventPayload, EventRecorder, EventType, TypedEvent } from './types.js';
 

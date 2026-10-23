@@ -1,4 +1,4 @@
-// @vico/core — 独立 Agent 构建函数，不依赖 Vico 容器
+// @vico/agent — 独立 Agent 构建函数，不依赖 Vico 容器
 import type {Agent} from './agent.js';
 import {LoopAgent} from './loop-agent.js';
 import {isLanguageModel, type LanguageModel, type ModelConfig, type ModelRef, type ReasoningEffort} from '@vico/model';

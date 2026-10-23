@@ -1,4 +1,4 @@
-// @vico/core - 原生 ModelMessage 工具函数：文本提取、消息构造、审批决策解析、ToolSet 转换
+// @vico/model - 原生 ModelMessage 工具函数：文本提取、消息构造、审批决策解析、ToolSet 转换
 import type {JSONValue, ModelMessage, ToolSet} from 'ai';
 import {tool} from 'ai';
 import type {

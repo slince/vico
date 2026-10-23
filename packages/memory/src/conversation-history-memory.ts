@@ -1,4 +1,4 @@
-// @vico/core - ConversationHistoryMemory: 摘要（前置）+ 最近 N 个已完成 turn 的非归档消息
+// @vico/memory - ConversationHistoryMemory: 摘要（前置）+ 最近 N 个已完成 turn 的非归档消息
 import type {ThreadStore} from '@vico/thread';
 import type {ModelMessage} from 'ai';
 import {toModelMessages} from '@vico/thread';

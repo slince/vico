@@ -1,4 +1,4 @@
-// @vico/core - MemoryStore: memory processing class wrapping four-layer memory + RAG
+// @vico/memory - MemoryStore: memory processing class wrapping four-layer memory + RAG
 import type {ConversationHistoryMemory} from './conversation-history-memory.js';
 import type {EpisodicMemory, ProceduralMemory, SemanticMemory} from './types.js';
 

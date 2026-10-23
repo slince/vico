@@ -1,4 +1,4 @@
-// @vico/core - ModelClient：对 LanguageModel.doStream() 的薄封装层
+// @vico/model - ModelClient：对 LanguageModel.doStream() 的薄封装层
 import {convertToLanguageModelPrompt, prepareTools, standardizePrompt} from 'ai/internal';
 import type {LanguageModelV4CallOptions} from '@ai-sdk/provider';
 import {toToolSet} from './message-utils.js';

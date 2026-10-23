@@ -1,4 +1,4 @@
-// @vico/core - Checkpoint 版本树类型 + CheckpointStore 接口 + 版本迁移
+// @vico/checkpoint - Checkpoint 版本树类型 + CheckpointStore 接口 + 版本迁移
 import type {ToolCall, ToolResult} from '@vico/tool';
 import type {ToolApproval, ToolCallApproval} from '@vico/types';
 import {randomUUID} from 'node:crypto';

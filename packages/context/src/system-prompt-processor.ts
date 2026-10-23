@@ -1,4 +1,4 @@
-// @vico/core - SystemPromptProcessor: injects agent base system prompt
+// @vico/context - SystemPromptProcessor: injects agent base system prompt
 import type {ContextProcessor} from './context-processor.js';
 import {Priority} from './context-processor.js';
 import type {ModelRequestContext} from './model-request-context.js';

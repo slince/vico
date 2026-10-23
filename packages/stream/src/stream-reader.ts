@@ -1,4 +1,4 @@
-// @vico/core - ModelStreamReader: 消费 provider 原生 V4 流，转换为引擎层 TextStreamPart；结果累积交由 BufferedModelStream
+// @vico/stream - ModelStreamReader: 消费 provider 原生 V4 流，转换为引擎层 TextStreamPart；结果累积交由 BufferedModelStream
 import type {TextStreamPart, ToolSet} from 'ai';
 
 import type {ToolCall} from '@vico/tool';

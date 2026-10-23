@@ -1,4 +1,4 @@
-// @vico/core - ContextProcessor onion model: ordered pipeline of prompt modifiers
+// @vico/context - ContextProcessor onion model: ordered pipeline of prompt modifiers
 import type {ModelRequestContext} from './model-request-context.js';
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */

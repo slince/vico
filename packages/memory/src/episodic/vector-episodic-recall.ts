@@ -1,4 +1,4 @@
-// @vico/core - VectorEpisodicRecall: 基于 @vico/rag Embedder + VectorStore 的情景记忆实现
+// @vico/memory - VectorEpisodicRecall: 基于 @vico/rag Embedder + VectorStore 的情景记忆实现
 import type {EpisodicMemory, MemoryRecord, MemorySearchResult} from '../types.js';
 import type {Embedder, VectorStore, VectorQueryResult} from '@vico/rag';
 import {EPISODIC_INDEX_NAME, MEMORY_ENTRY_TYPE} from '../constants.js';

@@ -1,4 +1,4 @@
-// @vico/core - Thread module type definitions
+// @vico/thread - Thread module type definitions
 import type {ModelMessage} from 'ai';
 import type {UsageMetrics} from '@vico/types';
 

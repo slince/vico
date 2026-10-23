@@ -1,4 +1,4 @@
-// @vico/core - Memory 层共享常量与列契约
+// @vico/memory - Memory 层共享常量与列契约
 
 /**
  * `vico_memory_entries` 表列契约（semantic / episodic / knowledge 共享同一张表，按 `type` 列分义）。

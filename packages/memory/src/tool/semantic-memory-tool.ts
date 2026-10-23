@@ -1,4 +1,4 @@
-// @vico/core - semantic-memory-tool: update_semantic_memory 工具定义
+// @vico/memory - semantic-memory-tool: update_semantic_memory 工具定义
 import {z} from 'zod';
 import {createTool} from '@vico/tool';
 import type {ToolCallContext} from '@vico/tool';

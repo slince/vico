@@ -1,4 +1,4 @@
-// @vico/core - createTool: factory for building Tool objects with Zod validation
+// @vico/tool - createTool: factory for building Tool objects with Zod validation
 import type {z} from 'zod';
 import type {Tool, ToolCallContext, ToolKind, ToolPolicy, ToolTag} from './types.js';
 

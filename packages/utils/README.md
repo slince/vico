@@ -24,6 +24,3 @@ await mutex.run('user-1', async () => {
 const merged = mergeMaps(new Map([['a', 1]]), new Map([['b', 2]]));
 ```
 
-## 相关文档
-
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

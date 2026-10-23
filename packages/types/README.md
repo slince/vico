@@ -28,6 +28,3 @@ const usage: UsageMetrics = {
 };
 ```
 
-## 相关文档
-
-- [@vico/core 拆分方案](../core/SPLIT-PLAN.md)

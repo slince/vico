@@ -1,4 +1,4 @@
-// @vico/core - Tool module type definitions
+// @vico/tool - Tool module type definitions
 import type {z} from 'zod';
 import type {ToolCallApproval} from '@vico/types';
 import type {TurnSession} from '@vico/thread';
