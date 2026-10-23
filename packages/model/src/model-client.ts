@@ -1,8 +1,8 @@
 // @vico/core - ModelClient：对 LanguageModelV4.doStream() 的薄封装层
-import { standardizePrompt, convertToLanguageModelPrompt, prepareTools } from 'ai/internal';
-import type { LanguageModelV4 } from '@ai-sdk/provider';
-import { toToolSet } from './message-utils.js';
-import type { ModelRequest, ModelStreamResult } from './types.js';
+import {convertToLanguageModelPrompt, prepareTools, standardizePrompt} from 'ai/internal';
+import {LanguageModelV4, LanguageModelV4CallOptions} from '@ai-sdk/provider';
+import {toToolSet} from './message-utils.js';
+import type {ModelRequest, ModelStreamResult} from './types.js';
 
 /**
  * Provider 层语言模型的薄封装。
@@ -33,7 +33,7 @@ export class ModelClient {
     // Vico Tool → ai ToolSet → provider 工具格式
     const tools = request.tools?.length ? await prepareTools({ tools: toToolSet(request.tools) }) : undefined;
 
-    const result = await this.model.doStream({
+    const options: LanguageModelV4CallOptions = {
       prompt,
       tools,
       maxOutputTokens: request.maxOutputTokens,
@@ -41,7 +41,9 @@ export class ModelClient {
       // 不传 reasoning 字段时交给 provider 默认行为
       ...(request.reasoning ? { reasoning: request.reasoning } : {}),
       abortSignal: request.abortSignal,
-    });
+    }
+
+    const result = await this.model.doStream(options);
 
     const stream = result.stream;
 
