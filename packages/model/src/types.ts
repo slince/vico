@@ -1,6 +1,16 @@
 // @vico/core - 模型模块类型定义（消息/流类型全部使用 AI SDK 原生类型）
 import type {ModelMessage} from 'ai';
-import type {LanguageModelV4, LanguageModelV4StreamPart, LanguageModelV4ToolCall} from '@ai-sdk/provider';
+import type {
+  LanguageModelV4,
+  LanguageModelV4File,
+  LanguageModelV4FinishReason,
+  LanguageModelV4ReasoningFile,
+  LanguageModelV4StreamPart,
+  LanguageModelV4ToolCall,
+  LanguageModelV4ToolResult,
+  LanguageModelV4Usage,
+  SharedV4ProviderMetadata,
+} from '@ai-sdk/provider';
 import type {Tool, ToolCall} from '@vico/tool';
 import type {UsageMetrics} from '@vico/types';
 
@@ -13,6 +23,24 @@ export type ModelStreamPart = LanguageModelV4StreamPart;
 
 /** provider 工具调用 part 别名，语义同上 */
 export type ModelToolCall = LanguageModelV4ToolCall;
+
+/** provider 用量 part 别名，语义同上 */
+export type ModelUsage = LanguageModelV4Usage;
+
+/** provider 文件 part 别名，语义同上 */
+export type ModelFile = LanguageModelV4File;
+
+/** provider 推理文件 part 别名，语义同上 */
+export type ModelReasoningFile = LanguageModelV4ReasoningFile;
+
+/** provider 结束原因别名，语义同上 */
+export type ModelFinishReason = LanguageModelV4FinishReason;
+
+/** provider 工具结果 part 别名，语义同上 */
+export type ModelToolResult = LanguageModelV4ToolResult;
+
+/** provider 元数据别名，语义同上 */
+export type ModelProviderMetadata = SharedV4ProviderMetadata;
 
 /** 推理力度（透传 LanguageModelV4CallOptions.reasoning） */
 export type ReasoningEffort = 'provider-default' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';

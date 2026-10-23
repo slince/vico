@@ -16,14 +16,7 @@ import {
   TypedToolCall
 } from 'ai';
 import {asLanguageModelUsage, createNullLanguageModelUsage} from 'ai/internal';
-import type {
-  LanguageModelV4File,
-  LanguageModelV4FinishReason,
-  LanguageModelV4ReasoningFile,
-  LanguageModelV4ToolResult,
-  LanguageModelV4Usage,
-  SharedV4ProviderMetadata,
-} from '@ai-sdk/provider';
+import type {ModelFile, ModelFinishReason, ModelProviderMetadata, ModelReasoningFile, ModelToolResult, ModelUsage} from '@vico/model';
 import type {ToolCall, ToolResult} from '@vico/tool';
 import type {UsageMetrics} from '@vico/types';
 import {addTokenCount} from './usage.js';
@@ -90,7 +83,7 @@ export function toolResultPart<TToolSet extends ToolSet = ToolSet>(result: ToolR
  * @param chunk - V4 tool-result chunk
  * @param input - 由先前 tool-call 记录的入参（V4 tool-result 不携带 input）
  */
-export function v4ToolResultPart<TToolSet extends ToolSet = ToolSet>(chunk: LanguageModelV4ToolResult, input: unknown): TextStreamPart<TToolSet> {
+export function v4ToolResultPart<TToolSet extends ToolSet = ToolSet>(chunk: ModelToolResult, input: unknown): TextStreamPart<TToolSet> {
   if (chunk.isError) {
     return {
       type: 'tool-error',
@@ -140,7 +133,7 @@ export function toolApprovalResponsePart<TToolSet extends ToolSet = ToolSet>(
  * data 变体直接携带字节/base64；url 变体与 ai core 行为一致——将 URL 字符串存入 data 字段
  * （下游按 `https?://` 前缀识别为外链）。
  */
-export function v4FilePart<TToolSet extends ToolSet = ToolSet>(chunk: LanguageModelV4File | LanguageModelV4ReasoningFile): TextStreamPart<TToolSet> {
+export function v4FilePart<TToolSet extends ToolSet = ToolSet>(chunk: ModelFile | ModelReasoningFile): TextStreamPart<TToolSet> {
   const data = chunk.data.type === 'data' ? chunk.data.data : chunk.data.url.toString();
   return {
     type: chunk.type,
@@ -157,10 +150,10 @@ export function startStepPart<TToolSet extends ToolSet = ToolSet>(messages: Mode
 /** finishStepPart 参数 */
 export interface FinishStepParams {
   /** V4 finish chunk 的原始 usage */
-  usage: LanguageModelV4Usage;
+  usage: ModelUsage;
   /** V4 finish chunk 的结束原因（unified + raw） */
-  finishReason: LanguageModelV4FinishReason;
-  providerMetadata?: SharedV4ProviderMetadata;
+  finishReason: ModelFinishReason;
+  providerMetadata?: ModelProviderMetadata;
   /** 从 V4 response-metadata chunk 捕获的响应元数据 */
   response: { id?: string; modelId?: string; timestamp?: Date };
   /** 本 step 模型调用开始时间戳（ms） */

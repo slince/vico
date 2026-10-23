@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/provider": "catalog:",
     "@vico/model": "workspace:*",
     "@vico/tool": "workspace:*",
     "@vico/types": "workspace:*",
