@@ -5,20 +5,41 @@ import pino from 'pino';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import {isLanguageModelV4, type ModelRef} from '@vico/model';
-import {createLanguageModel} from '@vico/model';
+import type {ModelRequest, ReasoningEffort} from '@vico/model';
+import {
+  buildAssistantMessage,
+  buildToolResultMessage,
+  completedCallIds,
+  createLanguageModel,
+  ensureToolCallConsistency,
+  extractApprovalResponses,
+  isLanguageModelV4,
+  ModelClient,
+  type ModelRef
+} from '@vico/model';
 import type {ApprovalDecider, ApprovalMode, Tool, ToolCall, ToolResult} from '@vico/tool';
+import {composeResolvers, defaultApprovalResolvers, ToolExecutor} from '@vico/tool';
 import type {Skill} from '@vico/skill';
 import type {MemoryStore} from '@vico/memory';
 import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@vico/thread';
+import {fromModelMessage, type MessageWithUsage} from '@vico/thread';
 import type {ToolApproval} from '@vico/types';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
 import type {CallModelResult, TurnEvent, UserMessage} from '@vico/stream';
-import type {ModelRequest, ReasoningEffort} from '@vico/model';
-import {isContextOverflowError, type CompactionResult, type ContextCompactor} from '@vico/compaction';
+import {
+  addUsage,
+  emptyUsage,
+  finishPart,
+  ModelStreamReader,
+  toolApprovalRequestPart,
+  toolApprovalResponsePart,
+  toolOutputDeniedPart,
+  toolResultPart
+} from '@vico/stream';
+import {type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '@vico/checkpoint';
 import type {ContextProcessor} from '@vico/context';
-import {ProcessorPipeline} from '@vico/context';
+import {ModelRequestContext, ProcessorPipeline} from '@vico/context';
 import type {
   ModelStepResult,
   ResolvedApprovals,
@@ -27,24 +48,8 @@ import type {
   TurnContext,
   TurnResult,
 } from './loop-agent-options.js';
-
-import {ModelClient} from '@vico/model';
-import {composeResolvers, defaultApprovalResolvers} from '@vico/tool';
 import {createDefaultProcessors, normalizeUserMessage} from './utils.js';
-import {fromModelMessage, type MessageWithUsage} from '@vico/thread';
-import {addUsage, emptyUsage} from '@vico/stream';
 import {TurnOutput} from './turn-output.js';
-import {finishPart, toolApprovalRequestPart, toolApprovalResponsePart, toolOutputDeniedPart, toolResultPart} from '@vico/stream';
-import {
-  buildAssistantMessage,
-  buildToolResultMessage,
-  completedCallIds,
-  ensureToolCallConsistency,
-  extractApprovalResponses,
-} from '@vico/model';
-import {ToolExecutor} from '@vico/tool';
-import {ModelStreamReader} from '@vico/stream';
-import {ModelRequestContext} from '@vico/context';
 
 /** LoopAgent 构造选项 */
 export interface LoopAgentOptions extends AgentOptions {
@@ -344,13 +349,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 保存本轮会话消息
     await this.persistMessages(context, userMessages);
 
-    return this.startTurnLoop(context);
+    return this.startLoop(context);
   }
 
   /**
    * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
    */
-  private async startTurnLoop(context: TurnContext<TToolSet>): Promise<TurnResult> {
+  private async startLoop(context: TurnContext<TToolSet>): Promise<TurnResult> {
 
     const {session: {thread, turn}} = context
     let usage = context.usage;
@@ -431,40 +436,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 保存checkpoint
-   * @param context
-   * @param nextAction
-   * @param partial
-   * @private
-   */
-  private async saveCheckpoint(context: TurnContext<TToolSet>, nextAction: NextAction, partial?: CheckpointApprovalCalls): Promise<Checkpoint> {
-
-    const {checkpoint} = context
-
-    // 模型调用，stepIndex + 1
-    const stepIndex = nextAction === 'model' ? checkpoint.stepIndex + 1 : checkpoint.stepIndex;
-
-    // tool call 已经调用完结，不需要继承
-    const withoutToolCall = nextAction === 'model' || nextAction === 'end' || nextAction === 'failed';
-
-    const pendingApprovalCalls = withoutToolCall ? [] : (partial?.pendingApprovalCalls ?? checkpoint.pendingApprovalCalls);
-    const approvedCalls = withoutToolCall ? [] : (partial?.approvedCalls ?? checkpoint.approvedCalls);
-    const deniedResults = withoutToolCall ? [] : (partial?.deniedResults ?? checkpoint.deniedResults);
-
-    return context.checkpoint = await this.checkpointStore.append(context.checkpoint, {
-      parentId: checkpoint.id,
-      stepIndex: stepIndex,
-      nextAction: nextAction,
-      decisions: Array.from(context.decisions.values()),
-      approvedTools: Array.from(context.approvedTools.values()),
-      pendingApprovalCalls: pendingApprovalCalls,
-      approvedCalls: approvedCalls,
-      deniedResults: deniedResults,
-      lastMessageId: checkpoint.lastMessageId,
-    });
-  }
-
-  /**
    * 执行 step loop，被 startLoop（新 turn）和 startResume（恢复）共用。
    */
   private async runTurnLoop(context: TurnContext<TToolSet>): Promise<StepLoopResult> {
@@ -515,6 +486,40 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       steps++;
     }
     return { status: signal.aborted ? 'aborted' : 'completed', steps, usage };
+  }
+  
+  /**
+   * 保存checkpoint
+   * @param context
+   * @param nextAction
+   * @param partial
+   * @private
+   */
+  private async saveCheckpoint(context: TurnContext<TToolSet>, nextAction: NextAction, partial?: CheckpointApprovalCalls): Promise<Checkpoint> {
+
+    const {checkpoint} = context
+
+    // 模型调用，stepIndex + 1
+    const stepIndex = nextAction === 'model' ? checkpoint.stepIndex + 1 : checkpoint.stepIndex;
+
+    // tool call 已经调用完结，不需要继承
+    const withoutToolCall = nextAction === 'model' || nextAction === 'end' || nextAction === 'failed';
+
+    const pendingApprovalCalls = withoutToolCall ? [] : (partial?.pendingApprovalCalls ?? checkpoint.pendingApprovalCalls);
+    const approvedCalls = withoutToolCall ? [] : (partial?.approvedCalls ?? checkpoint.approvedCalls);
+    const deniedResults = withoutToolCall ? [] : (partial?.deniedResults ?? checkpoint.deniedResults);
+
+    return context.checkpoint = await this.checkpointStore.append(context.checkpoint, {
+      parentId: checkpoint.id,
+      stepIndex: stepIndex,
+      nextAction: nextAction,
+      decisions: Array.from(context.decisions.values()),
+      approvedTools: Array.from(context.approvedTools.values()),
+      pendingApprovalCalls: pendingApprovalCalls,
+      approvedCalls: approvedCalls,
+      deniedResults: deniedResults,
+      lastMessageId: checkpoint.lastMessageId,
+    });
   }
 
   /**
