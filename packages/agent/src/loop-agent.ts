@@ -359,7 +359,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const {session: {thread, turn}} = context
     let usage = context.usage;
-    const loopResult: StepLoopResult  = await this.runTurnLoop(context);
+    const loopResult: StepLoopResult  = await this.runLoop(context);
     usage = addUsage(usage, loopResult.usage);
 
     // 暂停时不 finalize trace session，保留会话供恢复时复用
@@ -438,7 +438,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 执行 step loop，被 startLoop（新 turn）和 startResume（恢复）共用。
    */
-  private async runTurnLoop(context: TurnContext<TToolSet>): Promise<StepLoopResult> {
+  private async runLoop(context: TurnContext<TToolSet>): Promise<StepLoopResult> {
     let usage = emptyUsage();
 
     const {session: {turn}, signal, checkpoint} = context
@@ -487,7 +487,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
     return { status: signal.aborted ? 'aborted' : 'completed', steps, usage };
   }
-  
+
   /**
    * 保存checkpoint
    * @param context
@@ -623,7 +623,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 执行一个 model step 的模型侧流程：压缩 → model 调用 → 审批分类。
    *
    * 职责边界：本方法只负责「生成 + 分类」，不直接执行工具。工具执行与结果持久化
-   * 由 runTurnLoop 在 append「计划版本」后进行（每 step 双写：计划 + 推进），以便工具
+   * 由 runLoop 在 append「计划版本」后进行（每 step 双写：计划 + 推进），以便工具
    * 执行中途中断/崩溃时可按「checkpoint 清单 − 消息链已完成」差集恢复补跑。
    *
    * @param step 当前步骤对象（携带 index 与消息链）
@@ -631,7 +631,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @returns 步骤结果，action 三态：
    *   - `break`：token 耗尽 / 模型出错 / 已中止 / 无工具调用，终止循环
    *   - `pause`：存在待审批工具，暂停 turn 等待客户端审批（附 pendingApprovalCalls）
-   *   - `continue`：工具已审批通过，交由 runTurnLoop 落「计划版本」后执行
+   *   - `continue`：工具已审批通过，交由 runLoop 落「计划版本」后执行
    */
   private async executeModelStep(step: TurnStep, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
     this.emit({ type: 'step-start', step: step.index + 1 });
@@ -676,7 +676,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       return { action: 'pause', pendingApprovalCalls, approvedCalls, deniedResults, usage };
     }
 
-    // 已批准的调用不再在此执行——审批分类结果返回 runTurnLoop：先落「计划版本」清单再执行，
+    // 已批准的调用不再在此执行——审批分类结果返回 runLoop：先落「计划版本」清单再执行，
     // 使工具执行中途中断/崩溃时可按「checkpoint 清单 − 消息链已完成」差集恢复补跑。
     return { action: 'continue', approvedCalls, deniedResults, usage };
   }
