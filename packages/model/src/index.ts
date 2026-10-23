@@ -3,7 +3,8 @@
 export { createLanguageModel } from './factory.js';
 export { ModelClient } from './model-client.js';
 export { BufferedModelStream } from './buffered-model-stream.js';
-export { isLanguageModel, type LanguageModel, type ModelConfig, type ModelRef, type ModelRequest, type ModelStreamPart, type ModelStreamResult, type ModelToolCall, type ReasoningEffort } from './types.js';
+export { isLanguageModel, type CallModelResult, type LanguageModel, type ModelConfig, type ModelRef, type ModelRequest, type ModelStreamPart, type ModelStreamResult, type ModelToolCall, type ReasoningEffort } from './types.js';
+export { emptyUsage, fromV4Usage } from './usage.js';
 export {
   getMessageText,
   pickPrimaryUserMessage,

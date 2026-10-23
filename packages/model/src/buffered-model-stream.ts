@@ -1,16 +1,18 @@
-// @vico/model - BufferedModelStream：将 provider 原生流包装为「流 + 文本/推理/工具调用 promise」结合体
+// @vico/model - BufferedModelStream：将 provider 原生流包装为「流 + 完整结果 promise」结合体
 
 import type {ToolCall} from '@vico/tool';
-import type {ModelStreamPart, ModelStreamResult, ModelToolCall} from './types.js';
+import type {UsageMetrics} from '@vico/types';
+import type {CallModelResult, ModelStreamPart, ModelStreamResult, ModelToolCall} from './types.js';
+import {emptyUsage, fromV4Usage} from './usage.js';
 
 /**
  * ModelStreamResult 的实现：包装 provider 原生流，text-delta / reasoning-delta /
- * tool-call 在流经时同步累积进各自缓冲，流读完 resolve 完成信号。无论 stream 由
- * 调用方消费（转发），还是 text()/reasoning()/toolCalls() 主动消费，都能拿到完整
- * 内容；stream 被读取完毕后这些方法不会因流已消费而报错。
+ * tool-call / finish / error 在流经时同步累积进各自缓冲，流读完 resolve 完成信号。
+ * 无论 stream 由调用方消费（转发），还是 text()/reasoning()/toolCalls()/result()
+ * 主动消费，都能拿到完整内容；stream 被读取完毕后这些方法不会因流已消费而报错。
  */
 export class BufferedModelStream implements ModelStreamResult {
-  /** 对外暴露的可读流；读取时同步收集 text / reasoning / tool-call 进缓冲 */
+  /** 对外暴露的可读流；读取时同步收集 text / reasoning / tool-call / usage / error 进缓冲 */
   readonly stream: ReadableStream<ModelStreamPart>;
 
   /** 流消费完毕信号：自然读完 resolve、取消/出错 reject */
@@ -22,8 +24,14 @@ export class BufferedModelStream implements ModelStreamResult {
   /** 已累积的 reasoning-delta 推理内容缓冲 */
   private reasoningBuffer = '';
 
-  /** 已收集的工具调用（tool-call part 解析） */
+  /** 已收集的工具调用（tool-call part 解析，排除 provider 端已执行的调用） */
   private collectedToolCalls: ToolCall[] = [];
+
+  /** 已捕获的 token 用量（finish part 携带的 V4 usage 转换而来） */
+  private usageBuffer: UsageMetrics = emptyUsage();
+
+  /** 已捕获的流内错误（error part） */
+  private errorBuffer: string | Error | undefined;
 
   /** 标记流是否被取消消费（取消时不 resolve，交由 cancel 回调 reject） */
   private cancelled = false;
@@ -57,7 +65,14 @@ export class BufferedModelStream implements ModelStreamResult {
           } else if (part.type === 'reasoning-delta') {
             this.reasoningBuffer += part.delta;
           } else if (part.type === 'tool-call') {
-            this.collectedToolCalls.push(this.parseToolCall(part));
+            // provider 已执行的调用不进本地执行队列（与 CallModelResult.toolCalls 口径一致）
+            if (!part.providerExecuted) {
+              this.collectedToolCalls.push(this.parseToolCall(part));
+            }
+          } else if (part.type === 'finish') {
+            if (part.usage) this.usageBuffer = fromV4Usage(part.usage);
+          } else if (part.type === 'error') {
+            this.errorBuffer = part.error instanceof Error ? part.error : String(part.error);
           }
           controller.enqueue(part);
         } catch (err) {
@@ -93,12 +108,27 @@ export class BufferedModelStream implements ModelStreamResult {
   }
 
   /**
-   * 模型生成的工具调用列表（tool-call part 的 args 已 JSON 解析）。语义同 text()。
+   * 模型生成的工具调用列表（tool-call part 的 args 已 JSON 解析，不含 provider 端已执行调用）。语义同 text()。
    */
   async toolCalls(): Promise<ToolCall[]> {
     await this.ensureConsumed();
     await this.completionPromise;
     return this.collectedToolCalls;
+  }
+
+  /**
+   * 完整模型调用结果（文本 / 推理 / 工具调用 / 用量 / 错误）。语义同 text()。
+   */
+  async result(): Promise<CallModelResult> {
+    await this.ensureConsumed();
+    await this.completionPromise;
+    return {
+      text: this.textBuffer,
+      reasoning: this.reasoningBuffer,
+      toolCalls: this.collectedToolCalls,
+      usage: this.usageBuffer,
+      ...(this.errorBuffer !== undefined ? { error: this.errorBuffer } : {}),
+    };
   }
 
   /** 将 V4 tool-call part 解析为引擎层 ToolCall（input JSON 解析失败兜底空对象） */

@@ -1,12 +1,10 @@
-// @vico/core - ModelStreamReader: 消费 provider 原生 V4 流，转换为引擎层 TextStreamPart 并累积结果
+// @vico/core - ModelStreamReader: 消费 provider 原生 V4 流，转换为引擎层 TextStreamPart；结果累积交由 BufferedModelStream
 import type {TextStreamPart, ToolSet} from 'ai';
 
 import type {ToolCall} from '@vico/tool';
-import type {CallModelResult, TurnEvent} from './types.js';
-import type {UsageMetrics} from '@vico/types';
+import type {TurnEvent} from './types.js';
 import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart,} from './stream-parts.js';
-import {emptyUsage, fromV4Usage} from './usage.js';
-import type {ModelRequest, ModelStreamPart} from '@vico/model';
+import type {CallModelResult, ModelRequest, ModelStreamResult} from '@vico/model';
 
 /** ModelStreamReader 构造选项 */
 export interface ModelStreamReaderOptions<TToolSet extends ToolSet = ToolSet> {
@@ -37,18 +35,15 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
   }
 
   /**
-   * 消费 V4 流，转换并累积结果。
+   * 消费包装流做 V4 → 引擎层协议转换；结果累积交由 BufferedModelStream 完成后读取。
    *
-   * @param stream - 已获取的 provider 原生 V4 流
-   * @returns 累积的完整文本 / 推理 / 工具调用 / usage（流内出错时带 error）
+   * @param result - ModelClient.stream() 返回的流 + 缓冲结果结合体
+   * @returns 完整文本 / 推理 / 工具调用 / usage（流内出错时带 error），由 BufferedModelStream.result() 产出
    */
-  async read(stream: ReadableStream<ModelStreamPart>): Promise<CallModelResult> {
-    let fullText = '';
-    let fullReasoning = '';
-    const toolCalls: ToolCall[] = [];
+  async read(result: ModelStreamResult): Promise<CallModelResult> {
+    const stream = result.stream;
 
     // ── V4 → TextStreamPart 转换所需的 step 级状态 ──
-    let modelUsage: UsageMetrics = emptyUsage();
     const stepStartTime = Date.now();
     /** 首个输出 chunk 到达时间（性能指标 timeToFirstOutputMs） */
     let firstChunkTime: number | undefined;
@@ -72,6 +67,19 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
     };
 
     const reader = stream.getReader();
+
+    /** controller 关闭后仍需读完底层流，驱动 BufferedModelStream 完成累积，避免 result() 悬挂 */
+    const drainRemaining = async () => {
+      try {
+        while (true) {
+          const { done } = await reader.read();
+          if (done) break;
+        }
+      } catch {
+        // 底层流异常已由 BufferedModelStream 承接（reject completionPromise），此处仅吞掉读取异常
+      }
+    };
+
     while (true) {
       const { done, value: chunk } = await reader.read();
       if (done) break;
@@ -79,11 +87,17 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
       // stream-start 携带 warnings → start-step；其余 part 到达前兜底补发 start-step
       if (chunk.type === 'stream-start') {
         ensureStepStarted(chunk.warnings);
-        if (controllerClosed) break;
+        if (controllerClosed) {
+          await drainRemaining();
+          break;
+        }
         continue;
       }
       ensureStepStarted();
-      if (controllerClosed) break;
+      if (controllerClosed) {
+        await drainRemaining();
+        break;
+      }
 
       switch (chunk.type) {
           // ── 同形透传（重建对象以对齐引擎层类型）──
@@ -98,13 +112,11 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
           case 'text-delta':
             firstChunkTime ??= Date.now();
             this.controller.enqueue({ type: 'text-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
-            fullText += chunk.delta;
             this.emit({ type: 'text-delta', content: chunk.delta });
             break;
 
           case 'reasoning-delta':
             firstChunkTime ??= Date.now();
-            fullReasoning += chunk.delta;
             this.controller.enqueue({ type: 'reasoning-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
             this.emit({ type: 'reasoning-delta', content: chunk.delta });
             break;
@@ -131,10 +143,6 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
             const call: ToolCall = { id: chunk.toolCallId, name: chunk.toolName, args };
             callsById.set(call.id, call);
             this.controller.enqueue(createToolCall(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }));
-            // provider 已执行的调用不进本地执行队列（结果随流到达）
-            if (!chunk.providerExecuted) {
-              toolCalls.push(call);
-            }
             this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args });
             break;
           }
@@ -179,31 +187,18 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
               startTime: stepStartTime,
               firstChunkTime,
             }));
-            if (chunk.usage) {
-              modelUsage = fromV4Usage(chunk.usage);
-            }
             break;
 
           case 'error': {
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            return this.recordError(err, { text: fullText, reasoning: fullReasoning, toolCalls, usage: modelUsage });
+            this.emit({ type: 'error', error: err });
+            this.controller.enqueue({ type: 'error', error: err });
+            break;
           }
       }
     }
 
-    return { text: fullText, reasoning: fullReasoning, toolCalls, usage: modelUsage };
-  }
-
-  /**
-   * 统一处理流内错误：emit 错误事件、透出 error part 并返回带 error 的结果。
-   *
-   * @param error - 错误（Error 或字符串）
-   * @param result - 出错前已累积的结果
-   * @returns 带 error 字段的完整结果
-   */
-  private recordError(error: Error | string, result: CallModelResult): CallModelResult {
-    this.emit({ type: 'error', error });
-    this.controller.enqueue({ type: 'error', error });
-    return { ...result, error };
+    // 文本 / 推理 / 工具调用 / usage / 错误由 BufferedModelStream 累积，此处直接取结果
+    return result.result();
   }
 }

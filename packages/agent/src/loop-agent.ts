@@ -911,13 +911,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         abortSignal: context.signal,
       };
       try {
-        const {stream} = await context.modelClient.stream(request);
+        const result = await context.modelClient.stream(request);
         const reader = new ModelStreamReader<TToolSet>({
           controller,
           emit: this.emit,
           request: request,
         });
-        return reader.read(stream);
+        return reader.read(result);
       } catch (e) {
         return resolveError(e instanceof Error ? e : new Error(String(e)));
       }

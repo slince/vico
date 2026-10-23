@@ -2,6 +2,7 @@
 import type {ModelMessage} from 'ai';
 import type {LanguageModelV4, LanguageModelV4StreamPart, LanguageModelV4ToolCall} from '@ai-sdk/provider';
 import type {Tool, ToolCall} from '@vico/tool';
+import type {UsageMetrics} from '@vico/types';
 
 
 /** provider 语言模型实例别名，隔离 @ai-sdk/provider 版本；vico 其它包应引用此别名而非直接依赖 provider */
@@ -34,14 +35,30 @@ export interface ModelRequest {
 
 /** ModelClient.stream() 返回值 — 可读流与完整文本/推理内容/工具调用 promise 的结合体 */
 export interface ModelStreamResult {
-  /** provider 原生 V4 流；无论由谁消费，text-delta / reasoning-delta / tool-call 都会同步累积，供 text()/reasoning()/toolCalls() 复用 */
+  /** provider 原生 V4 流；无论由谁消费，text-delta / reasoning-delta / tool-call / finish / error 都会同步累积，供下方各读取方法复用 */
   stream: ReadableStream<ModelStreamPart>;
   /** 完整文本输出（text-delta 拼接）。stream 消费完毕（含外部消费）后 resolve；重复调用无副作用 */
   text(): Promise<string>;
   /** 完整推理内容（reasoning-delta 拼接）。语义同 text()：stream 消费完毕（含外部消费）后 resolve */
   reasoning(): Promise<string>;
-  /** 模型生成的工具调用列表（tool-call part 的 args 已 JSON 解析）。stream 消费完毕（含外部消费）后完整 */
+  /** 模型生成的工具调用列表（tool-call part 的 args 已 JSON 解析，不含 provider 端已执行调用）。语义同 text() */
   toolCalls(): Promise<ToolCall[]>;
+  /** 完整模型调用结果（文本/推理/工具调用/用量/错误）。语义同 text() */
+  result(): Promise<CallModelResult>;
+}
+
+/** 模型调用的完整结果：文本 / 推理 / 工具调用 / 用量 / 错误 */
+export interface CallModelResult {
+  /** 模型生成的完整文本 */
+  text: string;
+  /** 模型推理/思考内容（reasoning tokens，如 o1/DeepSeek-R1 的内部推理链） */
+  reasoning: string;
+  /** 模型请求的工具调用（本地执行队列，不含 provider 端已执行的调用） */
+  toolCalls: ToolCall[];
+  /** 本次调用的 token 用量 */
+  usage: UsageMetrics;
+  /** 错误信息（如有） */
+  error?: string | Error;
 }
 
 /** 模型配置：provider + 模型名 + 连接凭据，createLanguageModel 据此构建 LanguageModel */

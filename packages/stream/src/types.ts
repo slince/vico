@@ -1,7 +1,9 @@
 // @vico/core - UI 流类型（直接复用 AI SDK 原生类型）
 import type { ModelMessage, UIMessage } from 'ai';
 import type { UsageMetrics } from '@vico/types';
-import type { ToolCall } from '@vico/tool';
+
+// callModel 返回值上移到 @vico/model（BufferedModelStream.result() 直接产出），此处 re-export 保持对外兼容
+export type { CallModelResult } from '@vico/model';
 
 /**
  * Agent.stream/invoke 接受的消息类型：
@@ -24,17 +26,3 @@ export type TurnEvent =
   | { type: 'tool-approval-request'; approvalId: string; toolCallId: string; toolName: string; input: unknown }
   | { type: 'tool-suggested'; toolCallId: string; toolName: string; input: unknown }
   | { type: 'done'; usage: UsageMetrics };
-
-/** callModel 的返回值 */
-export interface CallModelResult {
-  /** 模型生成的完整文本 */
-  text: string;
-  /** 模型推理/思考内容（reasoning tokens，如 o1/DeepSeek-R1 的内部推理链） */
-  reasoning: string;
-  /** 模型请求的工具调用 */
-  toolCalls: ToolCall[];
-  /** 本次调用的 token 用量 */
-  usage: UsageMetrics;
-  /** 错误信息（如有） */
-  error?: string | Error;
-}
