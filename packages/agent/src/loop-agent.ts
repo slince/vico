@@ -194,10 +194,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   private run(userMessages: ModelMessage[], options: RunOptions): TurnOutput {
     const { promise, resolve } = Promise.withResolvers<TurnResult>();
 
-    const internalAc = new AbortController();
+    // 外部传入 signal 时复用之；未传则自行构造 AbortController，作为 TurnOutput.abort() / 流 cancel 的中断源
+    const internalAc = options.signal ? undefined : new AbortController();
+    const signal = options.signal ?? internalAc!.signal;
 
     const abort = () => {
-      internalAc.abort();
+      internalAc?.abort();
     };
 
     const stream = new ReadableStream<TextStreamPart<TToolSet>>({
@@ -205,7 +207,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         try {
           const result = await this.start({
             userMessages,
-            signal: internalAc.signal,
+            signal,
             controller,
             thread: options.thread,
             reasoning: options.reasoning,
@@ -225,7 +227,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         }
       },
       cancel() {
-        internalAc.abort();
+        internalAc?.abort();
       },
     });
 

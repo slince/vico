@@ -94,4 +94,6 @@ export interface RunOptions {
   model?: string;
   /** 审批政策模式，可选；不传则使用 agent 默认审批策略 */
   approvalMode?: ApprovalMode;
+  /** 中断信号，可选；传入则复用之（由调用方控制中断），未传则内部自行构造 AbortController */
+  signal?: AbortSignal;
 }
