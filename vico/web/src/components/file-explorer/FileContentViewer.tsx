@@ -1,7 +1,10 @@
 'use client';
 
-import { AlertCircle, Eye, Loader2, PenLine, RefreshCw, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
+
+import { AlertCircle, Eye, Loader2, PenLine, RefreshCw, Save } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { SyntaxHighlighter } from '@/components/assistant-ui/elements/shiki-highlighter';
 import { Button } from '@/components/ui/button';
@@ -34,7 +37,8 @@ export interface FileContentViewerProps {
  * 文件内容查看 / 编辑组件 — 通用可复用能力。
  *
  * 顶部为文件路径 + 操作按钮（重载 / 编辑切换 / 保存），下方为内容区：
- * 浏览态用 Shiki 语法高亮渲染，编辑态用 textarea 直接编辑并支持 Cmd/Ctrl+S 保存。
+ * 浏览态 markdown 文件用富文本渲染，其余用 Shiki 语法高亮；
+ * 编辑态用 textarea 直接编辑并支持 Cmd/Ctrl+S 保存。
  * 不直接依赖任何 store / API，加载与保存均通过 props 回调交由上层适配。
  */
 export function FileContentViewer({
@@ -94,6 +98,8 @@ export function FileContentViewer({
   }
 
   const lang = guessLanguage(filePath);
+  // markdown 文件走富文本渲染，其余文件走语法高亮
+  const renderMarkdown = lang === 'markdown';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -145,6 +151,10 @@ export function FileContentViewer({
             spellCheck={false}
             className="size-full resize-none border-0 bg-background px-4 py-3 font-mono text-xs leading-relaxed outline-none"
           />
+        ) : renderMarkdown ? (
+          <div data-aui="markdown" className="px-4 py-3">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content ?? ''}</ReactMarkdown>
+          </div>
         ) : (
           <div className="px-2 py-2">
             <SyntaxHighlighter code={content ?? ''} language={lang} />
@@ -161,7 +171,7 @@ function guessLanguage(relPath: string): string {
   const map: Record<string, string> = {
     ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
     json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'toml',
-    md: 'markdown', mdx: 'mdx', html: 'html', css: 'css', scss: 'scss',
+    md: 'markdown', markdown: 'markdown', mdx: 'mdx', html: 'html', css: 'css', scss: 'scss',
     py: 'python', rb: 'ruby', go: 'go', rs: 'rust', java: 'java',
     kt: 'kotlin', c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp', cs: 'csharp',
     php: 'php', swift: 'swift', sql: 'sql', sh: 'bash', bash: 'bash',
