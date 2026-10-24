@@ -28,9 +28,9 @@ import type {EventPayload, EventRecorder, EventType} from '@vico/events';
 import type {CallModelResult, TurnEvent, UserMessage} from '@vico/stream';
 import {
   addUsage,
+  createModelStreamTransformer,
   emptyUsage,
   finishPart,
-  ModelStreamReader,
   toolApprovalRequestPart,
   toolApprovalResponsePart,
   toolOutputDeniedPart,
@@ -924,11 +924,18 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       };
       try {
         const result = await context.modelClient.stream(request);
-        const reader = new ModelStreamReader<TToolSet>({
-          controller,
-          request: request,
-        });
-        return reader.read(result);
+        const stream = result.stream.pipeThrough(createModelStreamTransformer<TToolSet>(request));
+        // 转发到 turn 流；controller 关闭后吞掉 enqueue 异常继续读完，驱动 BufferedModelStream 完成累积
+        await stream.pipeTo(new WritableStream<TextStreamPart<TToolSet>>({
+          write(part) {
+            try {
+              controller.enqueue(part);
+            } catch {
+              // controller 已关闭（客户端断开）：静默丢弃，仅继续读流
+            }
+          },
+        }));
+        return result.result();
       } catch (e) {
         return resolveError(e instanceof Error ? e : new Error(String(e)));
       }
