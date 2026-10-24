@@ -84,7 +84,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly logger: Logger;
 
   private readonly toolExecutor: ToolExecutor;
-  private readonly pipeline: Pipeline<ModelRequestContext>;
+  private readonly contextProcessors: Pipeline<ModelRequestContext>;
   /** run 级覆盖模型客户端（key 为模型名），复用已构建实例，避免重复 createLanguageModel/new */
   private readonly modelOverrides = new Map<string, ModelClient>();
 
@@ -115,7 +115,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.logger = rest.logger ?? pino();
 
     this.toolExecutor = new ToolExecutor({ tools: rest.tools });
-    this.pipeline = new Pipeline<ModelRequestContext>().use(...(processors ?? createDefaultProcessors(rest.skills, rest.memory)));
+    this.contextProcessors = new Pipeline<ModelRequestContext>().use(...(processors ?? createDefaultProcessors(rest.skills, rest.memory)));
   }
 
   get log(): Logger {
@@ -327,7 +327,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 核心产物经闭包传出；resolve 段跑完后统一交给 finalizeTurn 收尾（落库 + 流终结）。
     let context: TurnContext<TToolSet>;
     let loopResult: StepLoopResult;
-    await this.pipeline.execute(requestContext, async () => {
+    await this.contextProcessors.execute(requestContext, async () => {
       // 历史由 MemoryProcessor unshift 注入；记录条数供 context-overflow 压缩后重建内存历史前缀
       const historyCount = requestContext.messages.length - userMessageCount;
 
@@ -792,7 +792,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     for (const toolName of toolNames) {
       meta.approvedTools[toolName] = { approvedAt: now };
     }
-    
+
     await this.thread.updateThread(context.session.thread.id, { metadata: meta });
   }
 

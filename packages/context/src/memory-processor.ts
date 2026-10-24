@@ -28,14 +28,7 @@ export class MemoryProcessor implements ContextProcessor {
     if (!ctx.completed) return;
 
     // 情景记忆是非关键路径：落库失败只告警，不阻塞 turn 完结
-    try {
-      await this.storeEpisodic(ctx);
-    } catch (err) {
-      console.warn(
-        `[ContextProcessor] Processor "${this.name}" resolve threw:`,
-        err instanceof Error ? err.message : err,
-      );
-    }
+    await this.storeEpisodic(ctx);
   }
 
   /**
