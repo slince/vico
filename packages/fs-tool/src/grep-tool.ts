@@ -1,114 +1,70 @@
 // @vico/fs-tool - grep 搜索文件工具
-import { execSync } from 'node:child_process';
-import { relative, resolve } from 'node:path';
 import { z } from 'zod';
-import { localFilesystem, type Filesystem } from '@vico/fs';
 import { createTool, resolveWorkspacePath } from '@vico/tool';
 import type { ToolCallContext } from '@vico/tool';
+import { runRipgrep, toWorkdirRelative } from './ripgrep.js';
 
 const grepParams = z.object({
   pattern: z.string().describe('Regular expression to search for'),
-  path: z.string().optional().describe('Directory or file path to search'),
+  path: z.string().optional().describe('File or directory to search'),
   glob: z.string().optional().describe('Glob pattern to filter file names'),
   limit: z.number().int().default(200).describe('Maximum number of matches to return'),
   '-i': z.boolean().optional().describe('Ignore case'),
-  context: z.number().int().optional().describe('Number of context lines around each match'),
 });
 
-function ripgrep(args: z.infer<typeof grepParams>, searchDir: string): string {
-  const flags: string[] = ['--color=never', '--no-heading', '-n', '--no-ignore'];
-  if (args['-i']) flags.push('-i');
-  if (args.context) flags.push('-C', String(args.context));
-  if (args.glob) flags.push('-g', args.glob);
-  if (args.limit) flags.push('-m', String(args.limit));
-
-  try {
-    const result = execSync(`rg ${flags.join(' ')} ${JSON.stringify(args.pattern)} ${JSON.stringify(searchDir)}`, {
-      encoding: 'utf-8',
-      timeout: 10000,
-      maxBuffer: 10 * 1024 * 1024,
-    });
-    const lines = result.trim().split('\n').filter(Boolean);
-    const limited = args.limit ? lines.slice(0, args.limit) : lines;
-    return limited.join('\n') || 'No matches found';
-  } catch (err: any) {
-    if (err.status === 1) return 'No matches found';
-    return '';
-  }
+/**
+ * 构造 rg --json 参数向量。用 `--regexp=` / `--glob=` / `--` 形式承载模型输入，
+ * 无 shell 层，leading-dash 值不会误解析为 flag。
+ */
+function buildGrepArgv(args: z.infer<typeof grepParams>, path?: string): string[] {
+  const parts = ['--json', `--regexp=${args.pattern}`];
+  if (args['-i']) parts.push('--ignore-case');
+  if (args.glob) parts.push(`--glob=${args.glob}`);
+  if (path !== undefined) parts.push('--', path);
+  return parts;
 }
 
-function globToRegex(pattern: string): RegExp {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*')
-    .replace(/\?/g, '.');
-  return new RegExp(`^${escaped}$`, 'i');
+/** rg --json 解析出的一条匹配 */
+interface GrepMatch {
+  path: string;
+  lineNumber: number;
+  line: string;
 }
 
-/** ripgrep 不可用时的 Node.js 正则回退实现 */
-async function nodeGrep(fs: Filesystem, args: z.infer<typeof grepParams>, searchDir: string): Promise<string> {
-  const patternFlags = args['-i'] ? 'gi' : 'g';
-  const regex = new RegExp(args.pattern, patternFlags);
-  const filePattern = args.glob ? globToRegex(args.glob) : null;
-  const results: string[] = [];
-  const maxResults = args.limit;
+/**
+ * 解析 rg --json 的 NDJSON stdout，只取 `match` 记录。
+ * 非 match 记录（begin/end/context/summary）是传输框架，跳过；match 记录缺字段视为 malformed。
+ */
+function parseGrepMatches(stdout: string): GrepMatch[] {
+  const matches: GrepMatch[] = [];
 
-  async function walk(dir: string) {
-    if (results.length >= maxResults) return;
+  for (const line of stdout.split('\n')) {
+    if (line.length === 0) continue;
+
+    let record: { type?: string; data?: { path?: { text?: string }; line_number?: number; lines?: { text?: string; bytes?: string } } };
     try {
-      const entries = await fs.readDir(dir);
-      for (const entry of entries) {
-        if (results.length >= maxResults) return;
-        if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-        const fullPath = resolve(dir, entry.name);
-        if (entry.isDirectory) {
-          await walk(fullPath);
-        } else if (entry.isFile) {
-          if (filePattern && !filePattern.test(entry.name)) continue;
-          try {
-            const content = await fs.readTextFile(fullPath);
-            const lines = content.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-              if (results.length >= maxResults) break;
-              if (regex.test(lines[i])) {
-                const rel = relative(args.path ? resolve('.', args.path) : '.', fullPath);
-                results.push(`${rel}:${i + 1}:${lines[i].trim()}`);
-              }
-            }
-          } catch {
-            // skip unreadable files
-          }
-        }
-      }
+      record = JSON.parse(line);
     } catch {
-      // skip unreadable directories
+      throw new Error('ripgrep returned malformed --json output');
     }
-  }
 
-  let stat;
-  try {
-    stat = await fs.stat(searchDir);
-  } catch {
-    return 'No matches found';
-  }
+    if (record.type !== 'match') continue;
 
-  if (stat.isDirectory) {
-    await walk(searchDir);
-  } else {
-    try {
-      const content = await fs.readTextFile(searchDir);
-      const lines = content.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        if (regex.test(lines[i])) {
-          results.push(`${relative('.', searchDir)}:${i + 1}:${lines[i].trim()}`);
-        }
-      }
-    } catch {
-      // skip
+    const data = record.data;
+    const pathText = data?.path?.text;
+    const lineNumber = data?.line_number;
+    const lineText = typeof data?.lines?.text === 'string'
+      ? data.lines.text
+      : typeof data?.lines?.bytes === 'string' ? '(line is not valid UTF-8)' : undefined;
+
+    if (typeof pathText !== 'string' || typeof lineNumber !== 'number' || typeof lineText !== 'string') {
+      throw new Error('ripgrep returned a malformed match record');
     }
+
+    matches.push({ path: pathText, lineNumber, line: lineText.replace(/\r?\n$/, '') });
   }
 
-  return results.length > 0 ? results.join('\n') : 'No matches found';
+  return matches;
 }
 
 const grepOutputSchema = z.object({
@@ -119,14 +75,13 @@ const grepOutputSchema = z.object({
 type GrepOutput = z.infer<typeof grepOutputSchema>;
 
 /**
- * 创建 grep 工具 — 正则搜索文件内容，优先 ripgrep，不可用时回退 Node 正则。
- * @param fs - 文件系统实现，默认本地文件系统
+ * 创建 grep 工具 — 用打包的 ripgrep（rg --json）搜索文件内容，返回带行号的匹配行。
  */
-export function createGrepTool(fs: Filesystem = localFilesystem) {
+export function createGrepTool() {
   return createTool({
     name: 'grep',
     description:
-      'Search file contents with a regular expression. Supports glob filtering, case-insensitive matching, and context lines. Prefers system ripgrep (rg) and falls back to Node.js regex.',
+      'Search file contents with a regular expression. Returns matching lines with line numbers.',
     inputSchema: grepParams,
     outputSchema: grepOutputSchema,
     policy: 'auto',
@@ -134,15 +89,26 @@ export function createGrepTool(fs: Filesystem = localFilesystem) {
     tags: ['requires-workspace'],
     async execute(args: z.infer<typeof grepParams>, ctx: ToolCallContext): Promise<GrepOutput> {
       const workspace = ctx.session.workspace!;
-      const searchDir = args.path ? resolveWorkspacePath(workspace, args.path) : resolve(workspace, '.');
+      const cwd = resolveWorkspacePath(workspace, '.');
+      const searchPath = args.path ? resolveWorkspacePath(workspace, args.path) : undefined;
 
-      const rgOutput = ripgrep(args, searchDir);
-      const matches = rgOutput || await nodeGrep(fs, args, searchDir);
-      const count = matches === 'No matches found' || matches === '' ? 0 : matches.split('\n').length;
-      return { matches, count };
+      const { stdout, noMatches } = await runRipgrep(buildGrepArgv(args, searchPath), {
+        cwd,
+        signal: ctx.signal,
+      });
+
+      if (noMatches) return { matches: 'No matches found', count: 0 };
+
+      const all = parseGrepMatches(stdout);
+      const limited = all.slice(0, args.limit);
+      const matches = limited
+        .map((m) => `${toWorkdirRelative(m.path, cwd)}:${m.lineNumber}:${m.line}`)
+        .join('\n');
+
+      return { matches: matches || 'No matches found', count: limited.length };
     },
   });
 }
 
-/** grep 工具默认实例（使用本地文件系统） */
+/** grep 工具默认实例 */
 export const grepTool = createGrepTool();

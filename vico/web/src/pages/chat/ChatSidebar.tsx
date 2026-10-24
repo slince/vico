@@ -93,7 +93,7 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
       />
       <aside className="flex shrink-0 flex-col border-l bg-card" style={{ width }}>
         {/* 顶层 Tab 栏 — 文件树 / 文件 / 终端 + 右上角「+」菜单 */}
-        <div className="flex h-12 shrink-0 items-center overflow-x-auto overflow-y-hidden border-b bg-muted/30 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex h-12 shrink-0 items-center overflow-x-auto overflow-y-hidden border-b bg-background [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map((tab, idx) => {
             const isActive = sameTab(active, tab);
             const hasLeft = idx > 0;
@@ -107,7 +107,7 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
                     className={cn(
                       'group flex shrink-0 cursor-pointer items-center gap-1 border-r px-3 py-1.5 text-xs transition-colors max-w-[180px]',
                       isActive
-                        ? 'bg-background'
+                        ? 'bg-muted'
                         : 'hover:bg-accent/50 text-muted-foreground',
                     )}
                     onClick={() => setActiveTab(threadId, tab)}

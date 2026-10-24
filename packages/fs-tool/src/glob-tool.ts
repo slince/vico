@@ -1,9 +1,8 @@
 // @vico/fs-tool - glob 查找文件工具
-import { relative, resolve } from 'node:path';
 import { z } from 'zod';
-import { localFilesystem, type Filesystem } from '@vico/fs';
 import { createTool, resolveWorkspacePath } from '@vico/tool';
 import type { ToolCallContext } from '@vico/tool';
+import { runRipgrep, toWorkdirRelative } from './ripgrep.js';
 
 const globParams = z.object({
   pattern: z.string().default('*').describe('Glob pattern to match file names'),
@@ -11,48 +10,26 @@ const globParams = z.object({
   limit: z.number().int().default(200).describe('Maximum number of files to return'),
 });
 
-interface GlobResult {
-  path: string;
-  mtime: number;
-}
+/**
+ * 目录名排除清单：`--no-ignore --hidden` 会浮出被忽略/隐藏的内容，
+ * VCS 元数据与 node_modules 属纯噪音，须显式排除。
+ */
+const GLOB_DIR_EXCLUDES = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl', 'node_modules'];
 
-function globToRegex(pattern: string): RegExp {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*')
-    .replace(/\?/g, '.');
-  return new RegExp(`^${escaped}$`);
-}
-
-/** 递归收集匹配 glob 的文件，按 mtime 排序前的原始结果 */
-async function collectFiles(fs: Filesystem, searchDir: string, regex: RegExp, maxResults: number): Promise<GlobResult[]> {
-  const results: GlobResult[] = [];
-
-  async function walk(dir: string) {
-    if (results.length >= maxResults) return;
-    try {
-      const entries = await fs.readDir(dir);
-      for (const entry of entries) {
-        if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-        const fullPath = resolve(dir, entry.name);
-        if (entry.isDirectory) {
-          await walk(fullPath);
-        } else if (entry.isFile && regex.test(entry.name)) {
-          try {
-            const stat = await fs.stat(fullPath);
-            results.push({ path: fullPath, mtime: stat.mtimeMs });
-          } catch {
-            results.push({ path: fullPath, mtime: 0 });
-          }
-        }
-      }
-    } catch {
-      // skip unreadable directories
-    }
-  }
-
-  await walk(searchDir);
-  return results;
+/**
+ * 构造 rg --files 参数向量。每个受模型控制的值都是独立 argv 元素（无 shell 层），
+ * 搜索根放在 `--` 之后，避免 leading-dash 路径被解析为 flag。
+ */
+function buildGlobArgv(pattern: string, path?: string): string[] {
+  return [
+    '--files',
+    `--glob=${pattern}`,
+    '--sort=modified',
+    '--no-ignore',
+    '--hidden',
+    ...GLOB_DIR_EXCLUDES.flatMap((name) => [`--glob=!**/${name}`, `--glob=!**/${name}/**`]),
+    ...(path !== undefined ? ['--', path] : []),
+  ];
 }
 
 const globOutputSchema = z.object({
@@ -63,10 +40,9 @@ const globOutputSchema = z.object({
 type GlobOutput = z.infer<typeof globOutputSchema>;
 
 /**
- * 创建 glob 工具 — 通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。
- * @param fs - 文件系统实现，默认本地文件系统
+ * 创建 glob 工具 — 用打包的 ripgrep（rg --files）发现文件，按修改时间排序（最新在前）。
  */
-export function createGlobTool(fs: Filesystem = localFilesystem) {
+export function createGlobTool() {
   return createTool({
     name: 'glob',
     description:
@@ -78,23 +54,27 @@ export function createGlobTool(fs: Filesystem = localFilesystem) {
     tags: ['requires-workspace'],
     async execute(args: z.infer<typeof globParams>, ctx: ToolCallContext): Promise<GlobOutput> {
       const workspace = ctx.session.workspace!;
+      const cwd = resolveWorkspacePath(workspace, '.');
+      const searchPath = args.path ? resolveWorkspacePath(workspace, args.path) : undefined;
 
-      const searchDir = args.path
-        ? resolveWorkspacePath(workspace, args.path)
-        : resolve(workspace, '.');
+      const { stdout, noMatches } = await runRipgrep(buildGlobArgv(args.pattern, searchPath), {
+        cwd,
+        signal: ctx.signal,
+      });
 
-      const regex = globToRegex(args.pattern);
-      const results = await collectFiles(fs, searchDir, regex, args.limit * 2);
+      if (noMatches) return { files: [], count: 0 };
 
-      const sorted = results
-        .sort((a, b) => b.mtime - a.mtime)
-        .slice(0, args.limit)
-        .map((r) => relative(workspace, r.path));
+      const files: string[] = [];
+      for (const line of stdout.split('\n')) {
+        if (line.length === 0) continue;
+        files.push(toWorkdirRelative(line, cwd));
+      }
 
-      return { files: sorted, count: sorted.length };
+      const limited = files.slice(0, args.limit);
+      return { files: limited, count: limited.length };
     },
   });
 }
 
-/** glob 工具默认实例（使用本地文件系统） */
+/** glob 工具默认实例 */
 export const globTool = createGlobTool();

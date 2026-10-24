@@ -39,6 +39,7 @@ catalog:
   better-auth: ^1.7.3
   "@ai-sdk/provider": ^4.0.33
   "@ai-sdk/provider-utils": ^5.0.67
+  "@vscode/ripgrep": ^1.18.0
   # db
   drizzle-orm: ^0.45.2
   "@libsql/client": ^0.17.0

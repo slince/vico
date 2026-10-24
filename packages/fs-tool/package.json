@@ -12,6 +12,7 @@
   "dependencies": {
     "@vico/fs": "workspace:*",
     "@vico/tool": "workspace:*",
+    "@vscode/ripgrep": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

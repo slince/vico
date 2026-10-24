@@ -5,12 +5,12 @@ import { html } from '@codemirror/lang-html';
 import { javascript } from '@codemirror/lang-javascript';
 import { json } from '@codemirror/lang-json';
 import { markdown } from '@codemirror/lang-markdown';
+import { php } from '@codemirror/lang-php';
 import { python } from '@codemirror/lang-python';
 import { sql } from '@codemirror/lang-sql';
 import { yaml } from '@codemirror/lang-yaml';
 import { c, cpp, csharp, java, kotlin } from '@codemirror/legacy-modes/mode/clike';
 import { go } from '@codemirror/legacy-modes/mode/go';
-import { php } from '@codemirror/legacy-modes/mode/php';
 import { ruby } from '@codemirror/legacy-modes/mode/ruby';
 import { rust } from '@codemirror/legacy-modes/mode/rust';
 import { shell } from '@codemirror/legacy-modes/mode/shell';
@@ -91,7 +91,7 @@ export function getCodeMirrorExtensions(filePath: string): Extension[] {
     case 'csharp':
       return [StreamLanguage.define(csharp)];
     case 'php':
-      return [StreamLanguage.define(php)];
+      return [php()];
     case 'swift':
       return [StreamLanguage.define(swift)];
     case 'bash':
