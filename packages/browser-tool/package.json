@@ -13,6 +13,12 @@
     "@vico/tool": "workspace:*",
     "zod": "catalog:"
   },
+  "peerDependencies": {
+    "playwright": "^1"
+  },
+  "peerDependenciesMeta": {
+    "playwright": { "optional": true }
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:"

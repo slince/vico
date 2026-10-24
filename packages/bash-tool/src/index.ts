@@ -7,8 +7,8 @@ import {pwshTool} from './pwsh-tool.js';
 export {bashTool};
 export {pwshTool};
 
-/** Coding 工具（需要 workspace）：Shell */
-export const codingTools: Tool[] = [bashTool];
+/** Shell 工具（需要 workspace）：按平台选择 Shell（Windows 用 pwsh，其余用 bash） */
+export const shellTools: Tool[] = process.platform === 'win32' ? [pwshTool] : [bashTool];
 
 /** PowerShell 工具（需要 workspace）：Windows 主机的 Shell */
 export const pwshTools: Tool[] = [pwshTool];

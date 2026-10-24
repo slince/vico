@@ -1,6 +1,6 @@
 // @vico/boot - 工具装配（内置 + 文件系统 + coding + 语义记忆 + skill 工具）
 
-import { codingTools } from '@vico/bash-tool';
+import { shellTools } from '@vico/bash-tool';
 import { browserTools } from '@vico/browser-tool';
 import { filesystemTools } from '@vico/fs-tool';
 import { createUpdateSemanticMemoryTool, type SemanticMemory } from '@vico/memory';
@@ -31,7 +31,7 @@ export function buildTools(
 ): Tool[] {
   const extraTools = Array.isArray(toolsOption) ? toolsOption : (toolsOption?.tools ?? []);
   const toolConfig = Array.isArray(toolsOption) ? undefined : toolsOption?.config;
-  const allTools: Tool[] = [...basicTools, ...filesystemTools, ...codingTools, ...browserTools, ...extraTools];
+  const allTools: Tool[] = [...basicTools, ...filesystemTools, ...shellTools, ...browserTools, ...extraTools];
   if (semanticMemory) {
     allTools.push(createUpdateSemanticMemoryTool(semanticMemory));
   }
