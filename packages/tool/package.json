@@ -12,7 +12,6 @@
   "dependencies": {
     "@vico/thread": "workspace:*",
     "@vico/types": "workspace:*",
-    "ai": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

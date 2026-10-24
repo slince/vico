@@ -1,8 +1,7 @@
 // @vico/boot - Agent 运行时领域 provider（事件广播器 + LRU 缓存）
 
-import { AgentRuntime } from '@vico/agent';
+import { AgentRuntime, type TurnEvent } from '@vico/agent';
 import { MittEventRecorder } from '@vico/events';
-import type { TurnEvent } from '@vico/stream';
 import { agentSchema } from '../config/schemas/index.js';
 import type { VicoServiceProvider } from '../tokens.js';
 

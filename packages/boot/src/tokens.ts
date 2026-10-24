@@ -1,13 +1,12 @@
 // @vico/boot - 依赖 token 映射与容器/provider 类型别名
 
 import type { Container, ServiceProvider } from '@vico/di';
-import type { AgentRuntime } from '@vico/agent';
+import type { AgentRuntime, TurnEvent } from '@vico/agent';
 import type { CheckpointPurge, CheckpointStore } from '@vico/checkpoint';
 import type { EventRecorder } from '@vico/events';
 import type { MemoryStore } from '@vico/memory';
 import type { Embedder, VectorStore } from '@vico/rag';
 import type { Skill } from '@vico/skill';
-import type { TurnEvent } from '@vico/stream';
 import type { ThreadStore } from '@vico/thread';
 import type { Logger } from 'pino';
 import type { VicoConfigKeys } from './config/keys.js';
