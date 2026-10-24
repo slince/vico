@@ -3,9 +3,6 @@ import type {TurnResult} from "./loop-agent-options.js";
 import type {ModelMessage, UIMessage} from 'ai';
 import {convertToModelMessages, validateUIMessages} from 'ai';
 import type {UserMessage} from '@vico/stream';
-import {SkillSettings} from "./create-agent.js";
-import {resolve} from "node:path";
-import {homedir} from "node:os";
 import {MemoryStore} from '@vico/memory';
 import {ContextProcessor} from '@vico/context';
 import {Skill} from '@vico/skill';
@@ -62,33 +59,6 @@ export async function collectTurnResult(
   return output.result();
 }
 
-
-/** 各产品全局 Skills 默认目录 */
-export const COMPATIBLE_SKILL_ROOTS = [
-  '.claude/skills',
-  '.openclaw/skills',
-  '.hermes/skills',
-  '.agents/skills',
-];
-
-/**
- * 汇总 SkillSettings 中所有待扫描目录
- * @param settings - Skill 扫描配置
- * @returns 所有待扫描的绝对路径列表
- */
-export function collectSkillDirs(settings: SkillSettings): string[] {
-  const dirs: string[] = [];
-  if (settings.skillDirs) {
-    dirs.push(...settings.skillDirs);
-  }
-  if (settings.compatible) {
-    const home = homedir();
-    for (const rel of COMPATIBLE_SKILL_ROOTS) {
-      dirs.push(resolve(home, rel));
-    }
-  }
-  return dirs;
-}
 
 /** 组装默认上下文处理器管道：系统提示词 + Skill 目录 + 工作区过滤 + 记忆 */
 export function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextProcessor[] {

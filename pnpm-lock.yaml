@@ -250,9 +250,6 @@ importers:
 
   packages/agent:
     dependencies:
-      '@vico/bash-tool':
-        specifier: workspace:*
-        version: link:../bash-tool
       '@vico/checkpoint':
         specifier: workspace:*
         version: link:../checkpoint
@@ -265,9 +262,6 @@ importers:
       '@vico/events':
         specifier: workspace:*
         version: link:../events
-      '@vico/fs-tool':
-        specifier: workspace:*
-        version: link:../fs-tool
       '@vico/memory':
         specifier: workspace:*
         version: link:../memory
@@ -330,6 +324,9 @@ importers:
       '@vico/agent':
         specifier: workspace:*
         version: link:../agent
+      '@vico/bash-tool':
+        specifier: workspace:*
+        version: link:../bash-tool
       '@vico/checkpoint':
         specifier: workspace:*
         version: link:../checkpoint
@@ -345,6 +342,9 @@ importers:
       '@vico/events':
         specifier: workspace:*
         version: link:../events
+      '@vico/fs-tool':
+        specifier: workspace:*
+        version: link:../fs-tool
       '@vico/memory':
         specifier: workspace:*
         version: link:../memory
@@ -375,6 +375,9 @@ importers:
       '@vico/thread-mysql':
         specifier: workspace:*
         version: link:../thread-mysql
+      '@vico/tool':
+        specifier: workspace:*
+        version: link:../tool
       pino:
         specifier: 'catalog:'
         version: 10.4.0

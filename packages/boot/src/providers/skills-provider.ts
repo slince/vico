@@ -1,6 +1,6 @@
 // @vico/boot - Skill 领域 provider（扫描并注册 skills）
 
-import { buildSkills } from '@vico/agent';
+import { buildSkills } from '../lib/build-skills.js';
 import { skillsSchema } from '../config/schemas/index.js';
 import type { VicoServiceProvider } from '../tokens.js';
 

@@ -4,6 +4,7 @@
  * 替代已废弃的 `vico.ts` 薄适配层：底层依赖（memory/thread/checkpoint/skills/runtime）
  * 均由 @vico/boot 容器装配，这里只做 AgentConfig 的全局 fallback 与 LRU 注册。
  */
+import { buildTools } from '@vico/boot';
 import { createAgent } from '@vico/agent';
 import type { Agent, AgentConfig } from '@vico/agent';
 import type { Skill } from '@vico/skill';
@@ -18,7 +19,7 @@ export async function listSkills(): Promise<Skill[]> {
 /**
  * 获取或注册 Agent 实例（不存在则创建，全局 LRU 缓存）。
  *
- * AgentConfig 未显式指定 tools/memory/thread/checkpointStore/events 时，
+ * AgentConfig 未显式指定 tools/skills/memory/thread/checkpointStore/events 时，
  * fallback 到 boot 容器装配的全局实例，保持与旧 Vico 类一致的语义。
  */
 export async function createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
@@ -29,9 +30,13 @@ export async function createIfAbsent(agentId: string, factory: () => Promise<Age
   if (existing) return existing;
 
   const config = await factory();
+  // 组装完整工具集：内置 + 文件系统 + coding + 语义记忆 + skill 工具，再叠加应用层 weatherTool
+  const skills = config.skills ?? (await c.resolve('skills'));
+  const tools = config.tools ?? buildTools([c.get('weatherTool')], c.get('memory').semantic, skills);
   const agent = await createAgent({
     ...config,
-    tools: config.tools ?? [c.get('weatherTool')],
+    skills,
+    tools,
     memory: config.memory ?? c.get('memory'),
     thread: config.thread ?? c.get('thread'),
     checkpointStore: config.checkpointStore ?? c.get('checkpointStore'),

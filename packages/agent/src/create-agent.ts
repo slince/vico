@@ -5,97 +5,22 @@ import {isLanguageModel, type LanguageModel, type ModelConfig, type ModelRef, ty
 import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '@vico/tool';
 import type {Skill} from '@vico/skill';
-import type {SemanticMemory} from '@vico/memory';
-import {createSkillTools} from '@vico/skill';
 import {MemoryStore} from '@vico/memory';
 import type {ThreadStore} from '@vico/thread';
 import type {EventRecorder} from '@vico/events';
 import {InMemoryThreadStore} from '@vico/thread';
 import {MittEventRecorder} from '@vico/events';
-import {basicTools} from '@vico/tool';
-import {codingTools} from '@vico/bash-tool';
-import {filesystemTools} from '@vico/fs-tool';
-import {createUpdateSemanticMemoryTool} from '@vico/memory';
 import {ConversationHistoryMemory} from '@vico/memory';
 import {DEFAULT_CONVERSATION_WINDOW} from '@vico/memory';
 import {composeResolvers, defaultApprovalResolvers} from '@vico/tool';
 import type {CheckpointStore} from '@vico/checkpoint';
 import {MemoryCheckpointStore} from '@vico/checkpoint';
-import {createFSSkillLoader} from '@vico/skill';
-import {collectSkillDirs} from "./utils.js";
 import {ModelContextCompactor} from '@vico/compaction';
 import type {CompactionSettings} from '@vico/compaction';
 
 
 /** LanguageModel 工厂类型 */
 export type LanguageModelFactory = (config: ModelConfig) => LanguageModel;
-
-type ToolSetting<T extends Tool[] = Tool[]> = {
-  tools: T;
-  config?: Partial<Record<T[number]['name'], boolean>>
-}
-
-type ToolOptions = Tool[] | ToolSetting
-
-/** 组装工具列表：内置工具 + 额外工具 + semantic memory 工具 + skill 工具，支持按名称关闭 */
-function buildTools(
-  toolsOption: ToolOptions | undefined,
-  semanticMemory: SemanticMemory | undefined,
-  skills: Skill[] | undefined,
-): Tool[] {
-  const extraTools = Array.isArray(toolsOption) ? toolsOption : (toolsOption?.tools ?? []);
-  const toolConfig = Array.isArray(toolsOption) ? undefined : toolsOption?.config;
-  const allTools: Tool[] = [...basicTools, ...filesystemTools, ...codingTools, ...extraTools];
-  if (semanticMemory) {
-    allTools.push(createUpdateSemanticMemoryTool(semanticMemory));
-  }
-  if (skills) {
-    allTools.push(...createSkillTools(skills));
-  }
-  // 对象模式下支持按名称关闭工具（config 中标记为 false 的被移除）
-  return toolConfig ? allTools.filter(t => toolConfig[t.name]) : allTools;
-}
-
-/** Skill 扫描配置 */
-export type SkillSettings = {
-  /** Vico 原生 Skill 扫描根目录 */
-  skillDirs?: string[];
-
-  skills?: Skill[];
-
-  /** 开启后自动扫描第三方 AI Agent 产品的全局 Skills（Claude、OpenClaw、Hermes、通用 agents） */
-  compatible?: boolean;
-};
-
-export type SkillOptions = Skill[] | SkillSettings
-
-export async function buildSkills(skillsOptions?: SkillOptions): Promise<Skill[]>{
-  if (!skillsOptions) {
-    return []
-  }
-
-  // Skill[] 数组形式
-  if (Array.isArray(skillsOptions)) {
-    return skillsOptions;
-  }
-
-  // SkillSettings 对象形式
-  if (skillsOptions) {
-    const { skills: inlineSkills } = skillsOptions;
-    const dirs = collectSkillDirs(skillsOptions);
-    const all: Skill[] = [];
-    if (dirs.length) {
-      const fsLoader = createFSSkillLoader(dirs);
-      all.push(...await fsLoader());
-    }
-    if (inlineSkills) {
-      all.push(...inlineSkills);
-    }
-    return all;
-  }
-  // 无任何 skills 配置
-  return []
-}
 
 /** 创建 Agent 的输入配置 */
 export interface AgentConfig {
@@ -107,9 +32,10 @@ export interface AgentConfig {
   maxSteps?: number;
   /** 推理力度，不传则 provider 默认 */
   reasoning?: ReasoningEffort;
-  /** 额外工具（数组模式）或 { tools, config } 对象模式（可手动关闭工具） */
-  tools?: ToolOptions;
-  skills?: SkillOptions;
+  /** Agent 使用的完整工具集（已组装，含内置/文件系统/coding/语义记忆/skill 工具） */
+  tools?: Tool[];
+  /** Agent 绑定的 Skill 列表（已加载） */
+  skills?: Skill[];
   memory?: MemoryStore;
   /** 会话历史滑动窗口大小（已完成轮次数），仅在未显式传入 memory 时生效 */
   conversationWindow?: number;
@@ -134,8 +60,8 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     conversation: new ConversationHistoryMemory(thread, config.conversationWindow ?? DEFAULT_CONVERSATION_WINDOW)
   });
 
-  const skills = await buildSkills(config.skills)
-  const tools = buildTools(config.tools, memory.semantic, skills);
+  const skills = config.skills ?? [];
+  const tools = config.tools ?? [];
 
   // 上下文压缩器：仅在显式配置 compaction 时构造；模型为 ModelConfig 时才能拿到 contextWindow/摘要模型
   const modelConfig = !isLanguageModel(config.model) ? config.model : undefined;
@@ -168,8 +94,8 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     reasoning: config.reasoning,
     maxTokens,
     maxSteps: config.maxSteps ?? 10,
-    skills: skills || [],
-    tools: tools,
+    skills,
+    tools,
     memory: memory,
     thread: thread,
     workspace: config.workspace,

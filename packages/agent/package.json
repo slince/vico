@@ -10,12 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vico/bash-tool": "workspace:*",
     "@vico/checkpoint": "workspace:*",
     "@vico/compaction": "workspace:*",
     "@vico/context": "workspace:*",
     "@vico/events": "workspace:*",
-    "@vico/fs-tool": "workspace:*",
     "@vico/memory": "workspace:*",
     "@vico/model": "workspace:*",
     "@vico/skill": "workspace:*",
