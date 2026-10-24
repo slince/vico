@@ -1,6 +1,6 @@
 // @vico/context - ContextProcessor：基于 @vico/utils 洋葱模型的上下文处理器
 import type {ModelRequestContext} from './model-request-context.js';
-import type {Next} from '@vico/utils';
+import type {Next, PriorityMiddleware} from '@vico/utils';
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */
 export const Priority = {
@@ -25,11 +25,9 @@ export const Priority = {
  * - 想短路时可不调用 `next()`（后续内层与核心都不会执行）；
  * - 离开阶段（next() 后）抛错会向外传播，非关键路径请自行 try-catch 静默。
  */
-export interface ContextProcessor {
+export interface ContextProcessor extends PriorityMiddleware<ModelRequestContext>{
   /** 处理器名称（用于日志/调试） */
   readonly name: string;
-  /** 优先级，越小越外层（先执行） */
-  readonly priority: number;
   /** 洋葱层入口：next() 前做前置、next() 后做后置，返回 void 或 Promise<void> */
   handle(ctx: ModelRequestContext, next: Next): void | Promise<void>;
 }
