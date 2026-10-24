@@ -129,4 +129,71 @@ describe('createContainer', () => {
       expect(built).toBe(2);
     });
   });
+
+  describe('服务标签', () => {
+    interface Svc {
+      id: string;
+    }
+
+    interface TagTokens {
+      svcA: Svc;
+      svcB: Svc;
+      svcC: Svc;
+    }
+
+    it('getByTag 按注册顺序返回打了该标签的所有服务', () => {
+      const container = createContainer<TagTokens>();
+      container.register('svcA', () => ({ id: 'a' }), { tags: ['group'] });
+      container.register('svcB', () => ({ id: 'b' }));
+      container.register('svcC', () => ({ id: 'c' }), { tags: ['group'] });
+
+      const group = container.getByTag<Svc>('group');
+      expect(group.map((s) => s.id)).toEqual(['a', 'c']);
+    });
+
+    it('同一服务打多个标签，可被任一标签命中', () => {
+      const container = createContainer<TagTokens>();
+      container.register('svcA', () => ({ id: 'a' }), { tags: ['group', 'primary'] });
+
+      expect(container.getByTag<Svc>('primary').map((s) => s.id)).toEqual(['a']);
+      expect(container.getByTag<Svc>('group').map((s) => s.id)).toEqual(['a']);
+    });
+
+    it('无匹配标签返回空数组', () => {
+      const container = createContainer<TagTokens>();
+      container.register('svcA', () => ({ id: 'a' }), { tags: ['group'] });
+
+      expect(container.getByTag('nonexistent')).toEqual([]);
+    });
+
+    it('resolveByTag 支持异步工厂', async () => {
+      const container = createContainer<TagTokens>();
+      container.register('svcA', async () => ({ id: 'a' }), { tags: ['async'] });
+
+      const list = await container.resolveByTag<Svc>('async');
+      expect(list.map((s) => s.id)).toEqual(['a']);
+    });
+
+    it('getByTag 命中异步工厂时抛错提示改用 resolveByTag', () => {
+      const container = createContainer<TagTokens>();
+      container.register('svcA', async () => ({ id: 'a' }), { tags: ['async'] });
+
+      expect(() => container.getByTag('async')).toThrow(/resolve/);
+    });
+
+    it('registerValue 也可打标签', () => {
+      const container = createContainer<TagTokens>();
+      const prebuilt = { id: 'pre' };
+      container.registerValue('svcA', prebuilt, { tags: ['pre'] });
+
+      expect(container.getByTag<Svc>('pre')[0]).toBe(prebuilt);
+    });
+
+    it('transient 服务每次 getByTag 新建实例', () => {
+      const container = createContainer<TagTokens>();
+      container.register('svcA', () => ({ id: 'a' }), { tags: ['t'], scope: 'transient' });
+
+      expect(container.getByTag<Svc>('t')[0]).not.toBe(container.getByTag<Svc>('t')[0]);
+    });
+  });
 });

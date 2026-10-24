@@ -78,4 +78,6 @@ export type Scope = 'singleton' | 'transient';
 export interface RegisterOptions {
   /** 实例作用域，默认 `singleton` */
   scope?: Scope;
+  /** 服务标签：打上后可用 `getByTag` / `resolveByTag` 按标签批量取用 */
+  tags?: string[];
 }

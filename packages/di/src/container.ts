@@ -26,6 +26,8 @@ interface Registration<
 > {
   factory: Factory<TValue, TTokens, TConfigKeys>;
   scope: Scope;
+  /** 服务标签，`getByTag` / `resolveByTag` 按此匹配 */
+  tags: string[];
   /** singleton 是否已成功解析过 */
   resolved: boolean;
   /** singleton 已解析出的实例值（值为 undefined 时靠 `resolved` 区分） */
@@ -102,7 +104,7 @@ export class Container<
    *
    * @param token 依赖标识，必须是 `TTokens` 中声明的 key
    * @param factory 工厂函数，读配置 + 依赖产出实例；返回 Promise 表示异步构建
-   * @param options 注册选项（作用域），默认 singleton
+   * @param options 注册选项（作用域、服务标签），默认 singleton
    */
   register<K extends keyof TTokens & string>(
     token: K,
@@ -116,17 +118,24 @@ export class Container<
     this.registrations.set(token, {
       factory: factory as Factory<unknown, TTokens, TConfigKeys>,
       scope: options?.scope ?? 'singleton',
+      tags: options?.tags ?? [],
       resolved: false,
     });
     return this;
   }
 
   /**
-   * 注册一个已构建好的实例（等价于 `register(token, () => value)`）。
+   * 注册一个已构建好的实例（等价于 `register(token, () => value, options)`）。
    * 适合注入外部已初始化的单例或常量配置切片。
+   *
+   * @param options 注册选项（作用域、服务标签），透传给 `register`
    */
-  registerValue<K extends keyof TTokens & string>(token: K, value: TTokens[K]): this {
-    return this.register(token, () => value);
+  registerValue<K extends keyof TTokens & string>(
+    token: K,
+    value: TTokens[K],
+    options?: RegisterOptions,
+  ): this {
+    return this.register(token, () => value, options);
   }
 
   /**
@@ -326,6 +335,45 @@ export class Container<
     } finally {
       this.resolving.delete(token);
     }
+  }
+
+  /**
+   * 同步解析打了指定标签的所有服务。
+   *
+   * 遍历注册表，按注册顺序收集 `tags` 包含 `tag` 的 token 并逐个 `get`；
+   * 作用域语义与 `get` 一致（transient 每次新建、singleton 复用缓存），
+   * 命中异步工厂时抛错（改用 `resolveByTag`）。
+   *
+   * @param tag 标签值，命中 `register` 时 `options.tags` 中的任一项
+   * @typeParam T 期望的实例类型，默认 `unknown`；标签服务通常共享同一接口时指定
+   */
+  getByTag<T = unknown>(tag: string): T[] {
+    const instances: T[] = [];
+    for (const [token, reg] of this.registrations) {
+      if (reg.tags.includes(tag)) {
+        instances.push(this.get(token as keyof TTokens & string) as unknown as T);
+      }
+    }
+    return instances;
+  }
+
+  /**
+   * 异步解析打了指定标签的所有服务。
+   *
+   * 与 `getByTag` 相同，但逐个 `resolve`，支持返回 Promise 的异步工厂；
+   * 结果顺序与注册顺序一致。
+   *
+   * @param tag 标签值，命中 `register` 时 `options.tags` 中的任一项
+   * @typeParam T 期望的实例类型，默认 `unknown`；标签服务通常共享同一接口时指定
+   */
+  async resolveByTag<T = unknown>(tag: string): Promise<T[]> {
+    const instances: T[] = [];
+    for (const [token, reg] of this.registrations) {
+      if (reg.tags.includes(tag)) {
+        instances.push((await this.resolve(token as keyof TTokens & string)) as unknown as T);
+      }
+    }
+    return instances;
   }
 
   /** 判断 token 是否已注册 */

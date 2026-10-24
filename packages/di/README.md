@@ -10,6 +10,7 @@
 - **作用域**：`singleton`（默认，全容器唯一）/ `transient`（每次新建）
 - **异步工厂**：`resolve` 解析返回 Promise 的工厂，并发调用共享同一 pending Promise（工厂只执行一次）
 - **循环依赖检测**：同步/异步解析统一检测
+- **服务标签**：注册时 `options.tags` 打标签，`getByTag` / `resolveByTag` 按标签批量取用
 - **Service Provider**：按领域组织组装逻辑，`register`（绑定）+ `boot`（初始化）两阶段，支持异步
 
 ## 依赖注入
@@ -45,6 +46,27 @@ container.register('embedder', async ({ config, get }) => {
 });
 const embedder = await container.resolve('embedder');
 ```
+
+## 服务标签
+
+注册时通过 `options.tags` 给服务打标签，之后按标签批量取用（常用于遍历同一接口的所有实现）：
+
+```ts
+interface Svc { start(): void }
+interface Tokens { a: Svc; b: Svc; c: Svc }
+
+container
+  .register('a', () => new SvcA(), { tags: ['store'] })
+  .register('b', () => new SvcB(), { tags: ['store'] })
+  .register('c', () => new SvcC());   // 不打标签
+
+const stores = container.getByTag<Svc>('store');        // [SvcA, SvcB]，按注册顺序
+const asyncStores = await container.resolveByTag<Svc>('store');  // 兼容异步工厂
+```
+
+- `getByTag` 同步解析（命中异步工厂会抛错），`resolveByTag` 兼容异步工厂
+- 结果按注册顺序返回；作用域语义与 `get` / `resolve` 一致（transient 每次新建）
+- 泛型 `<Svc>` 指定实例类型，默认 `unknown`
 
 ## 配置定义加载
 
@@ -104,10 +126,12 @@ await container.bootstrap([storageProvider, memoryProvider]);
 | 方法 | 说明 |
 |------|------|
 | `createContainer(config?)` | 创建容器，注入只读配置 |
-| `container.register(token, factory, options?)` | 注册工厂 Provider，`options.scope` 默认 `singleton` |
-| `container.registerValue(token, value)` | 注册已构建好的实例 |
+| `container.register(token, factory, options?)` | 注册工厂 Provider，`options.scope` 默认 `singleton`，`options.tags` 打服务标签 |
+| `container.registerValue(token, value, options?)` | 注册已构建好的实例 |
 | `container.get(token)` | 同步解析（异步工厂会抛错） |
 | `container.resolve(token)` | 异步解析，兼容同步工厂 |
+| `container.getByTag(tag)` | 同步解析打了该标签的所有服务，按注册顺序 |
+| `container.resolveByTag(tag)` | 异步解析打了该标签的所有服务，兼容异步工厂 |
 | `container.has(token)` | 是否已注册 |
 | `container.registerConfig(key, schema)` | 声明配置段及其 zod schema |
 | `container.load(path)` | 加载 yaml/json 配置文件，对已注册 key 立即验证 |
