@@ -6,9 +6,9 @@ import { createTool, resolveWorkspacePath } from '@vico/tool';
 import type { ToolCallContext } from '@vico/tool';
 
 const readParams = z.object({
-  path: z.string().describe('要读取的文件路径（相对于工作区或绝对路径）'),
-  offset: z.number().int().min(1).optional().describe('起始行号（从 1 开始）'),
-  limit: z.number().int().min(1).optional().describe('最大读取行数'),
+  path: z.string().describe('File path to read (relative to workspace or absolute)'),
+  offset: z.number().int().min(1).optional().describe('Starting line number (1-based)'),
+  limit: z.number().int().min(1).optional().describe('Maximum number of lines to read'),
 });
 
 /** 图片扩展名 */
@@ -107,7 +107,7 @@ export function createReadTool(fs: Filesystem = localFilesystem) {
   return createTool({
     name: 'read',
     description:
-      '读取工作区文件，支持行偏移和行数限制。图片文件自动检测并以 base64 返回。用于查看当前工作区文件内容。',
+      'Read a file in the workspace with optional line offset and line limit. Image files are auto-detected and returned as base64. Use to inspect workspace file contents.',
     inputSchema: readParams,
     outputSchema: readOutputSchema,
     policy: 'auto',

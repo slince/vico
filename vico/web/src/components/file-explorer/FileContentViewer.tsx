@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { keymap } from '@codemirror/view';
 import { AlertCircle, Eye, Loader2, PenLine, RefreshCw, Save } from 'lucide-react';
+import CodeMirror from '@uiw/react-codemirror';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { SyntaxHighlighter } from '@/components/assistant-ui/elements/shiki-highlighter';
+import { getCodeMirrorExtensions, guessLanguage } from '@/components/file-explorer/codemirror-language';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
 
 /**
@@ -38,8 +42,7 @@ export interface FileContentViewerProps {
  *
  * 顶部为文件路径 + 操作按钮（重载 / 编辑切换 / 保存），下方为内容区：
  * 浏览态 markdown 文件用富文本渲染，其余用 Shiki 语法高亮；
- * 编辑态用 textarea 直接编辑并支持 Cmd/Ctrl+S 保存。
- * 不直接依赖任何 store / API，加载与保存均通过 props 回调交由上层适配。
+ * 编辑态用 CodeMirror 提供带语法高亮的编辑器，并支持 Cmd/Ctrl+S 保存。
  */
 export function FileContentViewer({
   filePath,
@@ -50,6 +53,8 @@ export function FileContentViewer({
   onReload,
   onSave,
 }: FileContentViewerProps) {
+  const { theme } = useTheme();
+
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -71,6 +76,27 @@ export function FileContentViewer({
       setSaving(false);
     }
   };
+
+  // 保存最新 save 引用供 keymap 调用，避免 extensions 随 draft 变化而重建编辑器
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  // 编辑态扩展：语言高亮 + Cmd/Ctrl+S 保存快捷键；仅在切换文件时重建
+  const extensions = useMemo(
+    () => [
+      ...getCodeMirrorExtensions(filePath),
+      keymap.of([
+        {
+          key: 'Mod-s',
+          run: () => {
+            void saveRef.current();
+            return true;
+          },
+        },
+      ]),
+    ],
+    [filePath],
+  );
 
   const dirty = editing && draft !== (content ?? '');
 
@@ -139,17 +165,12 @@ export function FileContentViewer({
 
       <div className="min-h-0 flex-1 overflow-auto">
         {editing ? (
-          <textarea
+          <CodeMirror
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                e.preventDefault();
-                void save();
-              }
-            }}
-            spellCheck={false}
-            className="size-full resize-none border-0 bg-background px-4 py-3 font-mono text-xs leading-relaxed outline-none"
+            onChange={(value) => setDraft(value)}
+            extensions={extensions}
+            theme={theme}
+            className="text-xs"
           />
         ) : renderMarkdown ? (
           <div data-aui="markdown" className="px-4 py-3">
@@ -163,19 +184,4 @@ export function FileContentViewer({
       </div>
     </div>
   );
-}
-
-/** 根据文件扩展名猜测语言标识 */
-function guessLanguage(relPath: string): string {
-  const ext = relPath.split('.').pop()?.toLowerCase() ?? '';
-  const map: Record<string, string> = {
-    ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
-    json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'toml',
-    md: 'markdown', markdown: 'markdown', mdx: 'mdx', html: 'html', css: 'css', scss: 'scss',
-    py: 'python', rb: 'ruby', go: 'go', rs: 'rust', java: 'java',
-    kt: 'kotlin', c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp', cs: 'csharp',
-    php: 'php', swift: 'swift', sql: 'sql', sh: 'bash', bash: 'bash',
-    zsh: 'bash', xml: 'xml', svg: 'xml', vue: 'vue', svelte: 'svelte',
-  };
-  return map[ext] ?? 'text';
 }

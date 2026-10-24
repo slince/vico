@@ -6,8 +6,8 @@ import { createTool, resolveWorkspacePath } from '@vico/tool';
 import type { ToolCallContext } from '@vico/tool';
 
 const writeParams = z.object({
-  path: z.string().describe('要写入的文件路径（相对于工作区或绝对路径）'),
-  content: z.string().describe('要写入文件的完整内容'),
+  path: z.string().describe('File path to write (relative to workspace or absolute)'),
+  content: z.string().describe('Full content to write to the file'),
 });
 
 const writeOutputSchema = z.object({
@@ -27,7 +27,7 @@ export function createWriteTool(fs: Filesystem = localFilesystem) {
   return createTool({
     name: 'write',
     description:
-      '在工作区创建新文件或覆盖已有文件，父目录不存在时自动创建。',
+      'Create a new file in the workspace or overwrite an existing one. Parent directories are created automatically.',
     inputSchema: writeParams,
     outputSchema: writeOutputSchema,
     policy: 'auto',

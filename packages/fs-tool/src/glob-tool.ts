@@ -6,9 +6,9 @@ import { createTool, resolveWorkspacePath } from '@vico/tool';
 import type { ToolCallContext } from '@vico/tool';
 
 const globParams = z.object({
-  pattern: z.string().default('*').describe('匹配文件名的 glob 模式'),
-  path: z.string().optional().describe('搜索目录（默认：工作区根目录）'),
-  limit: z.number().int().default(200).describe('返回文件的最大数量'),
+  pattern: z.string().default('*').describe('Glob pattern to match file names'),
+  path: z.string().optional().describe('Directory to search (default: workspace root)'),
+  limit: z.number().int().default(200).describe('Maximum number of files to return'),
 });
 
 interface GlobResult {
@@ -70,7 +70,7 @@ export function createGlobTool(fs: Filesystem = localFilesystem) {
   return createTool({
     name: 'glob',
     description:
-      '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。用于按命名模式定位文件。',
+      'Find files in the workspace by glob pattern, sorted by modification time (newest first). Use to locate files by naming pattern.',
     inputSchema: globParams,
     outputSchema: globOutputSchema,
     policy: 'auto',

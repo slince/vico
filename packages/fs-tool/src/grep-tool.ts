@@ -7,12 +7,12 @@ import { createTool, resolveWorkspacePath } from '@vico/tool';
 import type { ToolCallContext } from '@vico/tool';
 
 const grepParams = z.object({
-  pattern: z.string().describe('要搜索的正则表达式'),
-  path: z.string().optional().describe('搜索目录或文件路径'),
-  glob: z.string().optional().describe('文件名过滤的 glob 模式'),
-  limit: z.number().int().default(200).describe('返回匹配的最大数量'),
-  '-i': z.boolean().optional().describe('忽略大小写'),
-  context: z.number().int().optional().describe('每个匹配周围的上下文行数'),
+  pattern: z.string().describe('Regular expression to search for'),
+  path: z.string().optional().describe('Directory or file path to search'),
+  glob: z.string().optional().describe('Glob pattern to filter file names'),
+  limit: z.number().int().default(200).describe('Maximum number of matches to return'),
+  '-i': z.boolean().optional().describe('Ignore case'),
+  context: z.number().int().optional().describe('Number of context lines around each match'),
 });
 
 function ripgrep(args: z.infer<typeof grepParams>, searchDir: string): string {
@@ -30,9 +30,9 @@ function ripgrep(args: z.infer<typeof grepParams>, searchDir: string): string {
     });
     const lines = result.trim().split('\n').filter(Boolean);
     const limited = args.limit ? lines.slice(0, args.limit) : lines;
-    return limited.join('\n') || '未找到匹配';
+    return limited.join('\n') || 'No matches found';
   } catch (err: any) {
-    if (err.status === 1) return '未找到匹配';
+    if (err.status === 1) return 'No matches found';
     return '';
   }
 }
@@ -89,7 +89,7 @@ async function nodeGrep(fs: Filesystem, args: z.infer<typeof grepParams>, search
   try {
     stat = await fs.stat(searchDir);
   } catch {
-    return '未找到匹配';
+    return 'No matches found';
   }
 
   if (stat.isDirectory) {
@@ -108,7 +108,7 @@ async function nodeGrep(fs: Filesystem, args: z.infer<typeof grepParams>, search
     }
   }
 
-  return results.length > 0 ? results.join('\n') : '未找到匹配';
+  return results.length > 0 ? results.join('\n') : 'No matches found';
 }
 
 const grepOutputSchema = z.object({
@@ -126,7 +126,7 @@ export function createGrepTool(fs: Filesystem = localFilesystem) {
   return createTool({
     name: 'grep',
     description:
-      '使用正则表达式搜索文件内容。支持 glob 过滤、忽略大小写和上下文行。优先使用系统 ripgrep (rg)，不可用时回退到 Node.js 正则。',
+      'Search file contents with a regular expression. Supports glob filtering, case-insensitive matching, and context lines. Prefers system ripgrep (rg) and falls back to Node.js regex.',
     inputSchema: grepParams,
     outputSchema: grepOutputSchema,
     policy: 'auto',
@@ -138,7 +138,7 @@ export function createGrepTool(fs: Filesystem = localFilesystem) {
 
       const rgOutput = ripgrep(args, searchDir);
       const matches = rgOutput || await nodeGrep(fs, args, searchDir);
-      const count = matches === '未找到匹配' || matches === '' ? 0 : matches.split('\n').length;
+      const count = matches === 'No matches found' || matches === '' ? 0 : matches.split('\n').length;
       return { matches, count };
     },
   });
