@@ -38,7 +38,7 @@ import {
 } from '@vico/stream';
 import {type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '@vico/checkpoint';
-import {Pipeline} from '@vico/utils';
+import {forwardToController, Pipeline} from '@vico/utils';
 import type {ContextProcessor} from '@vico/context';
 import {ModelRequestContext} from '@vico/context';
 import type {
@@ -925,16 +925,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       try {
         const result = await context.modelClient.stream(request);
         const stream = result.stream.pipeThrough(createModelStreamTransformer<TToolSet>(request));
-        // 转发到 turn 流；controller 关闭后吞掉 enqueue 异常继续读完，驱动 BufferedModelStream 完成累积
-        await stream.pipeTo(new WritableStream<TextStreamPart<TToolSet>>({
-          write(part) {
-            try {
-              controller.enqueue(part);
-            } catch {
-              // controller 已关闭（客户端断开）：静默丢弃，仅继续读流
-            }
-          },
-        }));
+        await forwardToController(stream, controller);
         return result.result();
       } catch (e) {
         return resolveError(e instanceof Error ? e : new Error(String(e)));

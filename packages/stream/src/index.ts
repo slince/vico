@@ -1,7 +1,7 @@
 // @vico/stream - 流式解析、用量计量与 turn 事件
 
-export type { CallModelResult, TurnEvent, UserMessage } from './types.js';
-export { createModelStreamTransformer } from './stream-reader.js';
+export type { CallModelResult, UserMessage } from './types.js';
+export { createModelStreamTransformer } from './model-stream-transformer.js';
 export {
   createToolCall,
   toolResultPart,
