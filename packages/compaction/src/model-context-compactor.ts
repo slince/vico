@@ -2,18 +2,20 @@
 import {randomUUID} from 'node:crypto';
 import type {ModelMessage} from 'ai';
 import type {Thread, ThreadStore} from '@vico/thread';
-import {ModelClient, createLanguageModel, getMessageText} from '@vico/model';
-import type {ModelConfig} from '@vico/model';
 import {toModelMessages} from '@vico/thread';
+import type {ModelConfig} from '@vico/model';
+import {createLanguageModel, getMessageText, ModelClient} from '@vico/model';
 import {KeyedMutex} from '@vico/utils';
-import {measure, estimateMessage} from './token-estimator.js';
+import {estimateMessage, measure} from './token-estimator.js';
 import {
-  resolveSettings, resolveCompactSpec, selectCompactableRange,
+  resolveCompactSpec,
   type ResolvedCompactionSettings,
+  resolveSettings,
+  selectCompactableRange,
 } from './compaction-config.js';
-import type {CompactionTrigger, CompactionResult, ContextCompactor, ModelContextCompactorOptions} from './types.js';
+import type {CompactionResult, CompactionTrigger, ContextCompactor, ModelContextCompactorOptions} from './types.js';
 import {ManualCompactionError, TargetPressureConfigError} from './errors.js';
-import {COMPACTION_INSTRUCTION, CHECKPOINT_PREAMBLE, SUMMARY_OPEN_TAG, SUMMARY_CLOSE_TAG} from './prompts.js';
+import {CHECKPOINT_PREAMBLE, COMPACTION_INSTRUCTION, SUMMARY_CLOSE_TAG, SUMMARY_OPEN_TAG} from './prompts.js';
 
 /** 摘要消息固定 role 与 metadata 标识 */
 const SUMMARY_ROLE = 'summary';
@@ -216,20 +218,15 @@ export class ModelContextCompactor implements ContextCompactor {
     let text = '';
     for (let attempt = 0; attempt <= this.settings.compactionRetries; attempt++) {
       try {
-        const { stream } = await client.stream({
+        const result = await client.stream({
           system: COMPACTION_INSTRUCTION,
           messages: input,
           maxOutputTokens: this.settings.maxTokens,
           temperature: 0,
           abortSignal: signal,
         });
-        text = '';
-        const reader = stream.getReader();
-        while (true) {
-          const { done, value: part } = await reader.read();
-          if (done) break;
-          if (part.type === 'text-delta') text += (part as { delta?: string }).delta ?? '';
-        }
+
+        text = await result.text()
         break; // 成功，退出重试
       } catch {
         if (attempt === this.settings.compactionRetries) return null;
