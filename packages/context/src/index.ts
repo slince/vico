@@ -4,11 +4,10 @@ export {
   ModelRequestContext,
   type AgentRef,
 } from './model-request-context.js';
-export { type ContextProcessor } from './context-processor.js';
 export {
-  ProcessorPipeline,
   buildModelRequest,
   Priority,
+  type ContextProcessor,
 } from './context-processor.js';
 export { SystemPromptProcessor } from './system-prompt-processor.js';
 export { SkillProcessor } from './skill-processor.js';

@@ -38,8 +38,9 @@ import {
 } from '@vico/stream';
 import {type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '@vico/checkpoint';
+import {Pipeline} from '@vico/utils';
 import type {ContextProcessor} from '@vico/context';
-import {ModelRequestContext, ProcessorPipeline} from '@vico/context';
+import {ModelRequestContext} from '@vico/context';
 import type {
   ModelStepResult,
   ResolvedApprovals,
@@ -83,7 +84,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   readonly logger: Logger;
 
   private readonly toolExecutor: ToolExecutor;
-  private readonly pipeline: ProcessorPipeline;
+  private readonly pipeline: Pipeline<ModelRequestContext>;
   /** run 级覆盖模型客户端（key 为模型名），复用已构建实例，避免重复 createLanguageModel/new */
   private readonly modelOverrides = new Map<string, ModelClient>();
 
@@ -114,7 +115,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     this.logger = rest.logger ?? pino();
 
     this.toolExecutor = new ToolExecutor({ tools: rest.tools });
-    this.pipeline = new ProcessorPipeline(processors ?? createDefaultProcessors(rest.skills, rest.memory));
+    this.pipeline = new Pipeline<ModelRequestContext>().use(...(processors ?? createDefaultProcessors(rest.skills, rest.memory)));
   }
 
   get log(): Logger {

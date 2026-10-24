@@ -277,6 +277,9 @@ importers:
       '@vico/types':
         specifier: workspace:*
         version: link:../types
+      '@vico/utils':
+        specifier: workspace:*
+        version: link:../utils
       ai:
         specifier: 'catalog:'
         version: 7.0.150(zod@4.6.7)

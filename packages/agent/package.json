@@ -21,6 +21,7 @@
     "@vico/thread": "workspace:*",
     "@vico/tool": "workspace:*",
     "@vico/types": "workspace:*",
+    "@vico/utils": "workspace:*",
     "ai": "catalog:",
     "pino": "catalog:",
     "zod": "catalog:"

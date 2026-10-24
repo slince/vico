@@ -24,18 +24,13 @@ export interface ContextProcessor {
   因此可直接喂给 `Pipeline.use()`。
 - 语义：`next()` 前 = 原 `process`（进入段）；`next()` 返回后 = 原 `resolve`（离开段）；不调 `next()` 即短路。
 
-### 2. `ProcessorPipeline` 变成 `Pipeline` 的薄封装
+### 2. `ProcessorPipeline` 移除，直接用 `@vico/utils` 的 `Pipeline`
+
+`@vico/context` 不再提供自己的管道类，消费方直接装配底层 `Pipeline`：
 
 ```ts
-export class ProcessorPipeline {
-  private readonly pipeline = new Pipeline<ModelRequestContext>();
-  constructor(readonly processors: ContextProcessor[]) {
-    this.pipeline.use(...processors);
-  }
-  execute(ctx: ModelRequestContext, core?: Next): Promise<void> {
-    return this.pipeline.execute(ctx, core);
-  }
-}
+private readonly pipeline = new Pipeline<ModelRequestContext>()
+  .use(...(processors ?? createDefaultProcessors(skills, memory)));
 ```
 
 排序/执行全部下沉给 `@vico/utils` 的 `compose`（priority 升序，同优先级保持传入顺序）。

@@ -32,7 +32,7 @@ export class MemoryProcessor implements ContextProcessor {
       await this.storeEpisodic(ctx);
     } catch (err) {
       console.warn(
-        `[ProcessorPipeline] Processor "${this.name}" resolve threw:`,
+        `[ContextProcessor] Processor "${this.name}" resolve threw:`,
         err instanceof Error ? err.message : err,
       );
     }
