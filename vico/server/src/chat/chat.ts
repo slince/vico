@@ -23,6 +23,8 @@ export interface ExecuteChatParams {
   approvalMode?: ApprovalMode;
   /** 客户端选择的工作区路径；新会话写入 thread.metadata，复用会话时若与已存工作区不符则回写 */
   workspace?: string;
+  /** 请求生命周期中断信号（客户端断开），透传给 agent 聚合，自动终止 LLM 调用 */
+  signal?: AbortSignal;
 }
 
 /** executeAgentChat 返回结果：流输出 + 解析后的线程（新建时含服务端生成的 ID） */
@@ -97,12 +99,15 @@ async function resolveThread(
 export async function executeAgentChat(
   params: ExecuteChatParams,
 ): Promise<ExecuteChatResult> {
-  const { agentId, message, threadId, userId, model, reasoning, approvalMode, workspace } = params;
+  const { agentId, message, threadId, userId, model, reasoning, approvalMode, workspace, signal } = params;
 
   const agent = await getAgent(agentId);
   const thread = await resolveThread(agent, threadId, userId, message, workspace);
 
-  const output = await agent.stream(message ? [message] : [], { thread, model, reasoning, approvalMode });
+  const output = await agent.stream(message ? [message] : [], {
+    thread, model, reasoning,
+    approvalMode, signal
+  });
 
   return { output, thread };
 }

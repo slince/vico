@@ -86,10 +86,9 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       reasoning: toReasoningEffort(config?.reasoningEffort),
       approvalMode: toApprovalMode(config?.approvalMode),
       workspace: config?.workspace,
+      // 透传 HTTP 请求中断信号：客户端断开时经 agent 聚合自动终止 LLM 调用
+      signal: c.req.raw.signal,
     });
-
-    // 桥接 HTTP 请求生命周期到 agent 执行：客户端断开时自动终止 LLM 调用
-    c.req.raw.signal.addEventListener('abort', () => output.abort(), { once: true });
 
     return createUIMessageStreamResponse({
       stream: toUIMessageStream({
