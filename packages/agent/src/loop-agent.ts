@@ -38,7 +38,7 @@ import {
 } from '@vico/stream';
 import {type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '@vico/checkpoint';
-import {forwardToController, Pipeline} from '@vico/utils';
+import {createAggregatedAbortController, forwardToController, Pipeline} from '@vico/utils';
 import type {ContextProcessor} from '@vico/context';
 import {ModelRequestContext} from '@vico/context';
 import type {
@@ -194,20 +194,15 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   private run(userMessages: ModelMessage[], options: RunOptions): TurnOutput {
     const { promise, resolve } = Promise.withResolvers<TurnResult>();
 
-    // 外部传入 signal 时复用之；未传则自行构造 AbortController，作为 TurnOutput.abort() / 流 cancel 的中断源
-    const internalAc = options.signal ? undefined : new AbortController();
-    const signal = options.signal ?? internalAc!.signal;
-
-    const abort = () => {
-      internalAc?.abort();
-    };
-
+    // 统一中断源：TurnOutput.abort() / 流 cancel 直接取消它，外部 signal 经聚合联动到同一 ac
+    const abortController = createAggregatedAbortController(options.signal);
+    
     const stream = new ReadableStream<TextStreamPart<TToolSet>>({
       start: async (controller) => {
         try {
           const result = await this.start({
             userMessages,
-            signal,
+            signal: abortController.signal,
             controller,
             thread: options.thread,
             reasoning: options.reasoning,
@@ -227,11 +222,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         }
       },
       cancel() {
-        internalAc?.abort();
+        abortController.abort();
       },
     });
 
-    return new TurnOutput(stream, promise, abort);
+    return new TurnOutput(stream, promise, abortController);
   }
 
   /**

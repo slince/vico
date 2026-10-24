@@ -14,23 +14,23 @@ export class TurnOutput {
   /** turn 完成后的最终结果（由 run() 内部 resolve，永不 reject） */
   private readonly resultPromise: Promise<TurnResult>;
 
-  private _abort: () => void;
+  private readonly abortController: AbortController;
 
   constructor(
     stream: ReadableStream<TextStreamPart<ToolSet>>,
     resultPromise: Promise<TurnResult>,
-    abort: () => void,
+    abortController: AbortController,
   ) {
     this.stream = stream;
     this.resultPromise = resultPromise;
-    this._abort = abort;
+    this.abortController = abortController;
   }
 
   /**
    * 中断当前 turn 执行。
    */
   abort(): void {
-    this._abort();
+    this.abortController.abort();
   }
 
   /**

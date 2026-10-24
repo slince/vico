@@ -13,3 +13,4 @@ export {
 } from './compose.js';
 export { Pipeline } from './pipeline.js';
 export { forwardToController } from './forward-stream.js';
+export { createAggregatedAbortController } from './abort-signal.js';
