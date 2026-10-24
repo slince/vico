@@ -25,7 +25,7 @@ import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@
 import {fromModelMessage, type MessageWithUsage} from '@vico/thread';
 import type {ToolApproval} from '@vico/types';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
-import type {CallModelResult, TurnEvent, UserMessage} from '@vico/stream';
+import type {CallModelResult, UserMessage} from '@vico/stream';
 import {
   addUsage,
   createModelStreamTransformer,
