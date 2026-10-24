@@ -1,10 +1,10 @@
 // src/tool/builtin/glob-tool.ts
-import {readdirSync, statSync} from 'node:fs';
-import {relative, resolve} from 'node:path';
-import {z} from 'zod';
-import {createTool} from '../../create-tool.js';
-import type {ToolCallContext} from '../../types.js';
-import {resolveWorkspacePath} from '../workspace.js';
+import { relative, resolve } from 'node:path';
+import { z } from 'zod';
+import { localFilesystem, type Filesystem } from '@vico/fs';
+import { createTool } from '../../create-tool.js';
+import type { ToolCallContext } from '../../types.js';
+import { resolveWorkspacePath } from '../workspace.js';
 
 const globParams = z.object({
   pattern: z.string().default('*').describe('匹配文件名的 glob 模式'),
@@ -25,21 +25,22 @@ function globToRegex(pattern: string): RegExp {
   return new RegExp(`^${escaped}$`);
 }
 
-function collectFiles(searchDir: string, regex: RegExp, maxResults: number): GlobResult[] {
+/** 递归收集匹配 glob 的文件，按 mtime 排序前的原始结果 */
+async function collectFiles(fs: Filesystem, searchDir: string, regex: RegExp, maxResults: number): Promise<GlobResult[]> {
   const results: GlobResult[] = [];
 
-  function walk(dir: string) {
+  async function walk(dir: string) {
     if (results.length >= maxResults) return;
     try {
-      const entries = readdirSync(dir, { withFileTypes: true });
+      const entries = await fs.readDir(dir);
       for (const entry of entries) {
         if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
         const fullPath = resolve(dir, entry.name);
-        if (entry.isDirectory()) {
-          walk(fullPath);
-        } else if (entry.isFile() && regex.test(entry.name)) {
+        if (entry.isDirectory) {
+          await walk(fullPath);
+        } else if (entry.isFile && regex.test(entry.name)) {
           try {
-            const stat = statSync(fullPath);
+            const stat = await fs.stat(fullPath);
             results.push({ path: fullPath, mtime: stat.mtimeMs });
           } catch {
             results.push({ path: fullPath, mtime: 0 });
@@ -51,7 +52,7 @@ function collectFiles(searchDir: string, regex: RegExp, maxResults: number): Glo
     }
   }
 
-  walk(searchDir);
+  await walk(searchDir);
   return results;
 }
 
@@ -60,32 +61,41 @@ const globOutputSchema = z.object({
   count: z.number().int(),
 });
 
-async function executeGlob(args: z.infer<typeof globParams>, ctx: ToolCallContext): Promise<z.infer<typeof globOutputSchema>> {
-  const workspace = ctx.session.workspace!;
+type GlobOutput = z.infer<typeof globOutputSchema>;
 
-  const searchDir = args.path
-    ? resolveWorkspacePath(workspace, args.path)
-    : resolve(workspace, '.');
+/**
+ * 创建 glob 工具 — 通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。
+ * @param fs - 文件系统实现，默认本地文件系统
+ */
+export function createGlobTool(fs: Filesystem = localFilesystem) {
+  return createTool({
+    name: 'glob',
+    description:
+      '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。用于按命名模式定位文件。',
+    inputSchema: globParams,
+    outputSchema: globOutputSchema,
+    policy: 'auto',
+    kind: 'readonly',
+    tags: ['requires-workspace'],
+    async execute(args: z.infer<typeof globParams>, ctx: ToolCallContext): Promise<GlobOutput> {
+      const workspace = ctx.session.workspace!;
 
-  const regex = globToRegex(args.pattern);
-  const results = collectFiles(searchDir, regex, args.limit * 2);
+      const searchDir = args.path
+        ? resolveWorkspacePath(workspace, args.path)
+        : resolve(workspace, '.');
 
-  const sorted = results
-    .sort((a, b) => b.mtime - a.mtime)
-    .slice(0, args.limit)
-    .map((r) => relative(workspace, r.path));
+      const regex = globToRegex(args.pattern);
+      const results = await collectFiles(fs, searchDir, regex, args.limit * 2);
 
-  return { files: sorted, count: sorted.length };
+      const sorted = results
+        .sort((a, b) => b.mtime - a.mtime)
+        .slice(0, args.limit)
+        .map((r) => relative(workspace, r.path));
+
+      return { files: sorted, count: sorted.length };
+    },
+  });
 }
 
-export const globTool = createTool({
-  name: 'glob',
-  description:
-    '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。用于按命名模式定位文件。',
-  inputSchema: globParams,
-  outputSchema: globOutputSchema,
-  policy: 'auto',
-  kind: 'readonly',
-  tags: ['requires-workspace'],
-  execute: executeGlob,
-});
+/** glob 工具默认实例（使用本地文件系统） */
+export const globTool = createGlobTool();

@@ -1,17 +1,18 @@
 // @vico/skill - skill_read 工具：读取 Skill 目录内的文件
 
-import { readFileSync, existsSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
 import { z } from 'zod';
 import { createTool } from '@vico/tool';
+import { localFilesystem, type Filesystem } from '@vico/fs';
 import type { SkillRegistry } from '../skill-registry.js';
 
 /**
  * 创建 skill_read 工具 — 读取 Skill 目录下的引用、脚本或资源文件。
  * @param manager - SkillRegistry 实例
+ * @param fs - 文件系统实现，默认本地文件系统
  * @returns 配置好的 Tool 对象
  */
-export function createSkillReadTool(manager: SkillRegistry) {
+export function createSkillReadTool(manager: SkillRegistry, fs: Filesystem = localFilesystem) {
   return createTool({
     name: 'skill_read',
     description: '读取 Skill 的 references、scripts 或 assets 目录中的文件。',
@@ -37,9 +38,9 @@ export function createSkillReadTool(manager: SkillRegistry) {
         throw new Error(`Invalid path (outside skill directory): ${filePath}`);
       }
 
-      if (!existsSync(fullPath)) throw new Error(`File not found: ${filePath}`);
+      if (!(await fs.exists(fullPath))) throw new Error(`File not found: ${filePath}`);
       try {
-        return { content: readFileSync(fullPath, 'utf-8') };
+        return { content: await fs.readTextFile(fullPath) };
       } catch {
         throw new Error(`Cannot read file: ${filePath} (may be binary)`);
       }

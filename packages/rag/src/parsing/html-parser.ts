@@ -2,7 +2,7 @@
 // Strips script/style tags then extracts plain text.
 
 import type { Parser, ParseResult } from '../types/document.js';
-import { readFile } from 'node:fs/promises';
+import { localFilesystem } from '@vico/fs';
 
 /**
  * HtmlParser — 去除 script/style 标签后提取 HTML 纯文本。
@@ -19,7 +19,7 @@ export class HtmlParser implements Parser {
       raw = input.toString('utf-8');
     } else {
       try {
-        raw = await readFile(input, 'utf-8');
+        raw = await localFilesystem.readTextFile(input);
       } catch {
         raw = input;
       }

@@ -244,6 +244,9 @@ importers:
 
   packages/agent:
     dependencies:
+      '@vico/bash-tool':
+        specifier: workspace:*
+        version: link:../bash-tool
       '@vico/checkpoint':
         specifier: workspace:*
         version: link:../checkpoint
@@ -286,6 +289,22 @@ importers:
       pino:
         specifier: 'catalog:'
         version: 10.4.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
+  packages/bash-tool:
+    dependencies:
+      '@vico/tool':
+        specifier: workspace:*
+        version: link:../tool
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -524,8 +543,23 @@ importers:
         specifier: 'catalog:'
         version: 5.9.3
 
+  packages/fs:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/memory:
     dependencies:
+      '@vico/fs':
+        specifier: workspace:*
+        version: link:../fs
       '@vico/model':
         specifier: workspace:*
         version: link:../model
@@ -632,6 +666,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3
         version: 3.8.1
+      '@vico/fs':
+        specifier: workspace:*
+        version: link:../fs
       mammoth:
         specifier: ^1
         version: 1.13.0
@@ -686,6 +723,9 @@ importers:
 
   packages/skill:
     dependencies:
+      '@vico/fs':
+        specifier: workspace:*
+        version: link:../fs
       '@vico/tool':
         specifier: workspace:*
         version: link:../tool
@@ -790,6 +830,9 @@ importers:
 
   packages/tool:
     dependencies:
+      '@vico/fs':
+        specifier: workspace:*
+        version: link:../fs
       '@vico/thread':
         specifier: workspace:*
         version: link:../thread

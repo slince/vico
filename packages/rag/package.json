@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vico/fs": "workspace:*",
     "zod": "catalog:"
   },
   "peerDependencies": {

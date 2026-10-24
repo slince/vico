@@ -1,7 +1,7 @@
 // @vico/rag — Plain text parser
 
 import type { Parser, ParseResult } from '../types/document.js';
-import { readFile } from 'node:fs/promises';
+import { localFilesystem } from '@vico/fs';
 
 /** 文本文件扩展名 */
 const TEXT_EXTENSIONS = [
@@ -31,7 +31,7 @@ export class TextParser implements Parser {
 
     // 可能是文件路径
     try {
-      const content = await readFile(input, 'utf-8');
+      const content = await localFilesystem.readTextFile(input);
       return { text: content, metadata: { source: input } };
     } catch {
       // 当作纯文本内容

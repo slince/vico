@@ -2,7 +2,7 @@
 // Strips frontmatter, code blocks preserved
 
 import type { Parser, ParseResult } from '../types/document.js';
-import { readFile } from 'node:fs/promises';
+import { localFilesystem } from '@vico/fs';
 
 /**
  * MarkdownParser — 解析 Markdown 文件为纯文本。
@@ -21,7 +21,7 @@ export class MarkdownParser implements Parser {
       raw = input.toString('utf-8');
     } else {
       try {
-        raw = await readFile(input, 'utf-8');
+        raw = await localFilesystem.readTextFile(input);
       } catch {
         raw = input;
       }

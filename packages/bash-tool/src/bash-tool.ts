@@ -1,9 +1,8 @@
-// src/tool/builtin/bash-tool.ts
+// @vico/bash-tool - Bash 持久会话执行工具
 import {ChildProcess, spawn} from 'node:child_process';
 import {z} from 'zod';
-import {createTool} from '../../create-tool.js';
-import type {ToolCallContext} from '../../types.js';
-import {resolveWorkspacePath} from '../workspace.js';
+import {createTool, resolveWorkspacePath} from '@vico/tool';
+import type {ToolCallContext} from '@vico/tool';
 
 const bashParams = z.object({
   command: z.string().describe('要执行的 shell 命令'),

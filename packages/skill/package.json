@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vico/fs": "workspace:*",
     "@vico/tool": "workspace:*",
     "gray-matter": "^4.0.3",
     "zod": "catalog:"

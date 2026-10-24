@@ -1,10 +1,10 @@
 // src/tool/builtin/read-tool.ts
-import {readFileSync, statSync} from 'node:fs';
-import {relative} from 'node:path';
-import {z} from 'zod';
-import {createTool} from '../../create-tool.js';
-import type {ToolCallContext} from '../../types.js';
-import {resolveWorkspacePath} from '../workspace.js';
+import { relative } from 'node:path';
+import { z } from 'zod';
+import { localFilesystem, type Filesystem } from '@vico/fs';
+import { createTool } from '../../create-tool.js';
+import type { ToolCallContext } from '../../types.js';
+import { resolveWorkspacePath } from '../workspace.js';
 
 const readParams = z.object({
   path: z.string().describe('要读取的文件路径（相对于工作区或绝对路径）'),
@@ -45,13 +45,14 @@ function isBinary(buffer: Buffer): boolean {
  *
  * 支持通过 offset 指定起始行，通过 limit 限制返回行数。
  *
+ * @param fs - 文件系统实现
  * @param absPath - 文件的绝对路径
  * @param offset - 起始行号（1-based），默认为 1
  * @param limit - 最大返回行数，不指定则返回全部
  * @returns cat -n 格式的带行号文本内容，若截断则显示剩余行数提示
  */
-function readTextFile(absPath: string, offset?: number, limit?: number): string {
-  const content = readFileSync(absPath, 'utf-8');
+async function readTextFile(fs: Filesystem, absPath: string, offset?: number, limit?: number): Promise<string> {
+  const content = await fs.readTextFile(absPath);
   const lines = content.split('\n');
   const start = (offset ?? 1) - 1;
   const end = limit ? start + limit : lines.length;
@@ -82,16 +83,16 @@ type ReadOutput = z.infer<typeof readOutputSchema>;
  *
  * 根据文件扩展名自动匹配 MIME 类型，返回可直接用于 `<img>` 标签的 data URI。
  *
+ * @param fs - 文件系统实现
  * @param absPath - 图片文件的绝对路径
  * @param ext - 文件扩展名（含点号，如 ".png"）
  * @param workspace - 工作区根路径，用于计算相对路径
  * @returns 包含 base64 data URI、类型和相对路径的 ReadOutput 对象
  */
-function readImageFile(absPath: string, ext: string, workspace: string): ReadOutput {
-  const buffer = readFileSync(absPath);
+async function readImageFile(fs: Filesystem, absPath: string, ext: string, workspace: string): Promise<ReadOutput> {
+  const buffer = Buffer.from(await fs.readFile(absPath));
   const b64 = buffer.toString('base64');
   const mime = MIME_TYPES[ext] ?? 'application/octet-stream';
-  const stat = statSync(absPath);
   return {
     content: `data:${mime};base64,${b64}`,
     type: 'image',
@@ -99,38 +100,45 @@ function readImageFile(absPath: string, ext: string, workspace: string): ReadOut
   };
 }
 
-async function executeRead(args: z.infer<typeof readParams>, ctx: ToolCallContext): Promise<ReadOutput> {
-  const workspace = ctx.session.workspace!;
-  const absPath = resolveWorkspacePath(workspace, args.path);
-  const stat = statSync(absPath);
+/**
+ * 创建 read 工具 — 读取工作区文件，支持行偏移、行数限制与图片 base64 返回。
+ * @param fs - 文件系统实现，默认本地文件系统
+ */
+export function createReadTool(fs: Filesystem = localFilesystem) {
+  return createTool({
+    name: 'read',
+    description:
+      '读取工作区文件，支持行偏移和行数限制。图片文件自动检测并以 base64 返回。用于查看当前工作区文件内容。',
+    inputSchema: readParams,
+    outputSchema: readOutputSchema,
+    policy: 'auto',
+    kind: 'readonly',
+    tags: ['requires-workspace'],
+    async execute(args: z.infer<typeof readParams>, ctx: ToolCallContext): Promise<ReadOutput> {
+      const workspace = ctx.session.workspace!;
+      const absPath = resolveWorkspacePath(workspace, args.path);
+      const stat = await fs.stat(absPath);
 
-  if (!stat.isFile()) {
-    throw new Error(`"${args.path}" is not a file`);
-  }
+      if (!stat.isFile) {
+        throw new Error(`"${args.path}" is not a file`);
+      }
 
-  const ext = absPath.slice(absPath.lastIndexOf('.')).toLowerCase();
-  const rel = relative(workspace, absPath);
+      const ext = absPath.slice(absPath.lastIndexOf('.')).toLowerCase();
+      const rel = relative(workspace, absPath);
 
-  if (IMAGE_EXTENSIONS.has(ext)) {
-    return readImageFile(absPath, ext, workspace);
-  }
+      if (IMAGE_EXTENSIONS.has(ext)) {
+        return readImageFile(fs, absPath, ext, workspace);
+      }
 
-  const buffer = readFileSync(absPath);
-  if (isBinary(buffer)) {
-    return { content: `[Binary file: ${rel} (${stat.size} bytes)]`, type: 'binary', path: rel };
-  }
+      const buffer = Buffer.from(await fs.readFile(absPath));
+      if (isBinary(buffer)) {
+        return { content: `[Binary file: ${rel} (${stat.size} bytes)]`, type: 'binary', path: rel };
+      }
 
-  return { content: readTextFile(absPath, args.offset, args.limit), type: 'text', path: rel };
+      return { content: await readTextFile(fs, absPath, args.offset, args.limit), type: 'text', path: rel };
+    },
+  });
 }
 
-export const readTool = createTool({
-  name: 'read',
-  description:
-    '读取工作区文件，支持行偏移和行数限制。图片文件自动检测并以 base64 返回。用于查看当前工作区文件内容。',
-  inputSchema: readParams,
-  outputSchema: readOutputSchema,
-  policy: 'auto',
-  kind: 'readonly',
-  tags: ['requires-workspace'],
-  execute: executeRead,
-});
+/** read 工具默认实例（使用本地文件系统） */
+export const readTool = createReadTool();

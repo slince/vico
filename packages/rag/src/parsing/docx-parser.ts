@@ -3,7 +3,7 @@
 // Gracefully degrades if not installed.
 
 import type { Parser, ParseResult } from '../types/document.js';
-import { readFile } from 'node:fs/promises';
+import { localFilesystem } from '@vico/fs';
 
 /**
  * DocxParser — 使用 mammoth 提取 .docx 文本。
@@ -24,7 +24,7 @@ export class DocxParser implements Parser {
       buf = input;
     } else {
       try {
-        buf = await readFile(input);
+        buf = Buffer.from(await localFilesystem.readFile(input));
       } catch {
         throw new Error(`DocxParser: cannot read file "${input}"`);
       }

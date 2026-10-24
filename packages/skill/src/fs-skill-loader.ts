@@ -1,9 +1,9 @@
 // src/skill/fs-skill-loader.ts
-import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
-import {homedir} from 'node:os';
-import {resolve} from 'node:path';
+import { homedir } from 'node:os';
+import { resolve } from 'node:path';
 import matter from 'gray-matter';
-import type {Skill, SkillLoader} from './types.js';
+import { localFilesystem, type Filesystem } from '@vico/fs';
+import type { Skill, SkillLoader } from './types.js';
 
 /**
  * 展开路径中的 ~ 前缀为家目录。
@@ -27,10 +27,21 @@ function validateSkillName(name: unknown): name is string {
   return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name) && name.length >= 1 && name.length <= 64;
 }
 
-function listDir(dir: string): string[] {
+/** 列出目录下的条目绝对路径；目录不可读时返回空数组 */
+async function listDir(fs: Filesystem, dir: string): Promise<string[]> {
   try {
-    const entries = readdirSync(dir);
-    return entries.map((e) => resolve(dir, e));
+    const entries = await fs.readDir(dir);
+    return entries.map((e) => resolve(dir, e.name));
+  } catch {
+    return [];
+  }
+}
+
+/** 列出目录下的条目名；目录不存在或不可读时返回空数组 */
+async function listNames(fs: Filesystem, dir: string): Promise<string[]> {
+  try {
+    const entries = await fs.readDir(dir);
+    return entries.map((e) => e.name);
   } catch {
     return [];
   }
@@ -39,11 +50,12 @@ function listDir(dir: string): string[] {
 /**
  * 从指定目录加载单个 Skill（读取 SKILL.md 并解析）。
  * @param dir - 包含 SKILL.md 的目录路径
+ * @param fs - 文件系统实现，默认本地文件系统
  * @returns 解析后的 Skill 对象
  */
-export async function loadSkillFromDir(dir: string): Promise<Skill> {
+export async function loadSkillFromDir(dir: string, fs: Filesystem = localFilesystem): Promise<Skill> {
   const mdPath = resolve(dir, 'SKILL.md');
-  const content = readFileSync(mdPath, 'utf-8');
+  const content = await fs.readTextFile(mdPath);
   const { data, content: body } = matter(content);
 
   const name = data.name as string;
@@ -64,9 +76,9 @@ export async function loadSkillFromDir(dir: string): Promise<Skill> {
     license: data.license as string | undefined,
     compatibility: data.compatibility as string | undefined,
     userInvocable: data['user-invocable'] !== false,
-    references: existsSync(referenceDir) ? readdirSync(referenceDir) : [],
-    scripts: existsSync(scriptsDir) ? readdirSync(scriptsDir) : [],
-    assets: existsSync(assetsDir) ? readdirSync(assetsDir) : [],
+    references: await listNames(fs, referenceDir),
+    scripts: await listNames(fs, scriptsDir),
+    assets: await listNames(fs, assetsDir),
     metadata: data.metadata as Record<string, string> | undefined,
   };
 }
@@ -74,9 +86,10 @@ export async function loadSkillFromDir(dir: string): Promise<Skill> {
 /**
  * 从指定目录列表扫描并加载所有 Skill（按 name 去重）。
  * @param dirs - 待扫描的目录列表
+ * @param fs - 文件系统实现，默认本地文件系统
  * @returns 加载成功的 Skill 列表
  */
-export async function loadSkillsFromDirs(dirs: string[]): Promise<Skill[]> {
+export async function loadSkillsFromDirs(dirs: string[], fs: Filesystem = localFilesystem): Promise<Skill[]> {
   const candidates: string[] = [];
   const seen = new Set<string>();
 
@@ -85,17 +98,17 @@ export async function loadSkillsFromDirs(dirs: string[]): Promise<Skill[]> {
 
     // root 本身是否包含 SKILL.md？
     const directMd = resolve(fullPath, 'SKILL.md');
-    if (existsSync(directMd) && !seen.has(fullPath)) {
+    if (await fs.exists(directMd) && !seen.has(fullPath)) {
       seen.add(fullPath);
       candidates.push(fullPath);
     }
 
     // 扫描一级子目录
-    for (const entry of listDir(fullPath)) {
+    for (const entry of await listDir(fs, fullPath)) {
       try {
-        if (statSync(entry).isDirectory()) {
+        if ((await fs.stat(entry)).isDirectory) {
           const subMd = resolve(entry, 'SKILL.md');
-          if (existsSync(subMd) && !seen.has(entry)) {
+          if (await fs.exists(subMd) && !seen.has(entry)) {
             seen.add(entry);
             candidates.push(entry);
           }
@@ -109,7 +122,7 @@ export async function loadSkillsFromDirs(dirs: string[]): Promise<Skill[]> {
 
   for (const candidate of candidates) {
     try {
-      const skill = await loadSkillFromDir(candidate);
+      const skill = await loadSkillFromDir(candidate, fs);
       if (!nameCache.has(skill.name)) {
         nameCache.set(skill.name, skill);
         skills.push(skill);
@@ -120,7 +133,12 @@ export async function loadSkillsFromDirs(dirs: string[]): Promise<Skill[]> {
   return skills;
 }
 
-/** 从文件系统创建 Skill 加载器 — 扫描指定目录并加载 SKILL.md */
-export function createFSSkillLoader(dirs: string[]): SkillLoader {
-  return async () => loadSkillsFromDirs(dirs);
+/**
+ * 从文件系统创建 Skill 加载器 — 扫描指定目录并加载 SKILL.md。
+ * @param dirs - 待扫描的目录列表
+ * @param fs - 文件系统实现，默认本地文件系统
+ * @returns 返回 Skill 数组的异步加载器
+ */
+export function createFSSkillLoader(dirs: string[], fs: Filesystem = localFilesystem): SkillLoader {
+  return async () => loadSkillsFromDirs(dirs, fs);
 }

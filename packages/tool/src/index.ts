@@ -16,11 +16,15 @@ export {
   ApprovalPriority,
 } from './policy-helpers.js';
 export {
+  createReadTool,
   readTool,
-  bashTool,
+  createEditTool,
   editTool,
+  createWriteTool,
   writeTool,
+  createGrepTool,
   grepTool,
+  createGlobTool,
   globTool,
   webFetchTool,
   todoTool,
@@ -30,10 +34,7 @@ export {
   browserClickTool,
   basicTools,
   filesystemTools,
-  codingTools,
   baseBuiltinTools,
-  fileBuiltinTools,
-  coreBuiltinTools,
   resolveWorkspacePath,
 } from './builtin/index.js';
 export type {

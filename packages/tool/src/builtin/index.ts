@@ -7,15 +7,12 @@ export { webFetchTool } from './basic/web-fetch-tool.js';
 export { askUserTool } from './basic/ask-user-tool.js';
 export { browserNavigateTool, browserSnapshotTool, browserClickTool } from './basic/browser-tool.js';
 
-// Filesystem tools
-export { readTool } from './filesystem/read-tool.js';
-export { writeTool } from './filesystem/write-tool.js';
-export { editTool } from './filesystem/edit-tool.js';
-export { grepTool } from './filesystem/grep-tool.js';
-export { globTool } from './filesystem/glob-tool.js';
-
-// Coding tools
-export { bashTool } from './coding/bash-tool.js';
+// Filesystem tools（工厂 + 默认实例）
+export { createReadTool, readTool } from './filesystem/read-tool.js';
+export { createWriteTool, writeTool } from './filesystem/write-tool.js';
+export { createEditTool, editTool } from './filesystem/edit-tool.js';
+export { createGrepTool, grepTool } from './filesystem/grep-tool.js';
+export { createGlobTool, globTool } from './filesystem/glob-tool.js';
 
 import { todoTool } from './basic/todo-tool.js';
 import { webFetchTool } from './basic/web-fetch-tool.js';
@@ -31,8 +28,6 @@ import { writeTool } from './filesystem/write-tool.js';
 import { editTool } from './filesystem/edit-tool.js';
 import { grepTool } from './filesystem/grep-tool.js';
 import { globTool } from './filesystem/glob-tool.js';
-
-import { bashTool } from './coding/bash-tool.js';
 
 import type { Tool } from '../types.js';
 
@@ -55,23 +50,5 @@ export const filesystemTools: Tool[] = [
   globTool,
 ];
 
-/** Coding 工具（需要 workspace）：Shell */
-export const codingTools: Tool[] = [
-  bashTool,
-];
-
 /** @deprecated 使用 basicTools */
 export const baseBuiltinTools: Tool[] = basicTools;
-
-/** @deprecated 使用 filesystemTools.concat(codingTools) */
-export const fileBuiltinTools: Tool[] = [
-  ...filesystemTools,
-  ...codingTools,
-];
-
-/** 内置工具全集 */
-export const coreBuiltinTools: Tool[] = [
-  ...basicTools,
-  ...filesystemTools,
-  ...codingTools,
-];

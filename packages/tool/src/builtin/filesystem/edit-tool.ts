@@ -1,10 +1,10 @@
 // src/tool/builtin/edit-tool.ts
-import {readFileSync, writeFileSync} from 'node:fs';
-import {relative} from 'node:path';
-import {z} from 'zod';
-import {createTool} from '../../create-tool.js';
-import type {ToolCallContext} from '../../types.js';
-import {resolveWorkspacePath} from '../workspace.js';
+import { relative } from 'node:path';
+import { z } from 'zod';
+import { localFilesystem, type Filesystem } from '@vico/fs';
+import { createTool } from '../../create-tool.js';
+import type { ToolCallContext } from '../../types.js';
+import { resolveWorkspacePath } from '../workspace.js';
 
 const editEntry = z.object({
   oldText: z.string().describe('要查找的精确文本'),
@@ -53,6 +53,8 @@ const editOutputSchema = z.object({
   replacements: z.number().int(),
   diff: z.string(),
 });
+
+type EditOutput = z.infer<typeof editOutputSchema>;
 
 /** 执行字符串替换编辑 */
 function applyTextEdits(original: string, edits: Array<{ oldText: string; newText: string }>): string {
@@ -120,60 +122,64 @@ function applyLineInsert(original: string, insertAt: number, newContent: string)
   ].join('\n');
 }
 
-async function executeEdit(
-  args: z.infer<typeof editParams>,
-  ctx: ToolCallContext,
-): Promise<z.infer<typeof editOutputSchema>> {
-  const workspace = ctx.session.workspace!;
-  const absPath = resolveWorkspacePath(workspace, args.path);
-  const original = readFileSync(absPath, 'utf-8');
+/**
+ * 创建 edit 工具 — 支持字符串替换、行号编辑、行插入三种模式。
+ * @param fs - 文件系统实现，默认本地文件系统
+ */
+export function createEditTool(fs: Filesystem = localFilesystem) {
+  return createTool({
+    name: 'edit',
+    description:
+      '编辑文件，支持三种模式：1) 字符串替换（oldText→newText，oldText 须在文件中唯一）；2) 行号编辑（startLine/endLine+newContent 替换指定行范围）；3) 行插入（insertAt+newContent 在指定行后插入）。返回 unified diff。',
+    inputSchema: editParams,
+    outputSchema: editOutputSchema,
+    policy: 'auto',
+    kind: 'mutation',
+    tags: ['requires-workspace'],
+    async execute(args: z.infer<typeof editParams>, ctx: ToolCallContext): Promise<EditOutput> {
+      const workspace = ctx.session.workspace!;
+      const absPath = resolveWorkspacePath(workspace, args.path);
+      const original = await fs.readTextFile(absPath);
 
-  let modified: string;
+      let modified: string;
 
-  // 行号插入模式
-  if (args.insertAt !== undefined && args.newContent !== undefined) {
-    modified = applyLineInsert(original, args.insertAt, args.newContent);
-  }
-  // 行号范围编辑模式
-  else if (args.startLine !== undefined && args.newContent !== undefined) {
-    const endLine = args.endLine ?? args.startLine;
-    modified = applyLineEdits(original, args.startLine, endLine, args.newContent);
-  }
-  // 字符串替换模式
-  else {
-    const edits = args.edits ?? (
-      args.oldText !== undefined
-        ? [{ oldText: args.oldText, newText: args.newText ?? '' }]
-        : []
-    );
+      // 行号插入模式
+      if (args.insertAt !== undefined && args.newContent !== undefined) {
+        modified = applyLineInsert(original, args.insertAt, args.newContent);
+      }
+      // 行号范围编辑模式
+      else if (args.startLine !== undefined && args.newContent !== undefined) {
+        const endLine = args.endLine ?? args.startLine;
+        modified = applyLineEdits(original, args.startLine, endLine, args.newContent);
+      }
+      // 字符串替换模式
+      else {
+        const edits = args.edits ?? (
+          args.oldText !== undefined
+            ? [{ oldText: args.oldText, newText: args.newText ?? '' }]
+            : []
+        );
 
-    if (edits.length === 0) {
-      throw new Error(
-        '必须提供以下模式之一：oldText+newText（字符串替换）、startLine+newContent（行号编辑）、insertAt+newContent（行插入）',
-      );
-    }
+        if (edits.length === 0) {
+          throw new Error(
+            '必须提供以下模式之一：oldText+newText（字符串替换）、startLine+newContent（行号编辑）、insertAt+newContent（行插入）',
+          );
+        }
 
-    modified = applyTextEdits(original, edits);
-  }
+        modified = applyTextEdits(original, edits);
+      }
 
-  writeFileSync(absPath, modified, 'utf-8');
+      await fs.writeFile(absPath, modified);
 
-  const rel = relative(workspace, absPath);
-  const diff = generateDiff(original, modified);
-  const replacements = (modified.split('\n').length !== original.split('\n').length) ||
-    modified !== original ? 1 : 0;
+      const rel = relative(workspace, absPath);
+      const diff = generateDiff(original, modified);
+      const replacements = (modified.split('\n').length !== original.split('\n').length) ||
+        modified !== original ? 1 : 0;
 
-  return { path: rel, replacements, diff };
+      return { path: rel, replacements, diff };
+    },
+  });
 }
 
-export const editTool = createTool({
-  name: 'edit',
-  description:
-    '编辑文件，支持三种模式：1) 字符串替换（oldText→newText，oldText 须在文件中唯一）；2) 行号编辑（startLine/endLine+newContent 替换指定行范围）；3) 行插入（insertAt+newContent 在指定行后插入）。返回 unified diff。',
-  inputSchema: editParams,
-  outputSchema: editOutputSchema,
-  policy: 'auto',
-  kind: 'mutation',
-  tags: ['requires-workspace'],
-  execute: executeEdit,
-});
+/** edit 工具默认实例（使用本地文件系统） */
+export const editTool = createEditTool();

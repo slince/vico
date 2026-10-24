@@ -3,7 +3,7 @@
 // Gracefully degrades if not installed.
 
 import type { Parser, ParseResult } from '../types/document.js';
-import { readFile } from 'node:fs/promises';
+import { localFilesystem } from '@vico/fs';
 
 /**
  * PdfParser — 使用 pdf-parse 提取 PDF 文本。
@@ -22,7 +22,7 @@ export class PdfParser implements Parser {
       buf = input;
     } else {
       try {
-        buf = await readFile(input);
+        buf = Buffer.from(await localFilesystem.readFile(input));
       } catch {
         throw new Error(`PdfParser: cannot read file "${input}"`);
       }
