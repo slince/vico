@@ -59,7 +59,7 @@ export async function normalizeUserMessage(message: UserMessage): Promise<ModelM
 export async function collectTurnResult(
   output: TurnOutput,
 ): Promise<TurnResult> {
-  return output.result;
+  return output.result();
 }
 
 

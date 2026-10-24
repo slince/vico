@@ -111,7 +111,7 @@ export interface Agent {
   invoke(message: UserMessage, options?: RunOptions): Promise<TurnResult>;
 
   /**
-   * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise。
+   * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result() 方法。
    *
    * @param message - 用户消息
    * @param options - turn 运行可选参数

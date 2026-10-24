@@ -170,11 +170,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    */
   async invoke(message: UserMessage, options: RunOptions): Promise<TurnResult> {
     const output = this.run(await normalizeUserMessage(message), options);
-    return output.result;
+    return output.result();
   }
 
   /**
-   * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result Promise。
+   * 流式对话 — 返回 TurnOutput，含 ReadableStream 流和 result() 方法。
    *
    * @param message - 用户消息
    * @param options - turn 运行参数
@@ -184,12 +184,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result Promise）。
+   * 执行一个 turn，同步返回 TurnOutput（含 ReadableStream 流和 result() 方法）。
    * 历史消息由 Memory 自动补充。外部通过 TurnOutput.abort() 终止。
    *
    * @param userMessages - 本轮输入消息组
    * @param options - turn 运行参数
-   * @returns TurnOutput 实例，包含输出流和结果 Promise
+   * @returns TurnOutput 实例，包含输出流和 result() 方法
    */
   private run(userMessages: ModelMessage[], options: RunOptions): TurnOutput {
     const { promise, resolve } = Promise.withResolvers<TurnResult>();
