@@ -36,6 +36,16 @@
 - **`FILE_HEADERS_ONLY`**：去掉 jsdiff 默认 `Index:`/`===` git 风格头，输出干净的 `---/+++/@@` unified diff。
 - **不传 oldHeader/newHeader**：避免 jsdiff 默认拼时间戳导致输出非确定。
 
+## edit 的字面量替换对齐 deepseek
+
+`editTool` 的字面量替换从「正则转义计数 + `String.replace`」改为 deepseek `tool-fs` 的 `applyLiteralEdit` 形态（`fs-local/src/fsio.ts`）：
+
+- **纯字面量**：`countOccurrences`（`indexOf` 循环非重叠计数）+ `content.split(oldNorm).join(newNorm)`，去掉正则转义。
+- **`replaceAll` 语义**：`oldText`/批量 `edits[]` 各带可选 `replaceAll`，默认 false（多处命中抛歧义错误），true 全替换。
+- **LF 归一化**：读入后 `normalizeLineEndings`（`\r\n`→`\n`）统一到 LF 基准做匹配与 diff；`detectLineEndings` 采样判断原文件 CRLF/LF，写回前 `restoreLineEndings` 还原，CRLF 文件不再整文件误报变更。
+- **空 oldText**：显式拒绝（对齐 deepseek 的 `FS_EDIT_NOT_FOUND`）。
+- 未照搬并发/版本 CAS 与 `FS_*` 结构化错误码——那依赖 fs 服务层的 per-target 锁与版本概念，本工具暂不具备。
+
 ## 依赖方向
 
 `@vico/fs-tool` → `@vico/fs`（read/write/edit） / `@vico/tool` / `@vscode/ripgrep` / `diff`，无环。

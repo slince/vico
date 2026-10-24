@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { keymap } from '@codemirror/view';
-import { AlertCircle, Eye, Loader2, PenLine, RefreshCw, Save } from 'lucide-react';
+import { AlertCircle, Eye, Loader2, PenLine, RefreshCw, RotateCcw, Save } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -91,6 +91,11 @@ export function FileContentViewer({
     }
   };
 
+  /** 放弃未保存修改，恢复到已保存的内容 */
+  const revert = () => {
+    setDraft(content ?? '');
+  };
+
   // 保存最新 save 引用供 keymap 调用，避免 extensions 随 draft 变化而重建编辑器
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -143,31 +148,37 @@ export function FileContentViewer({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-xs">
+      <div className="flex shrink-0 items-center gap-1.5 border-b px-3 py-1.5 text-xs">
         <code className="min-w-0 flex-1 truncate font-mono">{filePath}</code>
         {dirty && <span className="font-mono text-[10px] text-amber-600">●未保存</span>}
-        <Button size="sm" variant="ghost" onClick={onReload} title="重新加载">
+        {dirty && (
+          <Button size="icon" variant="ghost" onClick={revert} title="恢复原始内容" className="size-7">
+            <RotateCcw className="size-3.5" />
+          </Button>
+        )}
+        <Button size="icon" variant="ghost" onClick={onReload} title="重新加载" className="size-7">
           <RefreshCw className="size-3.5" />
         </Button>
         <Button
-          size="sm"
+          size="icon"
           variant={editing ? 'default' : 'outline'}
           onClick={() => {
             // 预览与编辑间自由切换：未保存的草稿始终保留，切回编辑态继续编辑
             setEditing((v) => !v);
           }}
+          title={editing ? '浏览' : '编辑'}
+          className="size-7"
         >
-          {editing ? <Eye className="mr-1 size-3.5" /> : <PenLine className="mr-1 size-3.5" />}
-          {editing ? '浏览' : '编辑'}
+          {editing ? <Eye className="size-3.5" /> : <PenLine className="size-3.5" />}
         </Button>
         <Button
-          size="sm"
+          size="icon"
           onClick={() => void save()}
           disabled={!dirty || saving}
-          className={cn(dirty && 'bg-primary')}
+          title="保存"
+          className={cn('size-7', dirty && 'bg-primary')}
         >
-          <Save className="mr-1 size-3.5" />
-          {saving ? '保存中...' : '保存'}
+          {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
         </Button>
       </div>
 
