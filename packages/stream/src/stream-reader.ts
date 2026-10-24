@@ -2,7 +2,6 @@
 import type {TextStreamPart, ToolSet} from 'ai';
 
 import type {ToolCall} from '@vico/tool';
-import type {TurnEvent} from './types.js';
 import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart,} from './stream-parts.js';
 import type {CallModelResult, ModelRequest, ModelStreamResult} from '@vico/model';
 
@@ -10,8 +9,6 @@ import type {CallModelResult, ModelRequest, ModelStreamResult} from '@vico/model
 export interface ModelStreamReaderOptions<TToolSet extends ToolSet = ToolSet> {
   /** 引擎层输出流控制器，接收转换后的 TextStreamPart */
   controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
-  /** 事件发射回调（转发给事件系统） */
-  emit: (event: TurnEvent) => void;
   /** 本 step 输入消息（供 start-step part 携带 request） */
   request: ModelRequest;
 }
@@ -25,12 +22,10 @@ export interface ModelStreamReaderOptions<TToolSet extends ToolSet = ToolSet> {
  */
 export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
   private readonly controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
-  private readonly emit: (event: TurnEvent) => void;
   private readonly request: ModelRequest;
 
   constructor(options: ModelStreamReaderOptions<TToolSet>) {
     this.controller = options.controller;
-    this.emit = options.emit;
     this.request = options.request;
   }
 
@@ -112,13 +107,11 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
           case 'text-delta':
             firstChunkTime ??= Date.now();
             this.controller.enqueue({ type: 'text-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
-            this.emit({ type: 'text-delta', content: chunk.delta });
             break;
 
           case 'reasoning-delta':
             firstChunkTime ??= Date.now();
             this.controller.enqueue({ type: 'reasoning-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
-            this.emit({ type: 'reasoning-delta', content: chunk.delta });
             break;
 
           // ── 工具输入流式（同形透传）──
@@ -143,7 +136,6 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
             const call: ToolCall = { id: chunk.toolCallId, name: chunk.toolName, args };
             callsById.set(call.id, call);
             this.controller.enqueue(createToolCall(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }));
-            this.emit({ type: 'tool-call-start', id: chunk.toolCallId, name: chunk.toolName, args });
             break;
           }
 
@@ -191,7 +183,6 @@ export class ModelStreamReader<TToolSet extends ToolSet = ToolSet> {
 
           case 'error': {
             const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-            this.emit({ type: 'error', error: err });
             this.controller.enqueue({ type: 'error', error: err });
             break;
           }
