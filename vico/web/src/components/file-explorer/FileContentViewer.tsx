@@ -59,11 +59,25 @@ export function FileContentViewer({
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // 切换文件时退出编辑态并清空草稿
+  // 记录最新编辑态，供内容同步 effect 读取（避免把 editing 加进依赖，导致退出编辑态时覆盖草稿）
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+
+  // 记录上一个文件路径，用于区分「切换文件」与「同一文件内容变化」
+  const prevFilePathRef = useRef(filePath);
+
+  // 切换文件时退出编辑态并重置草稿到新文件内容；同一文件内容就绪/变化时，非编辑态下同步草稿
   useEffect(() => {
-    setEditing(false);
-    setDraft('');
-  }, [filePath]);
+    const pathChanged = prevFilePathRef.current !== filePath;
+    prevFilePathRef.current = filePath;
+
+    if (pathChanged) {
+      setEditing(false);
+      setDraft(content ?? '');
+    } else if (!editingRef.current) {
+      setDraft(content ?? '');
+    }
+  }, [filePath, content]);
 
   /** 保存草稿；成功后退出编辑态，失败则由父组件注入 error 展示 */
   const save = async () => {
@@ -98,7 +112,7 @@ export function FileContentViewer({
     [filePath],
   );
 
-  const dirty = editing && draft !== (content ?? '');
+  const dirty = draft !== (content ?? '');
 
   if (isLoading) {
     return (
@@ -139,14 +153,8 @@ export function FileContentViewer({
           size="sm"
           variant={editing ? 'default' : 'outline'}
           onClick={() => {
-            if (editing) {
-              if (dirty && !window.confirm('放弃未保存的修改？')) return;
-              setDraft(content ?? '');
-              setEditing(false);
-            } else {
-              setDraft(content ?? '');
-              setEditing(true);
-            }
+            // 预览与编辑间自由切换：未保存的草稿始终保留，切回编辑态继续编辑
+            setEditing((v) => !v);
           }}
         >
           {editing ? <Eye className="mr-1 size-3.5" /> : <PenLine className="mr-1 size-3.5" />}
@@ -174,11 +182,11 @@ export function FileContentViewer({
           />
         ) : renderMarkdown ? (
           <div data-aui="markdown" className="px-4 py-3">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content ?? ''}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown>
           </div>
         ) : (
           <div className="px-2 py-2">
-            <SyntaxHighlighter code={content ?? ''} language={lang} />
+            <SyntaxHighlighter code={draft} language={lang} />
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 // @vico/fs-tool - 编辑文件工具
 import { relative } from 'node:path';
+import { createPatch, FILE_HEADERS_ONLY } from 'diff';
 import { z } from 'zod';
 import { localFilesystem, type Filesystem } from '@vico/fs';
 import { createTool, resolveWorkspacePath } from '@vico/tool';
@@ -24,27 +25,16 @@ const editParams = z.object({
 });
 
 /**
- * 生成统一 diff 格式的文本差异。
+ * 用 `diff` 包（jsdiff）生成 unified diff：`---/+++/@@` 头 + 每侧 3 行上下文。
+ * headerOptions 用 FILE_HEADERS_ONLY 去掉 jsdiff 默认的 `Index:`/`===` git 风格头；
+ * 不传 oldHeader/newHeader，避免 jsdiff 默认拼时间戳导致输出非确定。
  */
-function generateDiff(oldContent: string, newContent: string): string {
-  const oldLines = oldContent.split('\n');
-  const newLines = newContent.split('\n');
-  const diff: string[] = [];
-  let i = 0;
-  while (i < oldLines.length && i < newLines.length) {
-    if (oldLines[i] !== newLines[i]) {
-      diff.push(`-${oldLines[i]}`);
-      diff.push(`+${newLines[i]}`);
-    }
-    i++;
-  }
-  while (i < oldLines.length) {
-    diff.push(`-${oldLines[i++]}`);
-  }
-  while (i < newLines.length) {
-    diff.push(`+${newLines[i++]}`);
-  }
-  return diff.length > 0 ? diff.join('\n') : 'No changes detected';
+function generateDiff(path: string, oldContent: string, newContent: string): string {
+  if (oldContent === newContent) return 'No changes detected';
+  return createPatch(path, oldContent, newContent, undefined, undefined, {
+    context: 3,
+    headerOptions: FILE_HEADERS_ONLY,
+  }).trim();
 }
 
 const editOutputSchema = z.object({
@@ -171,7 +161,7 @@ export function createEditTool(fs: Filesystem = localFilesystem) {
       await fs.writeFile(absPath, modified);
 
       const rel = relative(workspace, absPath);
-      const diff = generateDiff(original, modified);
+      const diff = generateDiff(rel, original, modified);
       const replacements = (modified.split('\n').length !== original.split('\n').length) ||
         modified !== original ? 1 : 0;
 

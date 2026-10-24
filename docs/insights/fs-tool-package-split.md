@@ -12,7 +12,7 @@
 |----|----|
 | 新包 | `packages/fs-tool` → `@vico/fs-tool` |
 | 导出 | `readTool` / `writeTool` / `editTool` / `globTool` / `grepTool`、`createReadTool` 等工厂、`filesystemTools` |
-| 依赖 | `@vico/tool`（框架原语）、`@vico/fs`（read/write/edit 文件系统端口）、`@vscode/ripgrep`（glob/grep 二进制）、`zod` |
+| 依赖 | `@vico/tool`（框架原语）、`@vico/fs`（read/write/edit 文件系统端口）、`@vscode/ripgrep`（glob/grep 二进制）、`diff`（edit 的 unified diff）、`zod` |
 
 - `@vico/tool`：移除 `filesystemTools` 与 5 个 filesystem 工具（工厂 + 默认实例）导出；`basicTools` / `baseBuiltinTools` / `resolveWorkspacePath` 保留；移除 `@vico/fs` 依赖。
 - `@vico/agent`：`create-agent.ts` 的 `filesystemTools` 改从 `@vico/fs-tool` 导入，`package.json` 新增 `workspace:*` 依赖。
@@ -28,9 +28,17 @@
 - **argv 安全**：模型输入统一走 `--regexp=` / `--glob=` / `--`（`execFile` 无 shell 层），避免 leading-dash 值被解析为 flag；`--no-config` 阻断 `RIPGREP_CONFIG_PATH` 注入。
 - **变更点**：`createGlobTool` / `createGrepTool` 不再接收 `fs` 参数（spawn 实现，与 `@vico/fs` 无关）；`grep` 移除原 `context` 参数——参考实现约定用 `read` 补上下文。
 
+## edit 的 unified diff 基于 `diff` 包
+
+`editTool` 原本手写 `generateDiff`（逐行前缀/后缀对比，中间插入/删除会错位），改为 `diff`（jsdiff）的 `createPatch`：`createPatch(path, before, after, undefined, undefined, { context: 3, headerOptions: FILE_HEADERS_ONLY })`。参考 `deepseek-harness` 的 `tool-fs`（其 `computeHunkDiffs` 用 `structuredPatch`）。
+
+- **context 3**：与参考实现的 `DIFF_CONTEXT = 3` 一致。
+- **`FILE_HEADERS_ONLY`**：去掉 jsdiff 默认 `Index:`/`===` git 风格头，输出干净的 `---/+++/@@` unified diff。
+- **不传 oldHeader/newHeader**：避免 jsdiff 默认拼时间戳导致输出非确定。
+
 ## 依赖方向
 
-`@vico/fs-tool` → `@vico/fs`（read/write/edit） / `@vico/tool` / `@vscode/ripgrep`，无环。
+`@vico/fs-tool` → `@vico/fs`（read/write/edit） / `@vico/tool` / `@vscode/ripgrep` / `diff`，无环。
 
 ## 验证
 
