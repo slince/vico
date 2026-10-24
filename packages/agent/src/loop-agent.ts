@@ -202,7 +202,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const stream = new ReadableStream<TextStreamPart<TToolSet>>({
       start: async (controller) => {
-        controller.enqueue({ type: 'start' });
         try {
           const result = await this.start({
             userMessages,
@@ -318,7 +317,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }): Promise<TurnResult> {
     const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode } = params;
 
-    this.emit({ type: 'turn.pre', threadId: session.thread.id, turnId: session.turn.id });
+    this.emit({ type: 'turn.start', thread: session.thread, turn: session.turn });
+    controller.enqueue({ type: 'start' });
 
     const {decisions} = extractApprovalResponses(userMessages)
 
@@ -384,7 +384,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       this.log.info({ turnId: turn.id, steps: result.steps }, 'turn paused');
       // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
       context.controller.enqueue(finishPart('stop', usage));
-      this.emit({ type: 'turn.end', threadId: thread.id, turnId: turn.id });
+      this.emit({ type: 'turn.end', thread, turn });
       return {
         status: 'paused',
         steps: result.steps,
@@ -406,7 +406,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       await this.saveCheckpoint(context, 'failed')
 
       context.controller.enqueue(finishPart('error', usage));
-      this.emit({ type: 'turn.end', threadId: thread.id, turnId: turn.id });
+      this.emit({ type: 'turn.end', thread, turn });
 
       return {
         status: 'failed',
@@ -438,7 +438,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       context.controller.enqueue({ type: 'abort' });
     }
     context.controller.enqueue(finishPart(result.status === 'aborted' ? 'other' : 'stop', usage));
-    this.emit({ type: 'turn.end', threadId: thread.id, turnId: turn.id });
+    this.emit({ type: 'turn.end', thread, turn });
 
     return {
       status: result.status,
