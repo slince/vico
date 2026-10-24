@@ -1,5 +1,7 @@
-// @vico/context - ContextProcessor onion model: ordered pipeline of prompt modifiers
+// @vico/context - ContextProcessor：基于 @vico/utils 洋葱模型的上下文处理器
 import type {ModelRequestContext} from './model-request-context.js';
+import type {Next} from '@vico/utils';
+import {Pipeline} from '@vico/utils';
 
 /** 优先级常量 — 预定义三个档位，用户可自定义任意整数 */
 export const Priority = {
@@ -13,70 +15,49 @@ export const Priority = {
 
 /**
  * 上下文处理器 — 洋葱模型的一层。
- * 在 model 调用前按优先级依次执行（process），循环结束后逆序执行（resolve）。
+ *
+ * 实现为带优先级的类中间件（与 @vico/utils 的 PriorityMiddleware 同构，额外多 name 用于日志）：
+ * - `priority` 越小越靠外（先执行）；
+ * - `handle(ctx, next)` 中，`next()` 前为进入阶段（model 调用前修改上下文），
+ *   `next()` 返回后为离开阶段（提取记忆、后处理等）。
+ *
+ * 语义约定：
+ * - 只在进入阶段做事的处理器，直接在末尾 `await next()` 放行；
+ * - 想短路时可不调用 `next()`（后续内层与核心都不会执行）；
+ * - 离开阶段（next() 后）抛错会向外传播，非关键路径请自行 try-catch 静默。
  */
 export interface ContextProcessor {
   /** 处理器名称（用于日志/调试） */
   readonly name: string;
   /** 优先级，越小越外层（先执行） */
   readonly priority: number;
-  /** 进入阶段：model 调用前修改上下文 */
-  process(ctx: ModelRequestContext): Promise<void>;
-  /** 离开阶段：整个循环结束后逆序执行，用于提取记忆、后处理等 */
-  resolve?(ctx: ModelRequestContext): Promise<void>;
+  /** 洋葱层入口：next() 前做前置、next() 后做后置，返回 void 或 Promise<void> */
+  handle(ctx: ModelRequestContext, next: Next): void | Promise<void>;
 }
 
-/** 洋葱管道 — 按优先级排序后依次执行所有处理器 */
+/**
+ * 洋葱管道 — 基于 @vico/utils 的 Pipeline，把一组 ContextProcessor 组装成洋葱链。
+ *
+ * 层序由 Pipeline 内部按 priority 升序统一决定（同优先级保持传入顺序），
+ * 无需再手动排序。
+ */
 export class ProcessorPipeline {
-  /** 升序排列（enter 用） */
-  private readonly asc: ContextProcessor[];
-  /** 降序排列（leave 用） */
-  private readonly desc: ContextProcessor[];
+  private readonly pipeline = new Pipeline<ModelRequestContext>();
 
   constructor(readonly processors: ContextProcessor[]) {
-    const sorted = [...processors].sort((a, b) => a.priority - b.priority);
-    this.asc = sorted;
-    this.desc = [...sorted].reverse();
+    this.pipeline.use(...processors);
   }
 
   /**
-   * 进入阶段：按优先级升序依次执行 process()。
-   * 单个处理器异常不阻塞后续处理器。
+   * 触发洋葱执行：处理器按 priority 升序进入，最内层落到传入的核心 core，
+   * core 返回后按逆序执行各层的离开阶段。
    *
    * @param ctx - 模型请求上下文
+   * @param core - 最内层核心（如实际 model 循环），可选；未传时落到空操作
+   * @returns 全部层返回后的 Promise（异常会向外传播）
    */
-  async enter(ctx: ModelRequestContext): Promise<void> {
-    for (const processor of this.asc) {
-      try {
-        await processor.process(ctx);
-      } catch (err) {
-        console.warn(
-          `[ProcessorPipeline] Processor "${processor.name}" (priority ${processor.priority}) threw:`,
-          err instanceof Error ? err.message : err,
-        );
-        throw err
-      }
-    }
-  }
-
-  /**
-   * 离开阶段：循环结束后，按优先级降序（内层先执行）执行 resolve()。
-   * 不抛异常，不阻塞后续处理器。
-   *
-   * @param ctx - 模型请求上下文
-   */
-  async leave(ctx: ModelRequestContext): Promise<void> {
-    for (const processor of this.desc) {
-      if (!processor.resolve) continue;
-      try {
-        await processor.resolve(ctx);
-      } catch (err) {
-        console.warn(
-          `[ProcessorPipeline] Processor "${processor.name}" resolve threw:`,
-          err instanceof Error ? err.message : err,
-        );
-      }
-    }
+  execute(ctx: ModelRequestContext, core?: Next): Promise<void> {
+    return this.pipeline.execute(ctx, core);
   }
 }
 

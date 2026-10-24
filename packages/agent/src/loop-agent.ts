@@ -321,47 +321,60 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const userMessageCount = userMessages.length;
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
-    await this.pipeline.enter(requestContext);
-    // 历史由 MemoryProcessor unshift 注入；记录条数供 context-overflow 压缩后重建内存历史前缀
-    const historyCount = requestContext.messages.length - userMessageCount;
 
-    // 本轮次的上下文对象
-    const context: TurnContext<TToolSet> = {
-      ctx: requestContext,
-      messages: [...requestContext.messages],
-      decisions: decisions,
-      approvedTools: new Map<string, ToolApproval>(),
-      session,
-      signal,
-      controller,
-      checkpoint,
-      // 恢复暂停的 turn 时从 metadata.usage 读回已累计用量，跨暂停不丢量
-      usage: session.turn.metadata?.usage ?? emptyUsage(),
-      reasoning,
-      modelClient,
-      approvalMode,
-      historyCount,
-    };
+    // 洋葱执行：各处理器前置注入（enter 段）→ 核心（构建 TurnContext + runLoop）→ 逆序后置（resolve 段）。
+    // 核心产物经闭包传出；resolve 段跑完后统一交给 finalizeTurn 收尾（落库 + 流终结）。
+    let context: TurnContext<TToolSet>;
+    let loopResult: StepLoopResult;
+    await this.pipeline.execute(requestContext, async () => {
+      // 历史由 MemoryProcessor unshift 注入；记录条数供 context-overflow 压缩后重建内存历史前缀
+      const historyCount = requestContext.messages.length - userMessageCount;
 
-    // 从 session 加载会话配置
-    this.loadSessionApprovals(session, context);
+      // 本轮次的上下文对象
+      context = {
+        ctx: requestContext,
+        messages: [...requestContext.messages],
+        decisions: decisions,
+        approvedTools: new Map<string, ToolApproval>(),
+        session,
+        signal,
+        controller,
+        checkpoint,
+        // 恢复暂停的 turn 时从 metadata.usage 读回已累计用量，跨暂停不丢量
+        usage: session.turn.metadata?.usage ?? emptyUsage(),
+        reasoning,
+        modelClient,
+        approvalMode,
+        historyCount,
+      };
 
-    // 保存本轮会话消息
-    await this.persistMessages(context, userMessages);
+      // 从 session 加载会话配置
+      this.loadSessionApprovals(session, context);
 
-    return this.startLoop(context);
+      // 保存本轮会话消息
+      await this.persistMessages(context, userMessages);
+
+      loopResult = await this.runLoop(context);
+
+      // 非暂停（完结/失败/中止）时标记完结，resolve 类后置处理据此执行；暂停等待审批则不落情景记忆
+      if (loopResult.status !== 'paused') {
+        context.ctx.completed = true;
+      }
+    });
+
+    return this.finalizeTurn(context!, loopResult!);
   }
 
   /**
-   * 执行 loop 并处理 finalize（pipeline.leave, updateTurn, tracer.finish）。
+   * loop 结束后的收尾：按结果状态落库、终结输出流并返回最终 TurnResult。
+   *
+   * 注意：resolve 类后置处理（如情景记忆落库）已由洋葱 unwind 在 execute 中跑完，
+   * 本方法只负责「落库 + 流终结」，保证 finish part 是流内最后一个事件。
    */
-  private async startLoop(context: TurnContext<TToolSet>): Promise<TurnResult> {
+  private async finalizeTurn(context: TurnContext<TToolSet>, result: StepLoopResult): Promise<TurnResult> {
 
     const {session: {thread, turn}} = context
-    let usage = context.usage;
-
-    const result  = await this.runLoop(context);
-    usage = addUsage(usage, result.usage);
+    const usage = addUsage(context.usage, result.usage);
 
     // 暂停时不 finalize trace session，保留会话供恢复时复用
     if (result.status === 'paused') {
@@ -377,8 +390,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         turn,
       };
     }
-
-    await this.pipeline.leave(context.ctx);
 
     // 模型错误导致的失败
     if (result.status === 'failed') {
@@ -397,8 +408,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       return {
         status: 'failed',
         steps: result.steps,
-        usage, messages:
-        context.messages,
+        usage,
+        messages: context.messages,
         thread,
         turn,
         error: result.error,
@@ -437,7 +448,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 执行 step loop，被 startLoop（新 turn）和 startResume（恢复）共用。
+   * 执行 step loop，由 startTurn 的洋葱核心调用（新 turn 与恢复共用）。
    */
   private async runLoop(context: TurnContext<TToolSet>): Promise<StepLoopResult> {
     let usage = emptyUsage();

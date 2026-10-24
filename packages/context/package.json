@@ -16,6 +16,7 @@
     "@vico/skill": "workspace:*",
     "@vico/thread": "workspace:*",
     "@vico/tool": "workspace:*",
+    "@vico/utils": "workspace:*",
     "ai": "catalog:"
   },
   "devDependencies": {

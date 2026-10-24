@@ -31,6 +31,8 @@ export class ModelRequestContext {
   step?: TurnStep;
   /** 系统提示词 — 仅通过 appendSystemPrompt 追加，读取用 getSystemPrompt() */
   private systemPrompt: string;
+  /** 本轮 turn 是否已完结（completed/aborted/failed）；暂停等待审批时为 false，resolve 类后置处理据此跳过 */
+  completed = false;
 
   constructor({
     agent,

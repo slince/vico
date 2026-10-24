@@ -5,30 +5,46 @@ import {Priority} from './context-processor.js';
 import type {ModelRequestContext} from './model-request-context.js';
 import {getMessageText} from '@vico/model';
 import type {MemoryStore} from '@vico/memory';
+import type {Next} from '@vico/utils';
 
 /** 语义召回最小相似度 — 低于该值的记忆视为不相关，不注入上下文 */
 const RECALL_MIN_SCORE = 0.5;
 
-/** 注入会话历史、语义记忆和情景召回结果（HIGH 优先级） */
+/** 注入会话历史、语义记忆和情景召回结果；核心跑完后落库情景记忆（HIGH 优先级） */
 export class MemoryProcessor implements ContextProcessor {
   readonly name = 'memory';
   readonly priority = Priority.HIGH;
 
   constructor(private readonly memoryStore: MemoryStore) {}
 
-  async process(ctx: ModelRequestContext): Promise<void> {
+  async handle(ctx: ModelRequestContext, next: Next): Promise<void> {
     await this.injectConversationHistory(ctx);
     await this.injectSemanticMemory(ctx);
     await this.injectEpisodicRecall(ctx);
+
+    await next();
+
+    // 暂停等待审批时本轮尚未完结（completed=false），跳过情景记忆落库
+    if (!ctx.completed) return;
+
+    // 情景记忆是非关键路径：落库失败只告警，不阻塞 turn 完结
+    try {
+      await this.storeEpisodic(ctx);
+    } catch (err) {
+      console.warn(
+        `[ProcessorPipeline] Processor "${this.name}" resolve threw:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 
   /**
-   * 循环结束后将本轮用户消息原文向量化存入情景记忆。
+   * 核心循环结束后将本轮用户消息原文向量化存入情景记忆。
    * 情景记忆只做「向量化 + 语义检索」，不做事实提取。
    *
    * @param ctx - 模型请求上下文
    */
-  async resolve(ctx: ModelRequestContext): Promise<void> {
+  private async storeEpisodic(ctx: ModelRequestContext): Promise<void> {
     if (!this.memoryStore.episodic) return;
     const now = Date.now();
     const threadId = ctx.threadId || undefined;
