@@ -1,13 +1,13 @@
 // src/tool/builtin/index.ts
 
 // Basic tools
-export { todoTool } from './basic/todo-tool.js';
-export { webFetchTool } from './basic/web-fetch-tool.js';
-export { askUserTool } from './basic/ask-user-tool.js';
+export { todoTool } from './todo-tool.js';
+export { webFetchTool } from './web-fetch-tool.js';
+export { askUserTool } from './ask-user-tool.js';
 
-import { todoTool } from './basic/todo-tool.js';
-import { webFetchTool } from './basic/web-fetch-tool.js';
-import { askUserTool } from './basic/ask-user-tool.js';
+import { todoTool } from './todo-tool.js';
+import { webFetchTool } from './web-fetch-tool.js';
+import { askUserTool } from './ask-user-tool.js';
 
 import type { Tool } from '../types.js';
 

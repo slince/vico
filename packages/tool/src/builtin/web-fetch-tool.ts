@@ -1,14 +1,14 @@
 // src/tool/builtin/web-fetch-tool.ts
 import {z} from 'zod';
-import {createTool} from '../../create-tool.js';
-import type {ToolCallContext} from '../../types.js';
+import {createTool} from '../create-tool.js';
+import type {ToolCallContext} from '../types.js';
 
 const webFetchParams = z.object({
-  url: z.string().describe('要请求的 URL（仅支持 http/https）'),
-  method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']).default('GET').describe('HTTP 方法'),
-  headers: z.record(z.string(), z.string()).optional().describe('自定义请求头'),
-  body: z.string().optional().describe('请求体（POST/PUT/PATCH 时使用）'),
-  timeout: z.number().min(1000).max(60000).default(15000).describe('超时时间（毫秒）'),
+  url: z.string().describe('URL to request (http/https only)'),
+  method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']).default('GET').describe('HTTP method'),
+  headers: z.record(z.string(), z.string()).optional().describe('Custom request headers'),
+  body: z.string().optional().describe('Request body (for POST/PUT/PATCH)'),
+  timeout: z.number().min(1000).max(60000).default(15000).describe('Timeout in milliseconds'),
 });
 
 const MAX_RESPONSE_SIZE = 100 * 1024; // 100KB
@@ -23,9 +23,9 @@ const webFetchOutput = z.object({
 });
 
 async function executeWebFetch(args: z.infer<typeof webFetchParams>, _ctx: ToolCallContext) {
-  // 仅允许 http/https
+  // Only http/https is allowed
   if (!/^https?:\/\//i.test(args.url)) {
-    return { status: 0, statusText: 'Invalid URL', headers: {}, body: '', error: '仅支持 http/https URL' };
+    return { status: 0, statusText: 'Invalid URL', headers: {}, body: '', error: 'Only http/https URLs are supported' };
   }
 
   const controller = new AbortController();
@@ -45,7 +45,7 @@ async function executeWebFetch(args: z.infer<typeof webFetchParams>, _ctx: ToolC
 
     const text = await response.text();
     const truncated = text.length > MAX_RESPONSE_SIZE;
-    const body = truncated ? text.slice(0, MAX_RESPONSE_SIZE) + '\n... (响应已截断)' : text;
+    const body = truncated ? text.slice(0, MAX_RESPONSE_SIZE) + '\n... (response truncated)' : text;
 
     const headers: Record<string, string> = {};
     response.headers.forEach((value, key) => {
@@ -61,7 +61,7 @@ async function executeWebFetch(args: z.infer<typeof webFetchParams>, _ctx: ToolC
     };
   } catch (err: any) {
     if (err.name === 'AbortError') {
-      return { status: 0, statusText: 'Timeout', headers: {}, body: '', error: `请求超时 (${args.timeout}ms)` };
+      return { status: 0, statusText: 'Timeout', headers: {}, body: '', error: `Request timed out (${args.timeout}ms)` };
     }
     return { status: 0, statusText: 'Error', headers: {}, body: '', error: err.message };
   } finally {
@@ -72,7 +72,7 @@ async function executeWebFetch(args: z.infer<typeof webFetchParams>, _ctx: ToolC
 export const webFetchTool = createTool({
   name: 'web_fetch',
   description:
-    '发起 HTTP 请求获取网页或 API 数据。支持自定义方法、请求头和请求体。响应体超过 100KB 自动截断。用于查阅在线文档、调用 API 等场景。',
+    'Make an HTTP request to fetch web page or API data. Supports custom method, headers, and body. Response bodies over 100KB are automatically truncated. Use for reading online docs or calling APIs.',
   inputSchema: webFetchParams,
   outputSchema: webFetchOutput,
   policy: 'auto',

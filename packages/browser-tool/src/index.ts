@@ -1,7 +1,9 @@
 // @vico/browser-tool — 基于 Playwright 的浏览器工具
 
 import type {Tool} from '@vico/tool';
-import {browserNavigateTool, browserSnapshotTool, browserClickTool} from './browser-tool.js';
+import {browserNavigateTool} from './browser-navigate-tool.js';
+import {browserSnapshotTool} from './browser-snapshot-tool.js';
+import {browserClickTool} from './browser-click-tool.js';
 
 export {browserNavigateTool, browserSnapshotTool, browserClickTool};
 

@@ -1,16 +1,16 @@
 // src/tool/builtin/todo-tool.ts
 import {z} from 'zod';
-import {createTool} from '../../create-tool.js';
-import type {ToolCallContext} from '../../types.js';
+import {createTool} from '../create-tool.js';
+import type {ToolCallContext} from '../types.js';
 
 const todoEntry = z.object({
-  id: z.string().describe('任务唯一标识'),
-  content: z.string().describe('任务描述'),
-  status: z.enum(['pending', 'in_progress', 'completed']).describe('任务状态'),
+  id: z.string().describe('Unique identifier for the task'),
+  content: z.string().describe('Task description'),
+  status: z.enum(['pending', 'in_progress', 'completed']).describe('Task status'),
 });
 
 const todoParams = z.object({
-  tasks: z.array(todoEntry).describe('任务列表（替换当前全部任务）'),
+  tasks: z.array(todoEntry).describe('Task list (replaces the entire current list)'),
 });
 
 const todoOutput = z.object({
@@ -27,7 +27,7 @@ async function executeTodo(args: z.infer<typeof todoParams>, _ctx: ToolCallConte
   const pending = currentTasks.filter((t) => t.status === 'pending').length;
   const inProgress = currentTasks.filter((t) => t.status === 'in_progress').length;
   const completed = currentTasks.filter((t) => t.status === 'completed').length;
-  const summary = `总计 ${currentTasks.length} 个任务: ${pending} 待处理, ${inProgress} 进行中, ${completed} 已完成`;
+  const summary = `Total ${currentTasks.length} tasks: ${pending} pending, ${inProgress} in progress, ${completed} completed`;
 
   return { tasks: currentTasks, summary };
 }
@@ -35,7 +35,7 @@ async function executeTodo(args: z.infer<typeof todoParams>, _ctx: ToolCallConte
 export const todoTool = createTool({
   name: 'todo_write',
   description:
-    '创建和更新结构化任务列表，用于跟踪多步任务的执行进度。每次调用会替换全部任务列表。每个任务包含 id、content 和 status（pending/in_progress/completed）。',
+    'Create and update a structured task list to track progress across multi-step work. Each call replaces the entire list. Each task has an id, content, and status (pending/in_progress/completed).',
   inputSchema: todoParams,
   outputSchema: todoOutput,
   policy: 'auto',
