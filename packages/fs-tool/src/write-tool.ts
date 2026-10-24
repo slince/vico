@@ -1,10 +1,9 @@
-// src/tool/builtin/write-tool.ts
+// @vico/fs-tool - 写入文件工具
 import { dirname, relative } from 'node:path';
 import { z } from 'zod';
 import { localFilesystem, type Filesystem } from '@vico/fs';
-import { createTool } from '../../create-tool.js';
-import type { ToolCallContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import { createTool, resolveWorkspacePath } from '@vico/tool';
+import type { ToolCallContext } from '@vico/tool';
 
 const writeParams = z.object({
   path: z.string().describe('要写入的文件路径（相对于工作区或绝对路径）'),

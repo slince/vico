@@ -1,10 +1,9 @@
-// src/tool/builtin/glob-tool.ts
+// @vico/fs-tool - glob 查找文件工具
 import { relative, resolve } from 'node:path';
 import { z } from 'zod';
 import { localFilesystem, type Filesystem } from '@vico/fs';
-import { createTool } from '../../create-tool.js';
-import type { ToolCallContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import { createTool, resolveWorkspacePath } from '@vico/tool';
+import type { ToolCallContext } from '@vico/tool';
 
 const globParams = z.object({
   pattern: z.string().default('*').describe('匹配文件名的 glob 模式'),

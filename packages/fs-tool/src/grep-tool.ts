@@ -1,11 +1,10 @@
-// src/tool/builtin/grep-tool.ts
+// @vico/fs-tool - grep 搜索文件工具
 import { execSync } from 'node:child_process';
 import { relative, resolve } from 'node:path';
 import { z } from 'zod';
 import { localFilesystem, type Filesystem } from '@vico/fs';
-import { createTool } from '../../create-tool.js';
-import type { ToolCallContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import { createTool, resolveWorkspacePath } from '@vico/tool';
+import type { ToolCallContext } from '@vico/tool';
 
 const grepParams = z.object({
   pattern: z.string().describe('要搜索的正则表达式'),

@@ -15,6 +15,7 @@
     "@vico/compaction": "workspace:*",
     "@vico/context": "workspace:*",
     "@vico/events": "workspace:*",
+    "@vico/fs-tool": "workspace:*",
     "@vico/memory": "workspace:*",
     "@vico/model": "workspace:*",
     "@vico/skill": "workspace:*",

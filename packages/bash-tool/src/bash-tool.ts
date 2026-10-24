@@ -5,12 +5,12 @@ import {createTool, resolveWorkspacePath} from '@vico/tool';
 import type {ToolCallContext} from '@vico/tool';
 
 const bashParams = z.object({
-  command: z.string().describe('要执行的 shell 命令'),
-  timeout: z.number().min(1).max(600000).default(120000).describe('超时时间（毫秒）'),
-  action: z.enum(['run', 'poll', 'write', 'stop']).default('run').describe('会话操作'),
-  session_id: z.string().default('default').describe('用于 poll/write/stop 操作的会话 ID'),
-  input: z.string().optional().describe('发送到会话 stdin 的输入'),
-  dryRun: z.boolean().optional().describe('仅预览命令而不实际执行'),
+  command: z.string().describe('The shell command to execute'),
+  timeout: z.number().min(1).max(600000).default(120000).describe('Timeout in milliseconds'),
+  action: z.enum(['run', 'poll', 'write', 'stop']).default('run').describe('Session operation'),
+  session_id: z.string().default('default').describe('Session ID used for poll/write/stop operations'),
+  input: z.string().optional().describe('Input to send to the session stdin'),
+  dryRun: z.boolean().optional().describe('Preview the command without executing it'),
 });
 
 interface SessionEntry {
@@ -191,7 +191,7 @@ function handleRun(command: string, sid: string, timeout: number, cwd: string): 
 export const bashTool = createTool({
   name: 'bash',
   description:
-    '在持久会话中执行 shell 命令。支持长运行命令的超时和会话管理（run/poll/write/stop 操作）。工作目录为工作区根目录。使用 "run" 启动命令，"poll" 检查状态（增量输出），"write" 发送 stdin 输入，"stop" 终止会话。dryRun=true 可预览命令而不执行。会话超时 10 分钟自动清理。',
+    'Execute shell commands in a persistent session. Supports timeouts and session management for long-running commands (run/poll/write/stop operations). The working directory is the workspace root. Use "run" to start a command, "poll" to check status (incremental output), "write" to send stdin input, and "stop" to terminate the session. Set dryRun=true to preview the command without executing it. Sessions auto-clean up after a 10-minute timeout.',
   inputSchema: bashParams,
   outputSchema: z.string(),
   policy: 'auto',

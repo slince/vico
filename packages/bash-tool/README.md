@@ -13,7 +13,8 @@ import { bashTool, codingTools } from '@vico/bash-tool';
 const tools = [bashTool];
 
 // 与其他内置工具组合
-import { basicTools, filesystemTools } from '@vico/tool';
+import { basicTools } from '@vico/tool';
+import { filesystemTools } from '@vico/fs-tool';
 const all = [...basicTools, ...filesystemTools, ...codingTools];
 ```
 

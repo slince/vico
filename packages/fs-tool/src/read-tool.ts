@@ -1,10 +1,9 @@
-// src/tool/builtin/read-tool.ts
+// @vico/fs-tool - 读取文件工具
 import { relative } from 'node:path';
 import { z } from 'zod';
 import { localFilesystem, type Filesystem } from '@vico/fs';
-import { createTool } from '../../create-tool.js';
-import type { ToolCallContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import { createTool, resolveWorkspacePath } from '@vico/tool';
+import type { ToolCallContext } from '@vico/tool';
 
 const readParams = z.object({
   path: z.string().describe('要读取的文件路径（相对于工作区或绝对路径）'),

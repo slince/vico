@@ -1,10 +1,9 @@
-// src/tool/builtin/edit-tool.ts
+// @vico/fs-tool - 编辑文件工具
 import { relative } from 'node:path';
 import { z } from 'zod';
 import { localFilesystem, type Filesystem } from '@vico/fs';
-import { createTool } from '../../create-tool.js';
-import type { ToolCallContext } from '../../types.js';
-import { resolveWorkspacePath } from '../workspace.js';
+import { createTool, resolveWorkspacePath } from '@vico/tool';
+import type { ToolCallContext } from '@vico/tool';
 
 const editEntry = z.object({
   oldText: z.string().describe('要查找的精确文本'),

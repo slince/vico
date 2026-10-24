@@ -59,13 +59,13 @@ export abstract class Filesystem {
 统一模式：在**已有工厂/构造器 seam** 上加可选 `fs: Filesystem = localFilesystem` 参数，默认走单例，未来可注入替代实现。同步调用点就地改 async（工具 `execute`、loader 本就返回 Promise）。
 
 - `packages/skill`：`fs-skill-loader.ts` 的 `loadSkillFromDir` / `loadSkillsFromDirs` / `createFSSkillLoader` 增 `fs` 参数；`skill-read.ts` 的 `createSkillReadTool(manager, fs = localFilesystem)`。
-- `packages/tool`：`read` / `write` / `edit` / `glob` / `grep` 各工具改为 `createXTool(fs = localFilesystem)`；glob/grep 的递归 `walk` 改 async 递归。
+- `packages/fs-tool`（原 `packages/tool/src/builtin/filesystem/`，后拆分为独立包）：`read` / `write` / `edit` / `glob` / `grep` 各工具改为 `createXTool(fs = localFilesystem)`；glob/grep 的递归 `walk` 改 async 递归。
 - `packages/rag`：`text` / `markdown` / `csv` / `html` 解析器 `readFile` → `localFilesystem.readTextFile`；`pdf` / `docx` → `Buffer.from(await localFilesystem.readFile(...))`。
 - `packages/memory`：`FileSemanticMemoryOptions` 增可选 `fs`，内部改走 `this.fs.*`。
 
 ## 依赖方向
 
-`@vico/fs` 无 runtime 依赖；`skill` / `tool` / `rag` / `memory` 各自新增 `@vico/fs: workspace:*`。
+`@vico/fs` 无 runtime 依赖；`skill` / `fs-tool` / `rag` / `memory` 各自新增 `@vico/fs: workspace:*`（`@vico/tool` 在 filesystem 工具迁出后已移除该依赖）。
 
 ## 暂未迁移（说明原因）
 
