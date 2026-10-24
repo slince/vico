@@ -463,6 +463,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     while (steps < this.maxSteps && !signal.aborted) {
       const step: TurnStep = { index: steps, messages: context.messages };
+
+      this.emit({ type: 'step-start', step: step.index });
+
       const { action, pendingApprovalCalls, approvedCalls, deniedResults, usage: stepUsage, error } = await this.executeModelStep(step, context);
       usage = addUsage(usage, stepUsage);
 
@@ -652,7 +655,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    *   - `continue`：工具已审批通过，交由 runLoop 落「计划版本」后执行
    */
   private async executeModelStep(step: TurnStep, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
-    this.emit({ type: 'step-start', step: step.index + 1 });
 
     let usage = emptyUsage();
 
@@ -683,14 +685,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     if (modelResult.toolCalls.length === 0) {
-      this.emit({ type: 'step-end', step: step.index + 1 });
       return { action: 'break', usage };
     }
 
     // 有待审批的工具 → 暂停 turn
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
     if (pendingApprovalCalls.length > 0) {
-      this.emit({ type: 'step-end', step: step.index + 1 });
       return { action: 'pause', pendingApprovalCalls, approvedCalls, deniedResults, usage };
     }
 
@@ -926,7 +926,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         const result = await context.modelClient.stream(request);
         const reader = new ModelStreamReader<TToolSet>({
           controller,
-          emit: this.emit,
           request: request,
         });
         return reader.read(result);
