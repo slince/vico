@@ -8,5 +8,6 @@ export { LoopAgent, type LoopAgentOptions } from './loop-agent.js';
 export { collectTurnResult, normalizeUserMessage } from './utils.js';
 export { TurnOutput } from './turn-output.js';
 export { type TurnResult, type RunOptions } from './loop-agent-options.js';
+export type { TurnEvent } from './types.js';
 export { createDelegateTool } from './tools/delegate-tool.js';
 export { Vico, type VicoOptions } from './vico.js';

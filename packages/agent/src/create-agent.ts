@@ -2,7 +2,7 @@
 import type {Agent} from './agent.js';
 import {LoopAgent} from './loop-agent.js';
 import {isLanguageModel, type LanguageModel, type ModelConfig, type ModelRef, type ReasoningEffort} from '@vico/model';
-import type {TurnEvent} from '@vico/stream';
+import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '@vico/tool';
 import type {Skill} from '@vico/skill';
 import type {SemanticMemory} from '@vico/memory';

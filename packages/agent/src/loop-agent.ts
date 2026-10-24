@@ -51,6 +51,7 @@ import type {
 } from './loop-agent-options.js';
 import {createDefaultProcessors, normalizeUserMessage} from './utils.js';
 import {TurnOutput} from './turn-output.js';
+import type {TurnEvent} from './types.js';
 
 /** LoopAgent 构造选项 */
 export interface LoopAgentOptions extends AgentOptions {
@@ -218,7 +219,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           const error = err instanceof Error ? err : String(err);
           // 向流内透出错误 part（controller 可能已关闭，静默兜底）
           try { controller.enqueue({ type: 'error', error }); } catch { /* already closed */ }
-          this.emit({ type: 'error', error });
           // 始终 resolve：错误已通过流透出，消费者无需 try-catch
           resolve({ status: 'failed', steps: 0, usage: emptyUsage(), messages: [], error });
         } finally {
@@ -318,6 +318,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }): Promise<TurnResult> {
     const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode } = params;
 
+    this.emit({ type: 'turn.pre', threadId: session.thread.id, turnId: session.turn.id });
+
     const {decisions} = extractApprovalResponses(userMessages)
 
     const userMessageCount = userMessages.length;
@@ -382,6 +384,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       this.log.info({ turnId: turn.id, steps: result.steps }, 'turn paused');
       // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
       context.controller.enqueue(finishPart('stop', usage));
+      this.emit({ type: 'turn.end', threadId: thread.id, turnId: turn.id });
       return {
         status: 'paused',
         steps: result.steps,
@@ -394,7 +397,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 模型错误导致的失败
     if (result.status === 'failed') {
-      const err = result.error!;
       // 失败态也落库本 turn 累计用量，供审计与 thread 累加
       await this.thread.updateTurn(turn.id, {
         status: 'failed',
@@ -404,7 +406,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       await this.saveCheckpoint(context, 'failed')
 
       context.controller.enqueue(finishPart('error', usage));
-      this.emit({ type: 'error', error: err });
+      this.emit({ type: 'turn.end', threadId: thread.id, turnId: turn.id });
 
       return {
         status: 'failed',
@@ -436,7 +438,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       context.controller.enqueue({ type: 'abort' });
     }
     context.controller.enqueue(finishPart(result.status === 'aborted' ? 'other' : 'stop', usage));
-    this.emit({ type: 'done', usage });
+    this.emit({ type: 'turn.end', threadId: thread.id, turnId: turn.id });
 
     return {
       status: result.status,
@@ -464,7 +466,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     while (steps < this.maxSteps && !signal.aborted) {
       const step: TurnStep = { index: steps, messages: context.messages };
 
-      this.emit({ type: 'step-start', step: step.index });
+      this.emit({ type: 'step.start', step: step.index });
 
       const { action, pendingApprovalCalls, approvedCalls, deniedResults, usage: stepUsage, error } = await this.executeModelStep(step, context);
       usage = addUsage(usage, stepUsage);
@@ -497,7 +499,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       // 执行本轮 auto 批准的调用，拒绝结果一并落消息链（结果只落消息链，checkpoint 已留执行清单）
       await this.executeToolCalls(context, approvedCalls ?? [], deniedResults ?? []);
 
-      this.emit({ type: 'step-end', step: step.index });
+      this.emit({ type: 'step.end', step: step.index });
       // step 完成 → 推进版本：清单清空，标志本轮决策执行完毕
       steps++;
     }
@@ -632,7 +634,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 执行本轮批准的调用；拒绝结果一并落消息链
     const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context, (call, result) => {
       context.controller.enqueue(toolResultPart(result, call.args));
-      this.emit({ type: 'tool-result', id: result.callId, name: result.name, status: result.status, output: result.output });
     });
     await this.appendToolResults([...toolResults, ...deniedResults], context);
 
@@ -742,26 +743,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
             approved: true,
             approvedAt: Date.now(),
           });
-          if (decision.suggested) {
-            this.emit({
-              type: 'tool-suggested',
-              toolCallId: call.id,
-              toolName: call.name,
-              input: call.args,
-            });
-          }
           approvedCalls.push(call);
           break;
         }
         case 'paused': {
           context.controller.enqueue(toolApprovalRequestPart(call));
-          this.emit({
-            type: 'tool-approval-request',
-            approvalId: call.id,
-            toolCallId: call.id,
-            toolName: call.name,
-            input: call.args,
-          });
           pendingApprovalCalls.push(call);
           break;
         }
@@ -861,21 +847,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   private async compactForPressure(thread: Thread, modelClient: ModelClient, signal: AbortSignal): Promise<void> {
     if (!this.compactor) return;
     try {
-      const result = await this.compactor.compactIfNeeded(thread, modelClient, 'pressure', signal);
-      if (result) this.emitCompacted(result);
+      await this.compactor.compactIfNeeded(thread, modelClient, 'pressure', signal);
     } catch (err) {
       this.log.warn({ threadId: thread.id, err }, 'pressure compaction skipped');
     }
-  }
-
-  /** 发射压缩事件 */
-  private emitCompacted(result: CompactionResult): void {
-    this.emit({
-      type: 'compacted',
-      summaryMessageId: result.summaryMessageId,
-      archivedTurnIds: result.archivedTurnIds,
-      removedTokens: result.removedTokens,
-    });
   }
 
   /** context-overflow 压缩后，用新历史替换内存中的旧历史前缀（原地 splice 使 step.messages 同步） */
@@ -901,7 +876,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const { ctx, controller } = context;
 
     const resolveError = (error: Error | string): CallModelResult => {
-      this.emit({ type: 'error', error });
       try {
         controller.enqueue({ type: 'error', error });
       } catch (e) {
@@ -948,7 +922,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       try {
         const result = await this.compactor.compactIfNeeded(context.session.thread, context.modelClient, 'context-overflow', context.signal);
         if (result) {
-          this.emitCompacted(result);
           await this.refreshHistory(context);
           return attempt();
         }
