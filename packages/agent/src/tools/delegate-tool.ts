@@ -3,10 +3,11 @@ import {z} from 'zod';
 import {createTool} from '@vico/tool';
 import {type AgentConfig, createAgent} from '../create-agent.js';
 import type {ToolCallContext} from '@vico/tool';
+import {DELEGATE_SYSTEM_PROMPT, buildDelegateMessage} from './delegate-prompts.js';
 
 const delegateParams = z.object({
-  task: z.string().describe('要委托给子 agent 完成的任务描述'),
-  context: z.string().optional().describe('传递给子 agent 的上下文信息'),
+  task: z.string().describe('The task to delegate to the child agent'),
+  context: z.string().optional().describe('Optional context to pass to the child agent'),
 });
 
 const delegateOutput = z.object({
@@ -29,11 +30,7 @@ export function createDelegateTool(parentConfig: { getConfig(): AgentConfig}) {
     const childConfig: AgentConfig = {
       id: `${parent.id}-delegate-${Date.now()}`,
       name: `${parent.name}-delegate`,
-      systemPrompt: [
-        '你是一个子任务执行 agent。完成分配给你的特定任务，然后返回结果。',
-        '只使用只读工具查看代码和文件，不要修改任何文件。',
-        '完成后，总结你的发现。',
-      ].join('\n'),
+      systemPrompt: DELEGATE_SYSTEM_PROMPT,
       model: parent.model,
       temperature: parent.temperature ?? 0.3,
       maxSteps: 5,
@@ -46,12 +43,7 @@ export function createDelegateTool(parentConfig: { getConfig(): AgentConfig}) {
 
     const childAgent = await createAgent(childConfig);
 
-    const message = [
-      `## 子任务`,
-      args.task,
-      args.context ? `\n## 上下文\n${args.context}` : '',
-      '\n请完成上述任务，总结你的发现。',
-    ].join('\n');
+    const message = buildDelegateMessage(args.task, args.context);
 
     try {
       const result = await childAgent.invoke(message, {
@@ -72,7 +64,7 @@ export function createDelegateTool(parentConfig: { getConfig(): AgentConfig}) {
   return createTool({
     name: 'delegate',
     description:
-      '将子任务委托给子 agent 执行。子 agent 使用只读工具探索代码库并返回分析结果。适用于大规模代码搜索、多文件分析等需要独立上下文的场景。',
+      'Delegate a subtask to a child agent. The child agent explores the codebase with read-only tools and returns an analysis. Useful for large-scale code search, multi-file analysis, and other scenarios that need an isolated context.',
     inputSchema: delegateParams,
     outputSchema: delegateOutput,
     policy: 'auto',

@@ -1,8 +1,8 @@
 # @vico/tool
 
-工具框架与内置工具。
+工具框架与基础内置工具。
 
-提供 Tool 定义、ToolExecutor 执行器、审批策略，以及浏览器、web fetch、todo、ask_user 等内置工具（bash 编码工具已拆分至 [@vico/bash-tool](../bash-tool/README.md)，文件系统工具已拆分至 [@vico/fs-tool](../fs-tool/README.md)）。
+提供 Tool 定义、ToolExecutor 执行器、审批策略，以及 web_fetch、todo、ask_user 等基础内置工具（bash 拆分至 [@vico/bash-tool](../bash-tool/README.md)、文件系统拆分至 [@vico/fs-tool](../fs-tool/README.md)、浏览器拆分至 [@vico/browser-tool](../browser-tool/README.md)）。
 
 ## 快速使用
 
@@ -18,11 +18,12 @@ const echo = createTool({
   execute: async (args) => args.message,
 });
 
-// 内置工具直接组合使用（bash 从 @vico/bash-tool、文件系统从 @vico/fs-tool 导入）
+// 内置工具直接组合使用（bash / 文件系统 / 浏览器分别从各自包导入）
 import { basicTools } from '@vico/tool';
 import { codingTools } from '@vico/bash-tool';
 import { filesystemTools } from '@vico/fs-tool';
-const tools = [...basicTools, ...filesystemTools, ...codingTools];
+import { browserTools } from '@vico/browser-tool';
+const tools = [...basicTools, ...filesystemTools, ...codingTools, ...browserTools];
 ```
 
 ## 相关文档

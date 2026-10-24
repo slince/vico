@@ -1,6 +1,7 @@
 // @vico/fs-tool - grep 搜索文件工具
 import { z } from 'zod';
-import { createTool, resolveWorkspacePath } from '@vico/tool';
+import { createTool } from '@vico/tool';
+import { resolveWorkspacePath } from '@vico/utils';
 import type { ToolCallContext } from '@vico/tool';
 import { runRipgrep, toWorkdirRelative } from './ripgrep.js';
 

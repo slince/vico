@@ -1,6 +1,7 @@
-// @vico/utils - 通用工具（栈、按键互斥锁、Map 合并、洋葱 compose / Pipeline）
+// @vico/utils - 通用工具（栈、按键互斥锁、Map 合并、洋葱 compose / Pipeline、workspace 路径解析）
 
 export { Stack } from './Stack.js';
+export { resolveWorkspacePath } from './workspace-path.js';
 export { KeyedMutex } from './async-keyed-lock.js';
 export { mergeMaps } from './map.js';
 export {

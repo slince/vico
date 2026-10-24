@@ -13,7 +13,7 @@ import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import type { Variables } from '../index.js';
 import { getAuthContext } from './helpers.js';
-import { resolveWorkspacePath } from '@vico/tool';
+import { resolveWorkspacePath } from '@vico/utils';
 import { getThreadStore } from '../lib/utils.js';
 import { getThreadWorkspace } from '../lib/workspace.js';
 

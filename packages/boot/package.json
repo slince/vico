@@ -13,6 +13,7 @@
   "dependencies": {
     "@vico/agent": "workspace:*",
     "@vico/bash-tool": "workspace:*",
+    "@vico/browser-tool": "workspace:*",
     "@vico/checkpoint": "workspace:*",
     "@vico/checkpoint-libsql": "workspace:*",
     "@vico/checkpoint-mysql": "workspace:*",

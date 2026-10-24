@@ -3,7 +3,8 @@ import { relative } from 'node:path';
 import { createPatch, FILE_HEADERS_ONLY } from 'diff';
 import { z } from 'zod';
 import { localFilesystem, type Filesystem } from '@vico/fs';
-import { createTool, resolveWorkspacePath } from '@vico/tool';
+import { createTool } from '@vico/tool';
+import { resolveWorkspacePath } from '@vico/utils';
 import type { ToolCallContext } from '@vico/tool';
 
 const editEntry = z.object({

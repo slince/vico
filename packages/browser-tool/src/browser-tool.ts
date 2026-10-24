@@ -1,10 +1,9 @@
-// src/tool/builtin/browser-tool.ts
+// @vico/browser-tool - 基于 Playwright 的浏览器工具
 //
-// 基于 Playwright 的浏览器工具。Playwright 为可选 peer dependency，
-// 未安装时工具返回明确的安装提示。
+// Playwright 为可选依赖，未安装时工具返回明确的安装提示。
 import {z} from 'zod';
-import {createTool} from '../../create-tool.js';
-import type {ToolCallContext} from '../../types.js';
+import {createTool} from '@vico/tool';
+import type {ToolCallContext} from '@vico/tool';
 
 /** 懒加载 Playwright（避免编译时模块解析错误） */
 async function loadPlaywright(): Promise<any> {

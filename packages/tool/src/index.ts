@@ -19,12 +19,8 @@ export {
   webFetchTool,
   todoTool,
   askUserTool,
-  browserNavigateTool,
-  browserSnapshotTool,
-  browserClickTool,
   basicTools,
   baseBuiltinTools,
-  resolveWorkspacePath,
 } from './builtin/index.js';
 export type {
   Tool,

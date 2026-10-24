@@ -2,7 +2,8 @@
 
 import {ChildProcess, spawn} from 'node:child_process';
 import {z} from 'zod';
-import {createTool, resolveWorkspacePath} from '@vico/tool';
+import {createTool} from '@vico/tool';
+import {resolveWorkspacePath} from '@vico/utils';
 import type {ToolCallContext} from '@vico/tool';
 import {resolvePwshPath} from './resolve-pwsh.js';
 

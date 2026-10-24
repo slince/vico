@@ -1,4 +1,5 @@
-// src/tool/builtin/workspace.ts
+// @vico/utils - workspace 路径解析
+
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
 

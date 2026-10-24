@@ -35,6 +35,7 @@
     "@vico/thread-libsql": "workspace:*",
     "@vico/tool": "workspace:*",
     "@vico/types": "workspace:*",
+    "@vico/utils": "workspace:*",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/headless": "^6.0.0",
     "ai": "catalog:",

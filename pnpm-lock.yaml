@@ -308,6 +308,9 @@ importers:
       '@vico/tool':
         specifier: workspace:*
         version: link:../tool
+      '@vico/utils':
+        specifier: workspace:*
+        version: link:../utils
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -327,6 +330,9 @@ importers:
       '@vico/bash-tool':
         specifier: workspace:*
         version: link:../bash-tool
+      '@vico/browser-tool':
+        specifier: workspace:*
+        version: link:../browser-tool
       '@vico/checkpoint':
         specifier: workspace:*
         version: link:../checkpoint
@@ -400,6 +406,22 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.12(@types/node@22.20.5)(vite@6.4.4(@types/node@22.20.5)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/browser-tool:
+    dependencies:
+      '@vico/tool':
+        specifier: workspace:*
+        version: link:../tool
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
 
   packages/checkpoint:
     dependencies:
@@ -575,6 +597,9 @@ importers:
       '@vico/tool':
         specifier: workspace:*
         version: link:../tool
+      '@vico/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@vscode/ripgrep':
         specifier: 'catalog:'
         version: 1.18.0
@@ -964,6 +989,9 @@ importers:
       '@vico/types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@vico/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
       '@xterm/addon-serialize':
         specifier: ^0.14.0
         version: 0.14.0
