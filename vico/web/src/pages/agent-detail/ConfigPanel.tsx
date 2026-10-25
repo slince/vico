@@ -108,7 +108,7 @@ export default function ConfigPanel({
               </span>
             </div>
             <Slider
-              value={[a.temperature ?? 0.7]}
+              defaultValue={[a.temperature ?? 0.7]}
               onValueCommit={([v]) => onUpdate({ temperature: v })}
               min={0}
               max={2}
@@ -130,10 +130,10 @@ export default function ConfigPanel({
               </span>
             </div>
             <Slider
-              value={[a.max_steps ?? 10]}
+              defaultValue={[a.max_steps ?? 10]}
               onValueCommit={([v]) => onUpdate({ max_steps: v })}
-              min={1}
-              max={30}
+              min={10}
+              max={150}
               step={1}
             />
             <p className="text-xs text-muted-foreground">

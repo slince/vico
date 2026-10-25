@@ -237,42 +237,34 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
               <EmptyTitle>无打开的视图</EmptyTitle>
             </EmptyHeader>
             <EmptyContent>
-              {/* 每个入口一块横向卡片：左图标 + 中标题副标题 + 右按钮 */}
-              <div className="flex w-full items-center gap-3 rounded-lg border p-3 text-left">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              {/* 每个入口一块可点击卡片：左图标 + 中标题副标题，整块手型触发动作 */}
+              <button
+                type="button"
+                onClick={() => openFilesTab(threadId)}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent/50"
+              >
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
                   <FolderTree className="size-5" />
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="text-sm font-medium">文件树</span>
                   <span className="truncate text-xs text-muted-foreground">浏览项目文件</span>
                 </div>
-                <Button
-                  size="default"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() => openFilesTab(threadId)}
-                >
-                  打开
-                </Button>
-              </div>
+              </button>
               {canCreateTerminal && (
-                <div className="flex w-full items-center gap-3 rounded-lg border p-3 text-left">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => createTerminal(threadId)}
+                  className="flex w-full cursor-pointer items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent/50"
+                >
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
                     <Terminal className="size-5" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="text-sm font-medium">终端</span>
                     <span className="truncate text-xs text-muted-foreground">执行 shell 命令</span>
                   </div>
-                  <Button
-                    size="default"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={() => createTerminal(threadId)}
-                  >
-                    新建
-                  </Button>
-                </div>
+                </button>
               )}
             </EmptyContent>
           </Empty>
