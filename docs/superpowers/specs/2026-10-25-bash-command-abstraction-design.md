@@ -15,7 +15,7 @@
 - `parseCommand`：shell 感知的结构化拆分，产出分段及每段的 `command` / `flags` / `args` / `targets`。
 - `analyzeCommand`：语义/安全分析，产出结构化 `findings`（删除/网络/路径越界/危险构造）。
 - `InterceptionPolicy` 接口：**拦不拦截由上游实现决策**，核心包默认放行，不硬编码任何规则。
-- `CommandExecutor` 接口 + `LocalCommandExecutor`（本机 bash/pwsh）+ `SshCommandExecutor`（远端 SSH）。
+- `CommandExecutor` 接口 + `LocalCommandExecutor`（本机 bash/pwsh）+ `SshCommandExecutor`（远端 SSH，适配器包）。
 
 ## 2. 目标 / 非目标 / 反目标
 
@@ -33,6 +33,10 @@
   「函数 + 参数」的白名单 typed-command，那是另一个层，不与本包混。
 - 会话持久化（run / poll / write / stop）——现 `bash-tool/README.md` 声称有但代码没有，
   属历史遗留，本轮不实现，只在重构时顺手修正 README。
+- **接入 `@vico/tool` 的 `approvalModeResolver`**——本轮独立并存、不接线。`analyzeCommand`
+  产出的 `targets`/`findings` 未来可喂给审批管线，但本轮不碰 `policy-helpers.ts`。
+- 远程交互终端（pty / shell channel）——本包只做「一次性命令执行」（exec channel）；
+  远程终端属 `@vico/terminal` 的另一个变体，不在本包范围。
 
 ### 反目标（即使能跑也算失败）
 
@@ -44,14 +48,15 @@
 ## 3. 约束
 
 - ESM + `.js` 导入扩展名；库包 `exports: "./src/index.ts"`、只有 `typecheck`（无 build），对齐 `@vico/fs`。
-- 严格分层：`@vico/bash` 无 workspace 运行时依赖（仅外部 `ssh2`）；`@vico/bash-tool` 依赖
+- 严格分层：`@vico/bash` **零运行时依赖**（端口 + 解析 + 分析 + 策略 + Local）；
+  `@vico/bash-ssh` 依赖 `@vico/bash` + `ssh2`（适配器）；`@vico/bash-tool` 依赖
   `@vico/bash` + `@vico/tool` + `@vico/utils`；`@vico/boot` 继续只 `import { shellTools }`。
 - 类型避免 `any`（`ssh2` 若缺类型，用最小 `import type` 或局部声明补上）。
 - 函数/导出组件 JSDoc 完备、关键逻辑行注释（项目规范）。
 
 ## 4. 核心设计
 
-### 4.1 类型（`command.ts`）
+### 4.1 类型（`command.ts`，@vico/bash）
 
 ```ts
 /** 分段之间的分隔符；首段固定为 'none' */
@@ -84,7 +89,7 @@ export interface Command {
 }
 ```
 
-### 4.2 解析（`parse.ts`）
+### 4.2 解析（`parse.ts`，@vico/bash）
 
 `parseCommand(raw: string, options?: { cwd?: string; timeout?: number; env?: Record<string, string> }): Command`
 
@@ -96,8 +101,9 @@ export interface Command {
   `--flag=value` 整体保留）；其余 = `args`。`args` 中形似路径的（以 `/`、`./`、`../`、`~`
   开头，或包含 `/`）记为 `targets`。
 - 解析是**纯结构、无副作用、不抛异常**；解析不了的段退回「整段作为单 command」，仍可执行与报告。
+- **本轮只按 POSIX/bash 语义解析**；pwsh 不做 `parseCommand`/`analyzeCommand`（见 §6）。
 
-### 4.3 分析（`analyze.ts`）
+### 4.3 分析（`analyze.ts`，@vico/bash）
 
 `analyzeCommand(command: Command, options?: AnalyzeOptions): CommandAnalysis`
 
@@ -153,7 +159,7 @@ export interface AnalyzeOptions {
 → read；`cp/mv/touch/mkdir/tee/chmod/chown/ln` → write；`rm/rmdir` → delete；
 `curl/wget/git/scp/ssh` → network；`ps/kill/top/nohup` → process；其余 → other。
 
-### 4.4 策略（`policy.ts`）
+### 4.4 策略（`policy.ts`，@vico/bash）
 
 ```ts
 export interface PolicyDecision {
@@ -173,9 +179,9 @@ export function withPolicy(executor: CommandExecutor, policy: InterceptionPolicy
 ```
 
 上游组装方式：`withPolicy(localCommandExecutor, myPolicy)`（`myPolicy` 内先 `analyzeCommand`
-再自行判决）。默认路径不放任何策略，行为与现状一致。
+再自行判决）。默认路径不放任何策略，行为与现状一致。拦截结果映射见 §6。
 
-### 4.5 执行（`executor.ts` / `local-executor.ts` / `ssh-executor.ts`）
+### 4.5 执行（`executor.ts` / `local-executor.ts`，@vico/bash）
 
 ```ts
 export interface CommandResult {
@@ -208,7 +214,7 @@ export const localCommandExecutor = new LocalCommandExecutor({ command: '/bin/ba
 
 pwsh 复用同一个类：`new LocalCommandExecutor({ command: resolvePwshPath(), args: (c) => [...PWSH_ARGS, c] })`。
 
-**`SshCommandExecutor`**（`ssh2` 的 exec channel）：
+### 4.6 SSH 执行器（`@vico/bash-ssh`）
 
 ```ts
 export interface SshConnectionOptions {
@@ -227,15 +233,17 @@ export class SshCommandExecutor implements CommandExecutor {
 }
 ```
 
-序列化：`[export ENV…]` + `cd '<cwd>' && ` + `command.raw`，经 `ssh2.Client.exec` 执行，
-流式收集 stdout/stderr，`close` 事件取退出码；timeout 用定时器触发后关闭 channel。
-连接**惰性建立并复用**，失败时重建；`dispose()` 显式释放。
+- 序列化：`[export ENV…]` + `cd '<cwd>' && ` + `command.raw`，经 `ssh2.Client.exec` 执行
+  （exec channel，一次性命令，非 pty），流式收集 stdout/stderr，`close` 事件取退出码；
+  timeout 用定时器触发后关闭 channel。
+- 连接**惰性建立并复用**，失败时重建；`dispose()` 显式释放。
+- **凭据走构造参数注入**（`SshConnectionOptions`）；本轮不接 `vico/server` 的 config / DI，无消费方。
 
 ## 5. 包结构与依赖方向
 
 ```
 packages/bash/
-├── package.json          # @vico/bash；deps: ssh2；dev: typescript/vitest/@types/node
+├── package.json          # @vico/bash；零运行时依赖；dev: typescript/vitest/@types/node
 ├── tsconfig.json
 ├── README.md
 └── src/
@@ -245,16 +253,23 @@ packages/bash/
     ├── policy.ts         # InterceptionPolicy + permissivePolicy + withPolicy
     ├── executor.ts       # CommandExecutor 接口
     ├── local-executor.ts # LocalCommandExecutor + localCommandExecutor 单例
-    ├── ssh-executor.ts   # SshCommandExecutor
     └── index.ts          # barrel
+
+packages/bash-ssh/
+├── package.json          # @vico/bash-ssh；deps: @vico/bash + ssh2
+├── tsconfig.json
+├── README.md
+└── src/
+    ├── ssh-executor.ts   # SshCommandExecutor + SshConnectionOptions
+    └── index.ts
 ```
 
 依赖方向（无环）：
 
 ```
-@vico/bash            —— 无 workspace 运行时依赖（仅外部 ssh2）
-   ↑
-@vico/bash-tool       —— 依赖 @vico/bash + @vico/tool + @vico/utils
+@vico/bash            —— 零运行时依赖（端口 + 解析 + 分析 + 策略 + Local）
+   ↑              ↑
+@vico/bash-tool  @vico/bash-ssh —— 依赖 @vico/bash + ssh2（传输适配器）
    ↑
 @vico/boot            —— 继续 import { shellTools }
 ```
@@ -276,24 +291,30 @@ export const shellTools: Tool[] = process.platform === 'win32' ? [pwshTool] : [b
 export const pwshTools: Tool[] = [pwshTool];
 ```
 
-`execute` 内部：`cwd = resolveWorkspacePath(workspace, '.')` → `parseCommand(command, { cwd, timeout })`
-→ `executor.execute(cmd)`；`dryRun` 仍走预览分支。上游若要拦截，传
-`createBashTool({ executor: withPolicy(localCommandExecutor, policy) })`。
+- `bashTool` 的 `execute`：`cwd = resolveWorkspacePath(workspace, '.')` →
+  `parseCommand(command, { cwd, timeout })` → `executor.execute(cmd)`；`dryRun` 仍走预览分支。
+- `pwshTool` 的 `execute`：**不做 POSIX `parseCommand`/`analyzeCommand`**，直接
+  `new LocalCommandExecutor({ command: resolvePwshPath(), args: (c) => [...PWSH_ARGS, c] })`
+  执行；`dryRun` 走预览分支。
+- 上游若要拦截，传 `createBashTool({ executor: withPolicy(localCommandExecutor, policy) })`。
+- **被拦截结果的映射**（schema 不变）：`blocked` 时展平为 `stdout:''`、
+  `stderr:'Blocked by policy: <reason>'`、`exitCode:null`。
 
 ## 7. 决策记录
 
 **用户已定**：
 - 解析为「结构化 + 可拦截」，不自造函数 DSL（`sleep(30)` 不作语法支持）。
-- SSH 执行器本轮落地。
+- SSH 执行器本轮落地，但**只交付执行器类 + 配置类型，不接 server**。
 - 拦截不拦截交给 `InterceptionPolicy` 接口，由上游决策。
+- 拦截层与 `@vico/tool` 的 `approvalModeResolver` **本轮独立并存、不接线**。
+- 包拆分为 `@vico/bash`（端口）+ `@vico/bash-ssh`（适配器）。
 
 **我拍的板（可否决）**：
-- `@vico/bash` 单包承载 Local + SSH，`ssh2` 作为常规依赖（不拆 `@vico/bash-ssh`）。
-  若更想对齐 `checkpoint`/`rag` 的「端口包 + 适配器包」拆分，可改为 `@vico/bash` + `@vico/bash-ssh`。
-- SSH 库选 `ssh2`（纯 JS、无原生编译、exec channel 直接给 stdout/stderr/exitCode）。
-- 解析器手写，覆盖 `&& || ; |` + 引号 + 基本 flag/args/targets，不做完整 shell 语法。
-- 命名 `parseCommand` / `analyzeCommand` / `InterceptionPolicy` / `withPolicy`；
-  「校验」环节 = `analyzeCommand`（只产出 findings，不判决）。
+- 解析器手写、本轮 POSIX-only；pwsh 只执行、不 analyze。
+- SSH 库选 `ssh2`；用 exec channel（一次性命令），远程交互终端不在本包范围。
+- 命名 `parseCommand` / `analyzeCommand` / `InterceptionPolicy` / `withPolicy`。
+- `SshCommandExecutor` 凭据走构造参数注入，连接惰性复用 + `dispose()`。
+- 被拦截结果映射：`stdout:''` / `stderr:'Blocked by policy: <reason>'` / `exitCode:null`。
 
 ## 8. 留给实现者的部分
 
@@ -308,6 +329,7 @@ export const pwshTools: Tool[] = [pwshTool];
 ```bash
 pnpm --filter @vico/bash typecheck
 pnpm --filter @vico/bash test
+pnpm --filter @vico/bash-ssh typecheck
 pnpm --filter @vico/bash-tool typecheck
 pnpm --filter @vico/boot typecheck
 cd vico/server && npx tsc --noEmit

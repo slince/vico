@@ -4,27 +4,39 @@
 
 ## 背景
 
-`TerminalManager` 是线程工作目录终端的会话管理器（pty 保活 + headless 屏幕回放 + 空闲回收）。它已是纯构造注入（`resolveWorkspace`、`logger`），与 server 业务层解耦，适合下沉为公共底层能力。
+`TerminalManager` 是线程工作目录终端的会话管理器（pty 保活 + headless 屏幕回放 + 空闲回收）。提取时做了「垂类」化：管理器只认不透明的 `sessionKey`，`threadId` / `terminalId` 等上层概念全部上移到调用方。
 
 ## 包结构与公共 API
 
-- `packages/terminal/src/terminal-manager.ts`：原 `TerminalManager` 类，逻辑不变。
-- `packages/terminal/src/index.ts`：对外导出 `TerminalManager`、`type TerminalFollower`、`type TerminalFrame`；`TerminalSession` 保持内部不导出。
+- `packages/terminal/src/terminal-manager.ts`：
+  - `TerminalManager`：按 sessionKey 维护会话注册表，`session(key)` 懒创建句柄。
+  - `TerminalSession`：单个会话句柄，持有 pty + headless 屏幕 + follower 连接，驱动 `attach / handleMessage / detach`。
+  - 导出类型：`TerminalFollower`、`TerminalFrame`（snapshot / output / exit）、`TerminalAttachOptions`。
 - 依赖随类迁移：`@lydell/node-pty`（pty 进程）、`@xterm/headless` + `@xterm/addon-serialize`（headless 屏幕 + 序列化回放，CJS 经 `createRequire` 加载）、`pino`（`Logger` 类型）。
+
+## 职责边界
+
+- 调用方（server 的 ws 路由）负责：拼接 `sessionKey`（`${threadId}:${terminalId}`）、解析工作目录（`getThreadWorkspace`）。
+- `@vico/terminal` 只负责：按 key 保活 pty 会话、屏幕回放、输入转发、空闲回收。
 
 ## server 接入方式
 
-`resolveWorkspace`（工作目录解析）是 server 特有逻辑，留在 `vico/server/src/lib/workspace.ts`，经 DI 注入：
-
 ```ts
 // vico/server/src/providers/services-provider.ts
-c.register('terminalManager', ({ get }) => new TerminalManager(getThreadWorkspace, get('logger')));
+c.register('terminalManager', ({ get }) => new TerminalManager(get('logger')));
+```
+
+```ts
+// vico/server/src/api/ws/terminal.ts
+const session = terminalManager.session(`${threadId}:${terminalId}`);
+// onOpen: const cwd = await getThreadWorkspace(threadId); await session.attach(ws, { cwd });
+// onMessage: session.handleMessage(...)
+// onClose: session.detach(ws)
 ```
 
 其余引用点：
 
 - `tokens.ts`：`import type { TerminalManager } from '@vico/terminal'`
-- `api/ws/terminal.ts`：仅通过 `getContainer().get('terminalManager')` 使用，无直接 import
 
 ## 依赖变化
 

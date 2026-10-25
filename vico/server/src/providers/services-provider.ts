@@ -17,7 +17,6 @@ import { RAGManager } from '../lib/rag-manager.js';
 import { TerminalManager } from '@vico/terminal';
 import { weatherTool } from '../agent/tools/weather-tool.js';
 import { meta, providers } from '../llm/providers/index.js';
-import { getThreadWorkspace } from '../lib/workspace.js';
 import { expandHome } from '../lib/path.js';
 import type { ServerServiceProvider } from '../tokens.js';
 
@@ -70,7 +69,7 @@ export const servicesProvider: ServerServiceProvider = {
         getConfig('upload'),
       ));
 
-    c.register('terminalManager', ({ get }) => new TerminalManager(getThreadWorkspace, get('logger')));
+    c.register('terminalManager', ({ get }) => new TerminalManager(get('logger')));
 
     c.register('weatherTool', () => weatherTool);
 
