@@ -1,5 +1,6 @@
 // @vico/bash - analyzeCommand：将结构化 Command 分析为分类、风险与安全 findings
 
+import os from 'node:os';
 import path from 'node:path';
 
 import type { Command } from './command.js';
@@ -184,6 +185,24 @@ function isInsideRoot(resolved: string, root: string): boolean {
 }
 
 /**
+ * 展开目标路径开头的 `~`：`~` → 用户主目录，`~/…` → 主目录下的相对路径，其余原样返回。
+ *
+ * shell 在执行前会把 `~` 展开为 `$HOME`，路径越界判断须先做同样的展开，
+ * 否则 `rm ~/.ssh/id_rsa` 之类的目标会绕过 allowRoots 检查。
+ */
+function expandTilde(target: string): string {
+  if (target === '~') {
+    return os.homedir();
+  }
+
+  if (target.startsWith('~/')) {
+    return path.join(os.homedir(), target.slice(2));
+  }
+
+  return target;
+}
+
+/**
  * 将结构化 {@link Command} 分析为分类、风险与安全 findings。
  *
  * 逐段执行：命令归类（未注册 → `other` + `unknown-command`）、类别 finding、
@@ -255,12 +274,13 @@ export function analyzeCommand(command: Command, options?: AnalyzeOptions): Comm
       });
     }
 
-    // 路径策略：每个目标归一化后与 allowRoots 前缀比对，越界即 critical
+    // 路径策略：目标与重定向目标归一化后与 allowRoots 前缀比对，越界即 critical
     if (options?.pathPolicy) {
       const { allowRoots } = options.pathPolicy;
 
-      for (const target of seg.targets) {
-        const resolved = path.resolve(command.cwd ?? '/', target);
+      // 单个目标：展开 `~` → 归一化 → 前缀比对，越界产出 path-outside-root
+      const checkTarget = (target: string) => {
+        const resolved = path.resolve(command.cwd ?? '/', expandTilde(target));
 
         const inside = allowRoots.some((root) => isInsideRoot(resolved, path.resolve(root)));
 
@@ -272,6 +292,17 @@ export function analyzeCommand(command: Command, options?: AnalyzeOptions): Comm
             segmentIndex: index,
             target,
           });
+        }
+      };
+
+      for (const target of seg.targets) {
+        checkTarget(target);
+      }
+
+      for (const redirect of seg.redirects) {
+        // 自包含的 fd 复制（2>&1）target 为空，跳过
+        if (redirect.target) {
+          checkTarget(redirect.target);
         }
       }
     }

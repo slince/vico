@@ -57,6 +57,7 @@ interface RawSegment {
  *
  * 单遍扫描，仅识别引号外、未被反斜杠转义的运算符；单引号内反斜杠为字面量。
  * 运算符按「先长后短」匹配，保证 `||` 先于 `|`、`&&` 先于单字符。
+ * 引号外的裸换行（`\n` 或 `\r\n`）视作 `;` 拆段。
  */
 function splitSegments(raw: string): RawSegment[] {
   const segments: RawSegment[] = [];
@@ -94,6 +95,23 @@ function splitSegments(raw: string): RawSegment[] {
 
     // 引号内不拆分运算符
     if (inSingle || inDouble) {
+      continue;
+    }
+
+    // 换行视作 `;`：裸 `\n` 或 `\r\n` 对均拆段（`\r\n` 两个字符一并消费，
+    // 避免 `\r` 泄漏进段文本）
+    if (ch === '\r' && raw[i + 1] === '\n') {
+      segments.push({ operator: pendingOperator, text: raw.slice(start, i) });
+      pendingOperator = 'semi';
+      i++;
+      start = i + 1;
+      continue;
+    }
+
+    if (ch === '\n') {
+      segments.push({ operator: pendingOperator, text: raw.slice(start, i) });
+      pendingOperator = 'semi';
+      start = i + 1;
       continue;
     }
 

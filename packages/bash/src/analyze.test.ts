@@ -17,6 +17,18 @@ describe('analyzeCommand', () => {
     }
   });
 
+  it('~ 前缀 target 按 home 展开做越界判断', () => {
+    const opts = { pathPolicy: { allowRoots: ['/app'] } };
+    const a = analyzeCommand(parseCommand('rm ~/.ssh/id_rsa', { cwd: '/app' }), opts);
+    expect(a.findings).toContainEqual(expect.objectContaining({ code: 'path-outside-root', severity: 'critical' }));
+  });
+
+  it('重定向目标越界 → path-outside-root', () => {
+    const opts = { pathPolicy: { allowRoots: ['/app'] } };
+    const a = analyzeCommand(parseCommand('ls > /etc/passwd', { cwd: '/app' }), opts);
+    expect(a.findings).toContainEqual(expect.objectContaining({ code: 'path-outside-root', severity: 'critical' }));
+  });
+
   it('命令替换 → command-substitution', () => {
     const a = analyzeCommand(parseCommand('echo $(whoami)'));
     expect(a.findings).toContainEqual(expect.objectContaining({ code: 'command-substitution' }));

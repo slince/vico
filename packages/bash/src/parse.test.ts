@@ -25,6 +25,12 @@ describe('parseCommand', () => {
     expect(parseCommand('a | b').segments[1].operator).toBe('pipe');
   });
 
+  it('换行视作 ; 拆段', () => {
+    const c = parseCommand('ls\nrm -rf /etc');
+    expect(c.segments.map((s) => s.operator)).toEqual(['none', 'semi']);
+    expect(c.segments[1].command).toBe('rm');
+  });
+
   it('引号内分隔符不拆分', () => {
     const c = parseCommand('echo "a && b"');
     expect(c.segments).toHaveLength(1);
