@@ -830,6 +830,28 @@ importers:
         specifier: 'catalog:'
         version: 5.9.3
 
+  packages/terminal:
+    dependencies:
+      '@lydell/node-pty':
+        specifier: 1.2.0-beta.15
+        version: 1.2.0-beta.15
+      '@xterm/addon-serialize':
+        specifier: ^0.14.0
+        version: 0.14.0
+      '@xterm/headless':
+        specifier: ^6.0.0
+        version: 6.0.0
+      pino:
+        specifier: 'catalog:'
+        version: 10.4.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
   packages/thread:
     dependencies:
       '@ai-sdk/provider-utils':
@@ -947,9 +969,6 @@ importers:
       '@libsql/client':
         specifier: 'catalog:'
         version: 0.17.4
-      '@lydell/node-pty':
-        specifier: 1.2.0-beta.15
-        version: 1.2.0-beta.15
       '@vico/agent':
         specifier: workspace:*
         version: link:../../packages/agent
@@ -980,6 +999,9 @@ importers:
       '@vico/skill':
         specifier: workspace:*
         version: link:../../packages/skill
+      '@vico/terminal':
+        specifier: workspace:*
+        version: link:../../packages/terminal
       '@vico/thread':
         specifier: workspace:*
         version: link:../../packages/thread
@@ -995,12 +1017,6 @@ importers:
       '@vico/utils':
         specifier: workspace:*
         version: link:../../packages/utils
-      '@xterm/addon-serialize':
-        specifier: ^0.14.0
-        version: 0.14.0
-      '@xterm/headless':
-        specifier: ^6.0.0
-        version: 6.0.0
       ai:
         specifier: 'catalog:'
         version: 7.0.150(zod@4.6.7)

@@ -2,7 +2,7 @@
  * Web 终端 API — 基于 xterm(headless) + pty 的线程工作目录终端。
  *
  * 通过 WebSocket（@hono/node-server 的 upgradeWebSocket + ws）建立连接。
- * 会话维护（pty 保活、屏幕回放、空闲回收）收敛在 lib/terminal-manager.ts，
+ * 会话维护（pty 保活、屏幕回放、空闲回收）收敛在 @vico/terminal 的 TerminalManager，
  * 本文件只做路由注册与参数提取，把连接事件转发给终端管理器。
  */
 import { Hono } from 'hono';
