@@ -114,9 +114,8 @@ export class SshCommandExecutor implements CommandExecutor {
         resolve(client);
       });
 
-      // 连接建立后被对端断开：把缓存指针置空，下一次 execute 惰性重建连接。
-      // 本地 ssh2 最小声明（ssh2.d.ts）未收录 close 事件，这里补上 close 签名。
-      (client as Client & { on(event: 'close', listener: () => void): Client }).on('close', () => {
+      // 连接建立后被对端断开：把缓存指针置空，下一次 execute 惰性重建连接
+      client.on('close', () => {
         if (this.client === client) {
           this.client = undefined;
         }

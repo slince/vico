@@ -45,6 +45,7 @@ declare module 'ssh2' {
     end(): this;
     on(event: 'ready', listener: () => void): this;
     on(event: 'error', listener: (err: Error) => void): this;
+    on(event: 'close', listener: () => void): this;
     once(event: 'ready', listener: () => void): this;
   }
 }
