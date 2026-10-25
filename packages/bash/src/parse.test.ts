@@ -53,4 +53,19 @@ describe('parseCommand', () => {
     expect(c.segments[0].targets).toEqual([]);
     expect(c.segments[0].redirects).toEqual([{ operator: '>', target: '/tmp/out' }]);
   });
+
+  it('fd 复制重定向不吞下一运算符', () => {
+    const c = parseCommand('cmd 2>&1 > /tmp/out');
+    expect(c.segments[0].redirects).toEqual([
+      { operator: '2>&1', target: '' },
+      { operator: '>', target: '/tmp/out' },
+    ]);
+    expect(c.segments[0].targets).toEqual([]);
+  });
+
+  it('引号内的 > 不当作重定向', () => {
+    const c = parseCommand('echo ">"');
+    expect(c.segments[0].redirects).toEqual([]);
+    expect(c.segments[0].args).toEqual(['>']);
+  });
 });

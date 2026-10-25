@@ -137,13 +137,14 @@ function splitSegments(raw: string): RawSegment[] {
 /**
  * 把单个段文本解析为 {@link CommandSegment}。
  *
- * 重定向运算符（`>` / `>>` / `<` / `2>` / `2>&1` / `&>` 等）记入
- * `redirects`，运算符与其目标 token 均不进 `flags` / `args` / `targets`。
+ * 重定向运算符（`>` / `>>` / `<` / `2>` / `2>&1` / `&>` 等，且未加引号/转义）
+ * 记入 `redirects`，运算符与其目标 token 均不进 `flags` / `args` / `targets`。
+ * 自包含的 fd 复制（`2>&1`）无目标，不吞下一 token。
  */
 function parseSegment(operator: CommandOperator, text: string): CommandSegment {
   const tokens = tokenize(text);
 
-  const command = tokens[0] ?? '';
+  const command = tokens[0]?.value ?? '';
   const rest = tokens.slice(1);
 
   const flags: string[] = [];
@@ -153,17 +154,22 @@ function parseSegment(operator: CommandOperator, text: string): CommandSegment {
   for (let i = 0; i < rest.length; i++) {
     const token = rest[i];
 
-    // 重定向：吞掉运算符及其后的目标 token
-    if (isRedirectOperator(token)) {
-      redirects.push({ operator: token, target: rest[i + 1] ?? '' });
+    if (!token.quoted && isRedirectOperator(token.value)) {
+      // 自包含的 fd 复制（2>&1）无目标，不吞下一 token
+      if (isFdDuplication(token.value)) {
+        redirects.push({ operator: token.value, target: '' });
+        continue;
+      }
+
+      redirects.push({ operator: token.value, target: rest[i + 1]?.value ?? '' });
       i++;
       continue;
     }
 
-    if (token.startsWith('-')) {
-      flags.push(...splitFlags(token));
+    if (token.value.startsWith('-')) {
+      flags.push(...splitFlags(token.value));
     } else {
-      args.push(token);
+      args.push(token.value);
     }
   }
 
@@ -180,16 +186,24 @@ function parseSegment(operator: CommandOperator, text: string): CommandSegment {
   };
 }
 
+/** 词法化产物：token 文本 + 是否来自引号/转义 */
+interface Token {
+  value: string;
+  /** 任一字符来自单/双引号或反斜杠转义则为 true */
+  quoted: boolean;
+}
+
 /**
  * 词法化段文本：识别单/双引号与反斜杠，按顶层空白切分 token。
  *
  * 引号内容去掉引号字面并入 token（引号内空白保留）；反斜杠转义下一字符。
- * `$(...)` / 反引号不做任何特殊处理，作为普通字符进入 token；
- * 重定向运算符（`>` 等）作为普通 token 产出，由 {@link parseSegment} 识别。
+ * 记录每个 token 的 `quoted` 来源，供 {@link parseSegment} 区分「真正的
+ * 重定向运算符」与「被引号/转义包裹的字面 `>`」。
  */
-function tokenize(text: string): string[] {
-  const tokens: string[] = [];
+function tokenize(text: string): Token[] {
+  const tokens: Token[] = [];
   let current = '';
+  let currentQuoted = false;
 
   let inSingle = false;
   let inDouble = false;
@@ -200,6 +214,8 @@ function tokenize(text: string): string[] {
 
     if (escaped) {
       current += ch;
+      // 转义产生的字符标记为 quoted
+      currentQuoted = true;
       escaped = false;
       continue;
     }
@@ -208,6 +224,7 @@ function tokenize(text: string): string[] {
       // 单引号内反斜杠为字面量，其余情况转义下一字符
       if (inSingle) {
         current += ch;
+        currentQuoted = true;
       } else {
         escaped = true;
       }
@@ -216,11 +233,13 @@ function tokenize(text: string): string[] {
 
     if (ch === "'" && !inDouble) {
       inSingle = !inSingle;
+      currentQuoted = true;
       continue;
     }
 
     if (ch === '"' && !inSingle) {
       inDouble = !inDouble;
+      currentQuoted = true;
       continue;
     }
 
@@ -228,8 +247,9 @@ function tokenize(text: string): string[] {
       if (inSingle || inDouble) {
         current += ch;
       } else if (current.length > 0) {
-        tokens.push(current);
+        tokens.push({ value: current, quoted: currentQuoted });
         current = '';
+        currentQuoted = false;
       }
       continue;
     }
@@ -240,10 +260,11 @@ function tokenize(text: string): string[] {
   // 末尾孤立反斜杠原样保留
   if (escaped) {
     current += '\\';
+    currentQuoted = true;
   }
 
   if (current.length > 0) {
-    tokens.push(current);
+    tokens.push({ value: current, quoted: currentQuoted });
   }
 
   return tokens;
@@ -277,6 +298,13 @@ function isRedirectOperator(token: string): boolean {
 
   // 数字文件描述符重定向 / 合并（2>、2>>、2>&1）与 &> / &>>
   return /^(?:\d+>>?|\d+>&\d+|&>>?)$/.test(token);
+}
+
+/**
+ * 判断是否为自包含的 fd 复制重定向（`2>&1`、`1>&2`）：无独立目标 token。
+ */
+function isFdDuplication(token: string): boolean {
+  return /^\d+>&\d+$/.test(token);
 }
 
 /**
