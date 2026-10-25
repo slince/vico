@@ -1,6 +1,6 @@
 'use client';
 
-import {FolderTree, PanelRight, Plus, Terminal, X} from 'lucide-react';
+import {FolderTree, PanelsTopLeft, PanelRight, Plus, Terminal, X} from 'lucide-react';
 
 import {getFileIcon} from '@/components/file-explorer/FileExplorer';
 import {Button} from '@/components/ui/button';
@@ -229,9 +229,9 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
 
         {/* 空态 — 无任何 tab 时提供快捷入口 */}
         {!active && (
-          <Empty className="border-0 p-8">
+          <Empty className="justify-start border-0 p-8 pt-10">
             <EmptyMedia variant="icon">
-              <FolderTree />
+              <PanelsTopLeft />
             </EmptyMedia>
             <EmptyHeader>
               <EmptyTitle>无打开的视图</EmptyTitle>
