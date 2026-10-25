@@ -29,10 +29,18 @@ c.register('terminalSessionManager', ({ get }) => new TerminalSessionManager(get
 
 ```ts
 // vico/server/src/api/ws/terminal.ts
-const session = terminalManager.createSession(`${threadId}:${terminalId}`);
+const session = sessionManager.createSession(`${threadId}:${terminalId}`);
 // onOpen: const cwd = await getThreadWorkspace(threadId); session.attach(ws, { cwd });
 // onMessage: session.handleMessage(...)
 // onClose: session.detach(ws)
+```
+
+REST 控制面（显式关闭终端）：
+
+```ts
+// vico/server/src/api/terminal.ts
+app.delete('/api/v1/threads/:threadId/terminal/:terminalId', ...);
+// getSession 校验存在 → destroySession 销毁（并广播 exit 给在线连接）
 ```
 
 其余引用点：
