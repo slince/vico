@@ -21,11 +21,20 @@ import {SESSION_SCOPE_REASON, type ToolCallApproval} from '@vico/types';
 export type ContentPart = TextPart | ReasoningPart | ({ type: string; [key: string]: unknown } & Record<string, unknown>);
 
 /**
- * 提取消息的纯文本内容（string content 直接返回，parts 拼接全部 text part）。
+ * 提取消息的纯文本内容：string content 直接返回，parts 拼接全部 text part。
+ *
+ * @param msg - 原生消息
+ * @returns 拼接后的纯文本
  */
 export function getMessageText(msg: ModelMessage): string {
-  if (typeof msg.content === 'string') return msg.content;
-  return (msg.content as Array<{ type: string; text?: string }>)
+  // string 内容直接返回
+  if (typeof msg.content === 'string') {
+    return msg.content;
+  }
+
+  // parts 数组：仅取 text part，缺失文本按空串兜底后拼接
+  const parts = msg.content as Array<TextPart>;
+  return parts
     .filter((p) => p.type === 'text')
     .map((p) => p.text ?? '')
     .join('');

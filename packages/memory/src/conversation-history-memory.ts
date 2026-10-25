@@ -40,7 +40,7 @@ export class ConversationHistoryMemory {
 
     const result: ModelMessage[] = [];
     if (summary) {
-      result.push({ role: 'user', content: getMessageText(summary) });
+      result.push({ role: 'system', content: getMessageText(summary) });
     }
 
     // 按 turn 升序读取非归档消息，追加到结果尾部
