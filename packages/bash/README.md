@@ -1,13 +1,13 @@
 # @vico/bash
 
-Shell 命令解析与执行抽象层。
+Shell 命令解析、分析、拦截策略与执行抽象层。零运行时依赖。
 
-将一行 shell 命令解析为结构化 `Command`（按 `&&` / `||` / `;` / `|` 拆分为多个 `CommandSegment`，每个段再词法化为 command / flags / args / targets），供后续任务（命令分析、执行、阻断）复用。零运行时依赖。
+将一行 shell 命令解析为结构化 `Command`（按 `&&` / `||` / `;` / `|` 拆分为多个 `CommandSegment`，每个段再词法化为 command / flags / args / targets），再交给 `analyzeCommand` 产出分类、风险与安全 findings，可选通过 `InterceptionPolicy` 拦截，最终由可插拔的 `CommandExecutor`（内置 `LocalCommandExecutor` 真实派发子进程）执行。
 
 ## 快速使用
 
 ```ts
-import { parseCommand } from '@vico/bash';
+import { parseCommand, analyzeCommand } from '@vico/bash';
 
 const c = parseCommand('rm -rf /www/xxx && ls -n', { cwd: '/tmp' });
 
@@ -16,7 +16,17 @@ c.segments[0].flags;    // ['-r', '-f']
 c.segments[0].targets;  // ['/www/xxx']
 c.segments[1].operator; // 'and'
 c.timeout;              // 120000（缺省）
+
+const analysis = analyzeCommand(c);
+analysis.findings;      // 含 delete-command（critical）、unknown-command 等
 ```
+
+## 模块
+
+- `parseCommand`：将一行 shell 命令解析为结构化 `Command`。
+- `analyzeCommand` / `COMMAND_REGISTRY`：将 `Command` 分析为类别、风险与安全 findings。
+- `permissivePolicy` / `withPolicy`：拦截策略（放行兜底）与执行器包装。
+- `CommandExecutor` / `LocalCommandExecutor` / `localCommandExecutor`：可插拔执行器抽象与本地实现。
 
 ## 解析约定
 
