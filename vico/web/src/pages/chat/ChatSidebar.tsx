@@ -5,7 +5,7 @@ import {FolderTree, PanelRight, Plus, Terminal, X} from 'lucide-react';
 import {getFileIcon} from '@/components/file-explorer/FileExplorer';
 import {Button} from '@/components/ui/button';
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,} from '@/components/ui/context-menu';
-import {Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle,} from '@/components/ui/empty';
+import {Empty, EmptyContent, EmptyHeader, EmptyMedia, EmptyTitle,} from '@/components/ui/empty';
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover';
 import {cn} from '@/lib/utils';
 import {
@@ -235,28 +235,44 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
             </EmptyMedia>
             <EmptyHeader>
               <EmptyTitle>无打开的视图</EmptyTitle>
-              <EmptyDescription>打开文件树浏览项目文件，或新建终端执行命令</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button
-                size="lg"
-                variant="outline"
-                className="w-full"
-                onClick={() => openFilesTab(threadId)}
-              >
-                <FolderTree className="size-4" />
-                打开文件树
-              </Button>
-              {canCreateTerminal && (
+              {/* 每个入口一块横向卡片：左图标 + 中标题副标题 + 右按钮 */}
+              <div className="flex w-full items-center gap-3 rounded-lg border p-3 text-left">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <FolderTree className="size-5" />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-sm font-medium">文件树</span>
+                  <span className="truncate text-xs text-muted-foreground">浏览项目文件</span>
+                </div>
                 <Button
-                  size="lg"
+                  size="default"
                   variant="outline"
-                  className="w-full"
-                  onClick={() => createTerminal(threadId)}
+                  className="shrink-0"
+                  onClick={() => openFilesTab(threadId)}
                 >
-                  <Terminal className="size-4" />
-                  新建终端
+                  打开
                 </Button>
+              </div>
+              {canCreateTerminal && (
+                <div className="flex w-full items-center gap-3 rounded-lg border p-3 text-left">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <Terminal className="size-5" />
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-sm font-medium">终端</span>
+                    <span className="truncate text-xs text-muted-foreground">执行 shell 命令</span>
+                  </div>
+                  <Button
+                    size="default"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => createTerminal(threadId)}
+                  >
+                    新建
+                  </Button>
+                </div>
               )}
             </EmptyContent>
           </Empty>
