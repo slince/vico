@@ -2,8 +2,9 @@
  * Web 终端 API — 基于 xterm(headless) + pty 的线程工作目录终端。
  *
  * 通过 WebSocket（@hono/node-server 的 upgradeWebSocket + ws）建立连接。
- * 会话维护（pty 保活、屏幕回放、空闲回收）收敛在 @vico/terminal 的 TerminalManager；
- * 本文件只做路由注册、sessionKey 拼接与 workspace 解析，把连接事件转发给会话句柄。
+ * 会话维护（pty 保活、屏幕回放、空闲回收）收敛在 @vico/terminal 的
+ * TerminalSessionManager；本文件只做路由注册、sessionKey 拼接与 workspace 解析，
+ * 把连接事件转发给会话句柄。
  */
 import { Hono } from 'hono';
 import type { UpgradeWebSocket } from 'hono/ws';
@@ -42,15 +43,15 @@ export function terminalRoutes(
         };
       }
 
-      const terminalManager = getContainer().get('terminalManager');
+      const sessionManager = getContainer().get('terminalSessionManager');
       // sessionKey 由调用方拼接，管理器只认不透明 key
-      const session = terminalManager.session(`${threadId}:${terminalId}`);
+      const session = sessionManager.createSession(`${threadId}:${terminalId}`);
 
       return {
         /** 连接建立：解析工作目录并 attach（复用回放或派生 shell）；spawn 失败则关闭 */
         async onOpen(_evt, ws) {
           const cwd = await getThreadWorkspace(threadId);
-          const ok = await session.attach(ws, { cwd });
+          const ok = session.attach(ws, { cwd });
           if (!ok) ws.close();
         },
 

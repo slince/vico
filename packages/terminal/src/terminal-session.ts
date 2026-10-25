@@ -1,11 +1,9 @@
 /**
- * 终端会话管理器 — 维护 pty 进程与 headless 屏幕的保活生命周期。
+ * 单个终端会话 — 维护 pty 进程与 headless 屏幕的保活生命周期。
  *
- * 管理器只认不透明的 sessionKey（由调用方拼接，如 `${threadId}:${terminalId}`），
- * 不感知 thread / terminal 等上层领域概念。调用方通过 `session(key)` 取得会话句柄，
- * 再驱动 attach / handleMessage / detach：一个会话对应一个 pty 进程 + headless 屏幕 +
- * 若干 follower 连接，进程独立于连接存活（断开后空闲超时才回收），新连接接入时回放
- * 当前屏幕快照，之后增量推送输出。
+ * 一个会话（由 sessionKey 唯一标识）对应一个 pty 进程 + headless 屏幕 + 若干
+ * follower 连接。进程生命周期与连接解耦：全部连接断开后启动空闲回收，新连接接入
+ * 时回放当前屏幕快照，之后增量推送输出。sessionKey 的语义由调用方定义，本类不感知。
  */
 import {homedir} from 'node:os';
 import {createRequire} from 'node:module';
@@ -48,9 +46,10 @@ export interface TerminalAttachOptions {
 }
 
 /**
- * 单个终端会话（由 sessionKey 唯一标识），持有 pty 进程 + headless 屏幕 +
- * 若干 follower 连接。进程生命周期与连接解耦：全部连接断开后启动空闲回收，
- * 新连接接入时回放当前屏幕。
+ * 单个终端会话，持有 pty 进程 + headless 屏幕 + 若干 follower 连接。
+ *
+ * 由 `TerminalSessionManager` 创建并登记；调用方驱动 attach / handleMessage /
+ * detach / destroy，不感知 pty / headless 细节。
  */
 export class TerminalSession {
   constructor(
@@ -65,12 +64,16 @@ export class TerminalSession {
   private serializer?: SerializeAddonType;
   private readonly followers = new Set<TerminalFollower>();
   private idleTimer?: ReturnType<typeof setTimeout>;
+  /** 是否已销毁（dispose 幂等 + 阻止退出回调二次广播） */
+  private disposed = false;
 
   /**
    * 连接建立。已有进程则复用并回放当前屏幕；否则派生 shell 并回放空屏。
    * spawn 失败返回 false（调用方应关闭连接）。
    */
-  async attach(follower: TerminalFollower, options: TerminalAttachOptions = {}): Promise<boolean> {
+  attach(follower: TerminalFollower, options: TerminalAttachOptions = {}): boolean {
+    if (this.disposed) return false;
+
     // 保活命中：进程仍在，复用会话并回放当前屏幕
     if (this.pty && this.screen && this.serializer) {
       this.followers.add(follower);
@@ -118,6 +121,8 @@ export class TerminalSession {
       this.broadcast({ type: 'output', data });
     });
     pty.onExit(({ exitCode }) => {
+      // 已被显式 destroy 时不再二次广播 / 清理
+      if (this.disposed) return;
       this.broadcast({ type: 'exit', code: exitCode });
       this.dispose();
     });
@@ -128,7 +133,7 @@ export class TerminalSession {
 
   /** 接收消息：resize JSON 或原始输入 */
   handleMessage(data: string): void {
-    if (!this.pty || !this.screen) return;
+    if (this.disposed || !this.pty || !this.screen) return;
     try {
       const msg = JSON.parse(data) as { type?: string; cols?: number; rows?: number };
       if (msg?.type === 'resize' && typeof msg.cols === 'number' && typeof msg.rows === 'number') {
@@ -150,6 +155,20 @@ export class TerminalSession {
     if (this.followers.size === 0) this.scheduleIdleReclaim();
   }
 
+  /** 显式销毁会话：通知 follower 退出、终止进程并释放资源 */
+  destroy(): void {
+    if (this.disposed) return;
+    // 显式销毁没有真实退出码，约定 code 0 表示被管理器终止
+    this.broadcast({ type: 'exit', code: 0 });
+    const pty = this.pty;
+    this.dispose();
+    try {
+      pty?.kill();
+    } catch (err) {
+      this.logger.warn({ err, key: this.key }, 'Failed to kill terminal pty');
+    }
+  }
+
   /** 向单个连接发送一帧（socket 已关闭时告警） */
   private send(follower: TerminalFollower, frame: TerminalFrame): void {
     try {
@@ -168,10 +187,10 @@ export class TerminalSession {
   private scheduleIdleReclaim(): void {
     clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(() => {
-      if (this.followers.size > 0) return;
-      clearTimeout(this.idleTimer);
+      if (this.followers.size > 0 || this.disposed) return;
+      const pty = this.pty;
       try {
-        this.pty?.kill();
+        pty?.kill();
       } catch (err) {
         this.logger.warn({ err, key: this.key }, 'Failed to kill terminal pty');
       }
@@ -179,8 +198,10 @@ export class TerminalSession {
     }, IDLE_TIMEOUT_MS);
   }
 
-  /** 释放会话资源（销毁屏幕、清空状态），并把自己从管理器移除 */
+  /** 释放会话资源（销毁屏幕、清空状态），并把自己从管理器移除；幂等 */
   private dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     clearTimeout(this.idleTimer);
     this.screen?.dispose();
     this.pty = undefined;
@@ -188,27 +209,5 @@ export class TerminalSession {
     this.serializer = undefined;
     this.followers.clear();
     this.remove();
-  }
-}
-
-/**
- * 终端会话管理器（模块级单例）。
- *
- * 只按不透明的 sessionKey 维护会话注册表；key 的语义（线程/终端等）完全交给调用方。
- * 通过 `session(key)` 取得（或懒创建）会话句柄后驱动 attach / handleMessage / detach。
- */
-export class TerminalManager {
-  constructor(private readonly logger: Logger) {}
-
-  private readonly sessions = new Map<string, TerminalSession>();
-
-  /** 取得（或懒创建）指定 sessionKey 的会话句柄 */
-  session(sessionKey: string): TerminalSession {
-    const existing = this.sessions.get(sessionKey);
-    if (existing) return existing;
-
-    const session = new TerminalSession(sessionKey, this.logger, () => this.sessions.delete(sessionKey));
-    this.sessions.set(sessionKey, session);
-    return session;
   }
 }

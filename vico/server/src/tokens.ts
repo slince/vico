@@ -22,7 +22,7 @@ import type { KnowledgeManager } from './services/knowledge/knowledge-manager.js
 import type { StorageManager } from './services/knowledge/storage-manager.js';
 import type { DocumentManager } from './services/knowledge/document-manager.js';
 import type { RAGManager } from './lib/rag-manager.js';
-import type { TerminalManager } from '@vico/terminal';
+import type { TerminalSessionManager } from '@vico/terminal';
 import type { weatherTool } from './agent/tools/weather-tool.js';
 import type { meta, providers } from './llm/providers/index.js';
 
@@ -44,7 +44,7 @@ export interface ServerTokens extends VicoTokens {
   storageManager: StorageManager;
   documentManager: DocumentManager;
   ragManager: RAGManager;
-  terminalManager: TerminalManager;
+  terminalSessionManager: TerminalSessionManager;
   weatherTool: typeof weatherTool;
   llmProviders: { meta: typeof meta; providers: typeof providers };
 }

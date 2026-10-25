@@ -20,6 +20,7 @@
 - 避免 `any`；`ssh2` 缺类型时用最小 `import type` / 局部声明补。
 - `@vico/bash-tool` 对外导出 `bashTool` / `pwshTool` / `shellTools` / `pwshTools` 保持不变；`bash` 工具参数/输出 schema 不变。
 - `parseCommand` 默认 `timeout` 为 `120000`（对齐现有 bash 工具默认值）。
+- 新建 workspace 包或改动任何 `package.json` 依赖后，先运行 `pnpm install` 再 typecheck/test。
 
 ## Review Focus
 
@@ -27,7 +28,7 @@
 
 1. 引号内的分隔符不得拆分：`echo "a && b"` 应是单段，`args` 含 `a && b`。→ Task 1 测试。
 2. `||` 不得被拆成两个 `|`：`a || b` 的第二段 `operator === 'or'`。→ Task 1 测试。
-3. `..` / 绝对路径逃逸：即使不做文件系统解析，`rm ../etc`、`rm /etc` 在 `allowRoots=['/app']` 下都应产出 `path-outside-root`。→ Task 2 测试。
+3. `..` / 绝对路径逃逸：即使不做文件系统解析，`rm ../etc`、`rm /etc` 在 `cwd='/app'`、`allowRoots=['/app']` 下都应产出 `path-outside-root`。→ Task 2 测试。
 4. 重定向目标不得误判为 `targets`：`ls > /tmp/out` 应产出 `redirection` finding，且 `targets` 为空。→ Task 2 测试。
 5. 空/空白命令不得抛异常：`parseCommand('   ')` 返回一个可执行的退化 Command（单段、空 command），不 throw。→ Task 1 测试。
 
@@ -62,7 +63,9 @@
   export function parseCommand(raw: string, options?: ParseOptions): Command;
   ```
 
-- [ ] **Step 1: 写失败测试** `packages/bash/src/parse.test.ts`
+- [ ] **Step 1: 建包脚手架 + 写失败测试**
+
+创建 `packages/bash/package.json`（name `@vico/bash`、`private`、`type: module`、`exports: { ".": "./src/index.ts" }`、scripts `test: vitest run` / `typecheck: tsc --noEmit`、无 dependencies、devDependencies 含 `@types/node`/`typescript`/`vitest` 走 `catalog:`）、`tsconfig.json`（复制 `packages/fs/tsconfig.json`）、`README.md`，以及测试文件 `packages/bash/src/parse.test.ts`：
 
 ```ts
 import { describe, it, expect } from 'vitest';
@@ -119,14 +122,12 @@ describe('parseCommand', () => {
 
 - [ ] **Step 2: 跑测试确认失败**
 
-Run: `pnpm --filter @vico/bash test`
-Expected: FAIL（`parseCommand` 未定义 / 模块缺失）
+Run: `pnpm install && pnpm --filter @vico/bash test`
+Expected: FAIL（`./parse.js` 模块未找到）
 
-- [ ] **Step 3: 实现类型与 `parseCommand`**
+- [ ] **Step 3: 实现 `command.ts` 与 `parse.ts`**
 
-`packages/bash/package.json`：name `@vico/bash`，`private`，`type: module`，`exports: { ".": "./src/index.ts" }`，scripts `test: vitest run` / `typecheck: tsc --noEmit`，无 dependencies，devDependencies 含 `@types/node` / `typescript` / `vitest`（`catalog:`）。`tsconfig.json` 复制 `packages/fs/tsconfig.json`。
-
-`command.ts` / `parse.ts` 按 Interfaces 签名实现。拆段顺序 `&&`→`||`→`;`→`|`（先长后短，`||` 先于 `|`）；词法化识别单双引号与反斜杠；首 token=command、`-` 开头=flags（`-rf` 拆成 `-r`/`-f`，`--x=v` 整体）、其余=args；args 中以 `/`、`./`、`../`、`~` 开头或含 `/` 者为 targets。`$(...)`/反引号/`>` 仅作为原样 token 保留。
+按 Interfaces 签名实现。拆段顺序 `&&`→`||`→`;`→`|`（先长后短，`||` 先于 `|`）；词法化识别单双引号与反斜杠；首 token=command、`-` 开头=flags（`-rf` 拆成 `-r`/`-f`，`--x=v` 整体）、其余=args；args 中以 `/`、`./`、`../`、`~` 开头或含 `/` 者为 targets。`$(...)`/反引号/`>` 仅作为原样 token 保留。
 
 - [ ] **Step 4: 跑测试确认通过**
 
@@ -149,7 +150,7 @@ git commit -m "feat(@vico/bash): parse shell command into structured Command"
 - Test: `packages/bash/src/analyze.test.ts`
 
 **Interfaces:**
-- Consumes: `Command`, `CommandSegment`（Task 1）
+- Consumes: `Command`、`CommandSegment`（Task 1）
 - Produces:
   ```ts
   export type CommandCategory = 'read' | 'write' | 'delete' | 'network' | 'process' | 'other';
@@ -183,7 +184,7 @@ describe('analyzeCommand', () => {
   it('路径越界 → path-outside-root（含 .. 与绝对路径，不做文件系统解析）', () => {
     const opts = { pathPolicy: { allowRoots: ['/app'] } };
     for (const raw of ['rm ../etc', 'rm /etc']) {
-      const a = analyzeCommand(parseCommand(raw, { cwd: '/app/sub' }), opts);
+      const a = analyzeCommand(parseCommand(raw, { cwd: '/app' }), opts);
       expect(a.findings).toContainEqual(expect.objectContaining({ code: 'path-outside-root', severity: 'critical' }));
     }
   });
@@ -215,7 +216,7 @@ describe('analyzeCommand', () => {
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `pnpm --filter @vico/bash test`
-Expected: FAIL（`analyze` 模块缺失）
+Expected: FAIL（`./analyze.js` 模块未找到）
 
 - [ ] **Step 3: 实现 `analyzeCommand`**
 
@@ -259,15 +260,17 @@ git commit -m "feat(@vico/bash): analyze command into structured findings"
 ```ts
 import { describe, it, expect, vi } from 'vitest';
 import { parseCommand } from './parse.js';
+import { analyzeCommand } from './analyze.js';
 import { permissivePolicy, withPolicy } from './policy.js';
-import type { CommandExecutor } from './executor.js';
-import type { CommandResult } from './command.js';
+import type { Command, CommandResult } from './command.js';
+import type { CommandAnalysis } from './analyze.js';
 
 const okResult: CommandResult = { stdout: 'x', stderr: '', exitCode: 0, durationMs: 1 };
 
 describe('withPolicy', () => {
   it('permissivePolicy 放行', async () => {
-    const d = await permissivePolicy.evaluate(parseCommand('ls'), { command: parseCommand('ls'), segments: [], findings: [] });
+    const cmd = parseCommand('ls');
+    const d = await permissivePolicy.evaluate(cmd, analyzeCommand(cmd));
     expect(d).toEqual({ allow: true });
   });
 
@@ -282,13 +285,11 @@ describe('withPolicy', () => {
 
   it('allow 时透传内层结果，并把 analysis 交给 policy', async () => {
     const inner = { execute: vi.fn().mockResolvedValue(okResult) };
-    const policy = { evaluate: vi.fn().mockReturnValue({ allow: true }) };
-    const cmd = parseCommand('rm -rf /www/xxx');
-    const r = await withPolicy(inner, policy).execute(cmd);
+    let received: CommandAnalysis | undefined;
+    const policy = { evaluate: (_cmd: Command, analysis: CommandAnalysis) => { received = analysis; return { allow: true }; } };
+    const r = await withPolicy(inner, policy).execute(parseCommand('rm -rf /www/xxx'));
     expect(r).toBe(okResult);
-    expect(policy.evaluate).toHaveBeenCalledOnce();
-    const analysis = (policy.evaluate as any).mock.calls[0][1];
-    expect(analysis.segments[0].category).toBe('delete');
+    expect(received?.segments[0].category).toBe('delete');
   });
 });
 ```
@@ -296,7 +297,7 @@ describe('withPolicy', () => {
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `pnpm --filter @vico/bash test`
-Expected: FAIL（`policy` / `executor` 模块缺失）
+Expected: FAIL（`./policy.js` / `./executor.js` 模块未找到）
 
 - [ ] **Step 3: 实现接口与策略**
 
@@ -369,7 +370,7 @@ describe('LocalCommandExecutor', () => {
 - [ ] **Step 2: 跑测试确认失败**
 
 Run: `pnpm --filter @vico/bash test`
-Expected: FAIL（`local-executor` 模块缺失）
+Expected: FAIL（`./local-executor.js` 模块未找到）
 
 - [ ] **Step 3: 实现 `LocalCommandExecutor`**
 
@@ -437,7 +438,9 @@ git commit -m "feat(@vico/bash): export public API from barrel"
   }
   ```
 
-- [ ] **Step 1: 写失败测试**（只测可纯函数化的序列化，不连真实 SSH）
+- [ ] **Step 1: 建包脚手架 + 写失败测试**（只测可纯函数化的序列化，不连真实 SSH）
+
+创建 `packages/bash-ssh/package.json`（name `@vico/bash-ssh`、`private`、`type: module`、`exports: { ".": "./src/index.ts" }`、scripts `test: vitest run` / `typecheck: tsc --noEmit`、dependencies `@vico/bash: workspace:*` + `ssh2`、devDependencies `@types/node`/`typescript`/`vitest`）、`tsconfig.json`（复制 fs）、`README.md`，以及测试文件 `packages/bash-ssh/src/ssh-executor.test.ts`：
 
 ```ts
 import { describe, it, expect } from 'vitest';
@@ -457,12 +460,12 @@ describe('buildRemoteCommand', () => {
 
 - [ ] **Step 2: 跑测试确认失败**
 
-Run: `pnpm --filter @vico/bash-ssh test`
-Expected: FAIL（包/模块缺失）
+Run: `pnpm install && pnpm --filter @vico/bash-ssh test`
+Expected: FAIL（`./ssh-executor.js` 模块未找到）
 
 - [ ] **Step 3: 实现 `buildRemoteCommand` 与 `SshCommandExecutor`**
 
-`package.json`：name `@vico/bash-ssh`，dependencies `@vico/bash: workspace:*` + `ssh2`。`buildRemoteCommand`：`[env 每条 export KEY=VALUE; ]` + `cd <cwd> && ` + `command.raw`（无对应项时省略前缀）。`SshCommandExecutor`：构造存 `SshConnectionOptions`；`execute` 惰性建立并复用 `ssh2.Client` 连接，`client.exec(buildRemoteCommand(command))` 收集 stdout/stderr 与退出码，timeout 用定时器关闭 channel；`dispose()` 关闭连接。`ssh2` 无类型处用最小 `import type` 声明。
+`buildRemoteCommand`：`[env 每条 export KEY=VALUE; ]` + `cd <cwd> && ` + `command.raw`（无对应项时省略前缀）。`SshCommandExecutor`：构造存 `SshConnectionOptions`；`execute` 惰性建立并复用 `ssh2.Client` 连接，`client.exec(buildRemoteCommand(command))` 收集 stdout/stderr 与退出码，timeout 用定时器关闭 channel；`dispose()` 关闭连接。`ssh2` 无类型处用最小 `import type` 声明。
 
 - [ ] **Step 4: 跑 typecheck + test**
 
@@ -509,7 +512,7 @@ git commit -m "feat(@vico/bash-ssh): add ssh command executor"
 
 - [ ] **Step 4: typecheck 链验证**
 
-Run: `pnpm --filter @vico/bash-tool typecheck && pnpm --filter @vico/boot typecheck && cd vico/server && npx tsc --noEmit`
+Run: `pnpm install && pnpm --filter @vico/bash-tool typecheck && pnpm --filter @vico/boot typecheck && cd vico/server && npx tsc --noEmit`
 Expected: 全绿（导出不变，boot/server 无感）
 
 - [ ] **Step 5: Commit**
