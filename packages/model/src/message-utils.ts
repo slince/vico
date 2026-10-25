@@ -59,27 +59,46 @@ export function pickPrimaryUserMessage(messages: ModelMessage[]): ModelMessage |
  */
 function collectToolCallIds(messages: ModelMessage[]): Set<string> {
   const ids = new Set<string>();
+
   for (const msg of messages) {
-    if (typeof msg.content === 'string') continue;
+    // string 内容不含 part，跳过
+    if (typeof msg.content === 'string') {
+      continue;
+    }
+
     for (const part of msg.content) {
-      if (part.type === 'tool-call') ids.add(part.toolCallId);
+      if (part.type === 'tool-call') {
+        ids.add(part.toolCallId);
+      }
     }
   }
+
   return ids;
 }
 
 /**
  * 从消息链收集所有「已完成」的 toolCallId（存在配对 tool-result）。
  * 配对口径与 findUnpairedToolCalls 一致：role==='tool' 的 tool-result part。
+ *
+ * @param messages - 待扫描的消息链
+ * @returns 已完成（已配对 tool-result）的 toolCallId 集合
  */
 export function completedCallIds(messages: ModelMessage[]): Set<string> {
   const ids = new Set<string>();
+
   for (const msg of messages) {
-    if (msg.role !== 'tool') continue;
+    // 仅 tool 消息可能携带 tool-result
+    if (msg.role !== 'tool') {
+      continue;
+    }
+
     for (const part of msg.content) {
-      if (part.type === 'tool-result') ids.add(part.toolCallId);
+      if (part.type === 'tool-result') {
+        ids.add(part.toolCallId);
+      }
     }
   }
+
   return ids;
 }
 
