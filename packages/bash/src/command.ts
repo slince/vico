@@ -12,9 +12,10 @@
 export type CommandOperator = 'none' | 'and' | 'or' | 'semi' | 'pipe';
 
 /**
- * 重定向描述（`>` / `>>` / `<` 等）。
+ * 重定向描述（`>` / `>>` / `<` / `2>` / `2>&1` / `&>` 等）。
  *
- * 当前任务仅保留结构占位，解析阶段不展开重定向（`>` 作为原样 token 保留）。
+ * `parseCommand` 解析阶段识别重定向运算符，运算符与目标分别记录为
+ * `operator` / `target`，且均不进 `flags` / `args` / `targets`。
  */
 export interface Redirect {
   operator: string;
@@ -28,6 +29,7 @@ export interface Redirect {
  * - `flags`：`-` 开头的 token（`-rf` 已拆为 `-r` / `-f`）
  * - `args`：其余非 flag token
  * - `targets`：args 中形如路径者（`/`、`./`、`../`、`~` 开头或含 `/`）
+ * - `redirects`：重定向（运算符 + 目标），已从 args / targets 中排除
  */
 export interface CommandSegment {
   operator: CommandOperator;

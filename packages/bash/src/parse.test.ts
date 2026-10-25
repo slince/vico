@@ -47,4 +47,10 @@ describe('parseCommand', () => {
     expect(c.segments).toHaveLength(1);
     expect(c.segments[0].command).toBe('');
   });
+
+  it('重定向运算符记入 redirects，目标不进 args/targets', () => {
+    const c = parseCommand('ls > /tmp/out');
+    expect(c.segments[0].targets).toEqual([]);
+    expect(c.segments[0].redirects).toEqual([{ operator: '>', target: '/tmp/out' }]);
+  });
 });

@@ -4,6 +4,7 @@ import type {
   Command,
   CommandOperator,
   CommandSegment,
+  Redirect,
 } from './command.js';
 
 /** 缺省执行超时（毫秒） */
@@ -135,6 +136,9 @@ function splitSegments(raw: string): RawSegment[] {
 
 /**
  * 把单个段文本解析为 {@link CommandSegment}。
+ *
+ * 重定向运算符（`>` / `>>` / `<` / `2>` / `2>&1` / `&>` 等）记入
+ * `redirects`，运算符与其目标 token 均不进 `flags` / `args` / `targets`。
  */
 function parseSegment(operator: CommandOperator, text: string): CommandSegment {
   const tokens = tokenize(text);
@@ -144,8 +148,18 @@ function parseSegment(operator: CommandOperator, text: string): CommandSegment {
 
   const flags: string[] = [];
   const args: string[] = [];
+  const redirects: Redirect[] = [];
 
-  for (const token of rest) {
+  for (let i = 0; i < rest.length; i++) {
+    const token = rest[i];
+
+    // 重定向：吞掉运算符及其后的目标 token
+    if (isRedirectOperator(token)) {
+      redirects.push({ operator: token, target: rest[i + 1] ?? '' });
+      i++;
+      continue;
+    }
+
     if (token.startsWith('-')) {
       flags.push(...splitFlags(token));
     } else {
@@ -162,8 +176,7 @@ function parseSegment(operator: CommandOperator, text: string): CommandSegment {
     flags,
     args,
     targets,
-    // 解析阶段不解析重定向：`>` 作为原样 token 保留在 args 中
-    redirects: [],
+    redirects,
   };
 }
 
@@ -171,7 +184,8 @@ function parseSegment(operator: CommandOperator, text: string): CommandSegment {
  * 词法化段文本：识别单/双引号与反斜杠，按顶层空白切分 token。
  *
  * 引号内容去掉引号字面并入 token（引号内空白保留）；反斜杠转义下一字符。
- * `$(...)` / 反引号 / `>` 不做任何特殊处理，作为普通字符进入 token。
+ * `$(...)` / 反引号不做任何特殊处理，作为普通字符进入 token；
+ * 重定向运算符（`>` 等）作为普通 token 产出，由 {@link parseSegment} 识别。
  */
 function tokenize(text: string): string[] {
   const tokens: string[] = [];
@@ -250,6 +264,19 @@ function splitFlags(token: string): string[] {
   }
 
   return [...chars].map((ch) => `-${ch}`);
+}
+
+/**
+ * 判断 token 是否为重定向运算符：
+ * `>` / `>>` / `<`，或 `2>` / `2>>` / `2>&1` / `&>` / `&>>` 形式。
+ */
+function isRedirectOperator(token: string): boolean {
+  if (token === '>' || token === '>>' || token === '<') {
+    return true;
+  }
+
+  // 数字文件描述符重定向 / 合并（2>、2>>、2>&1）与 &> / &>>
+  return /^(?:\d+>>?|\d+>&\d+|&>>?)$/.test(token);
 }
 
 /**
