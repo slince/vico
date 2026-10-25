@@ -336,6 +336,9 @@ importers:
 
   packages/bash-tool:
     dependencies:
+      '@vico/bash':
+        specifier: workspace:*
+        version: link:../bash
       '@vico/tool':
         specifier: workspace:*
         version: link:../tool
