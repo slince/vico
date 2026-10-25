@@ -22,20 +22,34 @@ export interface SshConnectionOptions {
 }
 
 /**
+ * 用单引号包裹并转义值中的单引号（标准 shell 惯用法：`'` → `'\''`）。
+ *
+ * 单引号内除单引号自身外均为字面量，因此只需把内嵌的 `'` 改写为 `'\''`
+ * 再整体包裹，即可安全地在远端 shell 中保真传值。
+ *
+ * @param value 待包裹的原始值
+ * @returns 单引号包裹、内嵌单引号已转义的 shell 字面量
+ */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+/**
  * 把解析后的命令序列化为远端 shell 命令行。
  *
- * 顺序：每条 env 生成 `export KEY=VALUE; ` 前缀，随后（仅当 cwd 存在时）
- * 追加 `cd <cwd> && `，最后拼接 `command.raw`；无 env / cwd 时直接输出 `raw`。
+ * 顺序：每条 env 生成 `export KEY=<quoted value>; ` 前缀（键不引、值单引号
+ * 包裹），随后（仅当 cwd 存在时）追加 `cd <quoted cwd> && `，最后拼接
+ * `command.raw`；无 env / cwd 时直接输出 `raw`。
  *
  * @param command 待执行的命令（来自 {@link parseCommand}）
  * @returns 远端可直接交给 shell 执行的命令行字符串
  */
 export function buildRemoteCommand(command: Command): string {
   const envPrefix = Object.entries(command.env ?? {})
-    .map(([key, value]) => `export ${key}=${value}; `)
+    .map(([key, value]) => `export ${key}=${shellQuote(value)}; `)
     .join('');
 
-  const cwdPrefix = command.cwd ? `cd ${command.cwd} && ` : '';
+  const cwdPrefix = command.cwd ? `cd ${shellQuote(command.cwd)} && ` : '';
 
   return `${envPrefix}${cwdPrefix}${command.raw}`;
 }
@@ -77,6 +91,8 @@ export class SshCommandExecutor implements CommandExecutor {
 
   /**
    * 惰性建立并缓存连接：首次调用创建 `Client`，等待 ready 后复用。
+   *
+   * 连接建立后被断开时（`close` 事件）清空缓存指针，下一次调用自动重建。
    */
   private getClient(): Promise<Client> {
     if (this.client) {
@@ -96,6 +112,14 @@ export class SshCommandExecutor implements CommandExecutor {
       client.once('ready', () => {
         this.client = client;
         resolve(client);
+      });
+
+      // 连接建立后被对端断开：把缓存指针置空，下一次 execute 惰性重建连接。
+      // 本地 ssh2 最小声明（ssh2.d.ts）未收录 close 事件，这里补上 close 签名。
+      (client as Client & { on(event: 'close', listener: () => void): Client }).on('close', () => {
+        if (this.client === client) {
+          this.client = undefined;
+        }
       });
 
       client.connect(this.options);
