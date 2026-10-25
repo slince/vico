@@ -43,6 +43,8 @@
   "temperature": "Temperature",
   "temperatureExact": "Precise",
   "temperatureCreative": "Creative",
+  "maxSteps": "Max Steps",
+  "maxStepsDesc": "Limits the number of tool-call and reasoning steps the model may take within a single turn. Higher values allow more complex tasks but take longer.",
   "ragMode": "RAG Mode",
   "ragModeDesc": "Controls how the knowledge base retrieval-augmented generation works.",
   "ragModeAuto": "Auto (Recommended)",

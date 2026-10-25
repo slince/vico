@@ -28,6 +28,7 @@ export interface Agent {
   system_prompt?: string;
   model_id?: string;
   temperature?: number;
+  max_steps?: number;
   rag_mode?: string;
   skills?: string[];
   kb_id?: string | null;

@@ -43,6 +43,8 @@
   "temperature": "Temperature",
   "temperatureExact": "精确",
   "temperatureCreative": "创造",
+  "maxSteps": "最大步数",
+  "maxStepsDesc": "控制单轮对话中模型可执行的工具调用与推理步数上限。步数越大，Agent 可完成越复杂的任务，但耗时也更长。",
   "ragMode": "RAG 模式",
   "ragModeDesc": "控制知识库检索增强生成的工作模式。",
   "ragModeAuto": "自动（推荐）",

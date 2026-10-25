@@ -123,6 +123,27 @@ export default function ConfigPanel({
           <Separator />
 
           <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t('maxSteps')}</Label>
+              <span className="text-sm text-muted-foreground tabular-nums">
+                {a.max_steps ?? 10}
+              </span>
+            </div>
+            <Slider
+              value={[a.max_steps ?? 10]}
+              onValueCommit={([v]) => onUpdate({ max_steps: v })}
+              min={1}
+              max={30}
+              step={1}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t('maxStepsDesc')}
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
             <Label>{t('ragMode')}</Label>
             <Select
               value={a.rag_mode || 'auto'}

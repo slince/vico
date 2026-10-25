@@ -229,7 +229,7 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
 
         {/* 空态 — 无任何 tab 时提供快捷入口 */}
         {!active && (
-          <Empty className="border-0 p-6">
+          <Empty className="border-0 p-8">
             <EmptyMedia variant="icon">
               <FolderTree />
             </EmptyMedia>
@@ -239,7 +239,7 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
             </EmptyHeader>
             <EmptyContent>
               <Button
-                size="sm"
+                size="lg"
                 variant="outline"
                 className="w-full"
                 onClick={() => openFilesTab(threadId)}
@@ -249,7 +249,7 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
               </Button>
               {canCreateTerminal && (
                 <Button
-                  size="sm"
+                  size="lg"
                   variant="outline"
                   className="w-full"
                   onClick={() => createTerminal(threadId)}
