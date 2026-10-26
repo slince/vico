@@ -23,10 +23,12 @@ minimumReleaseAgeExclude:
 
 # 允许运行 build scripts 的依赖（pnpm 默认禁止，这里批准项目实际使用的原生/二进制包）
 allowBuilds:
+  cpu-features: true
   esbuild: true
   onnxruntime-node: true
   protobufjs: true
   sharp: true
+  ssh2: true
 
 # 统一 workspace 内共享第三方依赖版本（分包后 26 个包共同声明的依赖在此集中管理）。
 # 各包 package.json 以 "catalog:" 引用，升级只改此处一处；保证解析到同一物理副本。
