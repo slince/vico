@@ -15,7 +15,7 @@ export class SystemPromptProcessor implements ContextProcessor {
     const workspace = ctx.session?.workspace;
 
     if (workspace) {
-      ctx.appendSystemPrompt(`你当前的工作目录是 \`${workspace}\`。所有文件操作和 shell 命令都默认在此目录下执行。`);
+      ctx.appendSystemPrompt(`Your current working directory is \`${workspace}\`. All file operations and shell commands run in this directory by default.`);
     }
 
     await next();

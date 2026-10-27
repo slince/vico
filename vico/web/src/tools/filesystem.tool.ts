@@ -68,19 +68,11 @@ export type WriteArgs = z.infer<typeof writeSchema>;
 export type WriteResult = z.infer<typeof writeOutputSchema>;
 
 // ── edit ──
-const editEntrySchema = z.object({
-  oldText: z.string(),
-  newText: z.string(),
-});
 const editSchema = z.object({
   path: z.string().describe('要编辑的文件路径'),
-  oldText: z.string().optional(),
-  newText: z.string().optional(),
-  edits: z.array(editEntrySchema).optional(),
-  startLine: z.number().int().min(1).optional(),
-  endLine: z.number().int().min(1).optional(),
-  newContent: z.string().optional(),
-  insertAt: z.number().int().min(0).optional(),
+  oldText: z.string().describe('要替换的字面量文本；未开启 replaceAll 时必须在文件中唯一'),
+  newText: z.string().describe('替换文本；空字符串表示删除匹配'),
+  replaceAll: z.boolean().optional().describe('替换所有出现，而不是要求唯一匹配'),
 });
 const editOutputSchema = z.object({
   path: z.string(),
@@ -115,7 +107,7 @@ export const writeTool: ToolkitDefinitionEntry<WriteArgs, WriteResult> = {
 };
 
 export const editTool: ToolkitDefinitionEntry<EditArgs, EditResult> = {
-  description: '编辑文件，支持字符串替换、行号编辑、行插入三种模式。返回 unified diff。',
+  description: '通过字面量文本替换编辑文件，一次一处或 replaceAll 全替换。返回 unified diff。',
   parameters: editSchema,
   render: FileWriteRenderer,
 };

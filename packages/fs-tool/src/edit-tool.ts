@@ -7,38 +7,12 @@ import { createTool } from '@vico/tool';
 import { resolveWorkspacePath } from '@vico/utils';
 import type { ToolCallContext } from '@vico/tool';
 
-const editEntry = z.object({
-  oldText: z.string().describe('Literal text to replace'),
-  newText: z.string().describe('Replacement text'),
-  replaceAll: z.boolean().optional().describe('Replace all occurrences; default false (oldText must be unique)'),
-});
-
 const editParams = z.object({
   path: z.string().describe('File path to edit (relative to workspace or absolute)'),
-  // 字符串替换模式
-  oldText: z.string().optional().describe('Literal text to replace (single-edit mode)'),
-  newText: z.string().optional().describe('Replacement text (single-edit mode); empty string deletes the match'),
-  replaceAll: z.boolean().optional().describe('Replace all occurrences in single-edit mode; default false (oldText must be unique)'),
-  edits: z.array(editEntry).optional().describe('Batch edits'),
-  // 行号编辑模式
-  startLine: z.number().int().min(1).optional().describe('Start line number (1-based, inclusive)'),
-  endLine: z.number().int().min(1).optional().describe('End line number (1-based, inclusive); defaults to startLine'),
-  newContent: z.string().optional().describe('New content for the line range (empty string = delete)'),
-  insertAt: z.number().int().min(0).optional().describe('Insert new lines after this line (0 = beginning of file)'),
+  oldText: z.string().describe('Literal text to replace; must be unique in the file unless replaceAll is true'),
+  newText: z.string().describe('Replacement text; empty string deletes the match'),
+  replaceAll: z.boolean().optional().describe('Replace all occurrences instead of requiring a unique match'),
 });
-
-/**
- * 用 `diff` 包（jsdiff）生成 unified diff：`---/+++/@@` 头 + 每侧 3 行上下文。
- * headerOptions 用 FILE_HEADERS_ONLY 去掉 jsdiff 默认的 `Index:`/`===` git 风格头；
- * 不传 oldHeader/newHeader，避免 jsdiff 默认拼时间戳导致输出非确定。
- */
-function generateDiff(path: string, oldContent: string, newContent: string): string {
-  if (oldContent === newContent) return 'No changes detected';
-  return createPatch(path, oldContent, newContent, undefined, undefined, {
-    context: 3,
-    headerOptions: FILE_HEADERS_ONLY,
-  }).trim();
-}
 
 const editOutputSchema = z.object({
   path: z.string(),
@@ -118,71 +92,27 @@ function applyLiteralEdit(
 }
 
 /**
- * 顺序执行多条字面量替换（每条独立判断唯一性/全替换），返回最终内容与总替换次数。
+ * 用 `diff` 包（jsdiff）生成 unified diff：`---/+++/@@` 头 + 每侧 3 行上下文。
+ * headerOptions 用 FILE_HEADERS_ONLY 去掉 jsdiff 默认的 `Index:`/`===` git 风格头；
+ * 不传 oldHeader/newHeader，避免 jsdiff 默认拼时间戳导致输出非确定。
  */
-function applyTextEdits(
-  original: string,
-  edits: Array<{ oldText: string; newText: string; replaceAll?: boolean }>,
-  displayPath: string,
-): LiteralEditResult {
-  let content = original;
-  let replacements = 0;
-  for (const edit of edits) {
-    const result = applyLiteralEdit(content, edit.oldText, edit.newText, edit.replaceAll ?? false, displayPath);
-    content = result.content;
-    replacements += result.replacements;
-  }
-  return { content, replacements };
-}
-
-/** 执行行号范围编辑 */
-function applyLineEdits(
-  original: string,
-  startLine: number,
-  endLine: number,
-  newContent: string,
-): string {
-  const lines = original.split('\n');
-  const start = Math.max(0, startLine - 1);
-  const end = Math.min(lines.length, endLine);
-
-  if (start >= lines.length) {
-    throw new Error(`startLine ${startLine} is out of range (file has ${lines.length} lines)`);
-  }
-
-  // 替换指定行范围：保留 [0..start) + newContent + [end..]
-  return [
-    ...lines.slice(0, start),
-    newContent,
-    ...lines.slice(end),
-  ].join('\n');
-}
-
-/** 执行行号插入 */
-function applyLineInsert(original: string, insertAt: number, newContent: string): string {
-  if (insertAt === 0) {
-    return newContent + '\n' + original;
-  }
-
-  const lines = original.split('\n');
-  const pos = Math.min(insertAt, lines.length);
-
-  return [
-    ...lines.slice(0, pos),
-    newContent,
-    ...lines.slice(pos),
-  ].join('\n');
+function generateDiff(path: string, oldContent: string, newContent: string): string {
+  if (oldContent === newContent) return 'No changes detected';
+  return createPatch(path, oldContent, newContent, undefined, undefined, {
+    context: 3,
+    headerOptions: FILE_HEADERS_ONLY,
+  }).trim();
 }
 
 /**
- * 创建 edit 工具 — 支持字符串替换、行号编辑、行插入三种模式。
+ * 创建 edit 工具 — 字面量字符串替换（oldText→newText），一次一处或 replaceAll 全替换。
  * @param fs - 文件系统实现，默认本地文件系统
  */
 export function createEditTool(fs: Filesystem = localFilesystem) {
   return createTool({
     name: 'edit',
     description:
-      'Edit a file in three modes: 1) string replacement (oldText→newText, oldText must be unique unless replaceAll is true); 2) line-range edit (startLine/endLine + newContent); 3) line insertion (insertAt + newContent). Returns a unified diff.',
+      'Edit an existing file by replacing literal text. oldText must be unique in the file unless replaceAll is true; use empty newText to delete the match. Returns a unified diff.',
     inputSchema: editParams,
     outputSchema: editOutputSchema,
     policy: 'auto',
@@ -198,38 +128,13 @@ export function createEditTool(fs: Filesystem = localFilesystem) {
       const lineEndings = detectLineEndings(raw);
       const original = normalizeLineEndings(raw);
 
-      let modified: string;
-      let replacements: number;
-
-      // 行号插入模式
-      if (args.insertAt !== undefined && args.newContent !== undefined) {
-        modified = applyLineInsert(original, args.insertAt, normalizeLineEndings(args.newContent));
-        replacements = modified === original ? 0 : 1;
-      }
-      // 行号范围编辑模式
-      else if (args.startLine !== undefined && args.newContent !== undefined) {
-        const endLine = args.endLine ?? args.startLine;
-        modified = applyLineEdits(original, args.startLine, endLine, normalizeLineEndings(args.newContent));
-        replacements = modified === original ? 0 : 1;
-      }
-      // 字符串替换模式
-      else {
-        const edits = args.edits ?? (
-          args.oldText !== undefined
-            ? [{ oldText: args.oldText, newText: args.newText ?? '', replaceAll: args.replaceAll }]
-            : []
-        );
-
-        if (edits.length === 0) {
-          throw new Error(
-            'Must provide one of: oldText+newText (string replacement), startLine+newContent (line edit), insertAt+newContent (line insertion)',
-          );
-        }
-
-        const result = applyTextEdits(original, edits, rel);
-        modified = result.content;
-        replacements = result.replacements;
-      }
+      const { content: modified, replacements } = applyLiteralEdit(
+        original,
+        args.oldText,
+        args.newText,
+        args.replaceAll ?? false,
+        rel,
+      );
 
       await fs.writeFile(absPath, restoreLineEndings(modified, lineEndings));
 

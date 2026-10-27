@@ -86,12 +86,12 @@ export class MemoryProcessor implements ContextProcessor {
     const dataBlock = current || template;
 
     ctx.appendSystemPrompt(
-      `调用 update_semantic_memory 工具存储用户信息。如果信息可能被再次引用——存储它！\n\n` +
-      `使用指南：\n` +
-      `1. 了解到用户新信息时主动更新\n` +
-      `2. 仅替换变更部分，保持其他部分不变\n` +
-      `3. 使用下方 Markdown 格式——不要直接输出模板文本，始终通过工具更新\n\n` +
-      `当前语义记忆：\n\`\`\`markdown\n${dataBlock}\n\`\`\``);
+      `Use the update_semantic_memory tool to store user information. If the information might be referenced again — store it!\n\n` +
+      `Guidelines:\n` +
+      `1. Proactively update when you learn new information about the user\n` +
+      `2. Replace only the changed parts and keep the rest unchanged\n` +
+      `3. Use the Markdown format below — never output the template text directly, always update through the tool\n\n` +
+      `Current semantic memory:\n\`\`\`markdown\n${dataBlock}\n\`\`\``);
   }
 
   /**
@@ -110,6 +110,6 @@ export class MemoryProcessor implements ContextProcessor {
     if (relevant.length === 0) return;
 
     const memText = relevant.map((m) => `- ${m.content}`).join('\n');
-    ctx.appendSystemPrompt(`相关记忆：\n${memText}`);
+    ctx.appendSystemPrompt(`Relevant memories:\n${memText}`);
   }
 }

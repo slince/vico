@@ -36,12 +36,14 @@
 - **`FILE_HEADERS_ONLY`**：去掉 jsdiff 默认 `Index:`/`===` git 风格头，输出干净的 `---/+++/@@` unified diff。
 - **不传 oldHeader/newHeader**：避免 jsdiff 默认拼时间戳导致输出非确定。
 
-## edit 的字面量替换对齐 deepseek
+## edit 简化为单一字面量替换
 
-`editTool` 的字面量替换从「正则转义计数 + `String.replace`」改为 deepseek `tool-fs` 的 `applyLiteralEdit` 形态（`fs-local/src/fsio.ts`）：
+`editTool` 原本一个工具塞了 4 种模式（字面量替换 / 批量 `edits[]` / 行号范围编辑 / 行号插入），10 个参数 + 手写 if/else 判模式。行号编辑对 LLM 天然脆弱（行号漂移、模型数行不准），且全仓库无任何代码、eval 使用；deepseek 与 Claude Code 均已放弃行号编辑。现砍到只剩字面量替换：`{ path, oldText, newText, replaceAll? }`，一次一处或 `replaceAll` 全替换，「插入」用锚点字面量替换表达。前端 `vico/web/src/tools/filesystem.tool.ts` 的平行定义同步收敛。
+
+替换核心对齐 deepseek `tool-fs` 的 `applyLiteralEdit`（`fs-local/src/fsio.ts`）：
 
 - **纯字面量**：`countOccurrences`（`indexOf` 循环非重叠计数）+ `content.split(oldNorm).join(newNorm)`，去掉正则转义。
-- **`replaceAll` 语义**：`oldText`/批量 `edits[]` 各带可选 `replaceAll`，默认 false（多处命中抛歧义错误），true 全替换。
+- **`replaceAll` 语义**：默认 false（多处命中抛歧义错误），true 全替换。
 - **LF 归一化**：读入后 `normalizeLineEndings`（`\r\n`→`\n`）统一到 LF 基准做匹配与 diff；`detectLineEndings` 采样判断原文件 CRLF/LF，写回前 `restoreLineEndings` 还原，CRLF 文件不再整文件误报变更。
 - **空 oldText**：显式拒绝（对齐 deepseek 的 `FS_EDIT_NOT_FOUND`）。
 - 未照搬并发/版本 CAS 与 `FS_*` 结构化错误码——那依赖 fs 服务层的 per-target 锁与版本概念，本工具暂不具备。
