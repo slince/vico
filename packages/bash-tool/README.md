@@ -8,14 +8,13 @@ Shell 命令执行工具（bash / pwsh），基于 `@vico/tool` 的 `createTool`
 ## 快速使用
 
 ```ts
-import { bashTool, shellTools } from '@vico/bash-tool';
+import { bashTool, createShellTool } from '@vico/bash-tool';
 
 // 单独使用 bash 工具
 const tools = [bashTool];
 
-// 与其他内置工具组合（按平台选择 shell：Windows 用 pwsh，其余用 bash）
-import { basicTools } from '@vico/tool';
-const all = [...basicTools, ...shellTools];
+// 选择当前主机合适的 shell 工具（Windows 无 Git Bash 时用 pwsh，否则用 bash）
+const shell = createShellTool();
 ```
 
 ## 注入自定义执行器

@@ -9,6 +9,7 @@ import {loggerProvider} from './providers/logger-provider.js';
 import {skillsProvider} from './providers/skills-provider.js';
 import {memoryProvider} from './providers/memory-provider.js';
 import {agentProvider} from './providers/agent-provider.js';
+import {workspaceProvider} from './providers/workspace-provider.js';
 import {configProvider} from './providers/config-provider.js';
 
 /** 包内默认配置文件的绝对路径（默认值唯一来源） */
@@ -31,8 +32,8 @@ export interface CreateVicoContainerOptions<
  * 创建 Vico 容器：注册 framework 领域 provider → 调用使用方 setup 扩展 → 加载配置 → 冻结。
  *
  * 各 provider 在 register 阶段自行声明其领域配置段 schema（registerConfig）并绑定服务；
- * 未被任何领域服务消费的 framework 配置段（model/tool/workspace/checkpoint）由
- * `configProvider` 统一声明。先注册 provider（声明 schema），再 load 配置，load 时即验证。
+ * 未被任何领域服务消费的 framework 配置段（model/tool）由 `configProvider` 统一声明。
+ * 先注册 provider（声明 schema），再 load 配置，load 时即验证。
  *
  * 加载顺序沿用 `@vico/di` 的「后加载覆盖先加载」语义：内置默认配置先加载，
  * 用户 `configPath`（可选）后加载，同名段整段覆盖、段内字段由 schema `.default()` 兜底。
@@ -84,12 +85,13 @@ export async function createVicoContainer<
  *
  * 依赖拓扑（注册顺序的自然依据）：
  * logger → skills → thread/checkpointStore/vectorStore → embedder → memory
- * → events → agentRuntime；`configProvider` 兜底声明纯配置段。
+ * → events → agentRuntime → workspace；`configProvider` 兜底声明纯配置段。
  */
 export const vicoProviders: VicoServiceProvider[] = [
   loggerProvider,
   skillsProvider,
   memoryProvider,
   agentProvider,
+  workspaceProvider,
   configProvider,
 ];

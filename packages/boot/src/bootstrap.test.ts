@@ -60,6 +60,7 @@ describe('createVicoContainer', () => {
     expect(c.getConfig('workspace').base_path).toBe('/tmp/ws');
     expect(c.getConfig('workspace').contained).toBe(true);
     expect(c.getConfig('workspace').isolation).toBe('none');
+    expect(c.get('workspace')).toBe('/tmp/ws');
     rmSync(join(file, '..'), { recursive: true, force: true });
   });
 });
@@ -179,6 +180,6 @@ describe('providers 真实装配', () => {
 
 describe('vicoProviders', () => {
   it('按声明顺序导出领域 provider', () => {
-    expect(vicoProviders).toHaveLength(5);
+    expect(vicoProviders).toHaveLength(6);
   });
 });

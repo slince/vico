@@ -17,7 +17,6 @@ import { RAGManager } from '../lib/rag-manager.js';
 import { TerminalSessionManager } from '@vico/terminal';
 import { weatherTool } from '../agent/tools/weather-tool.js';
 import { meta, providers } from '../llm/providers/index.js';
-import { expandHome } from '../lib/path.js';
 import type { ServerServiceProvider } from '../tokens.js';
 
 export const servicesProvider: ServerServiceProvider = {
@@ -41,11 +40,11 @@ export const servicesProvider: ServerServiceProvider = {
         get('logger'),
       ));
 
-    c.register('agentManager', ({ get, getConfig }) =>
+    c.register('agentManager', ({ get }) =>
       new AgentManager(
         get('db'),
         get('modelManager'),
-        expandHome(getConfig('workspace').base_path),
+        get('workspace'),
       ));
 
     c.register('agentFactory', ({ get, getConfig }) =>

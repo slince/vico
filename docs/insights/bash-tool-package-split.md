@@ -11,15 +11,22 @@
 | 项 | 值 |
 |----|----|
 | 新包 | `packages/bash-tool` → `@vico/bash-tool` |
-| 导出 | `bashTool`、`codingTools`（`[bashTool]`） |
-| 依赖 | `@vico/tool`（框架原语）、`zod` |
+| 导出 | `createBashTool` / `createPwshTool` / `createShellTool`、`bashTool` / `pwshTool` |
+| 依赖 | `@vico/bash`（命令解析/执行）、`@vico/tool`（框架原语）、`@vico/utils`、`zod` |
 
 - `@vico/tool`：移除 `bashTool` 与 `codingTools` 导出；依赖 bash 的废弃导出 `fileBuiltinTools` / `coreBuiltinTools` 一并移除，`baseBuiltinTools` 保留。
 - `@vico/agent`：`create-agent.ts` 的 `codingTools` 改从 `@vico/bash-tool` 导入，`package.json` 新增 `workspace:*` 依赖。
 
+## shell 工具选择
+
+`createShellTool()` 按主机环境选择单个 shell 工具，替代原 `shellTools` 数组（`boot` 的 `buildTools` 直接调用）：
+
+- **Windows 且找不到 Git Bash**（`resolveGitBashPath` 探测常见安装位置与 PATH）→ `pwsh`；
+- **其余情况**（非 Windows，或 Windows 装有 Git Bash）→ `bash`，Windows 上的 bash 经 Git Bash 的 `bash.exe` 派发（`LocalCommandExecutor`），而非 POSIX 的 `/bin/bash`。
+
 ## 依赖方向
 
-`@vico/bash-tool` → `@vico/tool` → `@vico/thread` / `@vico/types`，无环。
+`@vico/bash-tool` → `@vico/bash` / `@vico/tool` / `@vico/utils`，无环。
 
 ## 验证
 

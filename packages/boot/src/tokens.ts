@@ -36,6 +36,8 @@ export interface VicoTokens {
   memory: MemoryStore;
   /** 扫描加载后的 Skill 列表 */
   skills: Skill[];
+  /** 默认工作空间路径（workspace.base_path 展开 `~` 并解析为绝对路径） */
+  workspace: string;
   /** Agent 运行时（LRU 缓存） */
   agentRuntime: AgentRuntime;
   /** 持久化后端数据库连接（libsql/mysql 的 drizzle db），由使用方注入；memory 后端无需。token 名可由 storage.db_service 覆盖 */
