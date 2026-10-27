@@ -107,7 +107,7 @@ export const memoryProvider: VicoServiceProvider = {
       const embedder = get('embedder');
 
       return new MemoryStore({
-        conversation: new ConversationHistoryMemory(get('thread'), memoryConfig.stm_window),
+        conversation: new ConversationHistoryMemory(get('thread')),
         semantic: memoryConfig.semantic === 'libsql'
           ? new LibSqlSemanticMemory({ db: get(dbService) as LibSqlSemanticMemoryOptions['db'] })
           : undefined,

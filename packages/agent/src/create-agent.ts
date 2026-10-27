@@ -57,7 +57,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
   const events = config.events || new MittEventRecorder<TurnEvent>()
   const thread = config.thread || new InMemoryThreadStore()
   const memory = config.memory || new MemoryStore({
-    conversation: new ConversationHistoryMemory(thread, config.conversationWindow ?? DEFAULT_CONVERSATION_WINDOW)
+    conversation: new ConversationHistoryMemory(thread)
   });
 
   const skills = config.skills ?? [];

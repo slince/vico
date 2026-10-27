@@ -18,12 +18,13 @@ const echo = createTool({
   execute: async (args) => args.message,
 });
 
-// 内置工具直接组合使用（bash / 文件系统 / 浏览器分别从各自包导入）
+// 内置工具直接组合使用（shell / 文件系统 / 浏览器分别从各自包导入）
 import { basicTools } from '@vico/tool';
-import { codingTools } from '@vico/bash-tool';
-import { filesystemTools } from '@vico/fs-tool';
+import { createShellTool } from '@vico/bash-tool';
+import { createFilesystemTools } from '@vico/fs-tool';
+import { localFilesystem } from '@vico/fs';
 import { browserTools } from '@vico/browser-tool';
-const tools = [...basicTools, ...filesystemTools, ...codingTools, ...browserTools];
+const tools = [...basicTools, ...createFilesystemTools(localFilesystem), createShellTool(), ...browserTools];
 ```
 
 ## 相关文档

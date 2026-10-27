@@ -18,8 +18,8 @@
 
 ### 装配逻辑 → boot
 
-- 新增 `packages/boot/src/lib/build-tools.ts`：迁入 `buildTools` + `ToolOptions` / `ToolSetting` 类型，
-  从 `@vico/tool` / `@vico/bash-tool` / `@vico/fs-tool` / `@vico/memory` / `@vico/skill` 直接装配。
+- 新增 `packages/boot/src/lib/build-tools.ts`：迁入 `buildTools`（现为 `BuildToolsOptions` 对象入参），
+  从 `@vico/tool` / `@vico/bash-tool` / `@vico/fs-tool` / `@vico/fs` / `@vico/memory` / `@vico/skill` 直接装配。
 - 新增 `packages/boot/src/lib/build-skills.ts`：迁入 `buildSkills` + `SkillOptions` / `SkillSettings`，
   以及原 `agent/src/utils.ts` 里的 `COMPATIBLE_SKILL_ROOTS` / `collectSkillDirs`（模块内私有）。
 - `skills-provider.ts` 改为从本地 `../lib/build-skills.js` 引入 `buildSkills`，不再反向依赖 agent。
@@ -38,7 +38,7 @@
 
 - `vico/server/src/lib/utils.ts` 的 `createIfAbsent` 改为：
   `const skills = config.skills ?? await c.resolve('skills')`，
-  `const tools = config.tools ?? buildTools([c.get('weatherTool')], c.get('memory').semantic, skills)`，
+  `const tools = config.tools ?? buildTools({ filesystem: c.get('filesystem'), extraTools: [c.get('weatherTool')], semanticMemory: c.get('memory').semantic, skills })`，
   再把 `skills` / `tools` 透传给 `createAgent`。
 - `vico/server/src/lib/agent-factory.ts` 无需改动（已传 `skills: Skill[]`，未传 `tools`）。
 

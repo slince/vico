@@ -14,4 +14,4 @@ await localFilesystem.writeFile('/path/to/out.txt', 'hello');
 const entries = await localFilesystem.readDir('/path/to/dir');
 ```
 
-需要替换实现时，向已有的工厂 / 构造器注入自定义 `Filesystem` 实例（各调用点均提供可选 `fs` 参数，默认 `localFilesystem`）。
+需要替换实现时，向已有的工厂 / 构造器注入自定义 `Filesystem` 实例；装配层（`@vico/boot` 的 `filesystem` token）默认提供 `localFilesystem`，可在该处统一切换适配器。

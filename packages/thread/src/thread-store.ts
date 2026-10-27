@@ -110,6 +110,8 @@ export interface ThreadStore {
   appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]>;
   /** 获取线程的对话记录列表（支持分页、角色筛选、归档过滤） */
   getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[]; includeArchived?: boolean }): Promise<Message[]>;
+  /** 获取某时间戳之后的消息（按创建时间升序），用于摘要分界后的增量读取 */
+  getEntriesAfter(threadId: string, after: number, options?: { includeArchived?: boolean }): Promise<Message[]>;
   /** 批量获取多个 turn 的对话记录（可选排除已归档） */
   getEntriesByTurns(turnIds: string[], options?: { includeArchived?: boolean }): Promise<Message[]>;
   /** 批量归档消息（软标记 archived=true），只作用于已完成 turn 的消息 */

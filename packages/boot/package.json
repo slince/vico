@@ -19,6 +19,7 @@
     "@vico/checkpoint-mysql": "workspace:*",
     "@vico/di": "workspace:*",
     "@vico/events": "workspace:*",
+    "@vico/fs": "workspace:*",
     "@vico/fs-tool": "workspace:*",
     "@vico/memory": "workspace:*",
     "@vico/memory-libsql": "workspace:*",

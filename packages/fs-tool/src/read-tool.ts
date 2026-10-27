@@ -1,7 +1,7 @@
 // @vico/fs-tool - 读取文件工具
 import { relative } from 'node:path';
 import { z } from 'zod';
-import { localFilesystem, type Filesystem } from '@vico/fs';
+import type { Filesystem } from '@vico/fs';
 import { createTool } from '@vico/tool';
 import { resolveWorkspacePath } from '@vico/utils';
 import type { ToolCallContext } from '@vico/tool';
@@ -102,9 +102,9 @@ async function readImageFile(fs: Filesystem, absPath: string, ext: string, works
 
 /**
  * 创建 read 工具 — 读取工作区文件，支持行偏移、行数限制与图片 base64 返回。
- * @param fs - 文件系统实现，默认本地文件系统
+ * @param fs - 文件系统实现（由装配层注入）
  */
-export function createReadTool(fs: Filesystem = localFilesystem) {
+export function createReadTool(fs: Filesystem) {
   return createTool({
     name: 'read',
     description:
@@ -139,6 +139,3 @@ export function createReadTool(fs: Filesystem = localFilesystem) {
     },
   });
 }
-
-/** read 工具默认实例（使用本地文件系统） */
-export const readTool = createReadTool();

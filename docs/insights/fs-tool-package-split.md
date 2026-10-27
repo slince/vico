@@ -11,12 +11,16 @@
 | 项 | 值 |
 |----|----|
 | 新包 | `packages/fs-tool` → `@vico/fs-tool` |
-| 导出 | `readTool` / `writeTool` / `editTool` / `globTool` / `grepTool`、`createReadTool` 等工厂、`filesystemTools` |
+| 导出 | `createReadTool` / `createWriteTool` / `createEditTool` / `createGrepTool` / `createGlobTool`、`createFilesystemTools(fs)` |
 | 依赖 | `@vico/tool`（框架原语）、`@vico/fs`（read/write/edit 文件系统端口）、`@vscode/ripgrep`（glob/grep 二进制）、`diff`（edit 的 unified diff）、`zod` |
 
 - `@vico/tool`：移除 `filesystemTools` 与 5 个 filesystem 工具（工厂 + 默认实例）导出；`basicTools` / `baseBuiltinTools` / `resolveWorkspacePath` 保留；移除 `@vico/fs` 依赖。
 - `@vico/agent`：`create-agent.ts` 的 `filesystemTools` 改从 `@vico/fs-tool` 导入，`package.json` 新增 `workspace:*` 依赖。
 - `@vico/tool` / `@vico/bash-tool` 的 README 示例同步更新 `filesystemTools` 的导入来源。
+
+## fs 由装配层注入（不再默认本地文件系统）
+
+`read` / `write` / `edit` 工厂的 `fs` 参数现为必填，不再默认 `localFilesystem`；全局默认实例（`readTool` 等）与 `filesystemTools` 数组已移除，改由 `createFilesystemTools(fs)` 一次性构建。装配层（`@vico/boot` 的 `buildTools`）从容器 `filesystem` token 取实现注入，便于未来切换 S3 / 内存等适配器。glob / grep 走 ripgrep，不依赖 fs。
 
 ## glob / grep 基于 ripgrep 实现
 

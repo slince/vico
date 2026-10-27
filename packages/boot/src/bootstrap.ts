@@ -9,6 +9,7 @@ import {loggerProvider} from './providers/logger-provider.js';
 import {skillsProvider} from './providers/skills-provider.js';
 import {memoryProvider} from './providers/memory-provider.js';
 import {agentProvider} from './providers/agent-provider.js';
+import {filesystemProvider} from './providers/filesystem-provider.js';
 import {workspaceProvider} from './providers/workspace-provider.js';
 import {configProvider} from './providers/config-provider.js';
 
@@ -85,13 +86,14 @@ export async function createVicoContainer<
  *
  * 依赖拓扑（注册顺序的自然依据）：
  * logger → skills → thread/checkpointStore/vectorStore → embedder → memory
- * → events → agentRuntime → workspace；`configProvider` 兜底声明纯配置段。
+ * → events → agentRuntime → filesystem → workspace；`configProvider` 兜底声明纯配置段。
  */
 export const vicoProviders: VicoServiceProvider[] = [
   loggerProvider,
   skillsProvider,
   memoryProvider,
   agentProvider,
+  filesystemProvider,
   workspaceProvider,
   configProvider,
 ];

@@ -6,9 +6,10 @@ export { loggerProvider } from './providers/logger-provider.js';
 export { skillsProvider } from './providers/skills-provider.js';
 export { memoryProvider } from './providers/memory-provider.js';
 export { agentProvider } from './providers/agent-provider.js';
+export { filesystemProvider } from './providers/filesystem-provider.js';
 export { workspaceProvider } from './providers/workspace-provider.js';
 
-export { buildTools, type ToolOptions, type ToolSetting } from './lib/build-tools.js';
+export { buildTools, type BuildToolsOptions } from './lib/build-tools.js';
 export { buildSkills, type SkillOptions, type SkillSettings } from './lib/build-skills.js';
 
 export {

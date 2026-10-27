@@ -5,6 +5,8 @@ export class InMemoryThreadStore implements ThreadStore {
   private threads: Map<string, Thread> = new Map();
   private turns: Map<string, Turn> = new Map();
   private messages: Map<string, Message[]> = new Map();
+  /** 上一条消息的 createdAt，用于保证消息时间严格单调递增 */
+  private lastCreatedAt = 0;
 
   // Thread 操作
 
@@ -82,10 +84,14 @@ export class InMemoryThreadStore implements ThreadStore {
 
   async appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]> {
     return entries.map(entry => {
+      const now = Date.now();
+      // 保证消息 createdAt 严格单调递增，避免同毫秒碰撞破坏按时间分界查询
+      const createdAt = now > this.lastCreatedAt ? now : this.lastCreatedAt + 1;
+      this.lastCreatedAt = createdAt;
       const msg: Message = {
         ...entry,
         id: crypto.randomUUID(),
-        createdAt: Date.now(),
+        createdAt,
       };
       const list = this.messages.get(entry.threadId) ?? [];
       list.push(msg);
@@ -106,6 +112,15 @@ export class InMemoryThreadStore implements ThreadStore {
     const start = options?.start ?? 0;
     const end = options?.limit ? start + options.limit : undefined;
     return [...list].slice(start, end);
+  }
+
+  async getEntriesAfter(threadId: string, after: number, options?: { includeArchived?: boolean }): Promise<Message[]> {
+    let list = this.messages.get(threadId) ?? [];
+    list = list.filter((m) => m.createdAt > after);
+    if (options?.includeArchived === false) {
+      list = list.filter((m) => !m.archived);
+    }
+    return [...list].sort((a, b) => a.createdAt - b.createdAt);
   }
 
   async getLatestTurn(threadId: string): Promise<Turn | undefined> {

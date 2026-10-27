@@ -110,6 +110,3 @@ export function createGrepTool() {
     },
   });
 }
-
-/** grep 工具默认实例 */
-export const grepTool = createGrepTool();

@@ -59,7 +59,7 @@ export abstract class Filesystem {
 统一模式：在**已有工厂/构造器 seam** 上加可选 `fs: Filesystem = localFilesystem` 参数，默认走单例，未来可注入替代实现。同步调用点就地改 async（工具 `execute`、loader 本就返回 Promise）。
 
 - `packages/skill`：`fs-skill-loader.ts` 的 `loadSkillFromDir` / `loadSkillsFromDirs` / `createFSSkillLoader` 增 `fs` 参数；`skill-read.ts` 的 `createSkillReadTool(manager, fs = localFilesystem)`。
-- `packages/fs-tool`（原 `packages/tool/src/builtin/filesystem/`，后拆分为独立包）：`read` / `write` / `edit` / `glob` / `grep` 各工具改为 `createXTool(fs = localFilesystem)`；glob/grep 的递归 `walk` 改 async 递归。
+- `packages/fs-tool`（原 `packages/tool/src/builtin/filesystem/`，后拆分为独立包）：`read` / `write` / `edit` 改为 `createXTool(fs: Filesystem)`（fs 必填，由装配层注入）；glob/grep 走 ripgrep 不依赖 fs。
 - `packages/rag`：`text` / `markdown` / `csv` / `html` 解析器 `readFile` → `localFilesystem.readTextFile`；`pdf` / `docx` → `Buffer.from(await localFilesystem.readFile(...))`。
 - `packages/memory`：`FileSemanticMemoryOptions` 增可选 `fs`，内部改走 `this.fs.*`。
 

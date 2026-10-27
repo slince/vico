@@ -13,6 +13,7 @@ import { ChromaVectorStore } from '@vico/rag-chroma';
 import { LibSQLVectorStore } from '@vico/rag-libsql';
 import { InMemoryThreadStore } from '@vico/thread';
 import { LibSqlThreadStore } from '@vico/thread-libsql';
+import { localFilesystem } from '@vico/fs';
 import { createVicoContainer, vicoProviders } from './bootstrap.js';
 import type { VicoServiceProvider } from './tokens.js';
 
@@ -100,6 +101,7 @@ describe('providers 真实装配', () => {
     expect(c.get('memory')).toBeInstanceOf(MemoryStore);
     expect(c.get('agentRuntime')).toBeInstanceOf(AgentRuntime);
     expect(c.get('events')).toBeTruthy();
+    expect(c.get('filesystem')).toBe(localFilesystem);
   });
 
   it('skills 异步扫描（默认空路径 → 空列表）', async () => {
@@ -180,6 +182,6 @@ describe('providers 真实装配', () => {
 
 describe('vicoProviders', () => {
   it('按声明顺序导出领域 provider', () => {
-    expect(vicoProviders).toHaveLength(6);
+    expect(vicoProviders).toHaveLength(7);
   });
 });

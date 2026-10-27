@@ -2,7 +2,7 @@
 import { relative } from 'node:path';
 import { createPatch, FILE_HEADERS_ONLY } from 'diff';
 import { z } from 'zod';
-import { localFilesystem, type Filesystem } from '@vico/fs';
+import type { Filesystem } from '@vico/fs';
 import { createTool } from '@vico/tool';
 import { resolveWorkspacePath } from '@vico/utils';
 import type { ToolCallContext } from '@vico/tool';
@@ -106,9 +106,9 @@ function generateDiff(path: string, oldContent: string, newContent: string): str
 
 /**
  * 创建 edit 工具 — 字面量字符串替换（oldText→newText），一次一处或 replaceAll 全替换。
- * @param fs - 文件系统实现，默认本地文件系统
+ * @param fs - 文件系统实现（由装配层注入）
  */
-export function createEditTool(fs: Filesystem = localFilesystem) {
+export function createEditTool(fs: Filesystem) {
   return createTool({
     name: 'edit',
     description:
@@ -144,6 +144,3 @@ export function createEditTool(fs: Filesystem = localFilesystem) {
     },
   });
 }
-
-/** edit 工具默认实例（使用本地文件系统） */
-export const editTool = createEditTool();

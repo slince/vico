@@ -2,19 +2,18 @@
 
 文件系统操作工具集合，基于 `@vico/tool` 的 `createTool` 框架与 `@vico/fs` 文件系统抽象层实现。
 
-包含 `read` / `write` / `edit` / `glob` / `grep` 五个工具，工作目录为工作区根目录，底层文件操作经 `Filesystem` 端口（默认 `localFilesystem`），可注入替代实现。
+包含 `read` / `write` / `edit` / `glob` / `grep` 五个工具，工作目录为工作区根目录。`read` / `write` / `edit` 的底层文件操作经 `Filesystem` 端口（**必填，由装配层注入**）；`glob` / `grep` 走打包的 ripgrep 二进制，不依赖文件系统。
 
 ## 快速使用
 
 ```ts
-import { filesystemTools } from '@vico/fs-tool';
+import { localFilesystem } from '@vico/fs';
+import { createFilesystemTools } from '@vico/fs-tool';
 
-// 与其他内置工具组合
-import { basicTools } from '@vico/tool';
-import { codingTools } from '@vico/bash-tool';
-const all = [...basicTools, ...filesystemTools, ...codingTools];
+// 一次性构建文件系统工具组（注入文件系统实现）
+const filesystemTools = createFilesystemTools(localFilesystem);
 
-// 注入自定义文件系统实现
+// 单独构建某个工具
 import { createReadTool } from '@vico/fs-tool';
 const readTool = createReadTool(customFilesystem);
 ```

@@ -382,6 +382,9 @@ importers:
       '@vico/events':
         specifier: workspace:*
         version: link:../events
+      '@vico/fs':
+        specifier: workspace:*
+        version: link:../fs
       '@vico/fs-tool':
         specifier: workspace:*
         version: link:../fs-tool

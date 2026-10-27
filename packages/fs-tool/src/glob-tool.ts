@@ -76,6 +76,3 @@ export function createGlobTool() {
     },
   });
 }
-
-/** glob 工具默认实例 */
-export const globTool = createGlobTool();

@@ -6,6 +6,7 @@ import type { CheckpointPurge, CheckpointStore } from '@vico/checkpoint';
 import type { EventRecorder } from '@vico/events';
 import type { MemoryStore } from '@vico/memory';
 import type { Embedder, VectorStore } from '@vico/rag';
+import type { Filesystem } from '@vico/fs';
 import type { Skill } from '@vico/skill';
 import type { ThreadStore } from '@vico/thread';
 import type { Logger } from 'pino';
@@ -38,6 +39,8 @@ export interface VicoTokens {
   skills: Skill[];
   /** 默认工作空间路径（workspace.base_path 展开 `~` 并解析为绝对路径） */
   workspace: string;
+  /** 文件系统实现（fs 工具组注入用，默认本地文件系统） */
+  filesystem: Filesystem;
   /** Agent 运行时（LRU 缓存） */
   agentRuntime: AgentRuntime;
   /** 持久化后端数据库连接（libsql/mysql 的 drizzle db），由使用方注入；memory 后端无需。token 名可由 storage.db_service 覆盖 */

@@ -30,9 +30,14 @@ export async function createIfAbsent(agentId: string, factory: () => Promise<Age
   if (existing) return existing;
 
   const config = await factory();
-  // 组装完整工具集：内置 + 文件系统 + coding + 语义记忆 + skill 工具，再叠加应用层 weatherTool
+  // 组装完整工具集：内置 + 文件系统 + shell + 语义记忆 + skill 工具，再叠加应用层 weatherTool
   const skills = config.skills ?? (await c.resolve('skills'));
-  const tools = config.tools ?? buildTools([c.get('weatherTool')], c.get('memory').semantic, skills);
+  const tools = config.tools ?? buildTools({
+    filesystem: c.get('filesystem'),
+    extraTools: [c.get('weatherTool')],
+    semanticMemory: c.get('memory').semantic,
+    skills,
+  });
   const agent = await createAgent({
     ...config,
     skills,
