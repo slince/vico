@@ -43,7 +43,7 @@ rag:
 tool:
   timeout_ms: 30000
 
-workspace:
+fs:
   base_path: '~/vico'
   contained: true
   allowed_paths: []

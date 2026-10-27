@@ -56,11 +56,11 @@ describe('createVicoContainer', () => {
   });
 
   it('段内缺失字段由 schema 默认值兜底', async () => {
-    const file = writeTempConfig('workspace:\n  base_path: /tmp/ws\n');
+    const file = writeTempConfig('fs:\n  base_path: /tmp/ws\n');
     const c = await createVicoContainer({ configPath: file });
-    expect(c.getConfig('workspace').base_path).toBe('/tmp/ws');
-    expect(c.getConfig('workspace').contained).toBe(true);
-    expect(c.getConfig('workspace').isolation).toBe('none');
+    expect(c.getConfig('fs').base_path).toBe('/tmp/ws');
+    expect(c.getConfig('fs').contained).toBe(true);
+    expect(c.getConfig('fs').isolation).toBe('none');
     expect(c.get('workspace')).toBe('/tmp/ws');
     rmSync(join(file, '..'), { recursive: true, force: true });
   });

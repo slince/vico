@@ -38,7 +38,7 @@ rag:
 tool:
   timeout_ms: 30000
 
-workspace:
+fs:
   base_path: ./workspace
   contained: true
   allowed_paths: []

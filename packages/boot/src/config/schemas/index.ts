@@ -7,6 +7,6 @@ export { memoryCompactionSchema, memorySchema } from './memory.js';
 export { modelSchema } from './model.js';
 export { ragSchema } from './rag.js';
 export { toolSchema } from './tool.js';
-export { workspaceSchema } from './workspace.js';
+export { fsSchema } from './fs.js';
 export { checkpointSchema } from './checkpoint.js';
 export { storageSchema } from './storage.js';

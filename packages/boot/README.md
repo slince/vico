@@ -28,7 +28,7 @@ src/
 │   ├── skills-provider.ts
 │   ├── memory-provider.ts
 │   ├── agent-provider.ts
-│   ├── environment-provider.ts # workspace 配置段 + 工作空间/文件系统 token
+│   ├── fs-provider.ts         # fs 配置段 + 工作空间/文件系统 token
 │   └── config-provider.ts      # 无对应服务的配置段（model/tool）
 ├── bootstrap.ts          # createVicoContainer / bootstrapVico
 └── index.ts              # 导出
@@ -72,7 +72,7 @@ await c.bootstrap(vicoProviders);
 
 ### 配置
 
-- 每个领域一段 schema（`agent`/`skills`/`memory`/`model`/`rag`/`tool`/`workspace`/
+- 每个领域一段 schema（`agent`/`skills`/`memory`/`model`/`rag`/`tool`/`fs`/
   `checkpoint`/`storage`），通过 `registerConfig` 注册。
 - 默认值**只写在 `default.config.yaml`**，schema 的 `.default()` 仅兜底段内字段缺失，
   避免两处双写。
@@ -92,7 +92,7 @@ await c.bootstrap(vicoProviders);
 
 ```
 skills → thread/checkpointStore/vectorStore → embedder → memory
-       → events → agentRuntime → environment（workspace + filesystem）
+       → events → agentRuntime → fs（workspace + filesystem）
 ```
 
 ### 默认装配

@@ -10,7 +10,7 @@ import type {
   skillsSchema,
   storageSchema,
   toolSchema,
-  workspaceSchema,
+  fsSchema,
 } from './schemas/index.js';
 
 /**
@@ -28,7 +28,7 @@ export interface VicoConfigKeys {
   model: typeof modelSchema;
   rag: typeof ragSchema;
   tool: typeof toolSchema;
-  workspace: typeof workspaceSchema;
+  fs: typeof fsSchema;
   checkpoint: typeof checkpointSchema;
   storage: typeof storageSchema;
 }
