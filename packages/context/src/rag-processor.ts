@@ -20,7 +20,7 @@ export class RagProcessor implements ContextProcessor {
 
       if (results.length > 0) {
         const ragText = results.map((r) => `[${r.source}] ${r.content}`).join('\n');
-        ctx.appendSystemPrompt(`Relevant knowledge:\n${ragText}`);
+        ctx.systemPrompt.registerSection('rag', `Relevant knowledge:\n${ragText}`);
       }
     }
 

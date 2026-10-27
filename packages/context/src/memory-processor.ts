@@ -85,7 +85,8 @@ export class MemoryProcessor implements ContextProcessor {
 
     const dataBlock = current || template;
 
-    ctx.appendSystemPrompt(
+    ctx.systemPrompt.registerSection(
+      'semantic-memory',
       `Use the update_semantic_memory tool to store user information. If the information might be referenced again — store it!\n\n` +
       `Guidelines:\n` +
       `1. Proactively update when you learn new information about the user\n` +
@@ -110,6 +111,6 @@ export class MemoryProcessor implements ContextProcessor {
     if (relevant.length === 0) return;
 
     const memText = relevant.map((m) => `- ${m.content}`).join('\n');
-    ctx.appendSystemPrompt(`Relevant memories:\n${memText}`);
+    ctx.systemPrompt.registerSection('episodic-recall', `Relevant memories:\n${memText}`);
   }
 }

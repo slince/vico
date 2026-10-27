@@ -5,6 +5,11 @@ export {
   type AgentRef,
 } from './model-request-context.js';
 export {
+  PromptSectionBuilder,
+  type PromptSection,
+} from './prompt-section-builder.js';
+export { ToolRegistry } from './tool-registry.js';
+export {
   buildModelRequest,
   Priority,
   type ContextProcessor,

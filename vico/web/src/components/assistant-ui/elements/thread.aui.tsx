@@ -9,6 +9,7 @@ import {File} from "@/components/assistant-ui/elements/file";
 import {ThreadFollowupSuggestions} from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
 import {Image} from "@/components/assistant-ui/elements/image";
 import {MarkdownText} from "@/components/assistant-ui/elements/markdown-text";
+import {MessageToolTimeline} from "@/components/assistant-ui/elements/message-tool-timeline";
 import {MessageTokenUsage} from "@/components/assistant-ui/message-token-usage";
 import {
   Reasoning,
@@ -637,6 +638,7 @@ const AssistantMessage: FC = () => {
             }
           }}
         </MessagePrimitive.GroupedParts>
+        <MessageToolTimeline />
         <MessageError />
       </div>
 

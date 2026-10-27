@@ -10,12 +10,12 @@ export class SystemPromptProcessor implements ContextProcessor {
   readonly priority = Priority.HIGH - 100;
 
   async handle(ctx: ModelRequestContext, next: Next): Promise<void> {
-    ctx.appendSystemPrompt(ctx.agent.systemPrompt);
+    ctx.systemPrompt.registerSection('system', ctx.agent.systemPrompt);
 
     const workspace = ctx.session?.workspace;
 
     if (workspace) {
-      ctx.appendSystemPrompt(`Your current working directory is \`${workspace}\`. All file operations and shell commands run in this directory by default.`);
+      ctx.systemPrompt.registerSection('workspace', `Your current working directory is \`${workspace}\`. All file operations and shell commands run in this directory by default.`);
     }
 
     await next();

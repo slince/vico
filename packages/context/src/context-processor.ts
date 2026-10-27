@@ -40,9 +40,9 @@ export interface ContextProcessor extends PriorityMiddleware<ModelRequestContext
  */
 export function buildModelRequest(ctx: ModelRequestContext) {
   return {
-    system: ctx.getSystemPrompt() || undefined,
+    system: ctx.systemPrompt.render() || undefined,
     messages: ctx.messages,
-    tools: ctx.tools,
+    tools: ctx.tools.list(),
     maxTokens: ctx.agent.maxTokens,
     temperature: ctx.agent.temperature,
   };

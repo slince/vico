@@ -885,9 +885,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const attempt = async (): Promise<CallModelResult> => {
       const cleaned = ensureToolCallConsistency(step.messages);
       const request: ModelRequest = {
-        system: ctx.getSystemPrompt(),
+        system: ctx.systemPrompt.render(),
         messages: cleaned,
-        tools: ctx.tools,
+        tools: ctx.tools.list(),
         maxOutputTokens: this.maxTokens,
         temperature: this.temperature,
         reasoning: context.reasoning ?? this.reasoning,

@@ -7,9 +7,9 @@
 ## 快速使用
 
 ```ts
+import { Pipeline } from '@vico/utils';
 import {
   ModelRequestContext,
-  ProcessorPipeline,
   SystemPromptProcessor,
   buildModelRequest,
 } from '@vico/context';
@@ -24,14 +24,13 @@ const ctx = new ModelRequestContext({
     maxSteps: 10,
   },
   userMessages: [{ role: 'user', content: 'Hello' }],
-  systemPrompt: 'You are helpful.',
 });
 
-// 洋葱管道：enter 按优先级升序执行，leave 逆序执行
-const pipeline = new ProcessorPipeline([new SystemPromptProcessor()]);
-await pipeline.enter(ctx);
+// 洋葱管道：execute 按优先级升序执行
+const pipeline = new Pipeline().use(new SystemPromptProcessor());
+await pipeline.execute(ctx);
 
-ctx.appendSystemPrompt('你可以使用工作区工具。');
+ctx.systemPrompt.registerSection('workspace', '你可以使用工作区工具。');
 
 // 提取 streamText 所需参数
 const request = buildModelRequest(ctx); // { system, messages, tools, maxTokens, temperature }

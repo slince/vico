@@ -12,7 +12,9 @@ export class WorkspaceToolProcessor implements ContextProcessor {
   async handle(ctx: ModelRequestContext, next: Next): Promise<void> {
     // 无 workspace 时移除依赖工作目录的工具，避免模型调用在无目录环境下失败
     if (!ctx.session?.workspace) {
-      ctx.tools = ctx.tools.filter((t) => !t.tags.includes('requires-workspace'));
+      for (const tool of ctx.tools.list()) {
+        if (tool.tags.includes('requires-workspace')) ctx.tools.delete(tool.name);
+      }
     }
 
     await next();

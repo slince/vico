@@ -4,6 +4,8 @@ import {getMessageText, pickPrimaryUserMessage} from '@vico/model';
 import type {Tool} from '@vico/tool';
 import type {Thread} from '@vico/thread';
 import type {TurnSession, TurnStep} from '@vico/thread';
+import {PromptSectionBuilder} from './prompt-section-builder.js';
+import {ToolRegistry} from './tool-registry.js';
 
 /** 上下文中的 Agent 引用 — 提供处理器所需的配置字段 */
 export interface AgentRef {
@@ -23,14 +25,14 @@ export class ModelRequestContext {
   readonly userMessages: ModelMessage[];
   /** 消息列表 — 处理器可追加 history（unshift） */
   messages: ModelMessage[];
-  /** 暴露给 LLM 的工具 */
-  tools: Tool[];
+  /** 暴露给 LLM 的工具注册表（以工具名为键，处理器可增删改查） */
+  tools: ToolRegistry;
   /** 当前 turn 会话（身份 + 线程引用） */
   readonly session?: TurnSession;
   /** 当前 step（一次 LLM 调用 + 可选工具执行） */
   step?: TurnStep;
-  /** 系统提示词 — 仅通过 appendSystemPrompt 追加，读取用 getSystemPrompt() */
-  private systemPrompt: string;
+  /** 系统提示词 section 构建器 — 处理器通过 registerSection 追加、getSection 调整、render 读取 */
+  readonly systemPrompt: PromptSectionBuilder;
   /** 本轮 turn 是否已完结（completed/aborted/failed）；暂停等待审批时为 false，resolve 类后置处理据此跳过 */
   completed = false;
 
@@ -38,7 +40,6 @@ export class ModelRequestContext {
     agent,
     userMessages,
     messages,
-    systemPrompt,
     tools,
     session,
     step,
@@ -46,7 +47,6 @@ export class ModelRequestContext {
     agent: AgentRef;
     userMessages?: ModelMessage[];
     messages?: ModelMessage[];
-    systemPrompt?: string;
     tools?: Tool[];
     session?: TurnSession;
     step?: TurnStep;
@@ -55,28 +55,10 @@ export class ModelRequestContext {
     this.userMessages = userMessages ?? [];
     this.messages = messages ? [...messages] : [];
     this.messages.push(...this.userMessages);
-    this.systemPrompt = systemPrompt ?? '';
-    this.tools = tools ?? [];
+    this.systemPrompt = new PromptSectionBuilder();
+    this.tools = new ToolRegistry(tools ?? []);
     this.session = session;
     this.step = step;
-  }
-
-  /**
-   * 读取系统提示词。
-   *
-   * @returns 当前系统提示词内容
-   */
-  getSystemPrompt(): string {
-    return this.systemPrompt;
-  }
-
-  /**
-   * 追加系统提示词内容，默认在片段前拼两个换行符分隔。
-   *
-   * @param text - 要追加的提示词片段
-   */
-  appendSystemPrompt(text: string): void {
-    this.systemPrompt += '\n\n' + text;
   }
 
   /** 主用户消息（本轮消息组中末条 user 角色；未提供消息组时从 messages 兜底查找） */
