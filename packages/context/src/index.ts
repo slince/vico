@@ -10,7 +10,6 @@ export {
 } from './prompt-section-builder.js';
 export { ToolRegistry } from './tool-registry.js';
 export {
-  buildModelRequest,
   Priority,
   type ContextProcessor,
 } from './context-processor.js';

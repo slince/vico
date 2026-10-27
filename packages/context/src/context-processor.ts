@@ -31,19 +31,3 @@ export interface ContextProcessor extends PriorityMiddleware<ModelRequestContext
   /** 洋葱层入口：next() 前做前置、next() 后做后置，返回 void 或 Promise<void> */
   handle(ctx: ModelRequestContext, next: Next): void | Promise<void>;
 }
-
-/**
- * 从 ModelRequestContext 提取 streamText 所需参数。
- *
- * @param ctx - 模型请求上下文
- * @returns 包含 system、messages、tools、maxTokens、temperature 的请求对象
- */
-export function buildModelRequest(ctx: ModelRequestContext) {
-  return {
-    system: ctx.systemPrompt.render() || undefined,
-    messages: ctx.messages,
-    tools: ctx.tools.list(),
-    maxTokens: ctx.agent.maxTokens,
-    temperature: ctx.agent.temperature,
-  };
-}

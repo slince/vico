@@ -11,7 +11,6 @@ import { Pipeline } from '@vico/utils';
 import {
   ModelRequestContext,
   SystemPromptProcessor,
-  buildModelRequest,
 } from '@vico/context';
 
 // 可变上下文，穿过洋葱各层
@@ -32,7 +31,8 @@ await pipeline.execute(ctx);
 
 ctx.systemPrompt.registerSection('workspace', '你可以使用工作区工具。');
 
-// 提取 streamText 所需参数
-const request = buildModelRequest(ctx); // { system, messages, tools, maxTokens, temperature }
+// 读取装配结果
+const system = ctx.systemPrompt.render();
+const tools = ctx.tools.list();
 ```
 
