@@ -28,8 +28,7 @@ src/
 │   ├── skills-provider.ts
 │   ├── memory-provider.ts
 │   ├── agent-provider.ts
-│   ├── filesystem-provider.ts  # 文件系统实现（默认 localFilesystem）
-│   ├── workspace-provider.ts   # workspace 配置段 + 默认工作空间 token
+│   ├── environment-provider.ts # workspace 配置段 + 工作空间/文件系统 token
 │   └── config-provider.ts      # 无对应服务的配置段（model/tool）
 ├── bootstrap.ts          # createVicoContainer / bootstrapVico
 └── index.ts              # 导出
@@ -93,7 +92,7 @@ await c.bootstrap(vicoProviders);
 
 ```
 skills → thread/checkpointStore/vectorStore → embedder → memory
-       → events → agentRuntime → filesystem → workspace
+       → events → agentRuntime → environment（workspace + filesystem）
 ```
 
 ### 默认装配

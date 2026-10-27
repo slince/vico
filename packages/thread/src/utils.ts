@@ -7,6 +7,7 @@ import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart, ToolResult
 /**
  * ThreadStore Message → 原生 ModelMessage（content 反序列化）。
  * 解析失败时按纯文本内容兜底（防御历史脏数据）。
+ * summary 是压缩内部角色，provider 不识别，统一映射为 user 消息注入。
  */
 export function toModelMessages(entries: Message[]): ModelMessage[] {
   return entries.map((e) => {
@@ -16,7 +17,8 @@ export function toModelMessages(entries: Message[]): ModelMessage[] {
     } catch {
       content = e.content;
     }
-    return { role: e.role, content } as ModelMessage;
+    const role = e.role === 'summary' ? 'user' : e.role;
+    return { role, content } as ModelMessage;
   });
 }
 

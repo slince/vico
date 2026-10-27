@@ -1,5 +1,5 @@
 // @vico/thread-libsql — Drizzle-backed ThreadStore implementation
-import { eq, desc, inArray, and, gt } from 'drizzle-orm';
+import { eq, desc, inArray, and } from 'drizzle-orm';
 import type { LibSQLDatabase } from 'drizzle-orm/libsql';
 import type { ThreadStore, Thread, Turn, Message } from '@vico/thread';
 import {
@@ -165,19 +165,6 @@ export class LibSqlThreadStore implements ThreadStore {
       .orderBy(messages.created_at)
       .offset(start);
     const rows = await (options?.limit ? base.limit(options.limit) : base);
-    return rows.map((r) => this._toMessage(r));
-  }
-
-  async getEntriesAfter(threadId: string, after: number, options?: { includeArchived?: boolean }): Promise<Message[]> {
-    const conditions = [eq(messages.thread_id, threadId), gt(messages.created_at, after)];
-    if (options?.includeArchived === false) {
-      conditions.push(eq(messages.archived, false));
-    }
-    const rows = await this.db
-      .select()
-      .from(messages)
-      .where(and(...conditions))
-      .orderBy(messages.created_at);
     return rows.map((r) => this._toMessage(r));
   }
 

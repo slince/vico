@@ -17,11 +17,7 @@ import { useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { formatElapsed, taskLabel, taskStateOf, type TaskViewState } from "../utils/task";
-import {
-  ToolFallbackArgs,
-  ToolFallbackError,
-  ToolFallbackResult,
-} from "./tool-fallback.aui";
+import { formatUnknownValue } from "./tool-fallback.aui";
 import { RunActivity, type RunActivityEntry, type RunActivityStatus } from "./run-activity";
 
 /** `PartState` 中 tool-call 变体（含 status 的丰富 part 类型） */
@@ -68,16 +64,20 @@ const STATUS_LABELS: Record<RunActivityStatus, string> = {
 };
 
 /**
- * 单条 tool 的详情块：状态图标 + 人类可读标签 + 工具名，以及请求/结果/错误。
+ * 单条 tool 的紧凑摘要：状态图标 + 人类可读标签 + 工具名，结果折行最多一行。
+ * 完整 request/result 详情仍由消息下方的逐条 ToolFallback 提供。
  */
 function ToolEntryContent({ part }: { part: ToolCallPartState }) {
   const label = taskLabel(part.toolName, part.args);
   const view = taskStateOf(part.status, part.isError);
   const StatusIcon = STATUS_ICONS[view];
 
+  const resultSummary =
+    part.result === undefined ? undefined : formatUnknownValue(part.result);
+
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex items-center gap-1.5">
         <StatusIcon
           className={cn(
             "size-3.5 shrink-0 text-muted-foreground",
@@ -87,15 +87,19 @@ function ToolEntryContent({ part }: { part: ToolCallPartState }) {
               "text-muted-foreground",
           )}
         />
-        <span className="text-foreground/90 font-medium">{label}</span>
-        <span className="text-muted-foreground font-mono text-[11px]">
+        <span className="text-foreground/90 min-w-0 truncate font-medium">
+          {label}
+        </span>
+        <span className="text-muted-foreground shrink-0 font-mono text-[11px]">
           {part.toolName}
         </span>
       </div>
 
-      <ToolFallbackError status={part.status} />
-      <ToolFallbackArgs argsText={part.argsText} />
-      <ToolFallbackResult result={part.result} />
+      {resultSummary !== undefined && resultSummary.trim() !== "" && (
+        <p className="text-muted-foreground line-clamp-1 ps-5 text-xs break-words whitespace-pre-wrap">
+          {resultSummary}
+        </p>
+      )}
     </div>
   );
 }

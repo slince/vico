@@ -44,6 +44,7 @@ workspace:
   allowed_paths: []
   timeout_ms: 30000
   isolation: none
+  filesystem_backend: local
 
 checkpoint:
   ttl_days: 30

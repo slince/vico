@@ -28,8 +28,7 @@ packages/boot/src/
 │   ├── skills-provider.ts
 │   ├── memory-provider.ts
 │   ├── agent-provider.ts
-│   ├── filesystem-provider.ts  # 文件系统实现 token（默认 localFilesystem）
-│   ├── workspace-provider.ts  # workspace 配置段 + 默认工作空间 token
+│   ├── environment-provider.ts  # workspace 配置段 + 工作空间/文件系统 token
 │   └── config-provider.ts  # 无对应服务的配置段（model/tool）
 ├── bootstrap.ts           # createVicoContainer / vicoProviders
 └── index.ts               # 导出
@@ -46,8 +45,8 @@ packages/boot/src/
 以及连接 token 名 `db_service`/`client_service`，默认 `db`/`client`）。
 
 - 各领域 provider 在 `register` 阶段声明本领域配置段 schema（skills→`skills`，memory→`memory`/`rag`/`storage`/
-  `checkpoint`，agent→`agent`，workspace→`workspace`）；无对应服务的 `model`/`tool` 由 `configProvider` 集中声明。
-  `filesystem` 无独立配置段，仅注册服务（默认 `localFilesystem`）。
+  `checkpoint`，agent→`agent`，environment→`workspace`）；无对应服务的 `model`/`tool` 由 `configProvider` 集中声明。
+  `workspace` 段同时驱动 `workspace`（`base_path`）与 `filesystem`（`filesystem_backend`）两个服务。
 - `createVicoContainer` 装配顺序：逐个 `registerProvider`（声明 schema + 绑定服务）→ `setup` 回调（使用方注入连接 /
   注册应用层 provider）→ `load` 默认/用户配置（`load` 成功后自动冻结）；因此其签名变为 async，且返回后容器已冻结。
 - `createVicoContainer` 同时泛型化 `TTokens`（extends `VicoTokens`）与 `TConfigKeys`（extends `VicoConfigKeys`），
@@ -87,7 +86,7 @@ db: unknown（使用方注入）            client: unknown（使用方注入）
 - `memory`：`conversation`（短时窗口）+ `episodic`（embedder 可用时启用）。
 - `skills`：异步工厂（`createFSSkillLoader`），需 `resolve`。
 - `workspace`：默认工作空间，`workspace.base_path` 展开 `~` 并解析为绝对路径。
-- `filesystem`：文件系统实现（默认 `localFilesystem`），由 `buildTools` 注入 fs 工具组。
+- `filesystem`：文件系统实现（`workspace.filesystem_backend` 驱动，当前仅 `local`），由 `buildTools` 注入 fs 工具组。
 - `agentRuntime`：`AgentRuntime`，`max_cached` 来自 `agent` 配置段。
 
 ### Provider 约定
@@ -101,7 +100,7 @@ db: unknown（使用方注入）            client: unknown（使用方注入）
 
 ```
 skills → thread/checkpointStore/vectorStore → embedder → memory
-       → events → agentRuntime → filesystem → workspace
+       → events → agentRuntime → environment（workspace + filesystem）
 ```
 
 ## 迁移 server（后续）

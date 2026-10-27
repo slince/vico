@@ -182,6 +182,6 @@ describe('providers 真实装配', () => {
 
 describe('vicoProviders', () => {
   it('按声明顺序导出领域 provider', () => {
-    expect(vicoProviders).toHaveLength(7);
+    expect(vicoProviders).toHaveLength(6);
   });
 });
