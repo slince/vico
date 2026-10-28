@@ -7,7 +7,9 @@
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
+import {Globe} from 'lucide-react';
 import {WebFetchRenderer} from './ToolUIs/web-fetch-ui';
+import type {ToolRunActivitySummary} from './tool-summary';
 
 const webFetchSchema = z.object({
   url: z.string().describe('要请求的 URL（仅支持 http/https）'),
@@ -26,6 +28,16 @@ const webFetchOutputSchema = z.object({
 });
 export type WebFetchArgs = z.infer<typeof webFetchSchema>;
 export type WebFetchResult = z.infer<typeof webFetchOutputSchema>;
+
+/**
+ * web_fetch 的 RunActivity 摘要 — 关键参数是请求 URL。
+ */
+export function summarizeWebFetch(args: WebFetchArgs): ToolRunActivitySummary {
+  return {
+    icon: Globe,
+    description: args.url,
+  };
+}
 
 export const webFetchTool: ToolkitDefinitionEntry<WebFetchArgs, WebFetchResult> = {
   description: '发起 HTTP 请求获取网页或 API 数据。支持自定义方法、请求头和请求体。响应体超过 100KB 自动截断。',

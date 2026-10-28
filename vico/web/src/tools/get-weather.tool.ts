@@ -6,7 +6,9 @@
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
+import {Cloud} from 'lucide-react';
 import {WeatherToolRenderer} from './ToolUIs/weather-ui';
+import type {ToolRunActivitySummary} from './tool-summary';
 
 const getWeatherSchema = z.object({
   location: z.string().describe('City name'),
@@ -24,6 +26,16 @@ const getWeatherOutputSchema = z.object({
 
 export type GetWeatherArgs = z.infer<typeof getWeatherSchema>;
 export type GetWeatherResult = z.infer<typeof getWeatherOutputSchema>;
+
+/**
+ * get-weather 的 RunActivity 摘要 — 关键参数是查询城市。
+ */
+export function summarizeGetWeather(args: GetWeatherArgs): ToolRunActivitySummary {
+  return {
+    icon: Cloud,
+    description: args.location,
+  };
+}
 
 export const getWeatherTool: ToolkitDefinitionEntry<GetWeatherArgs, GetWeatherResult> = {
   description: 'Get current weather for a location',

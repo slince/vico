@@ -41,10 +41,9 @@ packages/boot/src/
 
 `agent`（max_cached）/ `skills`（scan_paths）/ `memory`（stm_window、ltm_*、compaction）/
 `model`（context_window）/ `rag`（chunk_*、retrieval_top_k、embedder）/ `tool`（timeout_ms）/
-`fs`（base_path、filesystem_backend）/ `bash`（backend、contained、allowed_paths、timeout_ms、
-isolation、ssh）/ `checkpoint`（ttl_days）/ `storage`（thread/checkpoint 的
-`memory`|`libsql`|`mysql`，vector 的 `memory`|`libsql`|`chroma`，以及连接 token 名
-`db_service`/`client_service`，默认 `db`/`client`）。
+`fs`（base_path、filesystem_backend）/ `bash`（backend、ssh）/ `checkpoint`（ttl_days）/
+`storage`（thread/checkpoint 的 `memory`|`libsql`|`mysql`，vector 的 `memory`|`libsql`|`chroma`，
+以及连接 token 名 `db_service`/`client_service`，默认 `db`/`client`）。
 
 - 各领域 provider 在 `register` 阶段声明本领域配置段 schema（skills→`skills`，memory→`memory`/`rag`/`storage`/
   `checkpoint`，agent→`agent`，fs→`fs`，bash→`bash`）；无对应服务的 `model`/`tool` 由 `configProvider`

@@ -34,9 +34,6 @@ function toSshOptions(cfg: z.infer<typeof bashSchema>): SshConnectionOptions {
  *
  * - `backend: local`：按当前主机自动选择 bash（含 Windows Git Bash）/ pwsh；
  * - `backend: ssh`：以 `SshCommandExecutor` 经 SSH 在远端执行 bash 命令。
- *
- * 沙箱/隔离选项（contained / allowed_paths / timeout_ms / isolation）也从 `fs` 段
- * 迁到 `bash` 段，交由本领域统一消费。
  */
 export const bashProvider: VicoServiceProvider = {
   register(c) {

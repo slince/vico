@@ -6,7 +6,9 @@
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
+import {Terminal} from 'lucide-react';
 import {ExecToolRenderer} from './ToolUIs/exec-ui';
+import type {ToolRunActivitySummary} from './tool-summary';
 
 const bashSchema = z.object({
   command: z.string().describe('要执行的 Shell 命令'),
@@ -17,6 +19,16 @@ const bashSchema = z.object({
 });
 
 export type BashArgs = z.infer<typeof bashSchema>;
+
+/**
+ * bash 的 RunActivity 摘要 — 关键参数是具体命令。
+ */
+export function summarizeBash(args: BashArgs): ToolRunActivitySummary {
+  return {
+    icon: Terminal,
+    description: args.command,
+  };
+}
 
 export const bashTool: ToolkitDefinitionEntry<BashArgs, unknown> = {
   type: 'human' as const,

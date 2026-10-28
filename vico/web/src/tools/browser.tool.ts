@@ -7,7 +7,9 @@
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
+import {Camera, Globe, MousePointerClick} from 'lucide-react';
 import {BrowserToolRenderer} from './ToolUIs/browser-ui';
+import type {ToolRunActivitySummary} from './tool-summary';
 
 // ── browser_navigate ──
 const browserNavigateSchema = z.object({
@@ -66,3 +68,33 @@ export const browserClickTool: ToolkitDefinitionEntry<BrowserClickArgs, BrowserC
   parameters: browserClickSchema,
   render: BrowserToolRenderer,
 };
+
+/**
+ * browser_navigate 的 RunActivity 摘要 — 关键参数是目标 URL。
+ */
+export function summarizeBrowserNavigate(args: BrowserNavigateArgs): ToolRunActivitySummary {
+  return {
+    icon: Globe,
+    description: args.url,
+  };
+}
+
+/**
+ * browser_snapshot 的 RunActivity 摘要 — 关键参数是快照 URL。
+ */
+export function summarizeBrowserSnapshot(args: BrowserSnapshotArgs): ToolRunActivitySummary {
+  return {
+    icon: Camera,
+    description: args.url,
+  };
+}
+
+/**
+ * browser_click 的 RunActivity 摘要 — 关键参数是选择器（缺省用匹配文本）。
+ */
+export function summarizeBrowserClick(args: BrowserClickArgs): ToolRunActivitySummary {
+  return {
+    icon: MousePointerClick,
+    description: args.selector ?? args.text,
+  };
+}

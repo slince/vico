@@ -44,10 +44,6 @@ fs:
 
 bash:
   backend: local
-  contained: true
-  allowed_paths: []
-  timeout_ms: 30000
-  isolation: none
   ssh:
     host: ''
     port: 22

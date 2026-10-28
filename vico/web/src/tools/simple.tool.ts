@@ -7,7 +7,9 @@
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
+import {ListChecks} from 'lucide-react';
 import {SimpleToolRenderer} from './ToolUIs/simple-ui';
+import type {ToolRunActivitySummary} from './tool-summary';
 
 // ── todo_write ──
 const todoEntrySchema = z.object({
@@ -24,6 +26,19 @@ const todoWriteOutputSchema = z.object({
 });
 export type TodoWriteArgs = z.infer<typeof todoWriteSchema>;
 export type TodoWriteResult = z.infer<typeof todoWriteOutputSchema>;
+
+/**
+ * todo_write 的 RunActivity 摘要 — 关键参数是首条任务内容（缺省显示任务数）。
+ */
+export function summarizeTodoWrite(args: TodoWriteArgs): ToolRunActivitySummary {
+  const description =
+    args.tasks?.[0]?.content ?? `${args.tasks?.length ?? 0} tasks`;
+
+  return {
+    icon: ListChecks,
+    description,
+  };
+}
 
 export const todoWriteTool: ToolkitDefinitionEntry<TodoWriteArgs, TodoWriteResult> = {
   description: '创建和更新结构化任务列表，用于跟踪多步任务的执行进度。每次调用会替换全部任务列表。',

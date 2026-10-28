@@ -8,7 +8,9 @@
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
+import {HelpCircle} from 'lucide-react';
 import {AskUserRenderer} from './ToolUIs/ask-user-ui';
+import type {ToolRunActivitySummary} from './tool-summary';
 
 const askUserOptionSchema = z.object({
   label: z.string(),
@@ -35,6 +37,19 @@ const askUserOutputSchema = z.object({
 });
 export type AskUserArgs = z.infer<typeof askUserSchema>;
 export type AskUserResult = z.infer<typeof askUserOutputSchema>;
+
+/**
+ * ask_user 的 RunActivity 摘要 — 关键参数是首个问题（缺省显示问题数）。
+ */
+export function summarizeAskUser(args: AskUserArgs): ToolRunActivitySummary {
+  const description =
+    args.questions?.[0]?.question ?? `${args.questions?.length ?? 0} questions`;
+
+  return {
+    icon: HelpCircle,
+    description,
+  };
+}
 
 export const askUserTool: ToolkitDefinitionEntry<AskUserArgs, AskUserResult> = {
   description:

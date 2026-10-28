@@ -6,7 +6,9 @@
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
+import {Search} from 'lucide-react';
 import {KnowledgeSearchToolRenderer} from './ToolUIs/knowledge-search-ui';
+import type {ToolRunActivitySummary} from './tool-summary';
 
 const knowledgeSearchSchema = z.object({
   query: z.string().describe('搜索查询内容'),
@@ -21,6 +23,16 @@ const knowledgeSearchOutputSchema = z.object({
 
 export type KnowledgeSearchArgs = z.infer<typeof knowledgeSearchSchema>;
 export type KnowledgeSearchResult = z.infer<typeof knowledgeSearchOutputSchema>;
+
+/**
+ * search_knowledge_base 的 RunActivity 摘要 — 关键参数是搜索查询。
+ */
+export function summarizeKnowledgeSearch(args: KnowledgeSearchArgs): ToolRunActivitySummary {
+  return {
+    icon: Search,
+    description: args.query,
+  };
+}
 
 export const knowledgeSearchTool: ToolkitDefinitionEntry<KnowledgeSearchArgs, KnowledgeSearchResult> = {
   description:

@@ -36,8 +36,6 @@ describe('createVicoContainer', () => {
     expect(c.getConfig('memory').stm_window).toBe(20);
     expect(c.getConfig('tool').timeout_ms).toBe(30000);
     expect(c.getConfig('bash').backend).toBe('local');
-    expect(c.getConfig('bash').contained).toBe(true);
-    expect(c.getConfig('bash').isolation).toBe('none');
     expect(c.getConfig('checkpoint').ttl_days).toBe(30);
     expect(c.getConfig('storage').thread).toBe('memory');
     expect(c.getConfig('storage').checkpoint).toBe('memory');

@@ -7,8 +7,10 @@
  */
 import {z} from 'zod/v4';
 import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
+import {FilePen, FilePlus, FileSearch, FileText, Search} from 'lucide-react';
 import {FileReadRenderer} from './ToolUIs/file-read-ui';
 import {FileWriteRenderer} from './ToolUIs/file-write-ui';
+import type {ToolRunActivitySummary} from './tool-summary';
 
 // ── read ──
 const readSchema = z.object({
@@ -111,3 +113,53 @@ export const editTool: ToolkitDefinitionEntry<EditArgs, EditResult> = {
   parameters: editSchema,
   render: FileWriteRenderer,
 };
+
+/**
+ * read 的 RunActivity 摘要 — 关键参数是文件路径。
+ */
+export function summarizeRead(args: ReadArgs): ToolRunActivitySummary {
+  return {
+    icon: FileText,
+    description: args.path,
+  };
+}
+
+/**
+ * glob 的 RunActivity 摘要 — 关键参数是匹配模式。
+ */
+export function summarizeGlob(args: GlobArgs): ToolRunActivitySummary {
+  return {
+    icon: FileSearch,
+    description: args.pattern,
+  };
+}
+
+/**
+ * grep 的 RunActivity 摘要 — 关键参数是正则表达式（有路径时带上路径）。
+ */
+export function summarizeGrep(args: GrepArgs): ToolRunActivitySummary {
+  return {
+    icon: Search,
+    description: args.path ? `${args.pattern} in ${args.path}` : args.pattern,
+  };
+}
+
+/**
+ * write 的 RunActivity 摘要 — 关键参数是目标文件路径。
+ */
+export function summarizeWrite(args: WriteArgs): ToolRunActivitySummary {
+  return {
+    icon: FilePlus,
+    description: args.path,
+  };
+}
+
+/**
+ * edit 的 RunActivity 摘要 — 关键参数是被编辑的文件路径。
+ */
+export function summarizeEdit(args: EditArgs): ToolRunActivitySummary {
+  return {
+    icon: FilePen,
+    description: args.path,
+  };
+}
