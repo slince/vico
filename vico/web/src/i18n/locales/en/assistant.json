@@ -88,7 +88,9 @@
     },
     "fileRead": {
       "title": { "read": "Read File", "glob": "Find Files", "grep": "Search Content" },
-      "noMatch": "No matches found"
+      "noMatch": "No matches found",
+      "copy": "Copy file content",
+      "startLine": "Line {{line}}"
     },
     "fileWrite": {
       "title": { "write": "Write File", "edit": "Edit File" },

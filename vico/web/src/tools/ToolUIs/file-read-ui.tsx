@@ -2,13 +2,16 @@
  * 文件读取工具 UI — 渲染 read / glob / grep 三个只读工具。
  *
  * 单个组件按 toolName 分支：
- *   read → 文件内容（text=行号 pre，image=图片，binary=占位）
+ *   read → 文件内容（text=按扩展名语法高亮，image=图片，binary=占位）
  *   glob → 匹配文件列表
  *   grep → 搜索结果文本
  */
+import {useEffect, useState} from 'react';
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
-import {FileSearch, FileText, Search} from 'lucide-react';
+import {Check, Copy, FileSearch, FileText, Search} from 'lucide-react';
+import {guessLanguage} from '@/components/file-explorer/codemirror-language';
+import {SyntaxHighlighter} from '@/components/assistant-ui/elements/shiki-highlighter';
 import {ToolCard} from './tool-card';
 import type {
   GlobArgs,
@@ -26,11 +29,61 @@ const TOOL_ICON: Record<string, React.ElementType> = {
   grep: Search,
 };
 
+/** 复制按钮 — 点击将文本写入剪贴板，成功后短暂显示对勾 */
+function CopyButton({text, label}: {text: string; label: string}) {
+  const [copied, setCopied] = useState(false);
+
+  // 复制成功后显示对勾，1.5s 后恢复；effect 里清理定时器避免重复触发
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      // 剪贴板不可用（非 https 等）时静默忽略
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={() => void copy()}
+      className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+    >
+      {copied ? (
+        <Check size={13} className="text-emerald-500" />
+      ) : (
+        <Copy size={13} />
+      )}
+    </button>
+  );
+}
+
 /** read 结果视图 — 按文件类型分支渲染 */
-function ReadView({result}: {result: ReadResult}) {
+function ReadView({result, args}: {result: ReadResult; args: ReadArgs}) {
+  const {t} = useTranslation('assistant');
+  // 仅按行读取（传了 offset）时展示起始行号，紧跟路径行右侧、复制按钮之前
+  const startLine = args.offset;
   return (
     <div className="space-y-1.5">
-      <p className="font-mono text-[11px] text-muted-foreground">{result.path}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[11px] text-muted-foreground min-w-0 truncate">{result.path}</p>
+        <div className="flex items-center gap-2 shrink-0">
+          {startLine != null && (
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {t('tool.fileRead.startLine', {line: startLine})}
+            </span>
+          )}
+          <CopyButton text={result.content} label={t('tool.fileRead.copy')} />
+        </div>
+      </div>
       {result.type === 'image' ? (
         <img
           src={result.content}
@@ -40,9 +93,10 @@ function ReadView({result}: {result: ReadResult}) {
       ) : result.type === 'binary' ? (
         <p className="text-xs text-muted-foreground">{result.content}</p>
       ) : (
-        <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2">
-          {result.content}
-        </pre>
+        <SyntaxHighlighter
+          code={result.content}
+          language={guessLanguage(result.path)}
+        />
       )}
     </div>
   );
@@ -119,7 +173,7 @@ export const FileReadRenderer: ToolCallMessagePartComponent<FileReadArgs, FileRe
     >
       {result &&
         (toolName === 'read' ? (
-          <ReadView result={result as ReadResult} />
+          <ReadView result={result as ReadResult} args={args as ReadArgs} />
         ) : toolName === 'glob' ? (
           <GlobView result={result as GlobResult} />
         ) : toolName === 'grep' ? (

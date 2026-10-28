@@ -88,7 +88,9 @@
     },
     "fileRead": {
       "title": { "read": "讀取檔案", "glob": "查找檔案", "grep": "搜尋內容" },
-      "noMatch": "未找到符合項目"
+      "noMatch": "未找到符合項目",
+      "copy": "複製檔案內容",
+      "startLine": "起始行 {{line}}"
     },
     "fileWrite": {
       "title": { "write": "寫入檔案", "edit": "編輯檔案" },

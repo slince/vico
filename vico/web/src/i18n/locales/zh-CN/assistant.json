@@ -88,7 +88,9 @@
     },
     "fileRead": {
       "title": { "read": "读取文件", "glob": "查找文件", "grep": "搜索内容" },
-      "noMatch": "未找到匹配"
+      "noMatch": "未找到匹配",
+      "copy": "复制文件内容",
+      "startLine": "起始行 {{line}}"
     },
     "fileWrite": {
       "title": { "write": "写入文件", "edit": "编辑文件" },
