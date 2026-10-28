@@ -17,7 +17,7 @@
 ```
 packages/boot/src/
 ├── config/
-│   ├── schemas/           # 9 个配置段 zod schema（按领域拆分，index.ts 聚合导出）
+│   ├── schemas/           # 10 个配置段 zod schema（按领域拆分，index.ts 聚合导出）
 │   ├── default.config.yaml  # 内置默认配置（默认值唯一来源）
 │   ├── keys.ts            # VicoConfigKeys（段名 → schema 类型）
 │   └── types.ts           # VicoConfig（各段 z.infer 合并）
@@ -29,6 +29,7 @@ packages/boot/src/
 │   ├── memory-provider.ts
 │   ├── agent-provider.ts
 │   ├── fs-provider.ts  # fs 配置段 + 工作空间/文件系统 token
+│   ├── bash-provider.ts  # bash 配置段 + shell 工具 token（backend: local/ssh）
 │   └── config-provider.ts  # 无对应服务的配置段（model/tool）
 ├── bootstrap.ts           # createVicoContainer / vicoProviders
 └── index.ts               # 导出
@@ -36,17 +37,19 @@ packages/boot/src/
 
 ## 关键设计
 
-### 配置约定（9 个 framework 段）
+### 配置约定（10 个 framework 段）
 
 `agent`（max_cached）/ `skills`（scan_paths）/ `memory`（stm_window、ltm_*、compaction）/
 `model`（context_window）/ `rag`（chunk_*、retrieval_top_k、embedder）/ `tool`（timeout_ms）/
-`fs`（base_path、contained、allowed_paths、timeout_ms、isolation）/ `checkpoint`（ttl_days）/
-`storage`（thread/checkpoint 的 `memory`|`libsql`|`mysql`，vector 的 `memory`|`libsql`|`chroma`，
-以及连接 token 名 `db_service`/`client_service`，默认 `db`/`client`）。
+`fs`（base_path、filesystem_backend）/ `bash`（backend、contained、allowed_paths、timeout_ms、
+isolation、ssh）/ `checkpoint`（ttl_days）/ `storage`（thread/checkpoint 的
+`memory`|`libsql`|`mysql`，vector 的 `memory`|`libsql`|`chroma`，以及连接 token 名
+`db_service`/`client_service`，默认 `db`/`client`）。
 
 - 各领域 provider 在 `register` 阶段声明本领域配置段 schema（skills→`skills`，memory→`memory`/`rag`/`storage`/
-  `checkpoint`，agent→`agent`，fs→`fs`）；无对应服务的 `model`/`tool` 由 `configProvider` 集中声明。
-  `fs` 段同时驱动 `workspace`（`base_path`）与 `filesystem`（`filesystem_backend`）两个服务。
+  `checkpoint`，agent→`agent`，fs→`fs`，bash→`bash`）；无对应服务的 `model`/`tool` 由 `configProvider`
+  集中声明。`fs` 段驱动 `workspace`（`base_path`）与 `filesystem`（`filesystem_backend`）两个服务；
+  `bash` 段驱动 `shellTool`（`backend` 决定 local 自动选择 bash/pwsh，或 ssh 远端执行）。
 - `createVicoContainer` 装配顺序：逐个 `registerProvider`（声明 schema + 绑定服务）→ `setup` 回调（使用方注入连接 /
   注册应用层 provider）→ `load` 默认/用户配置（`load` 成功后自动冻结）；因此其签名变为 async，且返回后容器已冻结。
 - `createVicoContainer` 同时泛型化 `TTokens`（extends `VicoTokens`）与 `TConfigKeys`（extends `VicoConfigKeys`），
@@ -71,8 +74,9 @@ events: EventRecorder<TurnEvent>   thread: ThreadStore
 checkpointStore: CheckpointStore   embedder: Embedder | undefined
 vectorStore: VectorStore           memory: MemoryStore
 skills: Skill[]                    workspace: string（默认工作空间绝对路径）
-filesystem: Filesystem             agentRuntime: AgentRuntime
-db: unknown（使用方注入）            client: unknown（使用方注入）
+filesystem: Filesystem             shellTool: Tool（bash.backend 决定 local/ssh）
+agentRuntime: AgentRuntime         db: unknown（使用方注入）
+client: unknown（使用方注入）
 ```
 
 默认装配（`bootstrapVico` 后可直接 get）：
@@ -87,6 +91,8 @@ db: unknown（使用方注入）            client: unknown（使用方注入）
 - `skills`：异步工厂（`createFSSkillLoader`），需 `resolve`。
 - `workspace`：默认工作空间，`fs.base_path` 展开 `~` 并解析为绝对路径。
 - `filesystem`：文件系统实现（`fs.filesystem_backend` 驱动，当前仅 `local`），由 `buildTools` 注入 fs 工具组。
+- `shellTool`：shell 命令执行工具，`bash.backend: local` 时按主机自动选 bash（含 Windows Git Bash）/ pwsh；
+  `bash.backend: ssh` 时用 `@vico/bash-ssh` 的 `SshCommandExecutor` 远端执行，连接参数来自 `bash.ssh`。
 - `agentRuntime`：`AgentRuntime`，`max_cached` 来自 `agent` 配置段。
 
 ### Provider 约定
@@ -100,7 +106,7 @@ db: unknown（使用方注入）            client: unknown（使用方注入）
 
 ```
 skills → thread/checkpointStore/vectorStore → embedder → memory
-       → events → agentRuntime → fs（workspace + filesystem）
+       → events → agentRuntime → fs（workspace + filesystem）→ bash（shellTool）
 ```
 
 ## 迁移 server（后续）

@@ -1,5 +1,6 @@
 // @vico/bash-ssh - SSH 命令执行适配器：序列化远端命令 + 通过 ssh2 执行
 
+/// <reference path="./ssh2.d.ts" />
 import { Client } from 'ssh2';
 
 import type { Command, CommandResult } from '@vico/bash';

@@ -40,11 +40,18 @@ tool:
 
 fs:
   base_path: ./workspace
+  filesystem_backend: local
+
+bash:
+  backend: local
   contained: true
   allowed_paths: []
   timeout_ms: 30000
   isolation: none
-  filesystem_backend: local
+  ssh:
+    host: ''
+    port: 22
+    username: ''
 
 checkpoint:
   ttl_days: 30

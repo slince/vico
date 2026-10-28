@@ -361,6 +361,9 @@ importers:
       '@vico/agent':
         specifier: workspace:*
         version: link:../agent
+      '@vico/bash-ssh':
+        specifier: workspace:*
+        version: link:../bash-ssh
       '@vico/bash-tool':
         specifier: workspace:*
         version: link:../bash-tool

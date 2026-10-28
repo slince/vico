@@ -35,6 +35,9 @@ describe('createVicoContainer', () => {
     expect(c.getConfig('rag').embedder).toBe('openai/text-embedding-3-small');
     expect(c.getConfig('memory').stm_window).toBe(20);
     expect(c.getConfig('tool').timeout_ms).toBe(30000);
+    expect(c.getConfig('bash').backend).toBe('local');
+    expect(c.getConfig('bash').contained).toBe(true);
+    expect(c.getConfig('bash').isolation).toBe('none');
     expect(c.getConfig('checkpoint').ttl_days).toBe(30);
     expect(c.getConfig('storage').thread).toBe('memory');
     expect(c.getConfig('storage').checkpoint).toBe('memory');
@@ -59,8 +62,7 @@ describe('createVicoContainer', () => {
     const file = writeTempConfig('fs:\n  base_path: /tmp/ws\n');
     const c = await createVicoContainer({ configPath: file });
     expect(c.getConfig('fs').base_path).toBe('/tmp/ws');
-    expect(c.getConfig('fs').contained).toBe(true);
-    expect(c.getConfig('fs').isolation).toBe('none');
+    expect(c.getConfig('fs').filesystem_backend).toBe('local');
     expect(c.get('workspace')).toBe('/tmp/ws');
     rmSync(join(file, '..'), { recursive: true, force: true });
   });
@@ -102,6 +104,7 @@ describe('providers 真实装配', () => {
     expect(c.get('agentRuntime')).toBeInstanceOf(AgentRuntime);
     expect(c.get('events')).toBeTruthy();
     expect(c.get('filesystem')).toBe(localFilesystem);
+    expect(c.get('shellTool')).toBeTruthy();
   });
 
   it('skills 异步扫描（默认空路径 → 空列表）', async () => {
@@ -182,6 +185,6 @@ describe('providers 真实装配', () => {
 
 describe('vicoProviders', () => {
   it('按声明顺序导出领域 provider', () => {
-    expect(vicoProviders).toHaveLength(6);
+    expect(vicoProviders).toHaveLength(7);
   });
 });

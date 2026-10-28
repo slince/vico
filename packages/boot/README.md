@@ -16,7 +16,7 @@ Vico **Agent Framework** 启动层：把 framework 的「配置定义」与「�
 ```
 src/
 ├── config/
-│   ├── schemas/          # 9 个配置段 zod schema（按领域拆分，字段级 .default() 兜底）
+│   ├── schemas/          # 10 个配置段 zod schema（按领域拆分，字段级 .default() 兜底）
 │   │   └── index.ts      # 聚合导出
 │   ├── default.config.yaml  # 内置默认配置（默认值唯一来源）
 │   ├── keys.ts           # VicoConfigKeys（段名 → schema 类型）
@@ -29,6 +29,7 @@ src/
 │   ├── memory-provider.ts
 │   ├── agent-provider.ts
 │   ├── fs-provider.ts         # fs 配置段 + 工作空间/文件系统 token
+│   ├── bash-provider.ts       # bash 配置段 + shell 工具 token（backend: local/ssh）
 │   └── config-provider.ts      # 无对应服务的配置段（model/tool）
 ├── bootstrap.ts          # createVicoContainer / bootstrapVico
 └── index.ts              # 导出
@@ -73,7 +74,7 @@ await c.bootstrap(vicoProviders);
 ### 配置
 
 - 每个领域一段 schema（`agent`/`skills`/`memory`/`model`/`rag`/`tool`/`fs`/
-  `checkpoint`/`storage`），通过 `registerConfig` 注册。
+  `bash`/`checkpoint`/`storage`），通过 `registerConfig` 注册。
 - 默认值**只写在 `default.config.yaml`**，schema 的 `.default()` 仅兜底段内字段缺失，
   避免两处双写。
 - 加载顺序：内置默认 → 用户 `configPath`（后加载同名段整段覆盖先加载）。
@@ -92,7 +93,7 @@ await c.bootstrap(vicoProviders);
 
 ```
 skills → thread/checkpointStore/vectorStore → embedder → memory
-       → events → agentRuntime → fs（workspace + filesystem）
+       → events → agentRuntime → fs（workspace + filesystem）→ bash（shellTool）
 ```
 
 ### 默认装配
@@ -105,6 +106,9 @@ skills → thread/checkpointStore/vectorStore → embedder → memory
 - `embedder`：由 `rag.embedder` 配置驱动；`"none"` 禁用（返回 undefined），episodic 记忆随之停用。
 - `memory`：`conversation`（短时窗口）+ `episodic`（embedder 可用时启用）。
 - `skills`：异步工厂，从 `skills.scan_paths` 扫描加载（`compatible` 开启时额外扫描全局第三方 Agent 产品的 Skills 目录），需 `resolve`。
+- `workspace`：默认工作空间，`fs.base_path` 展开 `~` 并解析为绝对路径。
+- `filesystem`：文件系统实现（`fs.filesystem_backend` 驱动，当前仅 `local`），由 `buildTools` 注入 fs 工具组。
+- `shellTool`：shell 命令执行工具，`bash.backend` 为 `local` 时按主机自动选 bash/pwsh，`ssh` 时经 `SshCommandExecutor` 远端执行。
 
 ## 迁移 server（后续）
 

@@ -1,7 +1,7 @@
 /**
  * server 应用层配置段 schema — 通过 provider 注册进 boot 容器。
  *
- * framework 段（agent/skills/memory/model/rag/tool/fs/checkpoint/storage）由
+ * framework 段（agent/skills/memory/model/rag/tool/fs/bash/checkpoint/storage）由
  * `@vico/boot` 的 `createVicoContainer` 定义；这里只声明 server 专属的应用层段，
  * 并通过 `ServerConfigKeys` 扩展 framework 段映射，让 `getConfig('database')` /
  * `getConfig('upload')` 等在容器上类型可用。

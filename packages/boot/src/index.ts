@@ -7,6 +7,7 @@ export { skillsProvider } from './providers/skills-provider.js';
 export { memoryProvider } from './providers/memory-provider.js';
 export { agentProvider } from './providers/agent-provider.js';
 export { fsProvider } from './providers/fs-provider.js';
+export { bashProvider } from './providers/bash-provider.js';
 
 export { buildTools, type BuildToolsOptions } from './lib/build-tools.js';
 export { buildSkills, type SkillOptions, type SkillSettings } from './lib/build-skills.js';
@@ -21,6 +22,7 @@ export {
   ragSchema,
   toolSchema,
   fsSchema,
+  bashSchema,
   checkpointSchema,
   storageSchema,
 } from './config/schemas/index.js';

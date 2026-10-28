@@ -11,6 +11,7 @@ import type {
   storageSchema,
   toolSchema,
   fsSchema,
+  bashSchema,
 } from './schemas/index.js';
 
 /**
@@ -29,6 +30,7 @@ export interface VicoConfigKeys {
   rag: typeof ragSchema;
   tool: typeof toolSchema;
   fs: typeof fsSchema;
+  bash: typeof bashSchema;
   checkpoint: typeof checkpointSchema;
   storage: typeof storageSchema;
 }

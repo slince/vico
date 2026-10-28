@@ -8,5 +8,6 @@ export { modelSchema } from './model.js';
 export { ragSchema } from './rag.js';
 export { toolSchema } from './tool.js';
 export { fsSchema } from './fs.js';
+export { bashSchema } from './bash.js';
 export { checkpointSchema } from './checkpoint.js';
 export { storageSchema } from './storage.js';

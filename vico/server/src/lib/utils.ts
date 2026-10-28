@@ -34,6 +34,7 @@ export async function createIfAbsent(agentId: string, factory: () => Promise<Age
   const skills = config.skills ?? (await c.resolve('skills'));
   const tools = config.tools ?? buildTools({
     filesystem: c.get('filesystem'),
+    shellTool: c.get('shellTool'),
     extraTools: [c.get('weatherTool')],
     semanticMemory: c.get('memory').semantic,
     skills,

@@ -45,10 +45,13 @@ tool:
 
 fs:
   base_path: '~/vico'
+
+bash:
+  backend: local
   contained: true
   allowed_paths: []
   timeout_ms: 30000
-  isolation: 'none'
+  isolation: none
 
 # framework 存储后端（thread/checkpoint/vector 均持久化到 libsql，连接由 server 注入 db/client）
 storage:

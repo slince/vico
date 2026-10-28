@@ -8,6 +8,7 @@ import type { MemoryStore } from '@vico/memory';
 import type { Embedder, VectorStore } from '@vico/rag';
 import type { Filesystem } from '@vico/fs';
 import type { Skill } from '@vico/skill';
+import type { Tool } from '@vico/tool';
 import type { ThreadStore } from '@vico/thread';
 import type { Logger } from 'pino';
 import type { VicoConfigKeys } from './config/keys.js';
@@ -37,10 +38,12 @@ export interface VicoTokens {
   memory: MemoryStore;
   /** 扫描加载后的 Skill 列表 */
   skills: Skill[];
-  /** 默认工作空间路径（workspace.base_path 展开 `~` 并解析为绝对路径） */
+  /** 默认工作空间路径（fs.base_path 展开 `~` 并解析为绝对路径） */
   workspace: string;
   /** 文件系统实现（fs 工具组注入用，默认本地文件系统） */
   filesystem: Filesystem;
+  /** shell 命令执行工具（bash.backend 决定 local 自动选择 / ssh 远端执行） */
+  shellTool: Tool;
   /** Agent 运行时（LRU 缓存） */
   agentRuntime: AgentRuntime;
   /** 持久化后端数据库连接（libsql/mysql 的 drizzle db），由使用方注入；memory 后端无需。token 名可由 storage.db_service 覆盖 */
