@@ -81,7 +81,10 @@
       "approvalTitle": "Exec Approval Required",
       "approved": "Command approved.",
       "rejected": "Command rejected.",
-      "executing": "Executing command..."
+      "executing": "Executing command...",
+      "stdout": "Standard output",
+      "stderr": "Standard error",
+      "exitCode": "Exit code: {{code}}"
     },
     "fileRead": {
       "title": { "read": "Read File", "glob": "Find Files", "grep": "Search Content" },

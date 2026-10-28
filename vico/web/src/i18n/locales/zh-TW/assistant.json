@@ -81,7 +81,10 @@
       "approvalTitle": "命令執行需要確認",
       "approved": "命令已批准",
       "rejected": "命令已拒絕",
-      "executing": "正在執行命令..."
+      "executing": "正在執行命令...",
+      "stdout": "標準輸出",
+      "stderr": "標準錯誤",
+      "exitCode": "退出碼：{{code}}"
     },
     "fileRead": {
       "title": { "read": "讀取檔案", "glob": "查找檔案", "grep": "搜尋內容" },
