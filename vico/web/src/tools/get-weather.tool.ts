@@ -5,10 +5,9 @@
  * 参数 schema 与服务端 inputSchema/outputSchema 保持一致。
  */
 import {z} from 'zod/v4';
-import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {Cloud} from 'lucide-react';
 import {WeatherToolRenderer} from './ToolUIs/weather-ui';
-import type {ToolRunActivitySummary} from './tool-summary';
+import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 const getWeatherSchema = z.object({
   location: z.string().describe('City name'),
@@ -37,9 +36,10 @@ export function summarizeGetWeather(args: GetWeatherArgs): ToolRunActivitySummar
   };
 }
 
-export const getWeatherTool: ToolkitDefinitionEntry<GetWeatherArgs, GetWeatherResult> = {
+export const getWeatherTool: VicoToolkitDefinitionEntry<GetWeatherArgs, GetWeatherResult> = {
   description: 'Get current weather for a location',
   parameters: getWeatherSchema,
   render: WeatherToolRenderer,
   display: 'standalone' as const,
+  summarize: summarizeGetWeather,
 };

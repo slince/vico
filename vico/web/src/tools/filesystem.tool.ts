@@ -6,11 +6,10 @@
  * 写组（write/edit）共用 FileWriteRenderer。
  */
 import {z} from 'zod/v4';
-import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {FilePen, FilePlus, FileSearch, FileText, Search} from 'lucide-react';
 import {FileReadRenderer} from './ToolUIs/file-read-ui';
 import {FileWriteRenderer} from './ToolUIs/file-write-ui';
-import type {ToolRunActivitySummary} from './tool-summary';
+import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 // ── read ──
 const readSchema = z.object({
@@ -84,34 +83,39 @@ const editOutputSchema = z.object({
 export type EditArgs = z.infer<typeof editSchema>;
 export type EditResult = z.infer<typeof editOutputSchema>;
 
-export const readTool: ToolkitDefinitionEntry<ReadArgs, ReadResult> = {
+export const readTool: VicoToolkitDefinitionEntry<ReadArgs, ReadResult> = {
   description: '读取工作区文件，支持行偏移和行数限制。图片文件自动检测并以 base64 返回。',
   parameters: readSchema,
   render: FileReadRenderer,
+  summarize: summarizeRead,
 };
 
-export const globTool: ToolkitDefinitionEntry<GlobArgs, GlobResult> = {
+export const globTool: VicoToolkitDefinitionEntry<GlobArgs, GlobResult> = {
   description: '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。',
   parameters: globSchema,
   render: FileReadRenderer,
+  summarize: summarizeGlob,
 };
 
-export const grepTool: ToolkitDefinitionEntry<GrepArgs, GrepResult> = {
+export const grepTool: VicoToolkitDefinitionEntry<GrepArgs, GrepResult> = {
   description: '使用正则表达式搜索文件内容。支持 glob 过滤、忽略大小写和上下文行。',
   parameters: grepSchema,
   render: FileReadRenderer,
+  summarize: summarizeGrep,
 };
 
-export const writeTool: ToolkitDefinitionEntry<WriteArgs, WriteResult> = {
+export const writeTool: VicoToolkitDefinitionEntry<WriteArgs, WriteResult> = {
   description: '在工作区创建新文件或覆盖已有文件，父目录不存在时自动创建。',
   parameters: writeSchema,
   render: FileWriteRenderer,
+  summarize: summarizeWrite,
 };
 
-export const editTool: ToolkitDefinitionEntry<EditArgs, EditResult> = {
+export const editTool: VicoToolkitDefinitionEntry<EditArgs, EditResult> = {
   description: '通过字面量文本替换编辑文件，一次一处或 replaceAll 全替换。返回 unified diff。',
   parameters: editSchema,
   render: FileWriteRenderer,
+  summarize: summarizeEdit,
 };
 
 /**

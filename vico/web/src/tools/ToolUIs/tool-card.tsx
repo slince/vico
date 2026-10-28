@@ -7,9 +7,9 @@
  * 完成态默认折叠，标题行右侧提供展开/折叠按钮；completeMode="bare" 时整卡交给 children 自定义。
  * 审批态复用框架的 elements/ApprovalCard（HITL 决议 + i18n 文案在此落地）。
  */
-import {useState, type ElementType, type ReactNode} from 'react';
+import {type ElementType, type ReactNode, useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {Loader2, Wrench, X, ChevronDown} from 'lucide-react';
+import {ChevronDown, Loader2, Wrench, X} from 'lucide-react';
 import type {ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartStatus} from '@assistant-ui/react';
 import {ApprovalCard} from '@/components/assistant-ui/elements/approval-card';
 import {cn} from '@/lib/utils';

@@ -7,10 +7,9 @@
  * 用户回答以结构化 JSON 随 tool-approval-response 的 reason 字段回传。
  */
 import {z} from 'zod/v4';
-import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {HelpCircle} from 'lucide-react';
 import {AskUserRenderer} from './ToolUIs/ask-user-ui';
-import type {ToolRunActivitySummary} from './tool-summary';
+import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 const askUserOptionSchema = z.object({
   label: z.string(),
@@ -51,9 +50,10 @@ export function summarizeAskUser(args: AskUserArgs): ToolRunActivitySummary {
   };
 }
 
-export const askUserTool: ToolkitDefinitionEntry<AskUserArgs, AskUserResult> = {
+export const askUserTool: VicoToolkitDefinitionEntry<AskUserArgs, AskUserResult> = {
   description:
     '当需要向用户澄清问题、请求补充信息或让用户做出选择时使用。提交 questions（问题列表），等待用户回答后继续执行。',
   parameters: askUserSchema,
   render: AskUserRenderer,
+  summarize: summarizeAskUser,
 };

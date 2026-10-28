@@ -6,10 +6,9 @@
  * navigate/click 与 snapshot 均为 auto（无需审批）。
  */
 import {z} from 'zod/v4';
-import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {Camera, Globe, MousePointerClick} from 'lucide-react';
 import {BrowserToolRenderer} from './ToolUIs/browser-ui';
-import type {ToolRunActivitySummary} from './tool-summary';
+import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 // ── browser_navigate ──
 const browserNavigateSchema = z.object({
@@ -51,22 +50,25 @@ const browserClickOutputSchema = z.object({
 export type BrowserClickArgs = z.infer<typeof browserClickSchema>;
 export type BrowserClickResult = z.infer<typeof browserClickOutputSchema>;
 
-export const browserNavigateTool: ToolkitDefinitionEntry<BrowserNavigateArgs, BrowserNavigateResult> = {
+export const browserNavigateTool: VicoToolkitDefinitionEntry<BrowserNavigateArgs, BrowserNavigateResult> = {
   description: '使用 headless Chromium 导航到指定 URL，返回页面标题和最终 URL。需要安装 Playwright 依赖。',
   parameters: browserNavigateSchema,
   render: BrowserToolRenderer,
+  summarize: summarizeBrowserNavigate,
 };
 
-export const browserSnapshotTool: ToolkitDefinitionEntry<BrowserSnapshotArgs, BrowserSnapshotResult> = {
+export const browserSnapshotTool: VicoToolkitDefinitionEntry<BrowserSnapshotArgs, BrowserSnapshotResult> = {
   description: '获取页面的文本快照（可见文本内容），不包含 HTML 标签。需安装 Playwright。',
   parameters: browserSnapshotSchema,
   render: BrowserToolRenderer,
+  summarize: summarizeBrowserSnapshot,
 };
 
-export const browserClickTool: ToolkitDefinitionEntry<BrowserClickArgs, BrowserClickResult> = {
+export const browserClickTool: VicoToolkitDefinitionEntry<BrowserClickArgs, BrowserClickResult> = {
   description: '点击页面元素（CSS 选择器或文本匹配），等待导航后返回新页面信息。需安装 Playwright。',
   parameters: browserClickSchema,
   render: BrowserToolRenderer,
+  summarize: summarizeBrowserClick,
 };
 
 /**

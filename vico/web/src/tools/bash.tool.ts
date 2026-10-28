@@ -5,10 +5,9 @@
  * 参数定义参考 docs/mastra/09-builtin-tools-catalog.md
  */
 import {z} from 'zod/v4';
-import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {Terminal} from 'lucide-react';
 import {ExecToolRenderer} from './ToolUIs/exec-ui';
-import type {ToolRunActivitySummary} from './tool-summary';
+import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 const bashSchema = z.object({
   command: z.string().describe('要执行的 Shell 命令'),
@@ -30,9 +29,10 @@ export function summarizeBash(args: BashArgs): ToolRunActivitySummary {
   };
 }
 
-export const bashTool: ToolkitDefinitionEntry<BashArgs, unknown> = {
+export const bashTool: VicoToolkitDefinitionEntry<BashArgs, unknown> = {
   type: 'human' as const,
   description: '在沙箱中执行 Shell 命令，支持管道/重定向/后台运行',
   parameters: bashSchema,
   render: ExecToolRenderer,
+  summarize: summarizeBash,
 };

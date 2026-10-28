@@ -18,7 +18,6 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
-import {ToolFallback} from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {TooltipIconButton} from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {Button} from "@/components/ui/button";
 import {Skeleton} from "@/components/ui/skeleton";
@@ -72,12 +71,12 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
- * `Welcome` replace whole sections; the remaining slots override how the
- * assistant message renders tool calls and part groups. Tool UIs registered
- * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
- * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
- * conversation and have no registered UI render through it instead of the
- * tool group; without it they render like any other tool call.
+ * `Welcome` replace whole sections; `ReasoningGroup` overrides how reasoning
+ * part groups render.
+ *
+ * 工具调用不再在正文里渲染——详情统一收进 MessageRunActivity（摘要行 + 点击
+ * 展开工具 UI）。`ToolFallback` / `ToolGroup` / `TaskGroup` 三个槽位仅为向后
+ * 兼容保留，默认渲染管线已不再读取。
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -94,7 +93,8 @@ export type ThreadComponents = {
 
 const messageGroupBy = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
-  "tool-call": ["group-chainOfThought", "group-tool"],
+  // 工具调用不再在正文里分组渲染，详情统一收进 MessageRunActivity
+  "tool-call": [],
   "standalone-tool-call": [],
 });
 
@@ -550,7 +550,6 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   const {
-    ToolFallback: ToolFallbackComponent = ToolFallback,
     ToolGroup,
     ReasoningGroup,
     TaskGroup: TaskGroupComponent,
@@ -608,7 +607,8 @@ const AssistantMessage: FC = () => {
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+                // 工具详情已收进 MessageRunActivity，正文不再渲染工具 UI
+                return null;
               case "data":
                 return part.dataRendererUI;
               case "file":

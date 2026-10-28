@@ -6,10 +6,9 @@
  * update_semantic_memory 为 auto mutation（无需审批）。
  */
 import {z} from 'zod/v4';
-import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {Brain} from 'lucide-react';
 import {SemanticMemoryRenderer} from './ToolUIs/semantic-memory-ui';
-import type {ToolRunActivitySummary} from './tool-summary';
+import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 const semanticMemorySchema = z.object({
   memory: z.string().describe('完整的更新后语义记忆内容（Markdown 格式）'),
@@ -30,9 +29,10 @@ export function summarizeSemanticMemory(args: SemanticMemoryArgs): ToolRunActivi
   };
 }
 
-export const semanticMemoryTool: ToolkitDefinitionEntry<SemanticMemoryArgs, SemanticMemoryResult> = {
+export const semanticMemoryTool: VicoToolkitDefinitionEntry<SemanticMemoryArgs, SemanticMemoryResult> = {
   description: '用用户事实和上下文更新语义记忆。提供完整的 Markdown 内容，它将替换现有语义记忆。',
   parameters: semanticMemorySchema,
   render: SemanticMemoryRenderer,
-  display: "standalone"
+  display: "standalone",
+  summarize: summarizeSemanticMemory,
 };

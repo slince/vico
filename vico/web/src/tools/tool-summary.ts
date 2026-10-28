@@ -1,10 +1,12 @@
 /**
- * 工具 RunActivity 摘要的类型定义。
+ * 工具 RunActivity 摘要与扩展工具定义的类型定义。
  *
- * 每个工具用它把「在 RunActivity 一行里展示什么」描述出来：行首图标、
- * 标题（缺省用工具名）、描述（关键参数摘要）。由 tools/tool-activity.ts
- * 注册表聚合后，交给 MessageRunActivity 消费渲染。
+ * ToolRunActivitySummary / ToolSummarizer 描述「工具在 RunActivity 一行里展示什么」。
+ * VicoToolkitDefinitionEntry 在 assistant-ui 的 ToolkitDefinitionEntry 之上扩展
+ * summarize 字段，让每个工具在声明处即可自述摘要。所有工具经 tools/toolkit.ts
+ * 的 defineToolkit 聚合，MessageRunActivity 按 part.toolName 直接取用 render/summarize。
  */
+import type { ToolkitDefinitionEntry } from "@assistant-ui/react";
 import type { LucideIcon } from "lucide-react";
 
 /** 单个工具在 RunActivity 里的一行摘要 */
@@ -23,3 +25,15 @@ export type ToolRunActivitySummary = {
 export type ToolSummarizer<TArgs = Record<string, unknown>> = (
   args: TArgs,
 ) => ToolRunActivitySummary;
+
+/**
+ * Vico 自定义的工具定义项 —— 在 assistant-ui 的 ToolkitDefinitionEntry 基础上
+ * 扩展 summarize，使工具在声明处即可自述 RunActivity 摘要。
+ */
+export type VicoToolkitDefinitionEntry<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = ToolkitDefinitionEntry<TArgs, TResult> & {
+  /** 把工具调用折叠成 RunActivity 里的一行摘要；缺省由 MessageRunActivity 回退 */
+  summarize?: ToolSummarizer<TArgs>;
+};

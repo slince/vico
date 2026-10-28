@@ -6,10 +6,9 @@
  * todo_write 为 auto（无需审批）。
  */
 import {z} from 'zod/v4';
-import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {ListChecks} from 'lucide-react';
 import {SimpleToolRenderer} from './ToolUIs/simple-ui';
-import type {ToolRunActivitySummary} from './tool-summary';
+import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 // ── todo_write ──
 const todoEntrySchema = z.object({
@@ -40,8 +39,9 @@ export function summarizeTodoWrite(args: TodoWriteArgs): ToolRunActivitySummary 
   };
 }
 
-export const todoWriteTool: ToolkitDefinitionEntry<TodoWriteArgs, TodoWriteResult> = {
+export const todoWriteTool: VicoToolkitDefinitionEntry<TodoWriteArgs, TodoWriteResult> = {
   description: '创建和更新结构化任务列表，用于跟踪多步任务的执行进度。每次调用会替换全部任务列表。',
   parameters: todoWriteSchema,
   render: SimpleToolRenderer,
+  summarize: summarizeTodoWrite,
 };

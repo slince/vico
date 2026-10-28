@@ -6,10 +6,9 @@
  * web_fetch 为 auto（无需审批）。
  */
 import {z} from 'zod/v4';
-import type {ToolkitDefinitionEntry} from '@assistant-ui/react';
 import {Globe} from 'lucide-react';
 import {WebFetchRenderer} from './ToolUIs/web-fetch-ui';
-import type {ToolRunActivitySummary} from './tool-summary';
+import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 const webFetchSchema = z.object({
   url: z.string().describe('要请求的 URL（仅支持 http/https）'),
@@ -39,8 +38,9 @@ export function summarizeWebFetch(args: WebFetchArgs): ToolRunActivitySummary {
   };
 }
 
-export const webFetchTool: ToolkitDefinitionEntry<WebFetchArgs, WebFetchResult> = {
+export const webFetchTool: VicoToolkitDefinitionEntry<WebFetchArgs, WebFetchResult> = {
   description: '发起 HTTP 请求获取网页或 API 数据。支持自定义方法、请求头和请求体。响应体超过 100KB 自动截断。',
   parameters: webFetchSchema,
   render: WebFetchRenderer,
+  summarize: summarizeWebFetch,
 };
