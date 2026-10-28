@@ -96,6 +96,7 @@ function ReadView({result, args}: {result: ReadResult; args: ReadArgs}) {
         <SyntaxHighlighter
           code={result.content}
           language={guessLanguage(result.path)}
+          trim={false}
         />
       )}
     </div>

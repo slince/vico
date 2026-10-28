@@ -15,6 +15,8 @@ export type SyntaxHighlighterProps = Omit<
   code: string;
   /** Skips tokenization and renders the plain code while `true`. */
   streaming?: boolean;
+  /** 是否 trim 首尾空白；默认 true（markdown 代码块）。文件内容场景传 false 保留原始缩进。 */
+  trim?: boolean;
 };
 
 const containerClassName =
@@ -57,9 +59,10 @@ export const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
   showLanguage: _showLanguage,
   delay = 150, // the part settles before smooth streaming finishes draining, so code keeps changing for a few frames
   streaming = false,
+  trim = true,
   ...options
 }) => {
-  const trimmed = code.trim();
+  const trimmed = trim ? code.trim() : code;
 
   return (
     <div
