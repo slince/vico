@@ -59,7 +59,7 @@ import {
 } from "lucide-react";
 import {type ComponentType, createContext, type FC, type PropsWithChildren, useContext,} from "react";
 import {AssistantThinking} from "@/components/assistant-ui/assistant-thinking";
-import {CompletedActivityGroup, ToolActivityContent} from "@/components/assistant-ui/elements/message-run-activity";
+import {CompletedActivityGroup} from "@/components/assistant-ui/elements/message-run-activity";
 import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
 import {AgentSelectorAction} from "@/components/assistant-ui/agent-selector-action";
 import {ApprovalModeSelectorAction} from "@/components/assistant-ui/approval-mode-selector-action";
@@ -94,7 +94,7 @@ export type ThreadComponents = {
 
 const messageGroupBy = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
-  // 工具调用 running 态不在正文分组渲染（AssistantThinking 提示），complete 态收进「已完成」折叠块
+  // 工具调用不分组（作为独立 part 平铺渲染）；complete 态由 completedGroupBy 收进折叠块
   "tool-call": [],
   "standalone-tool-call": [],
 });
@@ -638,13 +638,9 @@ const AssistantMessage: FC = () => {
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
-                // complete 态下工具卡片已收进「已完成」折叠块（group-activity-tool）
-                if (isComplete) return <ToolActivityContent part={part} />;
-                // running 态工具不显示卡片（空 Fragment 阻止 DefaultPartFallback
-                // 渲染注册的 ToolUI），改由 AssistantThinking 提示行说明
-                if (part.status?.type === "running") return <></>;
-                // 审批 / 失败 / 已完成工具照常渲染（审批与错误信息不能折叠隐藏）
-                return <ToolActivityContent part={part} />;
+                // 工具卡片照常渲染：complete 态收在「已完成」折叠块内（group-activity-tool），
+                // running / 审批 / 失败态直接平铺渲染（审批按钮与错误信息同样可见）
+                return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":
                 return part.dataRendererUI;
               case "file":
