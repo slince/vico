@@ -1,5 +1,4 @@
 // @vico/compaction — ModelContextCompactor 默认实现（持久化增量滚动压缩）
-import {randomUUID} from 'node:crypto';
 import type {ModelMessage} from 'ai';
 import type {AgentMessage, Thread, ThreadStore} from '@vico/thread';
 import {toModelMessages} from '@vico/thread';
@@ -106,7 +105,6 @@ export class ModelContextCompactor implements ContextCompactor {
       if (summaryText === null) return null; // 摘要不合格：不写、不归档（spec §10），下次 turn 再试
 
       // append-only 落库：先写新摘要，再归档旧摘要 + head（先写后删，崩溃不丢上下文）
-      const summaryMessageId = randomUUID();
       const summaryEntry = {
         threadId: thread.id,
         turnId: thread.id, // 摘要不属于任何 turn，用 thread.id 作哨兵
