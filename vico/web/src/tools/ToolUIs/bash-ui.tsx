@@ -7,7 +7,8 @@
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
-import {Terminal} from 'lucide-react';
+import {useCopyToClipboard} from 'react-use';
+import {Check, Copy, Terminal} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {BashArgs, BashResult} from '../bash.tool';
 
@@ -18,17 +19,32 @@ import type {BashArgs, BashResult} from '../bash.tool';
  */
 function ExecResult({command, result}: {command: string; result?: BashResult}) {
   const {t} = useTranslation('assistant');
+  const [clipboard, copyToClipboard] = useCopyToClipboard();
 
   const stdout = result?.stdout;
   const stderr = result?.stderr;
   const exitCode = result?.exitCode;
 
+  // 复制成功且复制值等于当前命令时，图标切换为勾
+  const copied = clipboard.value === command && clipboard.error == null;
+
   return (
     <div className="space-y-2">
       <div className="text-xs divide-y divide-border/50">
-        <pre className="p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-32">
-          {command}
-        </pre>
+        <div className="flex items-start gap-2 p-2 max-h-32 overflow-x-auto">
+          <pre className="min-w-0 flex-1 text-right whitespace-pre-wrap break-all">
+            {command}
+          </pre>
+          <button
+            type="button"
+            onClick={() => copyToClipboard(command)}
+            aria-label={t('tool.exec.copy')}
+            title={t('tool.exec.copy')}
+            className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {copied ? <Check size={12} /> : <Copy size={12} />}
+          </button>
+        </div>
 
         {stdout != null && stdout !== '' && (
           <pre className="p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto">

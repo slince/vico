@@ -84,7 +84,8 @@
       "executing": "正在执行命令...",
       "stdout": "标准输出",
       "stderr": "标准错误",
-      "exitCode": "退出码：{{code}}"
+      "exitCode": "退出码：{{code}}",
+      "copy": "复制命令"
     },
     "fileRead": {
       "title": { "read": "读取文件", "glob": "查找文件", "grep": "搜索内容" },
