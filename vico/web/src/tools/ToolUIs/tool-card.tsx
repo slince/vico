@@ -248,7 +248,7 @@ export function ToolCard({
   // 执行中
   if (status?.type === 'running') {
     return (
-      <div className="border rounded-lg p-3 my-2 bg-muted/30 animate-pulse">
+      <div className="p-3 my-2">
         <div className="flex items-center gap-2">
           <Loader2 size={14} className="text-muted-foreground animate-spin" />
           <span className="text-sm text-muted-foreground">
