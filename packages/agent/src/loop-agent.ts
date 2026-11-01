@@ -677,7 +677,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 模型输出后的消息处理（text + tool-call parts 组装为原生 assistant 消息）
     if (modelResult.text || modelResult.toolCalls.length > 0) {
       const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning, pendingApprovalCalls);
-      context.messages.push(assistantMsg);
+      context.messages.push({ ...assistantMsg, turnId: context.session.turn.id });
       // usage 与 assistant 消息一一对应：仅在持久化副本上挂载，消息链保持纯净（不随上下文发给模型）
       await this.persistMessages(context, [{ ...assistantMsg, usage: modelResult.usage }]);
     }
@@ -831,7 +831,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     for (const r of toolResults) {
       const message = buildToolResultMessage(r);
-      context.messages.push(message);
+      context.messages.push({ ...message, turnId: context.session.turn.id });
       messages.push(message);
     }
 

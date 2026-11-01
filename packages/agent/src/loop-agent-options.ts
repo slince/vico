@@ -5,7 +5,7 @@ import type {ReasoningEffort} from '@vico/model';
 import type {ModelClient} from '@vico/model';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
 import {Thread, Turn} from '@vico/thread';
-import type {TurnSession} from '@vico/thread';
+import type {AgentMessage, TurnSession} from '@vico/thread';
 
 /** executeModelStep 返回值 */
 export interface ModelStepResult {
@@ -39,7 +39,8 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   systemPrompt: string
   /** 洋葱处理器产出的最终工具列表（快照，turn 内不变） */
   tools: Tool[]
-  messages: ModelMessage[]
+  /** 内存消息链（含所属 turnId 自描述） */
+  messages: AgentMessage[]
   session: TurnSession;
   decisions: Map<string, ToolCallApproval>;
   approvedTools: Map<string, ToolApproval>;
