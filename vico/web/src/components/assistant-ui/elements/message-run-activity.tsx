@@ -8,14 +8,15 @@ import {
   type PartState,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { ChevronRightIcon, WrenchIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CheckIcon, ChevronRightIcon, WrenchIcon } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import { toolkit } from "@/tools/toolkit";
 import type { VicoToolkitDefinitionEntry } from "@/tools/tool-summary";
 import {
   formatElapsed,
+  formatElapsedCn,
   taskLabel,
   taskStateOf,
 } from "../utils/task";
@@ -78,18 +79,15 @@ const STATUS_LABELS: Record<RunActivityStatus, string> = {
 };
 
 /**
- * 单条工具的摘要行：图标 + 标题 + 描述（三部分），点击展开该工具的工具 UI。
- *
- * 展开后的 UI 复用该工具在 toolkit 里注册的 render 组件（无 render 时回退
+ * 直接渲染单条工具的工具 UI（toolkit 注册的 render 组件，无 render 时回退
  * ToolFallback）。render 组件所需的 addResult / resume / respondToApproval
  * 从当前消息的 part runtime 派生，保证审批与续跑按钮仍然真实可用。
+ *
+ * 用于折叠块内平铺展示（不再套"摘要行 + 点击展开"那层折叠）。
  */
-function ToolRunActivityRow({ part }: { part: ToolCallPartState }) {
+function ToolActivityContent({ part }: { part: ToolCallPartState }) {
   const aui = useAui();
   const descriptor = tools[part.toolName];
-  const summary = descriptor?.summarize?.(part.args);
-
-  const [open, setOpen] = useState(false);
 
   // 由当前消息的 part runtime 派生 render 组件需要的动作方法
   const partMethods = aui.message.part({ toolCallId: part.toolCallId });
@@ -102,6 +100,18 @@ function ToolRunActivityRow({ part }: { part: ToolCallPartState }) {
   };
 
   const ToolUI = descriptor?.render ?? ToolFallback;
+  return <ToolUI {...renderProps} />;
+}
+
+/**
+ * 单条工具的摘要行：图标 + 标题 + 描述（三部分），点击展开该工具的工具 UI。
+ */
+function ToolRunActivityRow({ part }: { part: ToolCallPartState }) {
+  const descriptor = tools[part.toolName];
+  const summary = descriptor?.summarize?.(part.args);
+
+  const [open, setOpen] = useState(false);
+
   const Icon = summary?.icon ?? FALLBACK_SUMMARY.icon;
   const title = summary?.title ?? part.toolName;
   const description = summary?.description;
@@ -132,7 +142,7 @@ function ToolRunActivityRow({ part }: { part: ToolCallPartState }) {
 
       <CollapsibleContent className={cn(collapsePanel)}>
         <div className="pt-1 pb-2">
-          <ToolUI {...renderProps} />
+          <ToolActivityContent part={part} />
         </div>
       </CollapsibleContent>
     </Collapsible>
@@ -191,3 +201,45 @@ export function MessageRunActivity() {
     />
   );
 }
+
+/**
+ * 完成态的统一折叠块：把推理全文 + 工具调用平铺收纳进一个「已完成」块。
+ *
+ * 默认折叠，标题只显示「已完成，用时 xx分xx秒」（时长取流式生成时长），
+ * 点击展开后 children 依次是 reasoning / tool 的渲染结果。
+ */
+function CompletedActivityGroup({ children }: { children: ReactNode }) {
+  const timing = useMessageTiming();
+  const [open, setOpen] = useState(false);
+
+  const duration =
+    timing?.totalStreamTime !== undefined
+      ? formatElapsedCn(timing.totalStreamTime)
+      : undefined;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="my-2">
+      <CollapsibleTrigger className="group/trigger text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex w-full items-center gap-1.5 rounded-md py-1 text-sm outline-none focus-visible:ring-[3px]">
+        <CheckIcon
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+        />
+        <span className="text-foreground/80 tabular-nums">
+          已完成
+          {duration !== undefined && <>，用时 {duration}</>}
+        </span>
+        <ChevronRightIcon
+          aria-hidden="true"
+          className="size-3.5 ml-auto shrink-0 transition-transform duration-200 group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none"
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className={cn(collapsePanel)}>
+        <div className="border-border ms-1.5 flex min-w-0 flex-col gap-3 border-s ps-3.5 pt-2 text-sm wrap-anywhere">
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+export { CompletedActivityGroup, ToolActivityContent };

@@ -68,6 +68,16 @@ export function formatElapsed(ms: number) {
   return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
 }
 
+/** 中文时长文案：<60s 显示 "xx秒"，≥60s 显示 "xx分xx秒"，不足 1s 显示 "不到 1 秒"。 */
+export function formatElapsedCn(ms: number) {
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 1) return "不到 1 秒";
+  if (totalSeconds < 60) return `${totalSeconds}秒`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}分${seconds}秒`;
+}
+
 export function useTaskElapsed(
   timing: TaskTiming | undefined,
   running: boolean,

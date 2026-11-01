@@ -67,15 +67,15 @@ export interface ToolCardProps {
  */
 const TONE_STYLES = {
   default: {
-    frame: 'border-transparent',
+    frame: '',
     title: 'text-foreground',
   },
   muted: {
-    frame: 'border-border bg-muted/30 animate-pulse',
+    frame: 'bg-muted/30 animate-pulse',
     title: 'text-muted-foreground',
   },
   destructive: {
-    frame: 'border-destructive/30 bg-destructive/5',
+    frame: 'bg-destructive/5',
     title: 'text-destructive',
   },
 } as const;
@@ -121,7 +121,7 @@ function ToolCardShell({
   const style = TONE_STYLES[tone];
 
   return (
-    <div className={cn('rounded-lg border p-3 my-2', style.frame)}>
+    <div className={cn('rounded-lg p-3 my-2', style.frame)}>
       <div
         onClick={onHeaderClick}
         role={onHeaderClick ? 'button' : undefined}

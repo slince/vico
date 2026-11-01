@@ -22,7 +22,8 @@ function useThinkingLabel() {
         ?.description?.trim();
       return description || `Running ${pending.toolName}`;
     }
-    return s.message.parts.length === 0 ? "Thinking" : undefined;
+    // 只要 agent 还在运行就持续显示：有 pending 工具展示其 description，否则始终 "Thinking"
+    return "Thinking";
   });
 }
 
