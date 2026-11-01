@@ -1,18 +1,6 @@
 import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
-import {type ContentPart} from '@vico/model';
-import {type Message, type ThreadStore, toUiMessages} from '@vico/thread';
+import {type ThreadStore, toUiMessages} from '@vico/thread';
 import type {AgentManager} from '../agent/agent-manager.js';
-
-/**
- * 解析消息 content 为原生 parts 数组，解析失败时按纯文本兜底。
- */
-function parseMessageContent(msg: Message): string | ContentPart[] {
-  try {
-    return JSON.parse(msg.content) as ContentPart[];
-  } catch {
-    return msg.content;
-  }
-}
 
 /** 前台展示的消息角色 */
 const VISIBLE_ROLES = ['user', 'assistant', 'system', 'tool'];
@@ -92,7 +80,7 @@ export class ThreadManager {
         messageCount = entries.length;
         if (entries.length > 0) {
           const last = entries[entries.length - 1];
-          const lastContent = parseMessageContent(last);
+          const lastContent = last.content;
           if (typeof lastContent === 'string') {
             lastMessage = lastContent || undefined;
           } else if (Array.isArray(lastContent)) {

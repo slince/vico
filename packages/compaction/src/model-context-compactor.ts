@@ -138,7 +138,7 @@ export class ModelContextCompactor implements ContextCompactor {
         threadId: thread.id,
         turnId: thread.id, // 摘要不属于任何 turn，用 thread.id 作哨兵
         role: SUMMARY_ROLE,
-        content: JSON.stringify(summaryText),
+        content: summaryText,
         metadata: {
           kind: SUMMARY_METADATA_KIND,
           ...(candidate.summaryEntryId ? { previousSummaryId: candidate.summaryEntryId } : {}),

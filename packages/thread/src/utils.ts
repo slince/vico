@@ -1,24 +1,17 @@
 // src/thread/utils.ts — ThreadStore Message 与原生 ModelMessage/UIMessage 的相互转换
-import type {Message} from './thread-store.js';
+import type {Message, MessageContent} from './thread-store.js';
 import type {UsageMetrics} from '@vico/types';
 import type {ModelMessage, ToolUIPart, UIMessage} from 'ai';
 import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart, ToolResultPart} from '@ai-sdk/provider-utils';
 
 /**
- * ThreadStore Message → 原生 ModelMessage（content 反序列化）。
- * 解析失败时按纯文本内容兜底（防御历史脏数据）。
+ * ThreadStore Message → 原生 ModelMessage（content 原样透传，不再反序列化）。
  * summary 是压缩内部角色，provider 不识别，统一映射为 user 消息注入。
  */
 export function toModelMessages(entries: Message[]): ModelMessage[] {
   return entries.map((e) => {
-    let content: ModelMessage['content'];
-    try {
-      content = JSON.parse(e.content) as ModelMessage['content'];
-    } catch {
-      content = e.content;
-    }
     const role = e.role === 'summary' ? 'user' : e.role;
-    return { role, content } as ModelMessage;
+    return { role, content: e.content } as ModelMessage;
   });
 }
 
@@ -29,24 +22,35 @@ export function toModelMessages(entries: Message[]): ModelMessage[] {
 export type MessageWithUsage = ModelMessage & { usage?: UsageMetrics };
 
 /**
- * 原生 ModelMessage → ThreadStore 持久化字段（content 序列化，usage 写入 metadata）。
+ * 原生 ModelMessage → ThreadStore 持久化字段（content 原样透传，usage 写入 metadata）。
  * usage 仅存在于持久化副本，不进入发往模型的消息链。
  */
 export function fromModelMessage(msg: MessageWithUsage): Pick<Message, 'role'|'content'|'metadata'> {
   const entry: Pick<Message, 'role'|'content'|'metadata'> = {
     role: msg.role,
-    content: JSON.stringify(msg.content),
+    content: msg.content,
   };
   if (msg.usage) entry.metadata = { usage: msg.usage };
   return entry;
 }
 
 /**
- * 解析 Message.content 为规范形态（string 或 parts 数组）。
- * content 由 fromModelMessage 以 JSON.stringify 写入，反序列化即还原 ModelMessage.content。
+ * Message.content → DB 列（TEXT）：JSON.stringify 落库。
+ * 仅供存储适配器在持久化边界使用；内存互转（fromModelMessage / toModelMessages）不再做 JSON。
  */
-function parseContent(content: string): ModelMessage['content'] {
-  return JSON.parse(content) as ModelMessage['content'];
+export function serializeContent(content: MessageContent): string {
+  return JSON.stringify(content);
+}
+
+/**
+ * DB 列（TEXT）→ Message.content：JSON.parse 还原，解析失败按纯文本兜底（防御历史脏数据）。
+ */
+export function deserializeContent(raw: string): MessageContent {
+  try {
+    return JSON.parse(raw) as MessageContent;
+  } catch {
+    return raw;
+  }
 }
 
 /** 判断 UIMessage part 是否为静态 tool part（type 以 tool- 开头） */
@@ -218,7 +222,7 @@ export function toUiMessages(entries: Message[]): UIMessage[] {
   let lastAssistantIndex = -1;
 
   for (const entry of entries) {
-    const content = parseContent(entry.content);
+    const content = entry.content;
 
     // tool 消息 → 合并 tool-result / tool-approval-response 到最近 assistant 的 tool part
     if (entry.role === 'tool') {

@@ -1,7 +1,7 @@
 // @vico/thread - 线程/会话存储与消息转换
 
 export { InMemoryThreadStore } from './memory-thread-store.js';
-export { toModelMessages, fromModelMessage, toUiMessages, type MessageWithUsage } from './utils.js';
+export { toModelMessages, fromModelMessage, toUiMessages, serializeContent, deserializeContent, type MessageWithUsage } from './utils.js';
 export type {
   SessionApprovedTool,
   ThreadMetadata,
@@ -12,6 +12,7 @@ export type {
   Turn,
   MessageMetadata,
   Message,
+  MessageContent,
   ThreadStore,
   TurnSession,
   TurnStep,

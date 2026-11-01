@@ -22,8 +22,8 @@ describe('InMemoryThreadStore.archiveMessages / includeArchived', () => {
     const store = new InMemoryThreadStore();
     await store.createThread('a', 't', 'thread-1');
     const [m1, m2] = await store.appendEntries([
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: '"hi"' },
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'assistant', content: '"yo"' },
+      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
+      { threadId: 'thread-1', turnId: 'turn-1', role: 'assistant', content: 'yo' },
     ]);
 
     await store.archiveMessages('thread-1', [m1.id]);
@@ -40,8 +40,8 @@ describe('InMemoryThreadStore.archiveMessages / includeArchived', () => {
     const store = new InMemoryThreadStore();
     await store.createThread('a', 't', 'thread-1');
     const [m1, m2] = await store.appendEntries([
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: '"hi"' },
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'assistant', content: '"yo"' },
+      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
+      { threadId: 'thread-1', turnId: 'turn-1', role: 'assistant', content: 'yo' },
     ]);
     await store.archiveMessages('thread-1', [m1.id]);
 
@@ -53,7 +53,7 @@ describe('InMemoryThreadStore.archiveMessages / includeArchived', () => {
     const store = new InMemoryThreadStore();
     await store.createThread('a', 't', 'thread-1');
     const [m1] = await store.appendEntries([
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: '"hi"' },
+      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
     ]);
     await store.archiveMessages('thread-1', [m1.id, 'nope']);
     await store.archiveMessages('thread-1', [m1.id]);

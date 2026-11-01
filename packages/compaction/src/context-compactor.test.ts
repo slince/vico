@@ -28,7 +28,7 @@ async function seed(store: InMemoryThreadStore, texts: string[]): Promise<void> 
   let createdAt = 1000;
   for (const text of texts) {
     const turn = await store.createTurn('thread-1');
-    await store.appendEntries([{ threadId: 'thread-1', turnId: turn.id, role: 'user', content: JSON.stringify(text) }]);
+    await store.appendEntries([{ threadId: 'thread-1', turnId: turn.id, role: 'user', content: text }]);
     await store.updateTurn(turn.id, { status: 'completed', createdAt: createdAt++ });
   }
 }
@@ -103,12 +103,12 @@ describe('ModelContextCompactor 集成', () => {
     // 摘要消息已写入，role='summary'
     const summaries = await store.getEntries('thread-1', { roles: ['summary'], includeArchived: false });
     expect(summaries).toHaveLength(1);
-    expect(JSON.parse(summaries[0].content)).toContain('compacted summary text');
+    expect(summaries[0].content).toContain('compacted summary text');
 
     // 非归档消息 = 1 条摘要 + 尾部 turn（z）
     const active = await store.getEntries('thread-1', { includeArchived: false });
     const nonSummary = active.filter((m) => m.role !== 'summary');
-    expect(nonSummary.map((m) => JSON.parse(m.content))).toEqual(['z'.repeat(1000)]);
+    expect(nonSummary.map((m) => m.content)).toEqual(['z'.repeat(1000)]);
   });
 
   it('摘要 LLM 失败时 no-op：不写摘要、不归档', async () => {
@@ -192,7 +192,7 @@ describe('ModelContextCompactor 集成', () => {
 
     // 追加一条短 turn 作新 head（33 token），旧摘要约 290 token
     const turn = await store.createTurn('thread-1');
-    await store.appendEntries([{ threadId: 'thread-1', turnId: turn.id, role: 'user', content: JSON.stringify('q'.repeat(100)) }]);
+    await store.appendEntries([{ threadId: 'thread-1', turnId: turn.id, role: 'user', content: 'q'.repeat(100) }]);
     await store.updateTurn(turn.id, { status: 'completed', createdAt: 99999 });
 
     // 第二次压缩：新摘要约 186 token（>= head 33 但 < head+旧摘要 398）

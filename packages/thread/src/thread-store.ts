@@ -65,14 +65,23 @@ export interface Turn {
 
 export type MessageMetadata = Record<string, unknown>
 
-/** 对话记录条目 — content 存原生 ModelMessage.content 的 JSON 序列化（string 或 parts 数组） */
-export interface Message {
+/** Message.content 的默认形态 — 原生 ModelMessage.content（string 或 parts 数组） */
+export type MessageContent = ModelMessage['content'];
+
+/**
+ * 对话记录条目。
+ *
+ * content 泛型化：默认即为原生 ModelMessage.content（string 或 parts 数组），
+ * 与 ModelMessage 互转时原样透传，不再做 JSON 序列化；
+ * 序列化/反序列化由存储适配器在 DB 边界完成（见 utils.serializeContent / deserializeContent）。
+ */
+export interface Message<TContent = MessageContent> {
   id: string;
   threadId: string;
   turnId: string;
   role: string;
-  /** JSON.stringify(ModelMessage.content)，读取时 JSON.parse 还原 */
-  content: string;
+  /** 原生 ModelMessage.content（string 或 parts 数组） */
+  content: TContent;
   /** 自定义上下文字段（JSON 可序列化） */
   metadata?: MessageMetadata;
   /** 是否已被压缩归档（模型上下文不再读取；UI 仍全量展示） */
