@@ -12,7 +12,6 @@ export const memoryCompactionSchema = z.object({
   summarization_provider: z.string().optional(),
   summarization_model: z.string().optional(),
   max_tokens: z.number().optional(),
-  compaction_retries: z.number().optional(),
   max_overflow_retries: z.number().optional(),
 });
 

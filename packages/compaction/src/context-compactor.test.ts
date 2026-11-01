@@ -111,7 +111,7 @@ describe('ModelContextCompactor 集成', () => {
     expect(nonSummary.map((m) => m.content)).toEqual(['z'.repeat(1000)]);
   });
 
-  it('摘要 LLM 失败时 no-op：不写摘要、不归档', async () => {
+  it('摘要 LLM 失败时直接抛错：不写摘要、不归档', async () => {
     const store = new InMemoryThreadStore();
     await seed(store, ['x'.repeat(1000), 'y'.repeat(1000), 'z'.repeat(1000)]);
     const thread = (await store.getThread('thread-1'))!;
@@ -124,8 +124,7 @@ describe('ModelContextCompactor 集成', () => {
       modelConfig: { provider: 'openai', model: 'gpt', apiKey: 'k', contextWindow: 100000 },
       settings: { retainTokens: 1 },
     });
-    const result = await c.compactNow(thread, failingClient, new AbortController().signal);
-    expect(result).toBeNull(); // 失败 no-op，下次 turn 再试
+    await expect(c.compactNow(thread, failingClient, new AbortController().signal)).rejects.toThrow('boom');
     expect(await store.getEntries('thread-1', { roles: ['summary'] })).toHaveLength(0); // 未写摘要
     expect(await store.getEntries('thread-1', { includeArchived: false })).toHaveLength(3); // 全量未归档
   });

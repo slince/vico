@@ -109,10 +109,10 @@ export class ModelContextCompactor implements ContextCompactor {
       const headMessages = headTurns.flatMap((t) => t.messages);
       const headMessageIds = headTurns.flatMap((t) => t.messageIds);
 
-      // 增量摘要（含 shrink check 与失败回退）
+      // 增量摘要（stream 异常直接抛出；空输出 / shrink check 不通过返回 null）
       const summaryText = await this.summarize(headMessages, candidate.summary, modelClient, signal);
       if (signal.aborted) return null; // cancelled
-      if (summaryText === null) return null; // 摘要失败：不写、不归档（spec §10），下次 turn 再试
+      if (summaryText === null) return null; // 摘要不合格：不写、不归档（spec §10），下次 turn 再试
 
       // append-only 落库：先写新摘要，再归档旧摘要 + head（先写后删，崩溃不丢上下文）
       const summaryMessageId = randomUUID();
@@ -184,7 +184,8 @@ export class ModelContextCompactor implements ContextCompactor {
 
   /**
    * 增量摘要：独立摘要模型（若配置）或复用传入 modelClient。
-   * 失败（重试耗尽 / 空输出 / shrink check 不通过）时返回 null——调用方 no-op，不写摘要、不归档（spec §10）。
+   * stream 调用异常直接抛出（由调用方决定处理）；空输出 / shrink check 不通过时返回 null——
+   * 调用方 no-op，不写摘要、不归档（spec §10）。
    */
   private async summarize(head: AgentMessage[], oldSummary: AgentMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
     const client = this.resolveSummaryClient(modelClient);
@@ -196,24 +197,15 @@ export class ModelContextCompactor implements ContextCompactor {
     if (oldSummary) input.push({ role: 'system', content: getMessageText(oldSummary) });
     input.push(...head);
 
-    // 摘要调用按 compactionRetries 重试；全部失败 → 返回 null（不写、不归档）
-    let text = '';
-    for (let attempt = 0; attempt <= this.settings.compactionRetries; attempt++) {
-      try {
-        const result = await client.stream({
-          system: COMPACTION_INSTRUCTION,
-          messages: input,
-          maxOutputTokens: this.settings.maxTokens,
-          temperature: 0,
-          abortSignal: signal,
-        });
-
-        text = await result.text()
-        break; // 成功，退出重试
-      } catch {
-        if (attempt === this.settings.compactionRetries) return null;
-      }
-    }
+    // 摘要调用失败直接抛出，不重试
+    const result = await client.stream({
+      system: COMPACTION_INSTRUCTION,
+      messages: input,
+      maxOutputTokens: this.settings.maxTokens,
+      temperature: 0,
+      abortSignal: signal,
+    });
+    const text = await result.text();
 
     if (!text.trim()) return null; // 空输出 → 失败
 

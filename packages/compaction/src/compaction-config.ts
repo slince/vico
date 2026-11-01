@@ -10,7 +10,6 @@ export interface CompactionSettings {
   summarizationProvider?: string;
   summarizationModel?: string;
   maxTokens?: number;
-  compactionRetries?: number;
   maxOverflowRetries?: number;
 }
 
@@ -24,7 +23,6 @@ export interface ResolvedCompactionSettings {
   summarizationProvider?: string;
   summarizationModel?: string;
   maxTokens: number;
-  compactionRetries: number;
   maxOverflowRetries: number;
 }
 
@@ -34,7 +32,6 @@ export const DEFAULT_COMPACTION_SETTINGS: ResolvedCompactionSettings = {
   headroomTokens: 65536,
   retainRatio: 0.16,
   maxTokens: 65536,
-  compactionRetries: 1,
   maxOverflowRetries: 1,
 };
 

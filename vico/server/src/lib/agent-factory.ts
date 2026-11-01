@@ -31,7 +31,6 @@ function toCompactionSettings(raw: MemoryConfig['compaction']): Partial<Compacti
     summarizationProvider: raw.summarization_provider,
     summarizationModel: raw.summarization_model,
     maxTokens: raw.max_tokens,
-    compactionRetries: raw.compaction_retries,
     maxOverflowRetries: raw.max_overflow_retries,
   };
 }
