@@ -112,6 +112,8 @@ export interface ThreadStore {
   updateTurn(turnId: string, patch: Partial<Turn>): Promise<void>;
   /** 获取轮次详情 */
   getTurn(turnId: string): Promise<Turn | undefined>;
+  /** 批量获取多个轮次（按 id；不存在的 id 静默忽略） */
+  getTurns(turnIds: string[]): Promise<Turn[]>;
 
   /** 消息操作 */
 

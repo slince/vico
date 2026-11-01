@@ -35,7 +35,23 @@ describe('ConversationHistoryMemory.get', () => {
 
     const mem = new ConversationHistoryMemory(store);
     const history = await mem.get('thread-1');
-    expect(history[0]).toEqual({ role: 'user', content: 'prior summary', turnId: 'thread-1' });
+    expect(history[0]).toMatchObject({ role: 'user', content: 'prior summary', turnId: 'thread-1' });
     expect(history.map((m) => (m.content as string))).toEqual(['prior summary', 'after summary']);
+  });
+
+  it('excludeTurnId 排除指定 turn 的普通消息，但保留 summary（压缩后重建历史前缀）', async () => {
+    const { store } = await seed();
+    const t1 = await store.createTurn('thread-1');
+    await store.appendEntries([{ threadId: 'thread-1', turnId: t1.id, role: 'user', content: 'one' }]);
+    await store.updateTurn(t1.id, { status: 'completed' });
+
+    // 当前 turn（running）：一条用户消息 + 一条 summary（都挂当前 turn）
+    const t2 = await store.createTurn('thread-1');
+    await store.appendEntries([{ threadId: 'thread-1', turnId: t2.id, role: 'user', content: 'two' }]);
+    await store.appendEntries([{ threadId: 'thread-1', turnId: t2.id, role: 'summary', content: 'prior summary' }]);
+
+    const mem = new ConversationHistoryMemory(store);
+    const history = await mem.get('thread-1', t2.id);
+    expect(history.map((m) => (m.content as string))).toEqual(['prior summary', 'one']);
   });
 });

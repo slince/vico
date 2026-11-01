@@ -78,6 +78,16 @@ export class InMemoryThreadStore implements ThreadStore {
     return this.turns.get(turnId);
   }
 
+  async getTurns(turnIds: string[]): Promise<Turn[]> {
+    if (turnIds.length === 0) return [];
+    const ids = new Set(turnIds);
+    const result: Turn[] = [];
+    for (const turn of this.turns.values()) {
+      if (ids.has(turn.id)) result.push(turn);
+    }
+    return result;
+  }
+
   // Message 操作
 
   async appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]> {

@@ -22,17 +22,23 @@ function fakeClient(): ModelClient {
   } as unknown as ModelClient;
 }
 
-/** 以 store 非归档条目构建压缩上下文（等价于 turn 开始前的历史注入） */
+/** 以 store 非归档条目构建压缩上下文（等价于 turn 开始前的历史注入；turn 模拟「当前 turn」） */
 async function makeContext(store: InMemoryThreadStore, threadId: string, client: ModelClient): Promise<CompactionContext> {
   const thread = (await store.getThread(threadId))!;
+  const turn = await store.createTurn(threadId);
   const messages = toModelMessages(await store.getEntries(threadId, { includeArchived: false }));
   return {
     messages,
     historyCount: messages.length,
-    session: { thread },
+    session: { thread, turn },
     modelClient: client,
     signal: new AbortController().signal,
   };
+}
+
+/** 读取线程非归档消息为压缩候选（手动压缩路径的候选来源） */
+async function getMessages(store: InMemoryThreadStore, threadId: string) {
+  return toModelMessages(await store.getEntries(threadId, { includeArchived: false }));
 }
 
 /** 造一个 thread + 若干 completed turn（每条一条长文本 user 消息，保证 head token 足够大以通过 shrink check） */
@@ -73,6 +79,7 @@ describe('ModelContextCompactor', () => {
     const c = new ModelContextCompactor({ thread: store, conversationWindow: 10 });
     await expect(c.compactNow(
       (await store.getThread('thread-1'))!,
+      await getMessages(store, 'thread-1'),
       fakeClient(),
       new AbortController().signal,
     )).rejects.toThrow(TargetPressureConfigError);
@@ -107,7 +114,7 @@ describe('ModelContextCompactor 集成', () => {
       settings: { retainTokens: 1 }, // 只保留最后 1 turn
     });
 
-    const result = await c.compactNow(thread, fakeClient(), new AbortController().signal);
+    const result = await c.compactNow(thread, await getMessages(store, 'thread-1'), fakeClient(), new AbortController().signal);
     expect(result).not.toBeNull();
     expect(result!.archivedTurnIds).toHaveLength(2); // 前两个 turn 被归档
 
@@ -135,7 +142,7 @@ describe('ModelContextCompactor 集成', () => {
       modelConfig: { provider: 'openai', model: 'gpt', apiKey: 'k', contextWindow: 100000 },
       settings: { retainTokens: 1 },
     });
-    await expect(c.compactNow(thread, failingClient, new AbortController().signal)).rejects.toThrow('boom');
+    await expect(c.compactNow(thread, await getMessages(store, 'thread-1'), failingClient, new AbortController().signal)).rejects.toThrow('boom');
     expect(await store.getEntries('thread-1', { roles: ['summary'] })).toHaveLength(0); // 未写摘要
     expect(await store.getEntries('thread-1', { includeArchived: false })).toHaveLength(3); // 全量未归档
   });
@@ -153,7 +160,7 @@ describe('ModelContextCompactor 集成', () => {
       modelConfig: { provider: 'openai', model: 'gpt', apiKey: 'k', contextWindow: 100000 },
       settings: { retainTokens: 1 },
     });
-    const result = await c.compactNow(thread, emptyClient, new AbortController().signal);
+    const result = await c.compactNow(thread, await getMessages(store, 'thread-1'), emptyClient, new AbortController().signal);
     expect(result).toBeNull();
     expect(await store.getEntries('thread-1', { roles: ['summary'] })).toHaveLength(0);
     expect(await store.getEntries('thread-1', { includeArchived: false })).toHaveLength(3);
@@ -177,13 +184,13 @@ describe('ModelContextCompactor 集成', () => {
       modelConfig: { provider: 'openai', model: 'gpt', apiKey: 'k', contextWindow: 100000 },
       settings: { retainTokens: 1 },
     });
-    const result = await c.compactNow(thread, hugeClient, new AbortController().signal);
+    const result = await c.compactNow(thread, await getMessages(store, 'thread-1'), hugeClient, new AbortController().signal);
     expect(result).toBeNull();
     expect(await store.getEntries('thread-1', { roles: ['summary'] })).toHaveLength(0);
     expect(await store.getEntries('thread-1', { includeArchived: false })).toHaveLength(3);
   });
 
-  it('shrink check 基线含旧摘要：旧摘要大 + head 小时合法压缩不被误拒', async () => {
+  it('旧摘要作为普通 head 消息参与压缩：大旧摘要 + 小 head 时合法压缩不被误拒', async () => {
     const store = new InMemoryThreadStore();
     await seed(store, ['x'.repeat(400), 'y'.repeat(400), 'z'.repeat(400), 'w'.repeat(400), 'v'.repeat(400)]);
     const thread = (await store.getThread('thread-1'))!;
@@ -194,22 +201,22 @@ describe('ModelContextCompactor 集成', () => {
       settings: { retainTokens: 1 },
     });
 
-    // 第一次压缩产生旧摘要（约 286 token，head 432 > 286 通过 shrink check）
+    // 第一次压缩：head = [x,y,z,w]，产生摘要（挂到尾部 v 的 turn）
     const bigClient = {
       stream: vi.fn(async () => ({ stream: streamOf([{ type: 'text-delta', delta: 'B'.repeat(1000) }]), text: async () => 'B'.repeat(1000) })),
     } as unknown as ModelClient;
-    expect(await c.compactNow(thread, bigClient, new AbortController().signal)).not.toBeNull();
+    expect(await c.compactNow(thread, await getMessages(store, 'thread-1'), bigClient, new AbortController().signal)).not.toBeNull();
 
-    // 追加一条短 turn 作新 head（33 token），旧摘要约 290 token
+    // 追加一条短 turn，使其成为唯一保留的 tail，旧摘要与 v 一起成为 head
     const turn = await store.createTurn('thread-1');
     await store.appendEntries([{ threadId: 'thread-1', turnId: turn.id, role: 'user', content: 'q'.repeat(100) }]);
     await store.updateTurn(turn.id, { status: 'completed', createdAt: 99999 });
 
-    // 第二次压缩：新摘要约 186 token（>= head 33 但 < head+旧摘要 398）
+    // 第二次压缩：head 含旧摘要（约 272 token）+ v（约 108 token），新摘要约 218 token 小于 head，通过 shrink check
     const smallClient = {
       stream: vi.fn(async () => ({ stream: streamOf([{ type: 'text-delta', delta: 'C'.repeat(600) }]), text: async () => 'C'.repeat(600) })),
     } as unknown as ModelClient;
-    const second = await c.compactNow(thread, smallClient, new AbortController().signal);
-    expect(second).not.toBeNull(); // 修复前基线仅 head（33），186 >= 33 被误拒为 null
+    const second = await c.compactNow(thread, await getMessages(store, 'thread-1'), smallClient, new AbortController().signal);
+    expect(second).not.toBeNull();
   });
 });

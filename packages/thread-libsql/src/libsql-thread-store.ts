@@ -119,6 +119,15 @@ export class LibSqlThreadStore implements ThreadStore {
     return rows.length === 0 ? undefined : this._toTurn(rows[0]);
   }
 
+  async getTurns(turnIds: string[]): Promise<Turn[]> {
+    if (turnIds.length === 0) return [];
+    const rows = await this.db
+      .select()
+      .from(turns)
+      .where(inArray(turns.id, turnIds));
+    return rows.map((r) => this._toTurn(r));
+  }
+
   // --- Message ---
 
   async appendEntries(

@@ -36,7 +36,7 @@ import {
   toolOutputDeniedPart,
   toolResultPart
 } from '@vico/stream';
-import {type CompactionContext, type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
+import {type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '@vico/checkpoint';
 import {createAggregatedAbortController, forwardToController, Pipeline} from '@vico/utils';
 import type {ContextProcessor} from '@vico/context';
@@ -283,13 +283,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const latestTurn = await this.thread.getLatestTurn(thread.id);
     let turn;
     let checkpoint;
+    let isNewTurn = false;
     if (latestTurn && latestTurn.status !== 'completed') {
       turn = latestTurn;
       checkpoint = await this.checkpointStore.getLatest(latestTurn.id)
     } else {
-      // ── 正常新 turn ── 历史压力压缩（只压缩已完成 turn，在创建 turn / 注入历史前）
-      await this.compactForPressure(thread, modelClient, signal, userMessages);
       turn = await this.thread.createTurn(thread.id);
+      isNewTurn = true;
     }
 
     if (!checkpoint) {
@@ -298,7 +298,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     const session: TurnSession = { workspace, thread, turn };
-    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode });
+    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode, isNewTurn });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -311,8 +311,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     reasoning?: ReasoningEffort;
     modelClient: ModelClient;
     approvalMode?: ApprovalMode;
+    isNewTurn: boolean;
   }): Promise<TurnResult> {
-    const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode } = params;
+    const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode, isNewTurn } = params;
 
     this.emit({ type: 'turn.start', thread: session.thread, turn: session.turn });
     controller.enqueue({ type: 'start' });
@@ -347,6 +348,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         modelClient,
         approvalMode,
         historyCount,
+        isNewTurn,
       };
 
       // 从 session 加载会话配置
@@ -657,6 +659,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     let usage = emptyUsage();
 
+    // 新建 turn 的首次模型调用前做窗口压力压缩（恢复暂停/失败 turn 时跳过）
+    if (context.isNewTurn && step.index === 0) {
+      await this.compactForPressure(context);
+    }
+
     const modelResult = await this.callModel(step, context);
 
     // 如果模型调用出错，提前结束
@@ -839,41 +846,35 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 新 turn 开始前的压力压缩。以「已注入历史 + 本轮用户消息」构建压缩上下文（历史前缀为可压缩 surface）。
-   * 未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
+   * 新 turn 首次 callModel 前的压力压缩。直接复用 TurnContext（已注入历史 + historyCount + session.turn），
+   * 不再自行查询历史。未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
    */
-  private async compactForPressure(thread: Thread, modelClient: ModelClient, signal: AbortSignal, userMessages: ModelMessage[]): Promise<void> {
+  private async compactForPressure(context: TurnContext<TToolSet>): Promise<void> {
     if (!this.compactor) return;
     try {
-      // 历史与 startTurn 内 MemoryProcessor 注入的同一来源，构建与 TurnContext 等价的压缩上下文
-      const history = this.memory.conversation ? await this.memory.conversation.get(thread.id) : [];
-      const context: CompactionContext = {
-        messages: [...history, ...userMessages],
-        historyCount: history.length,
-        session: { thread },
-        modelClient,
-        signal,
-      };
-      await this.compactor.compactIfNeeded(context, 'pressure');
+      const result = await this.compactor.compactIfNeeded(context, 'pressure');
+      if (result) await this.refreshHistory(context);
     } catch (err) {
-      this.log.warn({ threadId: thread.id, err }, 'pressure compaction skipped');
+      this.log.warn({ threadId: context.session.thread.id, err }, 'pressure compaction skipped');
     }
   }
 
-  /** context-overflow 压缩后，用新历史替换内存中的旧历史前缀（原地 splice 使 step.messages 同步） */
+  /** context-overflow / pressure 压缩后，用新历史替换内存中的旧历史前缀（原地 splice 使 step.messages 同步） */
   private async refreshHistory(context: TurnContext<TToolSet>): Promise<void> {
     if (!this.memory.conversation || context.historyCount === 0) return;
-    const fresh = await this.memory.conversation.get(context.session.thread.id);
+    // 排除当前 turn 自身消息（它们在 prefix 之后，已存在于消息链），summary 因 role='summary' 仍保留
+    const fresh = await this.memory.conversation.get(context.session.thread.id, context.session.turn.id);
     context.messages.splice(0, context.historyCount, ...fresh);
     context.historyCount = fresh.length;
   }
 
-  /** Agent.compactThread 实现：主动压缩指定会话 */
+  /** Agent.compactThread 实现：主动压缩指定会话（候选消息由会话历史加载传入） */
   async compactThread(threadId: string, signal?: AbortSignal): Promise<CompactionResult | null> {
     if (!this.compactor) return null;
     const thread = await this.thread.getThread(threadId);
     if (!thread) return null;
-    return this.compactor.compactNow(thread, this.modelClient, signal ?? new AbortController().signal);
+    const messages = this.memory.conversation ? await this.memory.conversation.get(threadId) : [];
+    return this.compactor.compactNow(thread, messages, this.modelClient, signal ?? new AbortController().signal);
   }
 
   /**

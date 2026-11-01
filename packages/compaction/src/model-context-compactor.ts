@@ -1,9 +1,7 @@
 // @vico/compaction — ModelContextCompactor 默认实现（持久化增量滚动压缩）
-import type {ModelMessage} from 'ai';
-import type {PersistableMessage, Thread, ThreadStore} from '@vico/thread';
-import {toModelMessages} from '@vico/thread';
+import type {AgentMessage, Thread, ThreadStore, Turn} from '@vico/thread';
 import type {ModelConfig} from '@vico/model';
-import {createLanguageModel, getMessageText, ModelClient} from '@vico/model';
+import {createLanguageModel, ModelClient} from '@vico/model';
 import {KeyedMutex} from '@vico/utils';
 import {estimateMessage, estimateMessages, measure} from './token-estimator.js';
 import {
@@ -20,26 +18,27 @@ import {CHECKPOINT_PREAMBLE, COMPACTION_INSTRUCTION, SUMMARY_CLOSE_TAG, SUMMARY_
 const SUMMARY_ROLE = 'summary';
 const SUMMARY_METADATA_KIND = 'compaction-summary';
 
+/** 可参与压缩的完结态 turn（对齐业务「完结 = completed/failed/aborted」） */
+const FINAL_TURN_STATUSES = new Set<Turn['status']>(['completed', 'failed', 'aborted']);
+
 /** 摘要消息 framing */
 function frameSummary(text: string): string {
   return `${CHECKPOINT_PREAMBLE}\n\n${SUMMARY_OPEN_TAG}\n${text}\n${SUMMARY_CLOSE_TAG}`;
 }
 
-/** 候选 surface 段：摘要（可空）+ 各已完成 turn 消息 */
-interface CandidateTurn { turnId: string; messages: PersistableMessage[]; messageIds: string[] }
-interface Candidate {
-  summary: PersistableMessage | null;
-  summaryEntryId?: string;
-  turns: CandidateTurn[];
+/** 候选 surface：单个完结态 turn 的消息（含 store message id 供归档） */
+interface CandidateTurn {
+  turnId: string;
+  messages: AgentMessage[];
+  messageIds: string[];
 }
 
 /**
  * 持久化增量滚动压缩器。
- * 只压缩 status='completed' 的 turn；append-only（先写摘要后归档）；per-thread KeyedMutex 互斥。
+ * 候选消息由调用方传入（不再自行查 store）；只压缩完结态 turn；append-only（先写摘要后归档）；per-thread KeyedMutex 互斥。
  */
 export class ModelContextCompactor implements ContextCompactor {
   private readonly thread: ThreadStore;
-  private readonly conversationWindow: number;
   private readonly modelConfig?: ModelConfig;
   private readonly reservedCompletionTokens: number;
   private readonly settings: ResolvedCompactionSettings;
@@ -49,7 +48,6 @@ export class ModelContextCompactor implements ContextCompactor {
 
   constructor(options: ModelContextCompactorOptions) {
     this.thread = options.thread;
-    this.conversationWindow = options.conversationWindow;
     this.modelConfig = options.modelConfig;
     this.reservedCompletionTokens = options.maxTokens ?? 0;
     this.settings = resolveSettings(options.settings);
@@ -58,39 +56,76 @@ export class ModelContextCompactor implements ContextCompactor {
   async compactIfNeeded(context: CompactionContext, trigger: CompactionTrigger): Promise<CompactionResult | null> {
     if (!this.settings.auto) return null;
     const thread = context.session.thread;
-    return this.locks.run(thread.id, () => this.compactFromContext(context, trigger));
+    return this.locks.run(thread.id, async () => {
+      const candidate = await this.buildCandidate(context.messages.slice(0, context.historyCount));
+      return this.compactLocked(thread, context.session.turn.id, context.modelClient, trigger, context.signal, candidate);
+    });
   }
 
-  async compactNow(thread: Thread, modelClient: ModelClient, signal: AbortSignal): Promise<CompactionResult | null> {
+  async compactNow(thread: Thread, messages: AgentMessage[], modelClient: ModelClient, signal: AbortSignal): Promise<CompactionResult | null> {
     if (this.busyThreads.has(thread.id)) {
       throw new ManualCompactionError('busy', `compaction already in progress for thread ${thread.id}`);
     }
     return this.locks.run(thread.id, async () => {
-      const candidate = await this.loadCandidate(thread);
-      return this.compactLocked(thread, modelClient, 'pressure', signal, candidate, { skipThreshold: true });
+      const candidate = await this.buildCandidate(messages);
+      // 手动压缩无「当前 turn」：summary 挂到线程最新的完结态 turn（candidate 已按 createdAt 升序）
+      const summaryTurnId = candidate.at(-1)?.turnId;
+      if (!summaryTurnId) {
+        throw new ManualCompactionError('no-final-turn', 'no completed/failed/aborted turn to attach summary');
+      }
+      return this.compactLocked(thread, summaryTurnId, modelClient, 'pressure', signal, candidate, { skipThreshold: true });
     });
   }
 
   // ── 内部 ──
 
-  /** 自动压缩入口（pressure / context-overflow）：以 TurnContext 内存消息链为压缩 surface */
-  private async compactFromContext(context: CompactionContext, trigger: CompactionTrigger): Promise<CompactionResult | null> {
-    const thread = context.session.thread;
-    const candidate = await this.loadCandidateFromContext(context);
-    return this.compactLocked(thread, context.modelClient, trigger, context.signal, candidate);
+  /**
+   * 从传入消息构建候选 surface：提取 turnId → 批量查 Turn → 过滤完结态 → 按 turnId 分组。
+   * 返回按 turn.createdAt 升序排列的候选 turn（最旧在前，供 selectCompactableRange 从头部切分）。
+   */
+  private async buildCandidate(messages: AgentMessage[]): Promise<CandidateTurn[]> {
+    const turnIds = [...new Set(messages.map((m) => m.turnId))];
+    if (turnIds.length === 0) return [];
+
+    const turns = await this.thread.getTurns(turnIds);
+    const finalTurns = new Map(
+      turns.filter((t) => FINAL_TURN_STATUSES.has(t.status)).map((t) => [t.id, t]),
+    );
+
+    const byTurn = new Map<string, CandidateTurn>();
+    for (const m of messages) {
+      const turn = finalTurns.get(m.turnId);
+      if (!turn) continue; // 非完结态 turn 的消息不参与压缩
+      let group = byTurn.get(m.turnId);
+      if (!group) {
+        group = { turnId: m.turnId, messages: [], messageIds: [] };
+        byTurn.set(m.turnId, group);
+      }
+      group.messages.push(m);
+      if (m.id) group.messageIds.push(m.id);
+    }
+
+    return [...byTurn.values()].sort(
+      (a, b) => finalTurns.get(a.turnId)!.createdAt - finalTurns.get(b.turnId)!.createdAt,
+    );
   }
 
   /** 锁内主流程（自动 / 手动共用），candidate 已由调用方按来源构建 */
-  private async compactLocked(thread: Thread, modelClient: ModelClient, trigger: CompactionTrigger, signal: AbortSignal, candidate: Candidate, opts: { skipThreshold?: boolean } = {}): Promise<CompactionResult | null> {
+  private async compactLocked(
+    thread: Thread,
+    summaryTurnId: string,
+    modelClient: ModelClient,
+    trigger: CompactionTrigger,
+    signal: AbortSignal,
+    candidate: CandidateTurn[],
+    opts: { skipThreshold?: boolean } = {},
+  ): Promise<CompactionResult | null> {
     this.busyThreads.add(thread.id);
     try {
-      if (candidate.turns.length === 0) return null;
+      if (candidate.length === 0) return null;
 
       const { retainTokens, thresholdTokens } = this.resolveSpec(trigger);
-      const allMessages: PersistableMessage[] = [
-        ...(candidate.summary ? [candidate.summary] : []),
-        ...candidate.turns.flatMap((t) => t.messages),
-      ];
+      const allMessages = candidate.flatMap((t) => t.messages);
       const totalTokens = measure(allMessages);
 
       // pressure（非 compactNow）阈值判定
@@ -99,37 +134,31 @@ export class ModelContextCompactor implements ContextCompactor {
       }
 
       const range = selectCompactableRange(
-        candidate.turns.map((t) => ({ turnId: t.turnId, tokens: estimateMessages(t.messages) })),
-        candidate.summary ? estimateMessage(candidate.summary) : 0,
+        candidate.map((t) => ({ turnId: t.turnId, tokens: estimateMessages(t.messages) })),
+        0, // 旧摘要已作为普通消息归入对应 turn，无独立 summary token
         retainTokens,
       );
       if (!range) return null;
 
-      const headTurns = candidate.turns.filter((t) => range.headTurnIds.includes(t.turnId));
+      const headTurns = candidate.filter((t) => range.headTurnIds.includes(t.turnId));
       const headMessages = headTurns.flatMap((t) => t.messages);
       const headMessageIds = headTurns.flatMap((t) => t.messageIds);
 
-      // 增量摘要（stream 异常直接抛出；空输出 / shrink check 不通过返回 null）
-      const summaryText = await this.summarize(headMessages, candidate.summary, modelClient, signal);
+      // 增量摘要（旧摘要作为 head 普通消息一并参与压缩；空输出 / shrink check 不通过返回 null）
+      const summaryText = await this.summarize(headMessages, modelClient, signal);
       if (signal.aborted) return null; // cancelled
       if (summaryText === null) return null; // 摘要不合格：不写、不归档（spec §10），下次 turn 再试
 
-      // append-only 落库：先写新摘要，再归档旧摘要 + head（先写后删，崩溃不丢上下文）
+      // append-only 落库：先写新摘要，再归档 head（先写后删，崩溃不丢上下文）
       const summaryEntry = {
         threadId: thread.id,
-        turnId: thread.id, // 摘要不属于任何 turn，用 thread.id 作哨兵
+        turnId: summaryTurnId,
         role: SUMMARY_ROLE,
         content: summaryText,
-        metadata: {
-          kind: SUMMARY_METADATA_KIND,
-          ...(candidate.summaryEntryId ? { previousSummaryId: candidate.summaryEntryId } : {}),
-        },
+        metadata: { kind: SUMMARY_METADATA_KIND },
       };
       const [created] = await this.thread.appendEntries([summaryEntry]);
-      await this.thread.archiveMessages(thread.id, [
-        ...(candidate.summaryEntryId ? [candidate.summaryEntryId] : []),
-        ...headMessageIds,
-      ]);
+      await this.thread.archiveMessages(thread.id, headMessageIds);
 
       return {
         summaryMessageId: created.id,
@@ -153,85 +182,19 @@ export class ModelContextCompactor implements ContextCompactor {
     return { retainTokens: spec.retainTokens, thresholdTokens: spec.thresholdTokens };
   }
 
-  /** 读候选 surface：最新非归档摘要 + 最近 conversationWindow 个已完成 turn 的非归档消息 */
-  private async loadCandidate(thread: Thread): Promise<Candidate> {
-    const summaryEntries = await this.thread.getEntries(thread.id, { roles: [SUMMARY_ROLE], includeArchived: false });
-    const summary = summaryEntries.length > 0 ? toModelMessages([summaryEntries[summaryEntries.length - 1]])[0] : null;
-
-    const recent = await this.thread.getRecentTurns(thread.id, this.conversationWindow, 'completed');
-    const ordered = [...recent].reverse(); // 升序（最旧在前）
-    const entries = ordered.length > 0
-      ? await this.thread.getEntriesByTurns(ordered.map((t) => t.id), { includeArchived: false })
-      : [];
-
-    const byTurn = new Map<string, CandidateTurn>();
-    for (const t of ordered) byTurn.set(t.id, { turnId: t.id, messages: [], messageIds: [] });
-    for (const e of entries) {
-      const g = byTurn.get(e.turnId);
-      if (!g) continue;
-      g.messages.push(toModelMessages([e])[0]);
-      g.messageIds.push(e.id);
-    }
-    const turns = ordered.filter((t) => byTurn.get(t.id)!.messages.length > 0).map((t) => byTurn.get(t.id)!);
-
-    return { summary, summaryEntryId: summaryEntries[summaryEntries.length - 1]?.id, turns };
-  }
-
   /**
-   * 从 TurnContext 内存消息链构建候选 surface：前 historyCount 条历史前缀与
-   * store 非归档条目按 created_at 升序一一对应（消息内容取内存副本，id/turnId 取 store 条目）。
-   */
-  private async loadCandidateFromContext(context: CompactionContext): Promise<Candidate> {
-    const thread = context.session.thread;
-    const history = context.messages.slice(0, context.historyCount);
-    const entries = await this.thread.getEntries(thread.id, { includeArchived: false });
-    const historyEntries = entries.slice(0, context.historyCount);
-
-    const turns = new Map<string, CandidateTurn>();
-    let summary: PersistableMessage | null = null;
-    let summaryEntryId: string | undefined;
-
-    for (let i = 0; i < history.length; i++) {
-      const entry = historyEntries[i];
-      if (!entry) continue; // 防御：store 条目少于内存历史时跳过
-
-      if (entry.role === 'summary') {
-        summary = history[i];
-        summaryEntryId = entry.id;
-        continue;
-      }
-
-      let group = turns.get(entry.turnId);
-      if (!group) {
-        group = { turnId: entry.turnId, messages: [], messageIds: [] };
-        turns.set(entry.turnId, group);
-      }
-      group.messages.push(history[i]);
-      group.messageIds.push(entry.id);
-    }
-
-    return { summary, summaryEntryId, turns: [...turns.values()] };
-  }
-
-  /**
-   * 增量摘要：独立摘要模型（若配置）或复用传入 modelClient。
+   * 摘要：head 消息直接作为输入（旧摘要已含于其中）。
    * stream 调用异常直接抛出（由调用方决定处理）；空输出 / shrink check 不通过时返回 null——
    * 调用方 no-op，不写摘要、不归档（spec §10）。
    */
-  private async summarize(head: PersistableMessage[], oldSummary: PersistableMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
+  private async summarize(head: AgentMessage[], modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
     const client = this.resolveSummaryClient(modelClient);
-    // shrink 基线 = 被归档口径（旧摘要 + head），与 selectCompactableRange 的 headTokens 一致
-    const headTokens = estimateMessages(head) + (oldSummary ? estimateMessage(oldSummary) : 0);
-
-    // 摘要输入：旧摘要折叠进新摘要（以 system 角色传入——summary 非 provider 可识别角色，避免 standardizePrompt 拒绝）
-    const input: ModelMessage[] = [];
-    if (oldSummary) input.push({ role: 'system', content: getMessageText(oldSummary) });
-    input.push(...head);
+    const headTokens = estimateMessages(head);
 
     // 摘要调用失败直接抛出，不重试
     const result = await client.stream({
       system: COMPACTION_INSTRUCTION,
-      messages: input,
+      messages: head,
       maxOutputTokens: this.settings.maxTokens,
       temperature: 0,
       abortSignal: signal,
