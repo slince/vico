@@ -7,7 +7,9 @@
  */
 import {z} from 'zod/v4';
 import {FilePen, FilePlus, FileSearch, FileText, Search} from 'lucide-react';
-import {FileReadRenderer} from './ToolUIs/file-read-ui';
+import {ReadRenderer} from './ToolUIs/read-ui';
+import {GlobRenderer} from './ToolUIs/glob-ui';
+import {GrepRenderer} from './ToolUIs/grep-ui';
 import {FileWriteRenderer} from './ToolUIs/file-write-ui';
 import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
@@ -86,21 +88,21 @@ export type EditResult = z.infer<typeof editOutputSchema>;
 export const readTool: VicoToolkitDefinitionEntry<ReadArgs, ReadResult> = {
   description: '读取工作区文件，支持行偏移和行数限制。图片文件自动检测并以 base64 返回。',
   parameters: readSchema,
-  render: FileReadRenderer,
+  render: ReadRenderer,
   summarize: summarizeRead,
 };
 
 export const globTool: VicoToolkitDefinitionEntry<GlobArgs, GlobResult> = {
   description: '通过 glob 模式在工作区查找文件，按修改时间排序（最新在前）。',
   parameters: globSchema,
-  render: FileReadRenderer,
+  render: GlobRenderer,
   summarize: summarizeGlob,
 };
 
 export const grepTool: VicoToolkitDefinitionEntry<GrepArgs, GrepResult> = {
   description: '使用正则表达式搜索文件内容。支持 glob 过滤、忽略大小写和上下文行。',
   parameters: grepSchema,
-  render: FileReadRenderer,
+  render: GrepRenderer,
   summarize: summarizeGrep,
 };
 
