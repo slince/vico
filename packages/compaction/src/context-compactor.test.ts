@@ -29,7 +29,6 @@ async function makeContext(store: InMemoryThreadStore, threadId: string, client:
   const messages = toModelMessages(await store.getEntries(threadId, { includeArchived: false }));
   return {
     messages,
-    historyCount: messages.length,
     session: { thread, turn },
     modelClient: client,
     signal: new AbortController().signal,

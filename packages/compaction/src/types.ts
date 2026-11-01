@@ -21,10 +21,8 @@ export interface CompactionResult {
  * 从而避免 @vico/compaction 反向依赖 @vico/agent 造成循环依赖。
  */
 export interface CompactionContext {
-  /** 本轮内存消息链（前 historyCount 条为注入的历史前缀，压缩只作用于这部分） */
+  /** 本轮内存消息链（候选由完结态 turn 过滤决定，当前 turn 消息也可参与） */
   messages: AgentMessage[];
-  /** 注入的历史消息条数 */
-  historyCount: number;
   session: { thread: Thread; turn: Turn };
   modelClient: ModelClient;
   signal: AbortSignal;

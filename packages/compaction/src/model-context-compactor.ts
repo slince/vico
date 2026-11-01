@@ -57,7 +57,7 @@ export class ModelContextCompactor implements ContextCompactor {
     if (!this.settings.auto) return null;
     const thread = context.session.thread;
     return this.locks.run(thread.id, async () => {
-      const candidate = await this.buildCandidate(context.messages.slice(0, context.historyCount));
+      const candidate = await this.buildCandidate(context.messages);
       return this.compactLocked(thread, context.session.turn.id, context.modelClient, trigger, context.signal, candidate);
     });
   }

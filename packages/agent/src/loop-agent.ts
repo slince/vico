@@ -317,7 +317,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const {decisions} = extractApprovalResponses(userMessages)
 
-    const userMessageCount = userMessages.length;
     const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
 
     // 洋葱执行：各处理器前置注入（enter 段）→ 核心（构建 TurnContext + runLoop）→ 逆序后置（resolve 段）。
@@ -325,9 +324,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     let context: TurnContext<TToolSet>;
     let loopResult: StepLoopResult;
     await this.contextProcessors.execute(requestContext, async () => {
-      // 历史由 MemoryProcessor unshift 注入；记录条数供 context-overflow 压缩后重建内存历史前缀
-      const historyCount = requestContext.messages.length - userMessageCount;
-
       // 本轮次的上下文对象：洋葱产出的 systemPrompt / tools 物化为快照，可变上下文不再透传
       context = {
         systemPrompt: requestContext.systemPrompt.render(),
@@ -344,7 +340,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         reasoning,
         modelClient,
         approvalMode,
-        historyCount,
       };
 
       // 从 session 加载会话配置
@@ -841,7 +836,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
   /**
    * 历史压力压缩，在 loadSessionApprovals 之后、持久化本轮用户消息之前调用。
-   * 直接复用 TurnContext（已注入历史 + historyCount + session.turn），不再自行查询历史。
+   * 直接复用 TurnContext（已注入历史 + session.turn），不再自行查询历史。
    * 未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
    */
   private async compactForPressure(context: TurnContext<TToolSet>): Promise<void> {
@@ -854,13 +849,13 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
   }
 
-  /** context-overflow / pressure 压缩后，用新历史替换内存中的旧历史前缀（原地 splice 使 step.messages 同步） */
+  /** context-overflow / pressure 压缩后，用新历史 + 当前 turn 消息重建内存消息链（原地 splice 使 step.messages 同步） */
   private async refreshHistory(context: TurnContext<TToolSet>): Promise<void> {
-    if (!this.memory.conversation || context.historyCount === 0) return;
-    // 排除当前 turn 自身消息（它们在 prefix 之后，已存在于消息链），summary 因 role='summary' 仍保留
+    if (!this.memory.conversation) return;
+    // 新历史 = summary + 保留的非当前 turn 消息；当前 turn 自身消息保留在末尾
     const fresh = await this.memory.conversation.get(context.session.thread.id, context.session.turn.id);
-    context.messages.splice(0, context.historyCount, ...fresh);
-    context.historyCount = fresh.length;
+    const current = context.messages.filter((m) => m.turnId === context.session.turn.id);
+    context.messages.splice(0, context.messages.length, ...fresh, ...current);
   }
 
   /** Agent.compactThread 实现：主动压缩指定会话（候选消息由会话历史加载传入） */

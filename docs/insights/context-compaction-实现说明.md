@@ -12,16 +12,16 @@ Vico 在 `@vico/compaction` 实现上下文压缩机制：当历史消息逼近 
 
 `ModelContextCompactor.buildCandidate(messages)`：
 
-1. 从传入的 `AgentMessage[]` 提取 `turnId` 去重。
+1. 从传入的 `AgentMessage[]` 提取 `turnId` 去重（传入即整条消息链，当前 turn 消息也一并传入）。
 2. `ThreadStore.getTurns(turnIds)` 批量查 Turn。
-3. 只保留 **完结态 turn**（`completed | failed | aborted`）的消息。
+3. 只保留 **完结态 turn**（`completed | failed | aborted`）的消息（当前 running/paused turn 消息据此被过滤）。
 4. 按 `turnId` 分组（消息自带 store `id` 供归档），按 `turn.createdAt` 升序排列（最旧在前）。
 
 旧摘要不再特殊处理：它是一条普通消息，随其所属 turn 一起参与压缩。
 
 ## 压缩触发点
 
-1. **pressure（新 turn 首次 callModel 前）**：`LoopAgent.executeModelStep` 在 `step.index === 0` 且 `isNewTurn` 时调用 `compactForPressure` → `compactor.compactIfNeeded(context, 'pressure')`。仅当 `measure(候选) >= thresholdTokens` 才真正压缩；`contextWindow` 未配置时抛 `TargetPressureConfigError`，被捕获告警跳过，不阻塞 turn。压缩后 `refreshHistory` 重建内存历史前缀。
+1. **pressure（turn 起始）**：`LoopAgent.startTurn` 在 `loadSessionApprovals` 之后、持久化本轮用户消息之前调用 `compactForPressure` → `compactor.compactIfNeeded(context, 'pressure')`。仅当 `measure(候选) >= thresholdTokens` 才真正压缩；`contextWindow` 未配置时抛 `TargetPressureConfigError`，被捕获告警跳过，不阻塞 turn。压缩后 `refreshHistory` 重建内存消息链。
 2. **context-overflow（模型报错重试）**：`LoopAgent.callModel()` 首次调用返回 `error` 且 `isContextOverflowError(error)` 命中时，以 `retainTokens=0` 强制压缩（bypass 阈值），随后 `refreshHistory` 用新历史原地替换内存历史前缀（`splice`），再重试一次。
 3. **主动压缩**：`Agent.compactThread(threadId, signal?)` → `compactor.compactNow(thread, messages, modelClient, signal)`（忽略阈值），经 `POST /api/v1/threads/:id/compact` 暴露；`busy` 冲突返回 409，无完结态 turn 返回 400（`ManualCompactionError('no-final-turn')`）。
 
