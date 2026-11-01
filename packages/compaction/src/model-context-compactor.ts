@@ -1,5 +1,5 @@
 // @vico/compaction — ModelContextCompactor 默认实现（持久化增量滚动压缩）
-import type {AgentMessage, Thread, ThreadStore, Turn} from '@vico/thread';
+import type {AgentMessage, Thread, ThreadStore, Turn, TurnStatus} from '@vico/thread';
 import type {ModelConfig} from '@vico/model';
 import {createLanguageModel, ModelClient} from '@vico/model';
 import {KeyedMutex} from '@vico/utils';
@@ -10,7 +10,13 @@ import {
   resolveSettings,
   selectCompactableRange,
 } from './compaction-config.js';
-import type {CompactionContext, CompactionResult, CompactionTrigger, ContextCompactor, ModelContextCompactorOptions} from './types.js';
+import type {
+  CompactionContext,
+  CompactionResult,
+  CompactionTrigger,
+  ContextCompactor,
+  ModelContextCompactorOptions
+} from './types.js';
 import {ManualCompactionError, TargetPressureConfigError} from './errors.js';
 import {CHECKPOINT_PREAMBLE, COMPACTION_INSTRUCTION, SUMMARY_CLOSE_TAG, SUMMARY_OPEN_TAG} from './prompts.js';
 
@@ -19,16 +25,16 @@ const SUMMARY_ROLE = 'summary';
 const SUMMARY_METADATA_KIND = 'compaction-summary';
 
 /** 可参与压缩的完结态 turn（对齐业务「完结 = completed/failed/aborted」） */
-const FINAL_TURN_STATUSES = new Set<Turn['status']>(['completed', 'failed', 'aborted']);
+const FINAL_TURN_STATUSES = new Set<TurnStatus>(['completed', 'failed', 'aborted']);
 
 /** 摘要消息 framing */
 function frameSummary(text: string): string {
   return `${CHECKPOINT_PREAMBLE}\n\n${SUMMARY_OPEN_TAG}\n${text}\n${SUMMARY_CLOSE_TAG}`;
 }
 
-/** 候选 surface：单个完结态 turn 的消息 */
+/** 候选 surface：单个完结态 turn 及其消息 */
 interface CandidateTurn {
-  turnId: string;
+  turn: Turn;
   messages: AgentMessage[];
 }
 
@@ -68,7 +74,7 @@ export class ModelContextCompactor implements ContextCompactor {
     return this.locks.run(thread.id, async () => {
       const candidate = await this.buildCandidate(messages);
       // 手动压缩无「当前 turn」：summary 挂到线程最新的完结态 turn（candidate 已按 createdAt 升序）
-      const summaryTurnId = candidate.at(-1)?.turnId;
+      const summaryTurnId = candidate.at(-1)?.turn.id;
       if (!summaryTurnId) {
         throw new ManualCompactionError('no-final-turn', 'no completed/failed/aborted turn to attach summary');
       }
@@ -97,15 +103,13 @@ export class ModelContextCompactor implements ContextCompactor {
       if (!turn) continue; // 非完结态 turn 的消息不参与压缩
       let group = byTurn.get(m.turnId);
       if (!group) {
-        group = { turnId: m.turnId, messages: [] };
+        group = { turn, messages: [] };
         byTurn.set(m.turnId, group);
       }
       group.messages.push(m);
     }
 
-    return [...byTurn.values()].sort(
-      (a, b) => finalTurns.get(a.turnId)!.createdAt - finalTurns.get(b.turnId)!.createdAt,
-    );
+    return [...byTurn.values()].sort((a, b) => a.turn.createdAt - b.turn.createdAt);
   }
 
   /** 锁内主流程（自动 / 手动共用），candidate 已由调用方按来源构建 */
@@ -132,12 +136,12 @@ export class ModelContextCompactor implements ContextCompactor {
       }
 
       const headTurnIds = selectCompactableRange(
-        candidate.map((t) => ({ turnId: t.turnId, tokens: estimateMessages(t.messages) })),
+        candidate.map((t) => ({ turnId: t.turn.id, tokens: estimateMessages(t.messages) })),
         retainTokens,
       );
       if (!headTurnIds) return null;
 
-      const headTurns = candidate.filter((t) => headTurnIds.includes(t.turnId));
+      const headTurns = candidate.filter((t) => headTurnIds.includes(t.turn.id));
       const headMessages = headTurns.flatMap((t) => t.messages);
 
       // 增量摘要（旧摘要作为 head 普通消息一并参与压缩；空输出 / shrink check 不通过返回 null）
