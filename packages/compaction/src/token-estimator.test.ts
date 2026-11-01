@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { ModelMessage } from 'ai';
-import type { AgentMessage } from '@vico/thread';
+import type { PersistableMessage } from '@vico/thread';
 import {
   BLOCK_OVERHEAD, CHARS_PER_TOKEN, ROLE_OVERHEAD,
   estimateContent, estimateMessage, estimateMessages, measure,
 } from './token-estimator.js';
 
 /** 构造字段齐全的 usage（input token 数可定制） */
-function usage(inputTotal: number): NonNullable<AgentMessage['usage']> {
+function usage(inputTotal: number): NonNullable<PersistableMessage['usage']> {
   return {
     inputTokens: { total: inputTotal, noCache: inputTotal, cacheRead: 0, cacheWrite: 0 },
     outputTokens: { total: 10, text: 10, reasoning: 0 },
@@ -45,12 +45,12 @@ describe('token-estimator', () => {
   });
 
   it('measure 无 usage 时退化为纯启发式估算', () => {
-    const messages: AgentMessage[] = [{ role: 'user', content: 'hello' }];
+    const messages: PersistableMessage[] = [{ role: 'user', content: 'hello' }];
     expect(measure(messages)).toBe(estimateMessages(messages));
   });
 
   it('measure 以最近一条 usage 的 input token 为基线，加其后消息估算', () => {
-    const messages: AgentMessage[] = [
+    const messages: PersistableMessage[] = [
       { role: 'user', content: 'first' },
       { role: 'assistant', content: 'reply', usage: usage(1000) },
       { role: 'user', content: 'second' },
@@ -59,7 +59,7 @@ describe('token-estimator', () => {
   });
 
   it('measure 取最近一条带 usage 的消息（忽略更早的 usage）', () => {
-    const messages: AgentMessage[] = [
+    const messages: PersistableMessage[] = [
       { role: 'user', content: 'a' },
       { role: 'assistant', content: 'b', usage: usage(100) },
       { role: 'user', content: 'c' },
@@ -70,7 +70,7 @@ describe('token-estimator', () => {
   });
 
   it('usage 存在但 inputTokens.total 未上报时退化为纯启发式估算', () => {
-    const messages: AgentMessage[] = [
+    const messages: PersistableMessage[] = [
       { role: 'user', content: 'a' },
       {
         role: 'assistant',

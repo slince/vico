@@ -22,7 +22,7 @@ import {composeResolvers, defaultApprovalResolvers, ToolExecutor} from '@vico/to
 import type {Skill} from '@vico/skill';
 import type {MemoryStore} from '@vico/memory';
 import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@vico/thread';
-import {fromModelMessage, type AgentMessage} from '@vico/thread';
+import {fromModelMessage, type PersistableMessage} from '@vico/thread';
 import type {ToolApproval} from '@vico/types';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
 import type {CallModelResult, UserMessage} from '@vico/stream';
@@ -796,7 +796,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 批量持久化消息到 threadStore。
    */
-  async persistMessages(context: TurnContext<TToolSet>, messages: AgentMessage[]): Promise<void> {
+  async persistMessages(context: TurnContext<TToolSet>, messages: PersistableMessage[]): Promise<void> {
     if (messages.length === 0) {
       return
     }

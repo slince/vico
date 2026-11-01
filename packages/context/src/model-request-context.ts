@@ -26,8 +26,8 @@ export class ModelRequestContext {
   messages: AgentMessage[];
   /** 暴露给 LLM 的工具注册表（以工具名为键，处理器可增删改查） */
   tools: ToolRegistry;
-  /** 当前 turn 会话（身份 + 线程引用） */
-  readonly session?: TurnSession;
+  /** 当前 turn 会话（身份 + 线程引用），必传 —— 消息 turnId 的来源 */
+  readonly session: TurnSession;
   /** 当前 step（一次 LLM 调用 + 可选工具执行） */
   step?: TurnStep;
   /** 系统提示词 section 构建器 — 处理器通过 registerSection 追加、getSection 调整、render 读取 */
@@ -47,13 +47,14 @@ export class ModelRequestContext {
     userMessages?: ModelMessage[];
     messages?: AgentMessage[];
     tools?: Tool[];
-    session?: TurnSession;
+    session: TurnSession;
     step?: TurnStep;
   }) {
     this.agent = agent;
     this.userMessages = userMessages ?? [];
     this.messages = messages ? [...messages] : [];
-    this.messages.push(...this.userMessages);
+    // 首次构造：用户消息打上所属 turn 标识（消息自描述所属 turn）
+    this.messages.push(...this.userMessages.map((m) => ({ ...m, turnId: session.turn.id })));
     this.systemPrompt = new PromptSectionBuilder();
     this.tools = new ToolRegistry(tools ?? []);
     this.session = session;

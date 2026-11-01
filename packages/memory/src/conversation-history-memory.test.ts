@@ -35,7 +35,7 @@ describe('ConversationHistoryMemory.get', () => {
 
     const mem = new ConversationHistoryMemory(store);
     const history = await mem.get('thread-1');
-    expect(history[0]).toEqual({ role: 'user', content: 'prior summary' });
+    expect(history[0]).toEqual({ role: 'user', content: 'prior summary', turnId: 'thread-1' });
     expect(history.map((m) => (m.content as string))).toEqual(['prior summary', 'after summary']);
   });
 });

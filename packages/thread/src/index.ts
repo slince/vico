@@ -1,7 +1,7 @@
 // @vico/thread - 线程/会话存储与消息转换
 
 export { InMemoryThreadStore } from './memory-thread-store.js';
-export { toModelMessages, fromModelMessage, toUiMessages, serializeContent, deserializeContent, type AgentMessage } from './utils.js';
+export { toModelMessages, fromModelMessage, toUiMessages, serializeContent, deserializeContent, type AgentMessage, type PersistableMessage } from './utils.js';
 export type {
   SessionApprovedTool,
   ThreadMetadata,

@@ -5,13 +5,13 @@ import type {ModelMessage, ToolUIPart, UIMessage} from 'ai';
 import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart, ToolResultPart} from '@ai-sdk/provider-utils';
 
 /**
- * ThreadStore Message → AgentMessage（content 原样透传，usage 从 metadata 还原）。
+ * ThreadStore Message → AgentMessage（content 原样透传，usage 从 metadata 还原，turnId 原样透传）。
  * summary 是压缩内部角色，provider 不识别，统一映射为 user 消息注入。
  */
 export function toModelMessages(entries: Message[]): AgentMessage[] {
   return entries.map((e) => {
     const role = e.role === 'summary' ? 'user' : e.role;
-    const msg = { role, content: e.content } as AgentMessage;
+    const msg = { role, content: e.content, turnId: e.turnId } as AgentMessage;
     // usage 由 fromModelMessage 写入 metadata，这里还原到消息载体上
     if (e.metadata?.usage !== undefined) {
       msg.usage = e.metadata.usage as UsageMetrics;
@@ -21,17 +21,21 @@ export function toModelMessages(entries: Message[]): AgentMessage[] {
 }
 
 /**
- * Agent 内部统一消息载体：原生 ModelMessage 附带 Vico 侧扩展字段。
- * 当前扩展 usage（该次调用的完整用量，仅 assistant 消息携带）；
- * 后续可在此继续追加 agent 运行时所需的其它元数据。
+ * 可持久化消息：原生 ModelMessage 附带可选 usage（该次调用的完整用量，仅 assistant 消息携带）。
+ * 与 AgentMessage 的区别在于不要求自带 turnId —— 持久化时 turnId 由持久化方统一补充。
  */
-export type AgentMessage = ModelMessage & { usage?: UsageMetrics };
+export type PersistableMessage = ModelMessage & { usage?: UsageMetrics };
+
+/**
+ * Agent 内部统一消息载体：PersistableMessage 附所属 turnId（必传），消息自描述所属 turn。
+ */
+export type AgentMessage = PersistableMessage & { turnId: string };
 
 /**
  * 原生 ModelMessage → ThreadStore 持久化字段（content 原样透传，usage 写入 metadata）。
  * usage 仅存在于持久化副本，不进入发往模型的消息链。
  */
-export function fromModelMessage(msg: AgentMessage): Pick<Message, 'role'|'content'|'metadata'> {
+export function fromModelMessage(msg: PersistableMessage): Pick<Message, 'role'|'content'|'metadata'> {
   const entry: Pick<Message, 'role'|'content'|'metadata'> = {
     role: msg.role,
     content: msg.content,

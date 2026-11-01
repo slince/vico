@@ -1,6 +1,6 @@
 // @vico/compaction — ModelContextCompactor 默认实现（持久化增量滚动压缩）
 import type {ModelMessage} from 'ai';
-import type {AgentMessage, Thread, ThreadStore} from '@vico/thread';
+import type {PersistableMessage, Thread, ThreadStore} from '@vico/thread';
 import {toModelMessages} from '@vico/thread';
 import type {ModelConfig} from '@vico/model';
 import {createLanguageModel, getMessageText, ModelClient} from '@vico/model';
@@ -26,9 +26,9 @@ function frameSummary(text: string): string {
 }
 
 /** 候选 surface 段：摘要（可空）+ 各已完成 turn 消息 */
-interface CandidateTurn { turnId: string; messages: AgentMessage[]; messageIds: string[] }
+interface CandidateTurn { turnId: string; messages: PersistableMessage[]; messageIds: string[] }
 interface Candidate {
-  summary: AgentMessage | null;
+  summary: PersistableMessage | null;
   summaryEntryId?: string;
   turns: CandidateTurn[];
 }
@@ -87,7 +87,7 @@ export class ModelContextCompactor implements ContextCompactor {
       if (candidate.turns.length === 0) return null;
 
       const { retainTokens, thresholdTokens } = this.resolveSpec(trigger);
-      const allMessages: AgentMessage[] = [
+      const allMessages: PersistableMessage[] = [
         ...(candidate.summary ? [candidate.summary] : []),
         ...candidate.turns.flatMap((t) => t.messages),
       ];
@@ -188,7 +188,7 @@ export class ModelContextCompactor implements ContextCompactor {
     const historyEntries = entries.slice(0, context.historyCount);
 
     const turns = new Map<string, CandidateTurn>();
-    let summary: AgentMessage | null = null;
+    let summary: PersistableMessage | null = null;
     let summaryEntryId: string | undefined;
 
     for (let i = 0; i < history.length; i++) {
@@ -218,7 +218,7 @@ export class ModelContextCompactor implements ContextCompactor {
    * stream 调用异常直接抛出（由调用方决定处理）；空输出 / shrink check 不通过时返回 null——
    * 调用方 no-op，不写摘要、不归档（spec §10）。
    */
-  private async summarize(head: AgentMessage[], oldSummary: AgentMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
+  private async summarize(head: PersistableMessage[], oldSummary: PersistableMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
     const client = this.resolveSummaryClient(modelClient);
     // shrink 基线 = 被归档口径（旧摘要 + head），与 selectCompactableRange 的 headTokens 一致
     const headTokens = estimateMessages(head) + (oldSummary ? estimateMessage(oldSummary) : 0);
