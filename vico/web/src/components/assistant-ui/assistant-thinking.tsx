@@ -6,7 +6,7 @@ import {toolkit} from "@/tools/toolkit";
 import type {VicoToolkitDefinitionEntry} from "@/tools/tool-summary";
 import {ThinkingIndicator} from "./elements/thinking-indicator";
 
-/** toolkit 按工具名索引的类型视图（与 MessageRunActivity 的消费方式一致） */
+/** toolkit 按工具名索引的类型视图（与折叠块内 ToolActivityContent 的消费方式一致） */
 const tools = toolkit as Record<string, VicoToolkitDefinitionEntry | undefined>;
 
 function useThinkingLabel() {

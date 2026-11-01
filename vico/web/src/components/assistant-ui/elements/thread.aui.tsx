@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import {type ComponentType, createContext, type FC, type PropsWithChildren, useContext,} from "react";
 import {AssistantThinking} from "@/components/assistant-ui/assistant-thinking";
+import {CompletedActivityGroup, ToolActivityContent} from "@/components/assistant-ui/elements/message-run-activity";
 import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
 import {AgentSelectorAction} from "@/components/assistant-ui/agent-selector-action";
 import {ApprovalModeSelectorAction} from "@/components/assistant-ui/approval-mode-selector-action";
@@ -74,9 +75,9 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
  * `Welcome` replace whole sections; `ReasoningGroup` overrides how reasoning
  * part groups render.
  *
- * 工具调用不再在正文里渲染——详情统一收进 MessageRunActivity（摘要行 + 点击
- * 展开工具 UI）。`ToolFallback` / `ToolGroup` / `TaskGroup` 三个槽位仅为向后
- * 兼容保留，默认渲染管线已不再读取。
+ * 工具调用 running / 审批 / 失败态在正文平铺渲染（ToolActivityContent），
+ * complete 态统一收进「已完成」折叠块（CompletedActivityGroup）。`ToolFallback`
+ * / `ToolGroup` / `TaskGroup` 三个槽位仅为向后兼容保留，默认渲染管线不再读取。
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -93,8 +94,16 @@ export type ThreadComponents = {
 
 const messageGroupBy = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
-  // 工具调用不再在正文里分组渲染，详情统一收进 MessageRunActivity
+  // 工具调用 running 态不在正文分组渲染（AssistantThinking 提示），complete 态收进「已完成」折叠块
   "tool-call": [],
+  "standalone-tool-call": [],
+});
+
+// 完成态：推理与工具调用归入同一外层 group，统一折叠进「已完成」块；
+// 第二层 key 区分 reasoning 与 tool，便于分别套用样式（muted 正文 / 工具卡片）。
+const completedGroupBy = groupPartByType({
+  reasoning: ["group-activity", "group-activity-reasoning"],
+  "tool-call": ["group-activity", "group-activity-tool"],
   "standalone-tool-call": [],
 });
 
@@ -554,7 +563,14 @@ const AssistantMessage: FC = () => {
     ReasoningGroup,
     TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
-  const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
+
+  // 完成态：推理与工具统一折叠进「已完成」块，正文不再单独渲染
+  const isComplete = useAuiState((s) => s.message.status?.type === "complete");
+  const groupBy = isComplete
+    ? completedGroupBy
+    : TaskGroupComponent
+      ? taskAwareGroupBy
+      : messageGroupBy;
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -602,13 +618,33 @@ const AssistantMessage: FC = () => {
                   </ReasoningRoot>
                 );
               }
+              case "group-activity":
+                // 完成态统一折叠块：推理 + 工具都收进这里，标题「已完成，用时 …」
+                return (
+                  <CompletedActivityGroup>{children}</CompletedActivityGroup>
+                );
+              case "group-activity-reasoning":
+                // 折叠块内的推理全文（muted 色，多段 reasoning part 用间距分隔）
+                return (
+                  <div className="text-muted-foreground space-y-4 leading-relaxed">
+                    {children}
+                  </div>
+                );
+              case "group-activity-tool":
+                // 折叠块内的工具卡片，ToolCard 自带留白，不再额外包裹
+                return <>{children}</>;
               case "text":
                 return <MarkdownText />;
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
-                // 工具详情已收进 MessageRunActivity，正文不再渲染工具 UI
-                return null;
+                // complete 态下工具卡片已收进「已完成」折叠块（group-activity-tool）
+                if (isComplete) return <ToolActivityContent part={part} />;
+                // running 态工具不显示卡片（空 Fragment 阻止 DefaultPartFallback
+                // 渲染注册的 ToolUI），改由 AssistantThinking 提示行说明
+                if (part.status?.type === "running") return <></>;
+                // 审批 / 失败 / 已完成工具照常渲染（审批与错误信息不能折叠隐藏）
+                return <ToolActivityContent part={part} />;
               case "data":
                 return part.dataRendererUI;
               case "file":
