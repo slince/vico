@@ -1,4 +1,5 @@
 // @vico/compaction - 压缩配置解析与区间选择（对齐 deepseek resolveCompactSpec / selectCompactableRange）
+import type { Turn } from '@vico/thread';
 
 /** 压缩设置（字段语义对齐 deepseek BasicCompactionConfig） */
 export interface CompactionSettings {
@@ -101,24 +102,24 @@ export function resolveCompactSpec(
 
 /** 单个 turn 的 token 预算（供区间选择按 turn 边界累计） */
 export interface TurnTokenBudget {
-  turnId: string;
+  turn: Turn;
   tokens: number;
 }
 
 /**
- * 从尾部向前累计 token 到 retainTokens 预算，返回待归档 head 的 turnId 列表（最旧在前）。
+ * 从尾部向前累计 token 到 retainTokens 预算，返回待归档 head 的 Turn 列表（最旧在前，为输入的有序前缀）。
  * retainTokens <= 0 表示不保留尾部（context-overflow 强制压缩全部）；总 token 不足预算或 head 为空返回 null。
  */
-export function selectCompactableRange(turns: TurnTokenBudget[], retainTokens: number): string[] | null {
+export function selectCompactableRange(turns: TurnTokenBudget[], retainTokens: number): Turn[] | null {
   if (retainTokens <= 0) {
-    return turns.length > 0 ? turns.map((t) => t.turnId) : null;
+    return turns.length > 0 ? turns.map((t) => t.turn) : null;
   }
   let tailTokens = 0;
   for (let i = turns.length - 1; i >= 0; i--) {
     tailTokens += turns[i].tokens;
     if (tailTokens >= retainTokens) {
       // i 是 tail 的起点；i===0 时 head 为空
-      return i > 0 ? turns.slice(0, i).map((t) => t.turnId) : null;
+      return i > 0 ? turns.slice(0, i).map((t) => t.turn) : null;
     }
   }
   return null; // 总 token 不足预算，全部保留

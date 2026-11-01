@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { Turn } from '@vico/thread';
 import {
   DEFAULT_COMPACTION_SETTINGS,
   resolveCompactSpec, resolveSettings, selectCompactableRange,
+  type TurnTokenBudget,
 } from './compaction-config.js';
 
 describe('resolveSettings', () => {
@@ -51,15 +53,16 @@ describe('resolveCompactSpec', () => {
 });
 
 describe('selectCompactableRange', () => {
-  const turns = [
-    { turnId: 't1', tokens: 100 },
-    { turnId: 't2', tokens: 200 },
-    { turnId: 't3', tokens: 300 },
+  const turn = (id: string): Turn => ({ id, threadId: 'thread-1', status: 'completed', steps: 0, createdAt: 0 });
+  const turns: TurnTokenBudget[] = [
+    { turn: turn('t1'), tokens: 100 },
+    { turn: turn('t2'), tokens: 200 },
+    { turn: turn('t3'), tokens: 300 },
   ];
 
   it('从尾部累计到 retainTokens，head = 剩余 turn', () => {
     // retainTokens=350：尾部累计 t3(300)→t2(500)>=350 停在 t2，保留 [t2,t3]，head=[t1]
-    expect(selectCompactableRange(turns, 350)).toEqual(['t1']);
+    expect(selectCompactableRange(turns, 350)!.map((t) => t.id)).toEqual(['t1']);
   });
 
   it('总 token 不足 retainTokens 时返回 null（全部保留）', () => {
@@ -67,12 +70,12 @@ describe('selectCompactableRange', () => {
   });
 
   it('retainTokens<=0 时压缩全部 turn（head = 全部）', () => {
-    expect(selectCompactableRange(turns, 0)).toEqual(['t1', 't2', 't3']);
+    expect(selectCompactableRange(turns, 0)!.map((t) => t.id)).toEqual(['t1', 't2', 't3']);
   });
 
   it('head 为空时返回 null', () => {
     expect(selectCompactableRange([], 0)).toBeNull();
     // 只有一个 turn 且其 token 已足够保留：head 为空 → null
-    expect(selectCompactableRange([{ turnId: 't1', tokens: 100 }], 10)).toBeNull();
+    expect(selectCompactableRange([{ turn: turn('t1'), tokens: 100 }], 10)).toBeNull();
   });
 });

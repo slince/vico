@@ -135,14 +135,15 @@ export class ModelContextCompactor implements ContextCompactor {
         return null;
       }
 
-      const headTurnIds = selectCompactableRange(
-        candidate.map((t) => ({ turnId: t.turn.id, tokens: estimateMessages(t.messages) })),
+      const headTurns = selectCompactableRange(
+        candidate.map((t) => ({ turn: t.turn, tokens: estimateMessages(t.messages) })),
         retainTokens,
       );
-      if (!headTurnIds) return null;
+      if (!headTurns) return null;
 
-      const headTurns = candidate.filter((t) => headTurnIds.includes(t.turn.id));
-      const headMessages = headTurns.flatMap((t) => t.messages);
+      // head 是 candidate 的有序前缀，按长度截取拿消息
+      const headMessages = candidate.slice(0, headTurns.length).flatMap((t) => t.messages);
+      const headTurnIds = headTurns.map((t) => t.id);
 
       // 增量摘要（旧摘要作为 head 普通消息一并参与压缩；空输出 / shrink check 不通过返回 null）
       const summaryText = await this.summarize(headMessages, modelClient, signal);
