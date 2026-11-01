@@ -19,9 +19,9 @@ export function createUpdateSemanticMemoryTool(sm: SemanticMemory) {
   return createTool({
     name: 'update_semantic_memory',
     description:
-      '用用户事实和上下文更新语义记忆。每当了解到可能日后有用的用户信息时调用此工具。提供完整的 Markdown 内容——它将替换现有语义记忆。',
+      'Update semantic memory with durable, long-term user facts. Call only when you learn stable facts about the user that may be useful later (identity, preferences, goals, constraints). Provide the complete Markdown content — it will replace the existing semantic memory. Do not record the current task or any in-progress state.',
     inputSchema: z.object({
-      memory: z.string().describe('完整的更新后语义记忆内容（Markdown 格式）'),
+      memory: z.string().describe('The complete updated semantic memory content (Markdown format)'),
     }),
     outputSchema: z.object({
       status: z.literal('updated'),

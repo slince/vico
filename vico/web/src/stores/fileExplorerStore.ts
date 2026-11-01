@@ -59,6 +59,7 @@ interface FileExplorerState {
   setFileLoading: (threadId: string, filePath: string, loading: boolean) => void;
   setFileError: (threadId: string, filePath: string, error: string) => void;
   toggleFileExplorer: () => void;
+  setFileExplorerOpen: (open: boolean) => void;
 }
 
 /** 计算某线程当前有序的顶层 tab 列表：[文件树?] + [文件...] + [终端...] */
@@ -258,5 +259,10 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
 
   toggleFileExplorer: () => {
     set((state) => ({ fileExplorerOpen: !state.fileExplorerOpen }));
+  },
+
+  /** 显式设置右侧面板开关（文件链接点击时强制展开） */
+  setFileExplorerOpen: (open) => {
+    set({ fileExplorerOpen: open });
   },
 }));

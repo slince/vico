@@ -6,6 +6,7 @@
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
 import {FilePlus} from 'lucide-react';
+import {FileLink} from '@/components/assistant-ui/elements/file-link';
 import {ToolCard} from './tool-card';
 import type {WriteArgs, WriteResult} from '../write.tool';
 
@@ -15,7 +16,7 @@ function WriteView({result}: {result: WriteResult}) {
   const actionText = result.action === 'created' ? t('tool.fileWrite.created') : t('tool.fileWrite.updated');
   return (
     <div className="space-y-1 text-xs">
-      <p className="font-mono text-muted-foreground">{result.path}</p>
+      <FileLink path={result.path} className="text-muted-foreground" />
       <p className="text-muted-foreground">
         {actionText} · {t('tool.fileWrite.lines', {n: result.lines})} · {t('tool.fileWrite.bytes', {n: result.size})}
       </p>

@@ -3,7 +3,8 @@
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
-import {FileSearch, FileText} from 'lucide-react';
+import {FileSearch} from 'lucide-react';
+import {FileLink} from '@/components/assistant-ui/elements/file-link';
 import {ToolCard} from './tool-card';
 import type {GlobArgs, GlobResult} from '../glob.tool';
 
@@ -12,9 +13,8 @@ function GlobView({result}: {result: GlobResult}) {
   return (
     <ul className="space-y-0.5">
       {result.files.map((file, i) => (
-        <li key={i} className="flex items-center gap-1.5 text-xs">
-          <FileText size={12} className="text-muted-foreground shrink-0" />
-          <span className="font-mono truncate">{file}</span>
+        <li key={i} className="text-xs">
+          <FileLink path={file} className="min-w-0" />
         </li>
       ))}
     </ul>

@@ -6,6 +6,7 @@
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
 import {FilePen} from 'lucide-react';
+import {FileLink} from '@/components/assistant-ui/elements/file-link';
 import {ToolCard} from './tool-card';
 import type {EditArgs, EditResult} from '../edit.tool';
 
@@ -32,7 +33,7 @@ function EditView({result}: {result: EditResult}) {
   const {t} = useTranslation('assistant');
   return (
     <div className="space-y-1.5">
-      <p className="font-mono text-[11px] text-muted-foreground">{result.path}</p>
+      <FileLink path={result.path} className="text-[11px] text-muted-foreground" />
       {result.replacements > 0 && (
         <p className="text-xs text-muted-foreground">{t('tool.fileWrite.replacements', {n: result.replacements})}</p>
       )}

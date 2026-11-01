@@ -8,6 +8,7 @@ import {useTranslation} from 'react-i18next';
 import {useCopyToClipboard} from 'react-use';
 import {Check, Copy, FileText} from 'lucide-react';
 import {guessLanguage} from '@/components/file-explorer/codemirror-language';
+import {FileLink} from '@/components/assistant-ui/elements/file-link';
 import {SyntaxHighlighter} from '@/components/assistant-ui/elements/shiki-highlighter';
 import {ToolCard} from './tool-card';
 import type {ReadArgs, ReadResult} from '../read.tool';
@@ -44,7 +45,7 @@ function ReadView({result, args}: {result: ReadResult; args: ReadArgs}) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-mono text-[11px] text-muted-foreground min-w-0 truncate">{result.path}</p>
+        <FileLink path={result.path} className="min-w-0 text-[11px] text-muted-foreground" />
         <div className="flex items-center gap-2 shrink-0">
           {startLine != null && (
             <span className="font-mono text-[11px] text-muted-foreground">

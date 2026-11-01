@@ -55,7 +55,7 @@ function QuestionField({question, state, disabled, onToggle, onCustom}: Question
       {question.detail && <p className="text-xs text-muted-foreground">{question.detail}</p>}
 
       {question.options && question.options.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
           {question.options.map((option) => {
             const isSelected = state.selected.includes(option.label);
             return (
@@ -66,17 +66,36 @@ function QuestionField({question, state, disabled, onToggle, onCustom}: Question
                 onClick={() => onToggle(option.label)}
                 disabled={disabled}
                 className={cn(
-                  'inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border transition-colors disabled:opacity-50',
+                  'flex items-center gap-2.5 w-full px-3 py-2 text-sm rounded-lg border text-left transition-colors disabled:opacity-50',
                   isSelected
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border bg-background hover:bg-muted',
                 )}
               >
-                {option.label}
+                {multiSelect ? (
+                  <span
+                    className={cn(
+                      'shrink-0 h-4 w-4 rounded border flex items-center justify-center',
+                      isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40',
+                    )}
+                  >
+                    {isSelected && <Check size={12} />}
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      'shrink-0 h-4 w-4 rounded-full border flex items-center justify-center',
+                      isSelected ? 'border-primary' : 'border-muted-foreground/40',
+                    )}
+                  >
+                    {isSelected && <span className="h-2 w-2 rounded-full bg-primary" />}
+                  </span>
+                )}
+                <span className="flex-1 min-w-0 truncate">{option.label}</span>
                 {option.recommended === true && (
                   <span
                     className={cn(
-                      'text-[10px] leading-none px-1 py-0.5 rounded-full border',
+                      'shrink-0 text-[10px] leading-none px-1.5 py-0.5 rounded-full border',
                       isSelected
                         ? 'border-primary/40 bg-background/60 text-primary'
                         : 'border-primary/30 bg-primary/10 text-primary',

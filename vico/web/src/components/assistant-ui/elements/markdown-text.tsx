@@ -13,8 +13,10 @@ import { type FC, memo, useMemo, useRef } from "react";
 import type { TextMessagePartProps } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
+import { FileLink } from "@/components/assistant-ui/elements/file-link";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { isFilePathCandidate, isFileLinkHref } from "@/lib/file-link";
 import { cn } from "@/lib/utils";
 
 type MarkdownTextProps = Partial<TextMessagePartProps> & {
@@ -147,15 +149,24 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  a: ({ className, ...props }) => (
-    <a
-      className={cn(
-        "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
-        className,
-      )}
-      {...props}
-    />
-  ),
+  a: ({ className, href, children, ...props }) => {
+    // 文件链接：非外部协议的 href 且像文件路径时，渲染为可点击的文件引用
+    if (typeof href === 'string' && isFileLinkHref(href)) {
+      return <FileLink path={href} />;
+    }
+    return (
+      <a
+        className={cn(
+          "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
+          className,
+        )}
+        href={href}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  },
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
@@ -251,8 +262,12 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  code: function Code({ className, ...props }) {
+  code: function Code({ className, children, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();
+    // 行内代码且内容像文件路径 → 渲染为可点击文件链接
+    if (!isCodeBlock && typeof children === 'string' && isFilePathCandidate(children)) {
+      return <FileLink path={children} />;
+    }
     return (
       <code
         className={cn(
@@ -261,7 +276,9 @@ const defaultComponents = memoizeMarkdownComponents({
           className,
         )}
         {...props}
-      />
+      >
+        {children}
+      </code>
     );
   },
   CodeHeader,

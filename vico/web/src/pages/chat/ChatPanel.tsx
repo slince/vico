@@ -16,6 +16,7 @@ import {useAgentSelection} from '@/stores/agent-selection';
 // 4. UI / 子组件
 import {Thread} from '@/components/assistant-ui/elements/thread.aui';
 import {ContextDisplay} from '@/components/assistant-ui/elements/context-display.aui';
+import {FileReferenceProvider} from '@/components/assistant-ui/file-reference-context';
 import {ChatSidebar} from '@/pages/chat/ChatSidebar';
 import {Button} from '@/components/ui/button';
 
@@ -137,7 +138,9 @@ export function ChatPanel({ threadId }: ChatPanelProps) {
 
         {/* 内容区：纯对话 — zoom 只作用于会话区文字，不影响右侧面板 */}
         <div className="flex-1 min-h-0" style={{ zoom: fontSize / BASE_FONT_SIZE }}>
-          <ThreadWithSuggestions />
+          <FileReferenceProvider threadId={threadId ?? null}>
+            <ThreadWithSuggestions />
+          </FileReferenceProvider>
         </div>
       </div>
 

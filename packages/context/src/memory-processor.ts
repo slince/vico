@@ -87,11 +87,12 @@ export class MemoryProcessor implements ContextProcessor {
 
     ctx.systemPrompt.registerSection(
       'semantic-memory',
-      `Use the update_semantic_memory tool to store user information. If the information might be referenced again — store it!\n\n` +
+      `Use the update_semantic_memory tool ONLY to store durable, long-term facts about the user (identity, preferences, goals, constraints).\n\n` +
       `Guidelines:\n` +
-      `1. Proactively update when you learn new information about the user\n` +
+      `1. Store only stable, long-lived user facts that will matter across conversations\n` +
       `2. Replace only the changed parts and keep the rest unchanged\n` +
-      `3. Use the Markdown format below — never output the template text directly, always update through the tool\n\n` +
+      `3. Do NOT store the current task, its progress, or any transient state — that belongs to the conversation history\n` +
+      `4. Use the Markdown format below — never output the template text directly, always update through the tool\n\n` +
       `Current semantic memory:\n\`\`\`markdown\n${dataBlock}\n\`\`\``);
   }
 
