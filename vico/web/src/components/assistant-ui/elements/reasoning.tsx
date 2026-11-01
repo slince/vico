@@ -1,6 +1,7 @@
 "use client";
 
 import {createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState,} from "react";
+import {useTranslation} from "react-i18next";
 import {cva, type VariantProps} from "class-variance-authority";
 import {BrainIcon, ChevronDownIcon} from "lucide-react";
 import {CollapsibleContent, CollapsibleRoot as Collapsible, CollapsibleTrigger,} from "./collapsible-root";
@@ -158,6 +159,7 @@ function ReasoningTrigger({
   active?: boolean;
   duration?: number;
 }) {
+  const {t} = useTranslation('assistant');
   const durationText = duration ? ` (${duration}s)` : "";
 
   return (
@@ -180,7 +182,7 @@ function ReasoningTrigger({
           active && "shimmer motion-reduce:animate-none",
         )}
       >
-        Reasoning{durationText}
+        {t('message.reasoning')}{durationText}
       </span>
       <ChevronDownIcon
         data-slot="reasoning-trigger-chevron"
