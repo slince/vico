@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
+import {useTranslation} from "react-i18next";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
@@ -25,6 +26,8 @@ export function ThreadList({
   activeIndex: number;
   onActiveIndexChange?: (index: number) => void;
 }) {
+  const {t} = useTranslation('assistant');
+
   return (
     <div
       data-slot="thread-list"
@@ -32,7 +35,7 @@ export function ThreadList({
 
       {...props}
     >
-      <div className={cn(mono, "text-foreground/35 px-3 pb-1.5")}>Today</div>
+      <div className={cn(mono, "text-foreground/35 px-3 pb-1.5")}>{t('threadList.today')}</div>
       {threads.map((thread, i) => {
         const active = i === activeIndex;
         const className = cn(
@@ -59,7 +62,7 @@ export function ThreadList({
                     aria-hidden
                     className="size-1.5 rounded-full bg-blue-500 dark:bg-blue-400"
                   />
-                  <span className="sr-only">unread</span>
+                  <span className="sr-only">{t('threadList.unread')}</span>
                 </>
               )}
               {thread.time}

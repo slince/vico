@@ -6,9 +6,9 @@
  * CompletedActivityGroup：把推理全文 + 工具调用收进「已完成」折叠块；
  * ToolActivityContent：直接渲染单条工具的工具 UI（供折叠块内平铺）。
  */
-import {type PartState, type ToolCallMessagePartProps, useAui, useMessageTiming,} from "@assistant-ui/react";
+import {type PartState, type ToolCallMessagePartProps, useAui, useAuiState,} from "@assistant-ui/react";
 import {CheckIcon, ChevronRightIcon} from "lucide-react";
-import {type ReactNode, useState} from "react";
+import {createContext, type ReactNode, useContext, useEffect, useRef, useState,} from "react";
 
 import {cn} from "@/lib/utils";
 import {toolkit} from "@/tools/toolkit";
@@ -55,19 +55,56 @@ function ToolActivityContent({ part }: { part: ToolCallPartState }) {
 }
 
 /**
+ * 当前 assistant 消息的流式生成时长（毫秒）。
+ *
+ * `useMessageTiming()` 依赖库在消息 metadata 写入 `timing`，但 ai-sdk
+ * converter 的 chunk 缓存会在 metadata-only 更新时直接返回旧消息，导致
+ * timing 不落地；这里改为在 AssistantMessage 层自行测量 running → complete
+ * 的时长，经 context 传给 CompletedActivityGroup。
+ */
+const MessageStreamDurationContext = createContext<number | undefined>(
+  undefined,
+);
+
+/**
+ * 测量当前消息的流式生成时长（毫秒）。
+ *
+ * 首次进入 running 时同步打点，complete 时结算一次；历史消息（从未 running）
+ * 返回 undefined。须在 MessagePrimitive 的 message context 内调用（即
+ * AssistantMessage 内部）。
+ */
+function useMessageStreamDuration(): number | undefined {
+  const status = useAuiState((s) => s.message.status?.type);
+  const startRef = useRef<number | null>(null);
+  const [elapsed, setElapsed] = useState<number | undefined>(undefined);
+
+  // 首次 running 渲染时打点，起点精确且只记录一次
+  if (status === "running" && startRef.current === null) {
+    startRef.current = Date.now();
+  }
+
+  // complete 时结算一次
+  useEffect(() => {
+    if (status === "complete" && startRef.current !== null) {
+      setElapsed(Date.now() - startRef.current);
+      startRef.current = null;
+    }
+  }, [status]);
+
+  return elapsed;
+}
+
+/**
  * 完成态的统一折叠块：把推理全文 + 工具调用平铺收纳进一个「已完成」块。
  *
  * 默认折叠，标题只显示「已完成，用时 xx分xx秒」（时长取流式生成时长），
  * 点击展开后 children 依次是 reasoning / tool 的渲染结果。
  */
 function CompletedActivityGroup({ children }: { children: ReactNode }) {
-  const timing = useMessageTiming();
   const [open, setOpen] = useState(false);
+  const elapsed = useContext(MessageStreamDurationContext);
 
-  const duration =
-    timing?.totalStreamTime !== undefined
-      ? formatElapsedCn(timing.totalStreamTime)
-      : undefined;
+  const duration = elapsed !== undefined ? formatElapsedCn(elapsed) : undefined;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="my-2">
@@ -94,4 +131,9 @@ function CompletedActivityGroup({ children }: { children: ReactNode }) {
   );
 }
 
-export { CompletedActivityGroup, ToolActivityContent };
+export {
+  CompletedActivityGroup,
+  MessageStreamDurationContext,
+  ToolActivityContent,
+  useMessageStreamDuration,
+};

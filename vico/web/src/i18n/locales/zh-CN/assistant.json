@@ -1,8 +1,9 @@
 {
-  "composer": { "placeholder": "输入消息...", "send": "发送" },
+  "composer": { "placeholder": "输入消息...", "send": "发送", "inputLabel": "消息输入", "cancelSending": "取消发送" },
   "message": {
     "thinking": "思考中...",
     "reasoning": "思考过程",
+    "loading": "加载对话中...",
     "copy": "复制",
     "copied": "已复制！",
     "tokenUsage": {
@@ -22,7 +23,8 @@
     "newThread": "新建对话",
     "today": "今天",
     "yesterday": "昨天",
-    "earlier": "更早"
+    "earlier": "更早",
+    "unread": "未读"
   },
   "welcome": { "title": "请问有什么可以帮您？" },
   "thread": {
@@ -158,8 +160,18 @@
     "closeAssistant": "关闭助手"
   },
   "voice": {
+    "conversation": "语音对话",
+    "input": "语音输入",
+    "stopDictation": "停止听写",
+    "youSaid": "你说",
+    "assistantSaid": "助手说",
+    "assistantSpeaking": "助手正在说话",
     "mute": "静音",
     "unmute": "取消静音",
     "disconnect": "断开连接"
+  },
+  "feedback": {
+    "helpful": "有帮助",
+    "notHelpful": "没有帮助"
   }
 }

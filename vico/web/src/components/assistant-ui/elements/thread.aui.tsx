@@ -59,8 +59,13 @@ import {
   ThumbsUpIcon,
 } from "lucide-react";
 import {type ComponentType, createContext, type FC, type PropsWithChildren, useContext,} from "react";
+import {useTranslation} from "react-i18next";
 import {AssistantThinking} from "@/components/assistant-ui/assistant-thinking";
-import {CompletedActivityGroup} from "@/components/assistant-ui/elements/message-run-activity";
+import {
+  CompletedActivityGroup,
+  MessageStreamDurationContext,
+  useMessageStreamDuration,
+} from "@/components/assistant-ui/elements/message-run-activity";
 import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
 import {AgentSelectorAction} from "@/components/assistant-ui/agent-selector-action";
 import {ApprovalModeSelectorAction} from "@/components/assistant-ui/approval-mode-selector-action";
@@ -155,26 +160,30 @@ const isHistoryLoadingView = (s: AssistantState) =>
   !s.thread.isDisabled &&
   !s.threads.isLoading;
 
-const ThreadHistorySkeleton: FC = () => (
-  <div
-    data-slot="aui_thread-history-skeleton"
-    role="status"
-    className="animate-in fade-in fill-mode-both flex flex-col gap-y-6 [animation-delay:150ms] [animation-duration:200ms]"
-  >
-    <span className="sr-only">Loading conversation</span>
-    <Skeleton className="ml-auto h-9 w-2/5 rounded-xl motion-reduce:animate-none" />
-    <div className="flex flex-col gap-y-2">
-      <Skeleton className="h-4 w-11/12 motion-reduce:animate-none" />
-      <Skeleton className="h-4 w-4/5 motion-reduce:animate-none" />
-      <Skeleton className="h-4 w-3/5 motion-reduce:animate-none" />
+const ThreadHistorySkeleton: FC = () => {
+  const {t} = useTranslation('assistant');
+
+  return (
+    <div
+      data-slot="aui_thread-history-skeleton"
+      role="status"
+      className="animate-in fade-in fill-mode-both flex flex-col gap-y-6 [animation-delay:150ms] [animation-duration:200ms]"
+    >
+      <span className="sr-only">{t('message.loading')}</span>
+      <Skeleton className="ml-auto h-9 w-2/5 rounded-xl motion-reduce:animate-none" />
+      <div className="flex flex-col gap-y-2">
+        <Skeleton className="h-4 w-11/12 motion-reduce:animate-none" />
+        <Skeleton className="h-4 w-4/5 motion-reduce:animate-none" />
+        <Skeleton className="h-4 w-3/5 motion-reduce:animate-none" />
+      </div>
+      <Skeleton className="ml-auto h-9 w-1/3 rounded-xl motion-reduce:animate-none" />
+      <div className="flex flex-col gap-y-2">
+        <Skeleton className="h-4 w-10/12 motion-reduce:animate-none" />
+        <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
+      </div>
     </div>
-    <Skeleton className="ml-auto h-9 w-1/3 rounded-xl motion-reduce:animate-none" />
-    <div className="flex flex-col gap-y-2">
-      <Skeleton className="h-4 w-10/12 motion-reduce:animate-none" />
-      <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
-    </div>
-  </div>
-);
+  );
+};
 
 export const Thread: FC<ThreadProps> = ({
   components = EMPTY_COMPONENTS,
@@ -283,6 +292,7 @@ const SpokenText: TextMessagePartComponent = ({ text }) => (
 );
 
 const SpokenMessage: FC = () => {
+  const {t} = useTranslation('assistant');
   const role = useAuiState((s) => s.message.role);
   const position = useVoiceRunPosition();
   const isSpeaking = useAuiState(
@@ -310,7 +320,7 @@ const SpokenMessage: FC = () => {
           className="text-muted-foreground mb-1.5 flex items-center gap-1.5 text-xs"
         >
           <PhoneIcon className="size-3" aria-hidden />
-          <span>Voice conversation</span>
+          <span>{t('voice.conversation')}</span>
         </div>
       )}
       <div
@@ -325,7 +335,7 @@ const SpokenMessage: FC = () => {
           )}
         </span>
         <span className="sr-only">
-          {role === "user" ? "You said" : "Assistant said"}
+          {role === "user" ? t('voice.youSaid') : t('voice.assistantSaid')}
         </span>
         <div className="min-w-0 flex-1 wrap-break-word">
           <MessagePrimitive.Parts components={{ Text: SpokenText }} />
@@ -334,7 +344,7 @@ const SpokenMessage: FC = () => {
               data-slot="aui_spoken-message-indicator"
               role="status"
               className="text-muted-foreground ms-1 animate-pulse font-sans"
-              aria-label="Assistant is speaking"
+              aria-label={t('voice.assistantSpeaking')}
             >
               ●
             </span>
@@ -347,6 +357,8 @@ const SpokenMessage: FC = () => {
 };
 
 const SpokenActionBar: FC = () => {
+  const {t} = useTranslation('assistant');
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -354,7 +366,7 @@ const SpokenActionBar: FC = () => {
       className="aui-spoken-action-bar text-muted-foreground flex shrink-0 gap-1"
     >
       <ActionBarPrimitive.Copy asChild>
-        <TooltipIconButton tooltip="Copy" className="size-6">
+        <TooltipIconButton tooltip={t('message.copy')} className="size-6">
           <AuiIf condition={(s) => s.message.isCopied}>
             <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
           </AuiIf>
@@ -368,10 +380,12 @@ const SpokenActionBar: FC = () => {
 };
 
 const ThreadScrollToBottom: FC = () => {
+  const {t} = useTranslation('assistant');
+
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
       <TooltipIconButton
-        tooltip="Scroll to bottom"
+        tooltip={t('thread.scrollToBottom')}
         variant="outline"
         className="aui-thread-scroll-to-bottom dark:border-border dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
       >
@@ -382,10 +396,12 @@ const ThreadScrollToBottom: FC = () => {
 };
 
 const ThreadWelcome: FC = () => {
+  const {t} = useTranslation('assistant');
+
   return (
     <div className="aui-thread-welcome-root mb-6 flex flex-col px-2">
       <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-medium tracking-tight duration-200">
-        How can I help you today?
+        {t('welcome.title')}
       </p>
     </div>
   );
@@ -426,6 +442,8 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
+  const {t} = useTranslation('assistant');
+
   return (
     <ComposerPrimitive.TriggerPopoverRoot>
       <ComposerSlashCommands />
@@ -437,12 +455,12 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
           >
             <ComposerAttachments />
             <ComposerPrimitive.Input
-              placeholder="Send a message..."
+              placeholder={t('composer.placeholder')}
               className="aui-composer-input caret-primary placeholder:text-muted-foreground/60 max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none"
               rows={1}
               autoFocus={autoFocus}
               enterKeyHint="send"
-              aria-label="Message input"
+              aria-label={t('composer.inputLabel')}
             />
             <ComposerAction />
           </div>
@@ -453,6 +471,8 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 };
 
 const ComposerAction: FC = () => {
+  const {t} = useTranslation('assistant');
+
   // The stop control only cancels the send while no run it could stop is going.
   const isSending = useAuiState(
     (s) =>
@@ -475,13 +495,13 @@ const ComposerAction: FC = () => {
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate asChild>
               <TooltipIconButton
-                tooltip="Voice input"
+                tooltip={t('voice.input')}
                 side="bottom"
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="aui-composer-dictate text-muted-foreground hover:text-foreground size-7 rounded-full"
-                aria-label="Start voice input"
+                aria-label={t('thread.startVoice')}
               >
                 <MicIcon className="aui-composer-dictate-icon size-4" />
               </TooltipIconButton>
@@ -490,13 +510,13 @@ const ComposerAction: FC = () => {
           <AuiIf condition={(s) => s.composer.dictation != null}>
             <ComposerPrimitive.StopDictation asChild>
               <TooltipIconButton
-                tooltip="Stop dictation"
+                tooltip={t('voice.stopDictation')}
                 side="bottom"
                 type="button"
                 variant="ghost"
                 size="icon"
                 className="aui-composer-stop-dictation text-destructive size-7 rounded-full"
-                aria-label="Stop voice input"
+                aria-label={t('thread.stopVoice')}
               >
                 <SquareIcon className="aui-composer-stop-dictation-icon size-3.5 animate-pulse fill-current" />
               </TooltipIconButton>
@@ -512,13 +532,13 @@ const ComposerAction: FC = () => {
         >
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
-              tooltip="Send message"
+              tooltip={t('thread.sendMessage')}
               side="bottom"
               type="button"
               variant="default"
               size="icon"
               className="aui-composer-send size-7 rounded-full"
-              aria-label="Send message"
+              aria-label={t('thread.sendMessage')}
             >
               <ArrowUpIcon className="aui-composer-send-icon size-4" />
             </TooltipIconButton>
@@ -537,7 +557,7 @@ const ComposerAction: FC = () => {
               variant="default"
               size="icon"
               className="aui-composer-cancel size-7 rounded-full"
-              aria-label={isSending ? "Cancel sending" : "Stop generating"}
+              aria-label={isSending ? t('composer.cancelSending') : t('thread.stopGenerating')}
             >
               <SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />
             </Button>
@@ -574,6 +594,9 @@ const AssistantMessage: FC = () => {
       ? taskAwareGroupBy
       : messageGroupBy;
 
+  // 流式生成时长：running 打点、complete 结算，经 context 传给 CompletedActivityGroup
+  const streamDuration = useMessageStreamDuration();
+
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
@@ -588,69 +611,71 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
-        <MessagePrimitive.GroupedParts groupBy={groupBy}>
-          {({ part, children }) => {
-            switch (part.type) {
-              case "group-chainOfThought":
-                return <div data-slot="aui_chain-of-thought">{children}</div>;
-              case "group-task":
-                return TaskGroupComponent ? (
-                  <TaskGroupComponent group={part} />
-                ) : null;
-              case "group-tool":
-                if (ToolGroup) {
-                  return <ToolGroup group={part}>{children}</ToolGroup>;
-                }
-                return (
-                  <AutoOpenToolGroup group={part}>{children}</AutoOpenToolGroup>
-                );
-              case "group-reasoning": {
-                if (ReasoningGroup) {
+        <MessageStreamDurationContext.Provider value={streamDuration}>
+          <MessagePrimitive.GroupedParts groupBy={groupBy}>
+            {({ part, children }) => {
+              switch (part.type) {
+                case "group-chainOfThought":
+                  return <div data-slot="aui_chain-of-thought">{children}</div>;
+                case "group-task":
+                  return TaskGroupComponent ? (
+                    <TaskGroupComponent group={part} />
+                  ) : null;
+                case "group-tool":
+                  if (ToolGroup) {
+                    return <ToolGroup group={part}>{children}</ToolGroup>;
+                  }
                   return (
-                    <ReasoningGroup group={part}>{children}</ReasoningGroup>
+                    <AutoOpenToolGroup group={part}>{children}</AutoOpenToolGroup>
+                  );
+                case "group-reasoning": {
+                  if (ReasoningGroup) {
+                    return (
+                      <ReasoningGroup group={part}>{children}</ReasoningGroup>
+                    );
+                  }
+                  const running = part.status.type === "running";
+                  return (
+                    <ReasoningRoot streaming={running}>
+                      <ReasoningTrigger active={running} />
+                      <ReasoningContent aria-busy={running}>
+                        <ReasoningText>{children}</ReasoningText>
+                      </ReasoningContent>
+                    </ReasoningRoot>
                   );
                 }
-                const running = part.status.type === "running";
-                return (
-                  <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger active={running} />
-                    <ReasoningContent aria-busy={running}>
-                      <ReasoningText>{children}</ReasoningText>
-                    </ReasoningContent>
-                  </ReasoningRoot>
-                );
+                case "group-activity":
+                  // 完成态统一折叠块：推理 + 工具都收进这里，标题「已完成，用时 …」
+                  return (
+                    <CompletedActivityGroup>{children}</CompletedActivityGroup>
+                  );
+                case "text":
+                  return <MarkdownText />;
+                case "reasoning":
+                  return <Reasoning {...part} />;
+                case "tool-call":
+                  return part.toolUI ?? <ToolFallbackComponent {...part} />;
+                case "data":
+                  return part.dataRendererUI;
+                case "file":
+                  return (
+                    <div data-slot="aui_assistant-message-file" className="py-1">
+                      <File {...part} />
+                    </div>
+                  );
+                case "image":
+                  return (
+                    <div data-slot="aui_assistant-message-image" className="py-1">
+                      <Image {...part} />
+                    </div>
+                  );
+                case "indicator":
+                default:
+                  return null;
               }
-              case "group-activity":
-                // 完成态统一折叠块：推理 + 工具都收进这里，标题「已完成，用时 …」
-                return (
-                  <CompletedActivityGroup>{children}</CompletedActivityGroup>
-                );
-              case "text":
-                return <MarkdownText />;
-              case "reasoning":
-                return <Reasoning {...part} />;
-              case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
-              case "data":
-                return part.dataRendererUI;
-              case "file":
-                return (
-                  <div data-slot="aui_assistant-message-file" className="py-1">
-                    <File {...part} />
-                  </div>
-                );
-              case "image":
-                return (
-                  <div data-slot="aui_assistant-message-image" className="py-1">
-                    <Image {...part} />
-                  </div>
-                );
-              case "indicator":
-              default:
-                return null;
-            }
-          }}
-        </MessagePrimitive.GroupedParts>
+            }}
+          </MessagePrimitive.GroupedParts>
+        </MessageStreamDurationContext.Provider>
         {/* 运行中的活动指示（思考中 / 正在执行某工具 + 已用时）；非运行态内部自动返回 null */}
         <AssistantThinking className="mt-2" />
         <MessageError />
@@ -668,6 +693,8 @@ const AssistantMessage: FC = () => {
 };
 
 const AssistantActionBar: FC = () => {
+  const {t} = useTranslation('assistant');
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -675,7 +702,7 @@ const AssistantActionBar: FC = () => {
       className="aui-assistant-action-bar-root text-muted-foreground animate-in fade-in col-start-3 row-start-2 -ms-1 flex gap-1 duration-200"
     >
       <ActionBarPrimitive.Copy asChild>
-        <TooltipIconButton tooltip="Copy">
+        <TooltipIconButton tooltip={t('message.copy')}>
           <AuiIf condition={(s) => s.message.isCopied}>
             <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
           </AuiIf>
@@ -687,7 +714,7 @@ const AssistantActionBar: FC = () => {
       <AuiIf condition={(s) => s.thread.capabilities.feedback}>
         <ActionBarPrimitive.FeedbackPositive asChild>
           <TooltipIconButton
-            tooltip="Helpful"
+            tooltip={t('feedback.helpful')}
             className="data-[submitted=true]:bg-accent data-[submitted=true]:text-accent-foreground"
           >
             <ThumbsUpIcon />
@@ -695,7 +722,7 @@ const AssistantActionBar: FC = () => {
         </ActionBarPrimitive.FeedbackPositive>
         <ActionBarPrimitive.FeedbackNegative asChild>
           <TooltipIconButton
-            tooltip="Not helpful"
+            tooltip={t('feedback.notHelpful')}
             className="data-[submitted=true]:bg-accent data-[submitted=true]:text-accent-foreground"
           >
             <ThumbsDownIcon />
@@ -703,7 +730,7 @@ const AssistantActionBar: FC = () => {
         </ActionBarPrimitive.FeedbackNegative>
       </AuiIf>
       <ActionBarPrimitive.Reload asChild>
-        <TooltipIconButton tooltip="Refresh">
+        <TooltipIconButton tooltip={t('thread.refresh')}>
           <RefreshCwIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Reload>
@@ -711,7 +738,7 @@ const AssistantActionBar: FC = () => {
       <ActionBarMorePrimitive.Root>
         <ActionBarMorePrimitive.Trigger asChild>
           <TooltipIconButton
-            tooltip="More"
+            tooltip={t('thread.more')}
             className="data-[state=open]:bg-accent"
           >
             <MoreHorizontalIcon />
@@ -726,7 +753,7 @@ const AssistantActionBar: FC = () => {
           <ActionBarPrimitive.ExportMarkdown asChild>
             <ActionBarMorePrimitive.Item className="aui-action-bar-more-item hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none">
               <DownloadIcon className="size-4" />
-              Export as Markdown
+              {t('thread.export')}
             </ActionBarMorePrimitive.Item>
           </ActionBarPrimitive.ExportMarkdown>
         </ActionBarMorePrimitive.Content>
@@ -776,6 +803,8 @@ const UserMessage: FC = () => {
 };
 
 const UserActionBar: FC = () => {
+  const {t} = useTranslation('assistant');
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -783,7 +812,7 @@ const UserActionBar: FC = () => {
       className="aui-user-action-bar-root flex flex-col items-end"
     >
       <ActionBarPrimitive.Edit asChild>
-        <TooltipIconButton tooltip="Edit" className="aui-user-action-edit">
+        <TooltipIconButton tooltip={t('thread.edit')} className="aui-user-action-edit">
           <PencilIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Edit>
@@ -792,6 +821,8 @@ const UserActionBar: FC = () => {
 };
 
 const EditComposer: FC = () => {
+  const {t} = useTranslation('assistant');
+
   return (
     <MessagePrimitive.Root
       data-slot="aui_edit-composer-wrapper"
@@ -805,12 +836,12 @@ const EditComposer: FC = () => {
         <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
           <ComposerPrimitive.Cancel asChild>
             <Button variant="ghost" size="sm" className="h-8 px-3">
-              Cancel
+              {t('thread.cancel')}
             </Button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
             <Button size="sm" className="h-8 px-3">
-              Update
+              {t('thread.update')}
             </Button>
           </ComposerPrimitive.Send>
         </div>
@@ -823,6 +854,8 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
   className,
   ...rest
 }) => {
+  const {t} = useTranslation('assistant');
+
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
@@ -833,7 +866,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
       {...rest}
     >
       <BranchPickerPrimitive.Previous asChild>
-        <TooltipIconButton tooltip="Previous">
+        <TooltipIconButton tooltip={t('thread.branch.previous')}>
           <ChevronLeftIcon />
         </TooltipIconButton>
       </BranchPickerPrimitive.Previous>
@@ -841,7 +874,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
       <BranchPickerPrimitive.Next asChild>
-        <TooltipIconButton tooltip="Next">
+        <TooltipIconButton tooltip={t('thread.branch.next')}>
           <ChevronRightIcon />
         </TooltipIconButton>
       </BranchPickerPrimitive.Next>
