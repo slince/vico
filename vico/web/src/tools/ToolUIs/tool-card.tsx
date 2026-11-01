@@ -2,17 +2,17 @@
  * 通用工具卡片 — 工具渲染器的共享状态机骨架。
  *
  * 统一处理 error/incomplete → rejected → complete → requires-action → running 的流转，
- * 各工具只需提供标题、图标、审批文案和完成态内容（children），
- * 避免每个工具重复实现相同状态机。
- * 完成态默认折叠，标题行右侧提供展开/折叠按钮；completeMode="bare" 时整卡交给 children 自定义。
+ * 各工具只需提供标题、图标、审批文案和完成态内容（children）。
+ * 错误/拒绝/执行中/完成态共用 ToolCardShell 统一外壳，通过 tone 字段区分配色，
+ * header 统一保留 icon + 标题 + subtitle，避免每个状态各写一套结构。
+ * 完成态默认折叠，标题行提供展开/折叠；completeMode="bare" 时整卡交给 children 自定义。
  * 审批态复用框架的 elements/ApprovalCard（HITL 决议 + i18n 文案在此落地）。
  */
-import {type CSSProperties, type ElementType, type ReactNode, useState} from 'react';
+import {type ElementType, type ReactNode, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {ChevronDown, Loader2, Wrench, X} from 'lucide-react';
 import type {ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartStatus} from '@assistant-ui/react';
 import {ApprovalCard} from '@/components/assistant-ui/elements/approval-card';
-import {CollapsibleContent, CollapsibleRoot, CollapsibleTrigger} from '@/components/assistant-ui/elements/collapsible-root';
 import {cn} from '@/lib/utils';
 
 /**
@@ -20,9 +20,6 @@ import {cn} from '@/lib/utils';
  * web 无法引入后端包，故此处重复字面量；改动须两边同步。
  */
 const SESSION_SCOPE_REASON = '__vico_scope_session__';
-
-/** 完成态正文展开/折叠动画时长（ms），与 reasoning 折叠动画保持一致 */
-const ANIMATION_DURATION = 200;
 
 export interface ToolCardProps {
   /** 卡片标题（工具中文名） */
@@ -66,6 +63,104 @@ export interface ToolCardProps {
 }
 
 /**
+ * 状态色调 — 统一外壳按 tone 渲染容器边框/背景与标题配色。
+ */
+const TONE_STYLES = {
+  default: {
+    frame: 'border-transparent',
+    title: 'text-foreground',
+  },
+  muted: {
+    frame: 'border-border bg-muted/30 animate-pulse',
+    title: 'text-muted-foreground',
+  },
+  destructive: {
+    frame: 'border-destructive/30 bg-destructive/5',
+    title: 'text-destructive',
+  },
+} as const;
+
+type ToolCardTone = keyof typeof TONE_STYLES;
+
+/**
+ * 统一卡片外壳 — 各状态共用的 header 骨架（icon + 标题 + subtitle + trailing）。
+ *
+ * tone 决定容器与标题配色；onHeaderClick 提供时 header 整行可点击（完成态折叠），
+ * 错误/拒绝/执行中通过 tone 与 trailing 图标呈现差异，避免每状态各写一套结构。
+ */
+function ToolCardShell({
+  tone,
+  icon: Icon,
+  title,
+  subtitle,
+  trailing,
+  onHeaderClick,
+  headerAriaExpanded,
+  headerAriaLabel,
+  children,
+}: {
+  /** 状态色调 */
+  tone: ToolCardTone;
+  /** 工具图标 */
+  icon: ElementType;
+  /** 标题文案 */
+  title: string;
+  /** 补充信息（路径/意图等） */
+  subtitle?: string;
+  /** 右侧状态元素（展开箭头/加载/关闭图标） */
+  trailing?: ReactNode;
+  /** 提供则 header 整行可点击 */
+  onHeaderClick?: () => void;
+  /** 点击 header 的展开状态 */
+  headerAriaExpanded?: boolean;
+  /** 点击 header 的无障碍标签 */
+  headerAriaLabel?: string;
+  /** header 下方内容（错误详情/折叠体） */
+  children?: ReactNode;
+}) {
+  const style = TONE_STYLES[tone];
+
+  return (
+    <div className={cn('rounded-lg border p-3 my-2', style.frame)}>
+      <div
+        onClick={onHeaderClick}
+        role={onHeaderClick ? 'button' : undefined}
+        tabIndex={onHeaderClick ? 0 : undefined}
+        aria-expanded={onHeaderClick ? headerAriaExpanded : undefined}
+        aria-label={onHeaderClick ? headerAriaLabel : undefined}
+        onKeyDown={
+          onHeaderClick
+            ? (e) => {
+                // 让整行可点击也支持键盘触发（Enter/Space），对齐原生 button 语义
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onHeaderClick();
+                }
+              }
+            : undefined
+        }
+        className={cn(
+          'flex w-full items-center gap-2 text-left',
+          onHeaderClick && 'cursor-pointer',
+        )}
+      >
+        <Icon size={14} className="shrink-0 text-muted-foreground" />
+        <span className={cn('text-sm font-medium truncate', style.title)}>
+          {title}
+        </span>
+        {subtitle && (
+          <span className="font-mono text-xs text-muted-foreground truncate max-w-[50%]">
+            {subtitle}
+          </span>
+        )}
+        {trailing && <span className="ml-auto shrink-0">{trailing}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
  * 通用工具卡片。
  *
  * 状态机（优先级从高到低）：
@@ -73,7 +168,7 @@ export interface ToolCardProps {
  * - approval 被拒绝 → destructive 拒绝态
  * - complete 且有 result → 卡片（header + 可折叠 children）或 bare 自定义整卡
  * - requires-action → 框架 ApprovalCard 审批
- * - running → 加载占位
+ * - running → muted 加载态
  */
 export function ToolCard({
   title,
@@ -109,19 +204,19 @@ export function ToolCard({
       ? (result as { error?: string } | undefined)?.error
       : undefined;
     return (
-      <div className="border border-destructive/30 rounded-lg p-3 my-2 bg-destructive/5">
-        <div className="flex items-center gap-2">
-          <X size={16} className="text-destructive" />
-          <span className="text-sm text-destructive">
-            {errorLabel ?? t('tool.card.failed', {name: title})}
-          </span>
-        </div>
+      <ToolCardShell
+        tone="destructive"
+        icon={Icon}
+        title={errorLabel ?? t('tool.card.failed', {name: title})}
+        subtitle={subtitle}
+        trailing={<X size={16} className="text-destructive" />}
+      >
         {errorMessage && (
           <p className="mt-1.5 font-mono text-xs text-destructive/80 break-all whitespace-pre-wrap">
             {errorMessage}
           </p>
         )}
-      </div>
+      </ToolCardShell>
     );
   }
 
@@ -131,14 +226,13 @@ export function ToolCard({
 
     if (!isApproved) {
       return (
-        <div className="border border-destructive/30 rounded-lg p-3 my-2 bg-destructive/5">
-          <div className="flex items-center gap-2">
-            <X size={16} className="text-destructive" />
-            <span className="text-sm text-destructive">
-              {rejectedLabel ?? t('tool.card.rejected', {name: title})}
-            </span>
-          </div>
-        </div>
+        <ToolCardShell
+          tone="destructive"
+          icon={Icon}
+          title={rejectedLabel ?? t('tool.card.rejected', {name: title})}
+          subtitle={subtitle}
+          trailing={<X size={16} className="text-destructive" />}
+        />
       );
     }
 
@@ -149,47 +243,26 @@ export function ToolCard({
       }
 
       return (
-        <CollapsibleRoot
-          open={open}
-          onOpenChange={setOpen}
-          className="p-3 my-2"
-          style={{'--animation-duration': `${ANIMATION_DURATION}ms`} as CSSProperties}
-        >
-          <CollapsibleTrigger
-            aria-label={open ? t('tool.card.collapse') : t('tool.card.expand')}
-            className="flex w-full cursor-pointer items-center gap-2 text-left"
-          >
-            <Icon size={14} className="text-muted-foreground" />
-            <span className="text-sm font-medium">{title}</span>
-            {subtitle && (
-              <span className="font-mono text-xs text-muted-foreground truncate max-w-[50%]">
-                {subtitle}
-              </span>
-            )}
+        <ToolCardShell
+          tone="default"
+          icon={Icon}
+          title={title}
+          subtitle={subtitle}
+          onHeaderClick={() => setOpen((v) => !v)}
+          headerAriaExpanded={open}
+          headerAriaLabel={open ? t('tool.card.collapse') : t('tool.card.expand')}
+          trailing={
             <ChevronDown
               size={16}
               className={cn(
-                'text-muted-foreground ml-auto transition-transform duration-200',
+                'text-muted-foreground transition-transform duration-200',
                 open ? 'rotate-0' : '-rotate-90',
               )}
             />
-          </CollapsibleTrigger>
-          <CollapsibleContent
-            className={cn(
-              'overflow-hidden',
-              'ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none',
-              'data-closed:animate-collapsible-up',
-              'data-open:animate-collapsible-down',
-              'data-closed:fill-mode-forwards',
-              'data-closed:pointer-events-none',
-              '[--tw-duration:var(--animation-duration)]',
-            )}
-          >
-            <div className="mt-2 rounded-lg bg-muted/30 p-2">
-              {children}
-            </div>
-          </CollapsibleContent>
-        </CollapsibleRoot>
+          }
+        >
+          {open && <div className="mt-2 rounded-lg bg-muted/30 p-2">{children}</div>}
+        </ToolCardShell>
       );
     }
   }
@@ -248,14 +321,13 @@ export function ToolCard({
   // 执行中
   if (status?.type === 'running') {
     return (
-      <div className="p-3 my-2">
-        <div className="flex items-center gap-2">
-          <Loader2 size={14} className="text-muted-foreground animate-spin" />
-          <span className="text-sm text-muted-foreground">
-            {runningLabel ?? t('tool.card.running', {name: title})}
-          </span>
-        </div>
-      </div>
+      <ToolCardShell
+        tone="muted"
+        icon={Icon}
+        title={runningLabel ?? t('tool.card.running', {name: title})}
+        subtitle={subtitle}
+        trailing={<Loader2 size={14} className="text-muted-foreground animate-spin" />}
+      />
     );
   }
 
