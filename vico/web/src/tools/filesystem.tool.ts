@@ -124,7 +124,7 @@ export const editTool: VicoToolkitDefinitionEntry<EditArgs, EditResult> = {
 export function summarizeRead(args: ReadArgs): ToolRunActivitySummary {
   return {
     icon: FileText,
-    description: args.path,
+    description: `Reading ${args.path}`,
   };
 }
 

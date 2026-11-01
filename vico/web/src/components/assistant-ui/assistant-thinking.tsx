@@ -16,13 +16,11 @@ function useThinkingLabel() {
       (part) => part.type === "tool-call" && part.result === undefined,
     );
     if (pending?.type === "tool-call") {
-      // 优先用工具 summarize 的 description 说明「正在做什么」，无摘要时兜底工具名
+      // 优先展示工具 summarize 的 description（已含动作动词，如 "Reading …"），无摘要时兜底工具名
       const description = tools[pending.toolName]
         ?.summarize?.(pending.args)
         ?.description?.trim();
-      return description
-        ? `Running ${description}`
-        : `Running ${pending.toolName}`;
+      return description || `Running ${pending.toolName}`;
     }
     return s.message.parts.length === 0 ? "Thinking" : undefined;
   });

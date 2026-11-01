@@ -30,12 +30,12 @@ const bashOutputSchema = z.object({
 export type BashResult = z.infer<typeof bashOutputSchema>;
 
 /**
- * bash 的 RunActivity 摘要 — subtitle 展示命令意图（description 参数）。
+ * bash 的 RunActivity 摘要 — 展示要执行的 Shell 命令。
  */
 export function summarizeBash(args: BashArgs): ToolRunActivitySummary {
   return {
     icon: Terminal,
-    description: args.description,
+    description: `Execute shell "${args.command}"`,
   };
 }
 
