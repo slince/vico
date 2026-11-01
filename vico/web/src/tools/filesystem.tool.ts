@@ -134,7 +134,7 @@ export function summarizeRead(args: ReadArgs): ToolRunActivitySummary {
 export function summarizeGlob(args: GlobArgs): ToolRunActivitySummary {
   return {
     icon: FileSearch,
-    description: args.pattern,
+    description: `Searching files matching ${args.pattern}`,
   };
 }
 
@@ -144,7 +144,9 @@ export function summarizeGlob(args: GlobArgs): ToolRunActivitySummary {
 export function summarizeGrep(args: GrepArgs): ToolRunActivitySummary {
   return {
     icon: Search,
-    description: args.path ? `${args.pattern} in ${args.path}` : args.pattern,
+    description: args.path
+      ? `Searching ${args.pattern} in ${args.path}`
+      : `Searching ${args.pattern}`,
   };
 }
 
@@ -154,7 +156,7 @@ export function summarizeGrep(args: GrepArgs): ToolRunActivitySummary {
 export function summarizeWrite(args: WriteArgs): ToolRunActivitySummary {
   return {
     icon: FilePlus,
-    description: args.path,
+    description: `Writing ${args.path}`,
   };
 }
 
@@ -164,6 +166,6 @@ export function summarizeWrite(args: WriteArgs): ToolRunActivitySummary {
 export function summarizeEdit(args: EditArgs): ToolRunActivitySummary {
   return {
     icon: FilePen,
-    description: args.path,
+    description: `Editing ${args.path}`,
   };
 }

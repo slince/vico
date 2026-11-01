@@ -25,7 +25,7 @@ export type SemanticMemoryResult = z.infer<typeof semanticMemoryOutputSchema>;
 export function summarizeSemanticMemory(args: SemanticMemoryArgs): ToolRunActivitySummary {
   return {
     icon: Brain,
-    description: args.memory,
+    description: 'Updating semantic memory',
   };
 }
 

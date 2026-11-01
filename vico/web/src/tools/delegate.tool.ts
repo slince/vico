@@ -28,7 +28,7 @@ export type DelegateResult = z.infer<typeof delegateOutputSchema>;
 export function summarizeDelegate(args: DelegateArgs): ToolRunActivitySummary {
   return {
     icon: Bot,
-    description: args.task,
+    description: `Delegating ${args.task}`,
   };
 }
 

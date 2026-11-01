@@ -41,8 +41,9 @@ export type AskUserResult = z.infer<typeof askUserOutputSchema>;
  * ask_user 的 RunActivity 摘要 — 关键参数是首个问题（缺省显示问题数）。
  */
 export function summarizeAskUser(args: AskUserArgs): ToolRunActivitySummary {
-  const description =
-    args.questions?.[0]?.question ?? `${args.questions?.length ?? 0} questions`;
+  const description = args.questions?.[0]?.question
+    ? `Asking "${args.questions[0].question}"`
+    : `Asking ${args.questions?.length ?? 0} questions`;
 
   return {
     icon: HelpCircle,

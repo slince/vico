@@ -77,7 +77,7 @@ export const browserClickTool: VicoToolkitDefinitionEntry<BrowserClickArgs, Brow
 export function summarizeBrowserNavigate(args: BrowserNavigateArgs): ToolRunActivitySummary {
   return {
     icon: Globe,
-    description: args.url,
+    description: `Navigating to ${args.url}`,
   };
 }
 
@@ -87,7 +87,7 @@ export function summarizeBrowserNavigate(args: BrowserNavigateArgs): ToolRunActi
 export function summarizeBrowserSnapshot(args: BrowserSnapshotArgs): ToolRunActivitySummary {
   return {
     icon: Camera,
-    description: args.url,
+    description: `Snapshotting ${args.url}`,
   };
 }
 
@@ -97,6 +97,6 @@ export function summarizeBrowserSnapshot(args: BrowserSnapshotArgs): ToolRunActi
 export function summarizeBrowserClick(args: BrowserClickArgs): ToolRunActivitySummary {
   return {
     icon: MousePointerClick,
-    description: args.selector ?? args.text,
+    description: `Clicking ${args.selector ?? args.text}`,
   };
 }

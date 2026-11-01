@@ -34,7 +34,7 @@ export type WebFetchResult = z.infer<typeof webFetchOutputSchema>;
 export function summarizeWebFetch(args: WebFetchArgs): ToolRunActivitySummary {
   return {
     icon: Globe,
-    description: args.url,
+    description: `Fetching ${args.url}`,
   };
 }
 

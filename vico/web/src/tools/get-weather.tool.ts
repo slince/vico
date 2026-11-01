@@ -32,7 +32,7 @@ export type GetWeatherResult = z.infer<typeof getWeatherOutputSchema>;
 export function summarizeGetWeather(args: GetWeatherArgs): ToolRunActivitySummary {
   return {
     icon: Cloud,
-    description: args.location,
+    description: `Getting weather for ${args.location}`,
   };
 }
 

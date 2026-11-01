@@ -29,7 +29,7 @@ export type KnowledgeSearchResult = z.infer<typeof knowledgeSearchOutputSchema>;
 export function summarizeKnowledgeSearch(args: KnowledgeSearchArgs): ToolRunActivitySummary {
   return {
     icon: Search,
-    description: args.query,
+    description: `Searching knowledge base for "${args.query}"`,
   };
 }
 

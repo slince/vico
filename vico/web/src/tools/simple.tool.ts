@@ -30,8 +30,9 @@ export type TodoWriteResult = z.infer<typeof todoWriteOutputSchema>;
  * todo_write 的 RunActivity 摘要 — 关键参数是首条任务内容（缺省显示任务数）。
  */
 export function summarizeTodoWrite(args: TodoWriteArgs): ToolRunActivitySummary {
-  const description =
-    args.tasks?.[0]?.content ?? `${args.tasks?.length ?? 0} tasks`;
+  const description = args.tasks?.[0]?.content
+    ? `Updating todo: ${args.tasks[0].content}`
+    : `Updating ${args.tasks?.length ?? 0} tasks`;
 
   return {
     icon: ListChecks,
