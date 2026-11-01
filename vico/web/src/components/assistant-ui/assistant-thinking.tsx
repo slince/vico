@@ -1,8 +1,13 @@
 "use client";
 
 import {useEffect, useState} from "react";
-import {ThinkingIndicator} from "./elements/thinking-indicator";
 import {useAuiState} from "@assistant-ui/react";
+import {toolkit} from "@/tools/toolkit";
+import type {VicoToolkitDefinitionEntry} from "@/tools/tool-summary";
+import {ThinkingIndicator} from "./elements/thinking-indicator";
+
+/** toolkit 按工具名索引的类型视图（与 MessageRunActivity 的消费方式一致） */
+const tools = toolkit as Record<string, VicoToolkitDefinitionEntry | undefined>;
 
 function useThinkingLabel() {
   return useAuiState((s) => {
@@ -10,7 +15,15 @@ function useThinkingLabel() {
     const pending = s.message.parts.find(
       (part) => part.type === "tool-call" && part.result === undefined,
     );
-    if (pending?.type === "tool-call") return `Running ${pending.toolName}`;
+    if (pending?.type === "tool-call") {
+      // 优先用工具 summarize 的 description 说明「正在做什么」，无摘要时兜底工具名
+      const description = tools[pending.toolName]
+        ?.summarize?.(pending.args)
+        ?.description?.trim();
+      return description
+        ? `Running ${description}`
+        : `Running ${pending.toolName}`;
+    }
     return s.message.parts.length === 0 ? "Thinking" : undefined;
   });
 }
@@ -31,9 +44,9 @@ function useElapsedLabel(active: boolean) {
   return label;
 }
 
-export function AssistantThinking() {
+export function AssistantThinking({className}: {className?: string}) {
   const label = useThinkingLabel();
   const elapsed = useElapsedLabel(label !== undefined);
   if (label === undefined) return null;
-  return <ThinkingIndicator label={label} elapsed={elapsed} />;
+  return <ThinkingIndicator label={label} elapsed={elapsed} className={className} />;
 }
