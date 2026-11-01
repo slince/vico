@@ -35,7 +35,7 @@ Vico 在 `@vico/compaction` 实现上下文压缩机制：当历史消息逼近 
 
 ## 先写后删崩溃安全
 
-压缩落库是 **append-only 两段式**：先 `appendEntries` 写入新摘要，再 `archiveMessages` 归档被压缩的 head 消息。若在两步之间崩溃，最坏情况是旧消息尚未归档（多出一份冗余摘要/消息），绝不会丢失上下文。`Message.archived` 为 soft delete（`includeArchived:false` 时查询过滤，UI 仍全量展示）。
+压缩落库是 **append-only 两段式**：先 `appendEntries` 写入新摘要，再 `archiveMessagesByTurns` 按 turn 归档被压缩的 head 消息。若在两步之间崩溃，最坏情况是旧消息尚未归档（多出一份冗余摘要/消息），绝不会丢失上下文。`Message.archived` 为 soft delete（`includeArchived:false` 时查询过滤，UI 仍全量展示）。
 
 ## 摘要失败 no-op
 
@@ -62,6 +62,6 @@ Vico 在 `@vico/compaction` 实现上下文压缩机制：当历史消息逼近 
 - `packages/agent/src/loop-agent.ts` — 三 trigger 接线 + `compactThread` + `applyCompaction` 内存消息链重建
 - `packages/agent/src/create-agent.ts` — 构造 ModelContextCompactor
 - `packages/memory/src/conversation-history-memory.ts` — 摘要前置
-- `packages/thread/src/thread-store.ts` — `Message.archived` / `archiveMessages` / `getTurns` 端口
+- `packages/thread/src/thread-store.ts` — `Message.archived` / `archiveMessagesByTurns` / `getTurns` 端口
 - `packages/thread-libsql` / `packages/thread-mysql` — `vico_messages.archived` 列与 SQL 适配
 - `vico/server/src/lib/agent-factory.ts` / `vico/server/src/api/threads.ts` — 配置装配与 HTTP API

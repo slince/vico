@@ -26,11 +26,10 @@ function frameSummary(text: string): string {
   return `${CHECKPOINT_PREAMBLE}\n\n${SUMMARY_OPEN_TAG}\n${text}\n${SUMMARY_CLOSE_TAG}`;
 }
 
-/** 候选 surface：单个完结态 turn 的消息（含 store message id 供归档） */
+/** 候选 surface：单个完结态 turn 的消息 */
 interface CandidateTurn {
   turnId: string;
   messages: AgentMessage[];
-  messageIds: string[];
 }
 
 /**
@@ -98,11 +97,10 @@ export class ModelContextCompactor implements ContextCompactor {
       if (!turn) continue; // 非完结态 turn 的消息不参与压缩
       let group = byTurn.get(m.turnId);
       if (!group) {
-        group = { turnId: m.turnId, messages: [], messageIds: [] };
+        group = { turnId: m.turnId, messages: [] };
         byTurn.set(m.turnId, group);
       }
       group.messages.push(m);
-      if (m.id) group.messageIds.push(m.id);
     }
 
     return [...byTurn.values()].sort(
@@ -141,14 +139,13 @@ export class ModelContextCompactor implements ContextCompactor {
 
       const headTurns = candidate.filter((t) => headTurnIds.includes(t.turnId));
       const headMessages = headTurns.flatMap((t) => t.messages);
-      const headMessageIds = headTurns.flatMap((t) => t.messageIds);
 
       // 增量摘要（旧摘要作为 head 普通消息一并参与压缩；空输出 / shrink check 不通过返回 null）
       const summaryText = await this.summarize(headMessages, modelClient, signal);
       if (signal.aborted) return null; // cancelled
       if (summaryText === null) return null; // 摘要不合格：不写、不归档（spec §10），下次 turn 再试
 
-      // append-only 落库：先写新摘要，再归档 head（先写后删，崩溃不丢上下文）
+      // append-only 落库：先写新摘要，再按 turn 归档 head（先写后删，崩溃不丢上下文）
       const summaryEntry = {
         threadId: thread.id,
         turnId: summaryTurnId,
@@ -157,12 +154,12 @@ export class ModelContextCompactor implements ContextCompactor {
         metadata: { kind: SUMMARY_METADATA_KIND },
       };
       const [created] = await this.thread.appendEntries([summaryEntry]);
-      await this.thread.archiveMessages(thread.id, headMessageIds);
+      await this.thread.archiveMessagesByTurns(thread.id, headTurnIds);
 
       return {
         summaryMessageId: created.id,
         // 内存消息链中的摘要按 user 角色注入（与 toModelMessages 的 summary→user 映射一致）
-        summary: { id: created.id, role: 'user', content: summaryText, turnId: summaryTurnId },
+        summary: { role: 'user', content: summaryText, turnId: summaryTurnId },
         archivedTurnIds: headTurnIds,
         removedTokens: estimateMessages(headMessages),
       };

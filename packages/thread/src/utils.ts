@@ -11,7 +11,7 @@ import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart, ToolResult
 export function toModelMessages(entries: Message[]): AgentMessage[] {
   return entries.map((e) => {
     const role = e.role === 'summary' ? 'user' : e.role;
-    const msg = { id: e.id, role, content: e.content, turnId: e.turnId } as AgentMessage;
+    const msg = { role, content: e.content, turnId: e.turnId } as AgentMessage;
     // usage 由 fromModelMessage 写入 metadata，这里还原到消息载体上
     if (e.metadata?.usage !== undefined) {
       msg.usage = e.metadata.usage as UsageMetrics;
@@ -28,9 +28,8 @@ export type PersistableMessage = ModelMessage & { usage?: UsageMetrics };
 
 /**
  * Agent 内部统一消息载体：PersistableMessage 附所属 turnId（必传），消息自描述所属 turn。
- * id 为持久化后的 store message id（toModelMessages 透传），内存中的当前 turn 消息可能无 id。
  */
-export type AgentMessage = PersistableMessage & { id?: string; turnId: string };
+export type AgentMessage = PersistableMessage & { turnId: string };
 
 /**
  * 原生 ModelMessage → ThreadStore 持久化字段（content 原样透传，usage 写入 metadata）。

@@ -154,12 +154,13 @@ export class InMemoryThreadStore implements ThreadStore {
     return all;
   }
 
-  async archiveMessages(threadId: string, messageIds: string[]): Promise<void> {
+  async archiveMessagesByTurns(threadId: string, turnIds: string[]): Promise<void> {
+    if (turnIds.length === 0) return;
     const list = this.messages.get(threadId);
-    if (!list || messageIds.length === 0) return;
-    const ids = new Set(messageIds);
+    if (!list) return;
+    const ids = new Set(turnIds);
     for (const m of list) {
-      if (ids.has(m.id)) m.archived = true;
+      if (ids.has(m.turnId)) m.archived = true;
     }
   }
 

@@ -25,8 +25,7 @@ describe('ConversationHistoryMemory.get', () => {
     const { store } = await seed();
     const t1 = await store.createTurn('thread-1');
     await store.appendEntries([{ threadId: 'thread-1', turnId: t1.id, role: 'user', content: 'old' }]);
-    const first = await store.getEntries('thread-1');
-    await store.archiveMessages('thread-1', first.map((m) => m.id));
+    await store.archiveMessagesByTurns('thread-1', [t1.id]);
 
     // 写摘要 + 摘要后的新消息
     await store.appendEntries([{ threadId: 'thread-1', turnId: 'thread-1', role: 'summary', content: 'prior summary' }]);

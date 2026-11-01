@@ -123,8 +123,8 @@ export interface ThreadStore {
   getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[]; includeArchived?: boolean }): Promise<Message[]>;
   /** 批量获取多个 turn 的对话记录（可选排除已归档） */
   getEntriesByTurns(turnIds: string[], options?: { includeArchived?: boolean }): Promise<Message[]>;
-  /** 批量归档消息（软标记 archived=true），只作用于已完成 turn 的消息 */
-  archiveMessages(threadId: string, messageIds: string[]): Promise<void>;
+  /** 批量归档指定 turn 的全部消息（软标记 archived=true） */
+  archiveMessagesByTurns(threadId: string, turnIds: string[]): Promise<void>;
   /** 获取线程中最近的一个 turn（用于检测是否有暂停的 turn） */
   getLatestTurn(threadId: string): Promise<Turn | undefined>;
   /** 获取线程最近 limit 个轮次（按创建时间倒序），可选按状态过滤 */

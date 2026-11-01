@@ -191,12 +191,12 @@ export class LibSqlThreadStore implements ThreadStore {
     return rows.map((r) => this._toMessage(r));
   }
 
-  async archiveMessages(threadId: string, messageIds: string[]): Promise<void> {
-    if (messageIds.length === 0) return;
+  async archiveMessagesByTurns(threadId: string, turnIds: string[]): Promise<void> {
+    if (turnIds.length === 0) return;
     await this.db
       .update(messages)
       .set({ archived: true })
-      .where(and(eq(messages.thread_id, threadId), inArray(messages.id, messageIds)));
+      .where(and(eq(messages.thread_id, threadId), inArray(messages.turn_id, turnIds)));
   }
 
   async getRecentTurns(threadId: string, limit: number, status?: Turn['status']): Promise<Turn[]> {
