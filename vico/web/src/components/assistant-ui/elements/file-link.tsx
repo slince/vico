@@ -8,6 +8,7 @@
 'use client';
 
 import type { ComponentProps } from 'react';
+import { Folder } from 'lucide-react';
 
 import { getFileIcon } from '@/components/file-explorer/FileExplorer';
 import { useFileReference } from '@/components/assistant-ui/file-reference-context';
@@ -26,7 +27,10 @@ export interface FileLinkProps extends Omit<ComponentProps<'button'>, 'children'
  */
 export function FileLink({ path, className, ...props }: FileLinkProps) {
   const { threadId, openFileReference } = useFileReference();
-  const { Icon, cls } = getFileIcon(path);
+  // 目录路径（以分隔符结尾）显示文件夹图标，其余按扩展名取文件图标；颜色统一蓝色
+  const isDir = /[\\/]$/.test(path);
+  const { Icon } = getFileIcon(path);
+  const PathIcon = isDir ? Folder : Icon;
 
   // 无真实线程 ID（尚未创建会话 / 无 Provider）时不可点击，渲染为纯文本
   if (!threadId) {
@@ -39,7 +43,7 @@ export function FileLink({ path, className, ...props }: FileLinkProps) {
     <button
       type="button"
       title={`打开 ${path}`}
-      aria-label={`打开文件 ${path}`}
+      aria-label={`打开 ${path}`}
       onClick={() => openFileReference(path)}
       className={cn(
         'inline-flex max-w-full cursor-pointer items-center gap-1 rounded-sm px-0.5 align-baseline font-mono text-[0.85em] text-blue-600 dark:text-blue-400 transition-colors hover:bg-accent hover:underline underline-offset-2',
@@ -47,7 +51,7 @@ export function FileLink({ path, className, ...props }: FileLinkProps) {
       )}
       {...props}
     >
-      <Icon className={cn('size-3.5 shrink-0', cls)} />
+      <PathIcon className="size-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
       <span className="min-w-0 break-all">{path}</span>
     </button>
   );
