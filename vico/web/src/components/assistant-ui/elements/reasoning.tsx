@@ -1,22 +1,10 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-import { BrainIcon, ChevronDownIcon } from "lucide-react";
-import {
-  CollapsibleRoot as Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "./collapsible-root";
-import { cn } from "@/lib/utils";
+import {createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState,} from "react";
+import {cva, type VariantProps} from "class-variance-authority";
+import {BrainIcon, ChevronDownIcon} from "lucide-react";
+import {CollapsibleContent, CollapsibleRoot as Collapsible, CollapsibleTrigger,} from "./collapsible-root";
+import {cn} from "@/lib/utils";
 
 export const ANIMATION_DURATION = 200;
 
@@ -25,7 +13,7 @@ const ReasoningPreviewContext = createContext(false);
 const reasoningVariants = cva("aui-reasoning-root mb-0 w-full", {
   variants: {
     variant: {
-      outline: "px-3 py-2",
+      outline: "px-1 py-1",
       ghost: "",
       muted: "bg-muted/50 rounded-lg px-3 py-2",
     },
