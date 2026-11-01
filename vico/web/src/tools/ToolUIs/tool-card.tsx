@@ -7,11 +7,12 @@
  * 完成态默认折叠，标题行右侧提供展开/折叠按钮；completeMode="bare" 时整卡交给 children 自定义。
  * 审批态复用框架的 elements/ApprovalCard（HITL 决议 + i18n 文案在此落地）。
  */
-import {type ElementType, type ReactNode, useState} from 'react';
+import {type CSSProperties, type ElementType, type ReactNode, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {ChevronDown, Loader2, Wrench, X} from 'lucide-react';
 import type {ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartStatus} from '@assistant-ui/react';
 import {ApprovalCard} from '@/components/assistant-ui/elements/approval-card';
+import {CollapsibleContent, CollapsibleRoot, CollapsibleTrigger} from '@/components/assistant-ui/elements/collapsible-root';
 import {cn} from '@/lib/utils';
 
 /**
@@ -19,6 +20,9 @@ import {cn} from '@/lib/utils';
  * web 无法引入后端包，故此处重复字面量；改动须两边同步。
  */
 const SESSION_SCOPE_REASON = '__vico_scope_session__';
+
+/** 完成态正文展开/折叠动画时长（ms），与 reasoning 折叠动画保持一致 */
+const ANIMATION_DURATION = 200;
 
 export interface ToolCardProps {
   /** 卡片标题（工具中文名） */
@@ -145,11 +149,13 @@ export function ToolCard({
       }
 
       return (
-        <div className="p-3 my-2">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
+        <CollapsibleRoot
+          open={open}
+          onOpenChange={setOpen}
+          className="p-3 my-2"
+          style={{'--animation-duration': `${ANIMATION_DURATION}ms`} as CSSProperties}
+        >
+          <CollapsibleTrigger
             aria-label={open ? t('tool.card.collapse') : t('tool.card.expand')}
             className="flex w-full cursor-pointer items-center gap-2 text-left"
           >
@@ -167,13 +173,23 @@ export function ToolCard({
                 open ? 'rotate-0' : '-rotate-90',
               )}
             />
-          </button>
-          {open && (
+          </CollapsibleTrigger>
+          <CollapsibleContent
+            className={cn(
+              'overflow-hidden',
+              'ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none',
+              'data-closed:animate-collapsible-up',
+              'data-open:animate-collapsible-down',
+              'data-closed:fill-mode-forwards',
+              'data-closed:pointer-events-none',
+              '[--tw-duration:var(--animation-duration)]',
+            )}
+          >
             <div className="mt-2 rounded-lg bg-muted/30 p-2">
               {children}
             </div>
-          )}
-        </div>
+          </CollapsibleContent>
+        </CollapsibleRoot>
       );
     }
   }
