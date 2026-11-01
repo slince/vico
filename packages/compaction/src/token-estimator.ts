@@ -56,27 +56,24 @@ export function estimateMessages(messages: ModelMessage[]): number {
 }
 
 /**
- * 找消息链中最近一条携带 usage 的消息，以其 input token 消耗量为基线，
- * 加上该消息之后其它消息的启发式估算。无可用 usage 时返回 null。
+ * 测量当前上下文的 token 占用：从尾部找最近一条携带 usage 的消息，以其 input token
+ * 为基线，加上该消息之后其它消息的启发式估算；无可用 usage 时退化为全量启发式估算。
  *
  * usage 是消息自带的 in-band 元数据（assistant 消息经 persistMessages 挂载），
  * 其 input token 已覆盖该消息之前的完整上下文，故只需补算其后的增量。
  */
-function anchoredTokens(messages: AgentMessage[]): number | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const inputTokens = messages[i].usage?.inputTokens.total;
-    if (inputTokens === undefined) continue;
-    // input token 覆盖 [0..i]，其后的消息逐条估算补差
-    const trailing = estimateMessages(messages.slice(i + 1));
-    return inputTokens + trailing;
-  }
-  return null;
-}
-
-/**
- * 测量当前上下文的 token 占用：优先用消息链最近一条 usage 的 input token 锚定
- * （加其后消息估算），无可用 usage 时退化为纯启发式估算。
- */
 export function measure(messages: AgentMessage[]): number {
-  return anchoredTokens(messages) ?? estimateMessages(messages);
+  let trailing = 0;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    const inputTokens = msg.usage?.inputTokens.total;
+    if (inputTokens !== undefined) {
+      // input token 覆盖 [0..i]，其后的消息已累计在 trailing
+      return inputTokens + trailing;
+    }
+    // 非锚定消息（含其之前）都需启发式估算
+    trailing += estimateMessage(msg);
+  }
+  // 无任何带 usage 的消息 → trailing 已累计全部消息的启发式估算
+  return trailing;
 }
