@@ -7,11 +7,12 @@
  */
 import {z} from 'zod/v4';
 import {Terminal} from 'lucide-react';
-import {ExecToolRenderer} from './ToolUIs/exec-ui';
+import {BashToolRenderer} from './ToolUIs/bash-ui';
 import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 const bashSchema = z.object({
   command: z.string().describe('要执行的 Shell 命令'),
+  description: z.string().describe('调用该命令的意图说明'),
   timeout: z.number().optional().describe('超时时间（毫秒）'),
   cwd: z.string().optional().describe('工作目录'),
   tail: z.number().optional().describe('仅返回最后 N 行输出'),
@@ -29,18 +30,18 @@ const bashOutputSchema = z.object({
 export type BashResult = z.infer<typeof bashOutputSchema>;
 
 /**
- * bash 的 RunActivity 摘要 — 关键参数是具体命令。
+ * bash 的 RunActivity 摘要 — subtitle 展示命令意图（description 参数）。
  */
 export function summarizeBash(args: BashArgs): ToolRunActivitySummary {
   return {
     icon: Terminal,
-    description: args.command,
+    description: args.description,
   };
 }
 
 export const bashTool: VicoToolkitDefinitionEntry<BashArgs, BashResult> = {
   description: '在沙箱中执行 Shell 命令，支持管道/重定向/后台运行',
   parameters: bashSchema,
-  render: ExecToolRenderer,
+  render: BashToolRenderer,
   summarize: summarizeBash,
 };

@@ -146,7 +146,13 @@ export function ToolCard({
 
       return (
         <div className="p-3 my-2">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-label={open ? t('tool.card.collapse') : t('tool.card.expand')}
+            className="flex w-full cursor-pointer items-center gap-2 text-left"
+          >
             <Icon size={14} className="text-muted-foreground" />
             <span className="text-sm font-medium">{title}</span>
             {subtitle && (
@@ -154,21 +160,14 @@ export function ToolCard({
                 {subtitle}
               </span>
             )}
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              aria-label={open ? t('tool.card.collapse') : t('tool.card.expand')}
-              className="ml-auto p-1 rounded hover:bg-muted transition-colors"
-            >
-              <ChevronDown
-                size={16}
-                className={cn(
-                  'text-muted-foreground transition-transform duration-200',
-                  open ? 'rotate-0' : '-rotate-90',
-                )}
-              />
-            </button>
-          </div>
+            <ChevronDown
+              size={16}
+              className={cn(
+                'text-muted-foreground ml-auto transition-transform duration-200',
+                open ? 'rotate-0' : '-rotate-90',
+              )}
+            />
+          </button>
           {open && (
             <div className="mt-2 pt-2 border-t border-border/50">
               {children}

@@ -54,7 +54,7 @@ function ExecResult({command, result}: {command: string; result?: BashResult}) {
   );
 }
 
-export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, BashResult> = ({status, args, result, isError, approval, interrupt, resume, addResult, respondToApproval}) => {
+export const BashToolRenderer: ToolCallMessagePartComponent<BashArgs, BashResult> = ({status, args, result, isError, approval, interrupt, resume, addResult, respondToApproval}) => {
   const {t} = useTranslation('assistant');
 
   const command =
@@ -62,9 +62,13 @@ export const ExecToolRenderer: ToolCallMessagePartComponent<BashArgs, BashResult
       ? args.command
       : JSON.stringify(args || {});
 
+  // 命令意图说明（description 参数），展示在标题行与审批卡片的副标题
+  const description = args?.description;
+
   return (
     <ToolCard
       title={t('tool.exec.name')}
+      subtitle={description}
       icon={Terminal}
       status={status}
       result={result}
