@@ -36,7 +36,7 @@ import {
   toolOutputDeniedPart,
   toolResultPart
 } from '@vico/stream';
-import {type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
+import {type CompactionContext, type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '@vico/checkpoint';
 import {createAggregatedAbortController, forwardToController, Pipeline} from '@vico/utils';
 import type {ContextProcessor} from '@vico/context';
@@ -288,7 +288,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       checkpoint = await this.checkpointStore.getLatest(latestTurn.id)
     } else {
       // ── 正常新 turn ── 历史压力压缩（只压缩已完成 turn，在创建 turn / 注入历史前）
-      await this.compactForPressure(thread, modelClient, signal);
+      await this.compactForPressure(thread, modelClient, signal, userMessages);
       turn = await this.thread.createTurn(thread.id);
     }
 
@@ -330,9 +330,10 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       // 历史由 MemoryProcessor unshift 注入；记录条数供 context-overflow 压缩后重建内存历史前缀
       const historyCount = requestContext.messages.length - userMessageCount;
 
-      // 本轮次的上下文对象
+      // 本轮次的上下文对象：洋葱产出的 systemPrompt / tools 物化为快照，可变上下文不再透传
       context = {
-        ctx: requestContext,
+        systemPrompt: requestContext.systemPrompt.render(),
+        tools: requestContext.tools.list(),
         messages: [...requestContext.messages],
         decisions: decisions,
         approvedTools: new Map<string, ToolApproval>(),
@@ -358,7 +359,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
       // 非暂停（完结/失败/中止）时标记完结，resolve 类后置处理据此执行；暂停等待审批则不落情景记忆
       if (loopResult.status !== 'paused') {
-        context.ctx.completed = true;
+        requestContext.completed = true;
       }
     });
 
@@ -838,12 +839,22 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 新 turn 开始前的压力压缩。未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
+   * 新 turn 开始前的压力压缩。以「已注入历史 + 本轮用户消息」构建压缩上下文（历史前缀为可压缩 surface）。
+   * 未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
    */
-  private async compactForPressure(thread: Thread, modelClient: ModelClient, signal: AbortSignal): Promise<void> {
+  private async compactForPressure(thread: Thread, modelClient: ModelClient, signal: AbortSignal, userMessages: ModelMessage[]): Promise<void> {
     if (!this.compactor) return;
     try {
-      await this.compactor.compactIfNeeded(thread, modelClient, 'pressure', signal);
+      // 历史与 startTurn 内 MemoryProcessor 注入的同一来源，构建与 TurnContext 等价的压缩上下文
+      const history = this.memory.conversation ? await this.memory.conversation.get(thread.id) : [];
+      const context: CompactionContext = {
+        messages: [...history, ...userMessages],
+        historyCount: history.length,
+        session: { thread },
+        modelClient,
+        signal,
+      };
+      await this.compactor.compactIfNeeded(context, 'pressure');
     } catch (err) {
       this.log.warn({ threadId: thread.id, err }, 'pressure compaction skipped');
     }
@@ -866,10 +877,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 单次模型调用（含 context-overflow 压缩恢复）。messages 已由调用方预处理（含 ctx.before/after）。
+   * 单次模型调用（含 context-overflow 压缩恢复）。messages 已由洋葱处理器注入历史，
+   * systemPrompt / tools 为构建 TurnContext 时物化的快照。
    */
   private async callModel(step: TurnStep, context: TurnContext<TToolSet>): Promise<CallModelResult> {
-    const { ctx, controller } = context;
+    const { controller } = context;
 
     const resolveError = (error: Error | string): CallModelResult => {
       try {
@@ -884,9 +896,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const attempt = async (): Promise<CallModelResult> => {
       const cleaned = ensureToolCallConsistency(step.messages);
       const request: ModelRequest = {
-        system: ctx.systemPrompt.render(),
+        system: context.systemPrompt,
         messages: cleaned,
-        tools: ctx.tools.list(),
+        tools: context.tools,
         maxOutputTokens: this.maxTokens,
         temperature: this.temperature,
         reasoning: context.reasoning ?? this.reasoning,
@@ -911,7 +923,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // context-overflow 恢复：启发式检测超限错误 → 压缩（retainTokens=0）→ 重建历史 → 重试一次
     if (this.compactor && !context.signal.aborted && isContextOverflowError(first.error)) {
       try {
-        const result = await this.compactor.compactIfNeeded(context.session.thread, context.modelClient, 'context-overflow', context.signal);
+        const result = await this.compactor.compactIfNeeded(context, 'context-overflow');
         if (result) {
           await this.refreshHistory(context);
           return attempt();

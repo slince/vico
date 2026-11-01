@@ -1,7 +1,6 @@
 import type {ToolApproval, ToolCallApproval, UsageMetrics} from '@vico/types';
-import {type ApprovalMode, ToolCall, ToolResult} from '@vico/tool';
+import {type ApprovalMode, type Tool, ToolCall, ToolResult} from '@vico/tool';
 import type {Checkpoint} from '@vico/checkpoint';
-import {ModelRequestContext} from '@vico/context';
 import type {ReasoningEffort} from '@vico/model';
 import type {ModelClient} from '@vico/model';
 import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
@@ -36,7 +35,10 @@ export interface ResolvedApprovals {
 
 /** executeModelStep / callModel 共享上下文 */
 export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
-  ctx: ModelRequestContext
+  /** 洋葱处理器产出的最终系统提示词（渲染快照，turn 内不变） */
+  systemPrompt: string
+  /** 洋葱处理器产出的最终工具列表（快照，turn 内不变） */
+  tools: Tool[]
   messages: ModelMessage[]
   session: TurnSession;
   decisions: Map<string, ToolCallApproval>;

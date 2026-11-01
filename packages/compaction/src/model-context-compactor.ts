@@ -12,7 +12,7 @@ import {
   resolveSettings,
   selectCompactableRange,
 } from './compaction-config.js';
-import type {CompactionResult, CompactionTrigger, ContextCompactor, ModelContextCompactorOptions} from './types.js';
+import type {CompactionContext, CompactionResult, CompactionTrigger, ContextCompactor, ModelContextCompactorOptions} from './types.js';
 import {ManualCompactionError, TargetPressureConfigError} from './errors.js';
 import {CHECKPOINT_PREAMBLE, COMPACTION_INSTRUCTION, SUMMARY_CLOSE_TAG, SUMMARY_OPEN_TAG} from './prompts.js';
 
@@ -55,25 +55,35 @@ export class ModelContextCompactor implements ContextCompactor {
     this.settings = resolveSettings(options.settings);
   }
 
-  async compactIfNeeded(thread: Thread, modelClient: ModelClient, trigger: CompactionTrigger, signal: AbortSignal): Promise<CompactionResult | null> {
+  async compactIfNeeded(context: CompactionContext, trigger: CompactionTrigger): Promise<CompactionResult | null> {
     if (!this.settings.auto) return null;
-    return this.locks.run(thread.id, () => this.compactLocked(thread, modelClient, trigger, signal));
+    const thread = context.session.thread;
+    return this.locks.run(thread.id, () => this.compactFromContext(context, trigger));
   }
 
   async compactNow(thread: Thread, modelClient: ModelClient, signal: AbortSignal): Promise<CompactionResult | null> {
     if (this.busyThreads.has(thread.id)) {
       throw new ManualCompactionError('busy', `compaction already in progress for thread ${thread.id}`);
     }
-    return this.locks.run(thread.id, () => this.compactLocked(thread, modelClient, 'pressure', signal, { skipThreshold: true }));
+    return this.locks.run(thread.id, async () => {
+      const candidate = await this.loadCandidate(thread);
+      return this.compactLocked(thread, modelClient, 'pressure', signal, candidate, { skipThreshold: true });
+    });
   }
 
   // ── 内部 ──
 
-  /** 锁内主流程（pressure / context-overflow / compactNow 共用） */
-  private async compactLocked(thread: Thread, modelClient: ModelClient, trigger: CompactionTrigger, signal: AbortSignal, opts: { skipThreshold?: boolean } = {}): Promise<CompactionResult | null> {
+  /** 自动压缩入口（pressure / context-overflow）：以 TurnContext 内存消息链为压缩 surface */
+  private async compactFromContext(context: CompactionContext, trigger: CompactionTrigger): Promise<CompactionResult | null> {
+    const thread = context.session.thread;
+    const candidate = await this.loadCandidateFromContext(context);
+    return this.compactLocked(thread, context.modelClient, trigger, context.signal, candidate);
+  }
+
+  /** 锁内主流程（自动 / 手动共用），candidate 已由调用方按来源构建 */
+  private async compactLocked(thread: Thread, modelClient: ModelClient, trigger: CompactionTrigger, signal: AbortSignal, candidate: Candidate, opts: { skipThreshold?: boolean } = {}): Promise<CompactionResult | null> {
     this.busyThreads.add(thread.id);
     try {
-      const candidate = await this.loadCandidate(thread);
       if (candidate.turns.length === 0) return null;
 
       const { retainTokens, thresholdTokens } = this.resolveSpec(trigger);
@@ -165,6 +175,42 @@ export class ModelContextCompactor implements ContextCompactor {
     const turns = ordered.filter((t) => byTurn.get(t.id)!.messages.length > 0).map((t) => byTurn.get(t.id)!);
 
     return { summary, summaryEntryId: summaryEntries[summaryEntries.length - 1]?.id, turns };
+  }
+
+  /**
+   * 从 TurnContext 内存消息链构建候选 surface：前 historyCount 条历史前缀与
+   * store 非归档条目按 created_at 升序一一对应（消息内容取内存副本，id/turnId 取 store 条目）。
+   */
+  private async loadCandidateFromContext(context: CompactionContext): Promise<Candidate> {
+    const thread = context.session.thread;
+    const history = context.messages.slice(0, context.historyCount);
+    const entries = await this.thread.getEntries(thread.id, { includeArchived: false });
+    const historyEntries = entries.slice(0, context.historyCount);
+
+    const turns = new Map<string, CandidateTurn>();
+    let summary: AgentMessage | null = null;
+    let summaryEntryId: string | undefined;
+
+    for (let i = 0; i < history.length; i++) {
+      const entry = historyEntries[i];
+      if (!entry) continue; // 防御：store 条目少于内存历史时跳过
+
+      if (entry.role === 'summary') {
+        summary = history[i];
+        summaryEntryId = entry.id;
+        continue;
+      }
+
+      let group = turns.get(entry.turnId);
+      if (!group) {
+        group = { turnId: entry.turnId, messages: [], messageIds: [] };
+        turns.set(entry.turnId, group);
+      }
+      group.messages.push(history[i]);
+      group.messageIds.push(entry.id);
+    }
+
+    return { summary, summaryEntryId, turns: [...turns.values()] };
   }
 
   /**

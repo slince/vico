@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { InMemoryThreadStore } from '@vico/thread';
+import { InMemoryThreadStore, toModelMessages } from '@vico/thread';
 import type { ModelClient } from '@vico/model';
 import { ManualCompactionError, TargetPressureConfigError, isContextOverflowError } from './errors.js';
 import { ModelContextCompactor } from './model-context-compactor.js';
+import type { CompactionContext } from './types.js';
 
 /** parts 数组 → ReadableStream（Node 类型无 ReadableStream.from，手动包装） */
 function streamOf(parts: unknown[]): ReadableStream<unknown> {
@@ -19,6 +20,19 @@ function fakeClient(): ModelClient {
       return { stream: streamOf(parts), text: async () => 'compacted summary text' };
     }),
   } as unknown as ModelClient;
+}
+
+/** 以 store 非归档条目构建压缩上下文（等价于 turn 开始前的历史注入） */
+async function makeContext(store: InMemoryThreadStore, threadId: string, client: ModelClient): Promise<CompactionContext> {
+  const thread = (await store.getThread(threadId))!;
+  const messages = toModelMessages(await store.getEntries(threadId, { includeArchived: false }));
+  return {
+    messages,
+    historyCount: messages.length,
+    session: { thread },
+    modelClient: client,
+    signal: new AbortController().signal,
+  };
 }
 
 /** 造一个 thread + 若干 completed turn（每条一条长文本 user 消息，保证 head token 足够大以通过 shrink check） */
@@ -48,10 +62,8 @@ describe('ModelContextCompactor', () => {
     await seed(store, ['hello']);
     const c = new ModelContextCompactor({ thread: store, conversationWindow: 10 });
     await expect(c.compactIfNeeded(
-      (await store.getThread('thread-1'))!,
-      fakeClient(),
+      await makeContext(store, 'thread-1', fakeClient()),
       'pressure',
-      new AbortController().signal,
     )).rejects.toThrow(TargetPressureConfigError);
   });
 
@@ -69,7 +81,6 @@ describe('ModelContextCompactor', () => {
   it('配置独立摘要模型但无 modelConfig 时抛 ManualCompactionError(summary)', async () => {
     const store = new InMemoryThreadStore();
     await seed(store, ['x'.repeat(1000), 'y'.repeat(1000)]);
-    const thread = (await store.getThread('thread-1'))!;
     const c = new ModelContextCompactor({
       thread: store,
       conversationWindow: 10,
@@ -77,7 +88,7 @@ describe('ModelContextCompactor', () => {
       settings: { retainTokens: 1, summarizationProvider: 'openai', summarizationModel: 'gpt-mini' },
     });
     // context-overflow 不校验 contextWindow，是唯一能触达 resolveSummaryClient 缺 modelConfig 分支的 trigger
-    const err = await c.compactIfNeeded(thread, fakeClient(), 'context-overflow', new AbortController().signal).catch((e) => e);
+    const err = await c.compactIfNeeded(await makeContext(store, 'thread-1', fakeClient()), 'context-overflow').catch((e) => e);
     expect(err).toBeInstanceOf(ManualCompactionError);
     expect((err as ManualCompactionError).code).toBe('summary');
   });

@@ -7,6 +7,7 @@ export {
   isContextOverflowError,
 } from './errors.js';
 export type {
+  CompactionContext,
   ContextCompactor,
   CompactionTrigger,
   CompactionResult,
