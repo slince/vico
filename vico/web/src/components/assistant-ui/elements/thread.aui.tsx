@@ -103,8 +103,8 @@ const messageGroupBy = groupPartByType({
 // 完成态：推理与工具调用归入同一外层 group，统一折叠进「已完成」块；
 // 第二层 key 区分 reasoning 与 tool，便于分别套用样式（muted 正文 / 工具卡片）。
 const completedGroupBy = groupPartByType({
-  reasoning: ["group-activity", "group-activity-reasoning"],
-  "tool-call": ["group-activity", "group-activity-tool"],
+  reasoning: ["group-activity", "group-chainOfThought", "group-reasoning"],
+  "tool-call": ["group-activity"],
   "standalone-tool-call": [],
 });
 
@@ -625,23 +625,11 @@ const AssistantMessage: FC = () => {
                 return (
                   <CompletedActivityGroup>{children}</CompletedActivityGroup>
                 );
-              case "group-activity-reasoning":
-                // 折叠块内的推理全文（muted 色，多段 reasoning part 用间距分隔）
-                return (
-                  <div className="text-muted-foreground space-y-4 leading-relaxed">
-                    {children}
-                  </div>
-                );
-              case "group-activity-tool":
-                // 折叠块内的工具卡片，ToolCard 自带留白，不再额外包裹
-                return <>{children}</>;
               case "text":
                 return <MarkdownText />;
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
-                // 工具卡片照常渲染：complete 态收在「已完成」折叠块内（group-activity-tool），
-                // running / 审批 / 失败态直接平铺渲染（审批按钮与错误信息同样可见）
                 return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":
                 return part.dataRendererUI;
