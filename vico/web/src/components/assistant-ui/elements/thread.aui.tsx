@@ -17,6 +17,7 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
+import {ToolFallback} from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {TooltipIconButton} from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {Button} from "@/components/ui/button";
 import {Skeleton} from "@/components/ui/skeleton";
@@ -559,6 +560,7 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   const {
+    ToolFallback: ToolFallbackComponent = ToolFallback,
     ToolGroup,
     ReasoningGroup,
     TaskGroup: TaskGroupComponent,
