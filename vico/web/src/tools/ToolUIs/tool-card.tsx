@@ -169,7 +169,7 @@ export function ToolCard({
             />
           </button>
           {open && (
-            <div className="mt-2 pt-2 border-t border-border/50">
+            <div className="mt-2 rounded-lg bg-muted/30 p-2">
               {children}
             </div>
           )}

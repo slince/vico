@@ -25,27 +25,23 @@ function ExecResult({command, result}: {command: string; result?: BashResult}) {
 
   return (
     <div className="space-y-2">
-      <pre className="text-xs bg-background p-2 rounded border overflow-x-auto whitespace-pre-wrap break-all max-h-32">
-        {command}
-      </pre>
+      <div className="text-xs divide-y divide-border/50">
+        <pre className="p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-32">
+          {command}
+        </pre>
 
-      {stdout != null && stdout !== '' && (
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">{t('tool.exec.stdout')}</p>
-          <pre className="text-xs bg-background p-2 rounded border overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
+        {stdout != null && stdout !== '' && (
+          <pre className="p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
             {stdout}
           </pre>
-        </div>
-      )}
+        )}
 
-      {stderr != null && stderr !== '' && (
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">{t('tool.exec.stderr')}</p>
-          <pre className="text-xs bg-background p-2 rounded border border-destructive/30 text-destructive overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
+        {stderr != null && stderr !== '' && (
+          <pre className="p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto text-destructive">
             {stderr}
           </pre>
-        </div>
-      )}
+        )}
+      </div>
 
       {exitCode != null && exitCode !== 0 && (
         <p className="text-xs text-muted-foreground">{t('tool.exec.exitCode', {code: exitCode})}</p>
