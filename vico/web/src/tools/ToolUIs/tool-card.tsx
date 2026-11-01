@@ -121,7 +121,7 @@ function ToolCardShell({
   const style = TONE_STYLES[tone];
 
   return (
-    <div className={cn('rounded-lg p-3 my-2', style.frame)}>
+    <div className={cn('rounded-lg p-1 my-0', style.frame)}>
       <div
         onClick={onHeaderClick}
         role={onHeaderClick ? 'button' : undefined}

@@ -6,26 +6,17 @@
  * CompletedActivityGroup：把推理全文 + 工具调用收进「已完成」折叠块；
  * ToolActivityContent：直接渲染单条工具的工具 UI（供折叠块内平铺）。
  */
-import {
-  useAui,
-  useMessageTiming,
-  type PartState,
-  type ToolCallMessagePartProps,
-} from "@assistant-ui/react";
-import { CheckIcon, ChevronRightIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import {type PartState, type ToolCallMessagePartProps, useAui, useMessageTiming,} from "@assistant-ui/react";
+import {CheckIcon, ChevronRightIcon} from "lucide-react";
+import {type ReactNode, useState} from "react";
 
-import { cn } from "@/lib/utils";
-import { toolkit } from "@/tools/toolkit";
-import type { VicoToolkitDefinitionEntry } from "@/tools/tool-summary";
-import { formatElapsedCn } from "../utils/task";
-import {
-  CollapsibleRoot as Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "./collapsible-root";
-import { collapsePanel } from "./surfaces";
-import { ToolFallback } from "./tool-fallback.aui";
+import {cn} from "@/lib/utils";
+import {toolkit} from "@/tools/toolkit";
+import type {VicoToolkitDefinitionEntry} from "@/tools/tool-summary";
+import {formatElapsedCn} from "../utils/task";
+import {CollapsibleContent, CollapsibleRoot as Collapsible, CollapsibleTrigger,} from "./collapsible-root";
+import {collapsePanel} from "./surfaces";
+import {ToolFallback} from "./tool-fallback.aui";
 
 /** `PartState` 中 tool-call 变体（含 status 的丰富 part 类型） */
 type ToolCallPartState = Extract<PartState, { type: "tool-call" }>;
@@ -95,7 +86,7 @@ function CompletedActivityGroup({ children }: { children: ReactNode }) {
         />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel)}>
-        <div className="border-border ms-1.5 flex min-w-0 flex-col gap-3 border-s ps-3.5 pt-2 text-sm wrap-anywhere">
+        <div className="border-border ms-1.5 flex min-w-0 flex-col gap-1 border-s ps-3.5 pt-2 text-sm wrap-anywhere">
           {children}
         </div>
       </CollapsibleContent>
