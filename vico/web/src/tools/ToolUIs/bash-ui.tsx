@@ -32,7 +32,7 @@ function ExecResult({command, result}: {command: string; result?: BashResult}) {
     <div className="space-y-2">
       <div className="text-xs divide-y divide-border/50">
         <div className="flex items-start gap-2 p-2 max-h-32 overflow-x-auto">
-          <pre className="min-w-0 flex-1 text-right whitespace-pre-wrap break-all">
+          <pre className="min-w-0 flex-1 whitespace-pre-wrap break-all">
             {command}
           </pre>
           <button

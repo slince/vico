@@ -84,7 +84,7 @@ function ReadView({result, args}: {result: ReadResult; args: ReadArgs}) {
           code={result.content}
           language={guessLanguage(result.path)}
           trim={false}
-          className="[&_pre]:border-0"
+          className="[&_pre]:border-0 [&_pre]:bg-transparent!"
         />
       )}
     </div>
