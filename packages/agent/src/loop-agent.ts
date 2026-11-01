@@ -843,19 +843,21 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     if (!this.compactor) return;
     try {
       const result = await this.compactor.compactIfNeeded(context, 'pressure');
-      if (result) await this.refreshHistory(context);
+      if (result) this.applyCompaction(context, result);
     } catch (err) {
       this.log.warn({ threadId: context.session.thread.id, err }, 'pressure compaction skipped');
     }
   }
 
-  /** context-overflow / pressure 压缩后，用新历史 + 当前 turn 消息重建内存消息链（原地 splice 使 step.messages 同步） */
-  private async refreshHistory(context: TurnContext<TToolSet>): Promise<void> {
-    if (!this.memory.conversation) return;
-    // 新历史 = summary + 保留的非当前 turn 消息；当前 turn 自身消息保留在末尾
-    const fresh = await this.memory.conversation.get(context.session.thread.id, context.session.turn.id);
-    const current = context.messages.filter((m) => m.turnId === context.session.turn.id);
-    context.messages.splice(0, context.messages.length, ...fresh, ...current);
+  /**
+   * 把压缩结果应用到内存消息链：剔除被归档 turn 的消息、前置新 summary，原地 splice 使 step.messages 同步。
+   * 不重新回查 thread store，直接复用压缩前消息 + 压缩结果。
+   */
+  private applyCompaction(context: TurnContext<TToolSet>, result: CompactionResult): void {
+    const archived = new Set(result.archivedTurnIds);
+    // 保留未归档 turn 的消息（含当前 turn 自身消息，其 turnId 不在 archivedTurnIds 中）
+    const retained = context.messages.filter((m) => !archived.has(m.turnId));
+    context.messages.splice(0, context.messages.length, result.summary, ...retained);
   }
 
   /** Agent.compactThread 实现：主动压缩指定会话（候选消息由会话历史加载传入） */
@@ -916,7 +918,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       try {
         const result = await this.compactor.compactIfNeeded(context, 'context-overflow');
         if (result) {
-          await this.refreshHistory(context);
+          this.applyCompaction(context, result);
           return attempt();
         }
       } catch (err) {

@@ -12,6 +12,8 @@ export type ManualCompactionErrorCode = 'busy' | 'summary' | 'no-final-turn';
 /** 压缩结果 */
 export interface CompactionResult {
   summaryMessageId: string;
+  /** 新摘要消息（模型格式 role='user'、turnId=summary 挂载 turn），供调用方重建内存消息链 */
+  summary: AgentMessage;
   archivedTurnIds: string[];
   removedTokens: number;
 }

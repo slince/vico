@@ -17,14 +17,13 @@ export class ConversationHistoryMemory {
    * 读取会话历史：最新摘要（用户消息前置）+ 其余非归档消息。
    *
    * @param threadId - 线程 ID
-   * @param excludeTurnId - 排除该 turn 的普通消息（压缩后重建历史前缀时用，summary 仍保留）
    * @returns summary 在前、其余按时间升序的 AgentMessage 数组（含所属 turnId）
    */
-  async get(threadId: string, excludeTurnId?: string): Promise<AgentMessage[]> {
+  async get(threadId: string): Promise<AgentMessage[]> {
     const entries = await this.threadStore.getEntries(threadId, { includeArchived: false });
-    // summary 代表更早历史，置顶；其余保持 created_at 升序，并可选排除指定 turn 的消息
+    // summary 代表更早历史，置顶；其余保持 created_at 升序
     const summary = entries.filter((e) => e.role === 'summary');
-    const rest = entries.filter((e) => e.role !== 'summary' && (excludeTurnId === undefined || e.turnId !== excludeTurnId));
+    const rest = entries.filter((e) => e.role !== 'summary');
     return toModelMessages([...summary, ...rest]);
   }
 }

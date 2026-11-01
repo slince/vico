@@ -21,8 +21,8 @@ Vico 在 `@vico/compaction` 实现上下文压缩机制：当历史消息逼近 
 
 ## 压缩触发点
 
-1. **pressure（turn 起始）**：`LoopAgent.startTurn` 在 `loadSessionApprovals` 之后、持久化本轮用户消息之前调用 `compactForPressure` → `compactor.compactIfNeeded(context, 'pressure')`。仅当 `measure(候选) >= thresholdTokens` 才真正压缩；`contextWindow` 未配置时抛 `TargetPressureConfigError`，被捕获告警跳过，不阻塞 turn。压缩后 `refreshHistory` 重建内存消息链。
-2. **context-overflow（模型报错重试）**：`LoopAgent.callModel()` 首次调用返回 `error` 且 `isContextOverflowError(error)` 命中时，以 `retainTokens=0` 强制压缩（bypass 阈值），随后 `refreshHistory` 用新历史原地替换内存历史前缀（`splice`），再重试一次。
+1. **pressure（turn 起始）**：`LoopAgent.startTurn` 在 `loadSessionApprovals` 之后、持久化本轮用户消息之前调用 `compactForPressure` → `compactor.compactIfNeeded(context, 'pressure')`。仅当 `measure(候选) >= thresholdTokens` 才真正压缩；`contextWindow` 未配置时抛 `TargetPressureConfigError`，被捕获告警跳过，不阻塞 turn。压缩后 `applyCompaction` 重建内存消息链。
+2. **context-overflow（模型报错重试）**：`LoopAgent.callModel()` 首次调用返回 `error` 且 `isContextOverflowError(error)` 命中时，以 `retainTokens=0` 强制压缩（bypass 阈值），随后 `applyCompaction` 用压缩结果 + 压缩前消息原地重建内存消息链（`splice`），再重试一次。
 3. **主动压缩**：`Agent.compactThread(threadId, signal?)` → `compactor.compactNow(thread, messages, modelClient, signal)`（忽略阈值），经 `POST /api/v1/threads/:id/compact` 暴露；`busy` 冲突返回 409，无完结态 turn 返回 400（`ManualCompactionError('no-final-turn')`）。
 
 ## 摘要消息约定
@@ -59,9 +59,9 @@ Vico 在 `@vico/compaction` 实现上下文压缩机制：当历史消息逼近 
 - `packages/compaction/src/model-context-compactor.ts` — 默认实现（buildCandidate + compactLocked 主流程）
 - `packages/compaction/src/compaction-config.ts` — 配置解析 / 阈值计算 / 可压缩区间选择
 - `packages/compaction/src/token-estimator.ts` — 分 part token 估算 + usage 锚定
-- `packages/agent/src/loop-agent.ts` — 三 trigger 接线 + `compactThread` + `refreshHistory` 历史重建
+- `packages/agent/src/loop-agent.ts` — 三 trigger 接线 + `compactThread` + `applyCompaction` 内存消息链重建
 - `packages/agent/src/create-agent.ts` — 构造 ModelContextCompactor
-- `packages/memory/src/conversation-history-memory.ts` — 摘要前置 + `excludeTurnId` 过滤
+- `packages/memory/src/conversation-history-memory.ts` — 摘要前置
 - `packages/thread/src/thread-store.ts` — `Message.archived` / `archiveMessages` / `getTurns` 端口
 - `packages/thread-libsql` / `packages/thread-mysql` — `vico_messages.archived` 列与 SQL 适配
 - `vico/server/src/lib/agent-factory.ts` / `vico/server/src/api/threads.ts` — 配置装配与 HTTP API

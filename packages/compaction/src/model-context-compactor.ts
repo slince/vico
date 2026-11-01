@@ -162,6 +162,8 @@ export class ModelContextCompactor implements ContextCompactor {
 
       return {
         summaryMessageId: created.id,
+        // 内存消息链中的摘要按 user 角色注入（与 toModelMessages 的 summary→user 映射一致）
+        summary: { id: created.id, role: 'user', content: summaryText, turnId: summaryTurnId },
         archivedTurnIds: range.headTurnIds,
         removedTokens: range.headTokens,
       };
