@@ -59,8 +59,6 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   approvalMode?: ApprovalMode;
   /** turn 开始时注入的历史消息条数（context-overflow 压缩后据此重建内存历史前缀） */
   historyCount: number;
-  /** 是否为新建 turn（非恢复暂停/失败 turn），决定首次 callModel 前是否做压力压缩 */
-  isNewTurn: boolean;
 }
 
 

@@ -283,13 +283,11 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     const latestTurn = await this.thread.getLatestTurn(thread.id);
     let turn;
     let checkpoint;
-    let isNewTurn = false;
     if (latestTurn && latestTurn.status !== 'completed') {
       turn = latestTurn;
       checkpoint = await this.checkpointStore.getLatest(latestTurn.id)
     } else {
       turn = await this.thread.createTurn(thread.id);
-      isNewTurn = true;
     }
 
     if (!checkpoint) {
@@ -298,7 +296,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     const session: TurnSession = { workspace, thread, turn };
-    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode, isNewTurn });
+    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -311,9 +309,8 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     reasoning?: ReasoningEffort;
     modelClient: ModelClient;
     approvalMode?: ApprovalMode;
-    isNewTurn: boolean;
   }): Promise<TurnResult> {
-    const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode, isNewTurn } = params;
+    const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode } = params;
 
     this.emit({ type: 'turn.start', thread: session.thread, turn: session.turn });
     controller.enqueue({ type: 'start' });
@@ -348,7 +345,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         modelClient,
         approvalMode,
         historyCount,
-        isNewTurn,
       };
 
       // 从 session 加载会话配置
@@ -356,6 +352,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
       // 保存本轮会话消息
       await this.persistMessages(context, userMessages);
+
+      // 历史压力压缩
+      await this.compactForPressure(context);
 
       loopResult = await this.runLoop(context);
 
@@ -659,11 +658,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     let usage = emptyUsage();
 
-    // 新建 turn 的首次模型调用前做窗口压力压缩（恢复暂停/失败 turn 时跳过）
-    if (context.isNewTurn && step.index === 0) {
-      await this.compactForPressure(context);
-    }
-
     const modelResult = await this.callModel(step, context);
 
     // 如果模型调用出错，提前结束
@@ -846,8 +840,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   }
 
   /**
-   * 新 turn 首次 callModel 前的压力压缩。直接复用 TurnContext（已注入历史 + historyCount + session.turn），
-   * 不再自行查询历史。未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
+   * 历史压力压缩，在 loadSessionApprovals 之后、持久化本轮用户消息之前调用。
+   * 直接复用 TurnContext（已注入历史 + historyCount + session.turn），不再自行查询历史。
+   * 未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
    */
   private async compactForPressure(context: TurnContext<TToolSet>): Promise<void> {
     if (!this.compactor) return;

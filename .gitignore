@@ -8,5 +8,5 @@ data/
 .playwright-mcp
 .superpowers
 tsconfig.tsbuildinfo
-
+.pnpm-store/*
 vico/**/*.js
