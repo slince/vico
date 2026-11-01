@@ -33,7 +33,7 @@ function EditView({result}: {result: EditResult}) {
   const {t} = useTranslation('assistant');
   return (
     <div className="space-y-1.5">
-      <FileLink path={result.path} className="text-[11px] text-muted-foreground" />
+      <FileLink path={result.path} className="text-[11px]" />
       {result.replacements > 0 && (
         <p className="text-xs text-muted-foreground">{t('tool.fileWrite.replacements', {n: result.replacements})}</p>
       )}

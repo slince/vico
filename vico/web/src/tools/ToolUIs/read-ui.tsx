@@ -45,7 +45,7 @@ function ReadView({result, args}: {result: ReadResult; args: ReadArgs}) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
-        <FileLink path={result.path} className="min-w-0 text-[11px] text-muted-foreground" />
+        <FileLink path={result.path} className="min-w-0 text-[11px]" />
         <div className="flex items-center gap-2 shrink-0">
           {startLine != null && (
             <span className="font-mono text-[11px] text-muted-foreground">

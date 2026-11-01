@@ -42,7 +42,7 @@ export function FileLink({ path, className, ...props }: FileLinkProps) {
       aria-label={`打开文件 ${path}`}
       onClick={() => openFileReference(path)}
       className={cn(
-        'inline-flex max-w-full cursor-pointer items-center gap-1 rounded-sm px-0.5 align-baseline font-mono text-[0.85em] text-primary transition-colors hover:bg-accent hover:underline underline-offset-2',
+        'inline-flex max-w-full cursor-pointer items-center gap-1 rounded-sm px-0.5 align-baseline font-mono text-[0.85em] text-blue-600 dark:text-blue-400 transition-colors hover:bg-accent hover:underline underline-offset-2',
         className,
       )}
       {...props}

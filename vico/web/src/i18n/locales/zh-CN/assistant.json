@@ -40,6 +40,7 @@
     "archived": "已归档"
   },
   "welcome": { "title": "请问有什么可以帮您？" },
+  "thinking": { "runningTool": "正在运行 {{tool}}" },
   "thread": {
     "scrollToBottom": "滚动到底部",
     "sendMessage": "发送消息",

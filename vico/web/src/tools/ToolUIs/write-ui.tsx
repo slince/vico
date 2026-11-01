@@ -16,7 +16,7 @@ function WriteView({result}: {result: WriteResult}) {
   const actionText = result.action === 'created' ? t('tool.fileWrite.created') : t('tool.fileWrite.updated');
   return (
     <div className="space-y-1 text-xs">
-      <FileLink path={result.path} className="text-muted-foreground" />
+      <FileLink path={result.path} />
       <p className="text-muted-foreground">
         {actionText} · {t('tool.fileWrite.lines', {n: result.lines})} · {t('tool.fileWrite.bytes', {n: result.size})}
       </p>

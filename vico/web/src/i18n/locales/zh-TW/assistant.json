@@ -38,6 +38,7 @@
     "archived": "已歸檔"
   },
   "welcome": { "title": "請問有什麼可以幫您？" },
+  "thinking": { "runningTool": "正在執行 {{tool}}" },
   "thread": {
     "scrollToBottom": "捲動到底部",
     "sendMessage": "發送訊息",

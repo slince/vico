@@ -2,6 +2,7 @@
 
 import {useEffect, useState} from "react";
 import {useAuiState} from "@assistant-ui/react";
+import {useTranslation} from "react-i18next";
 import {toolkit} from "@/tools/toolkit";
 import type {VicoToolkitDefinitionEntry} from "@/tools/tool-summary";
 import {ThinkingIndicator} from "./elements/thinking-indicator";
@@ -10,6 +11,7 @@ import {ThinkingIndicator} from "./elements/thinking-indicator";
 const tools = toolkit as Record<string, VicoToolkitDefinitionEntry | undefined>;
 
 function useThinkingLabel() {
+  const {t} = useTranslation("assistant");
   return useAuiState((s) => {
     if (s.message.status?.type !== "running") return undefined;
     const pending = s.message.parts.find(
@@ -20,10 +22,10 @@ function useThinkingLabel() {
       const description = tools[pending.toolName]
         ?.summarize?.(pending.args)
         ?.description?.trim();
-      return description || `Running ${pending.toolName}`;
+      return description || t("thinking.runningTool", {tool: pending.toolName});
     }
     // 只要 agent 还在运行就持续显示：有 pending 工具展示其 description，否则始终 "Thinking"
-    return "Thinking";
+    return t("message.thinking");
   });
 }
 

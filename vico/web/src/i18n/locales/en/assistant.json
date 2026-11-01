@@ -38,6 +38,7 @@
     "archived": "Archived"
   },
   "welcome": { "title": "How can I help you?" },
+  "thinking": { "runningTool": "Running {{tool}}" },
   "thread": {
     "scrollToBottom": "Scroll to bottom",
     "sendMessage": "Send message",
