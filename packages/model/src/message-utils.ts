@@ -43,8 +43,10 @@ export function getMessageText(msg: ModelMessage): string {
 /**
  * 选取消息组中的"主用户消息"：最后一条 user 角色消息，无则取末条。
  * 供 thread 标题、tracer 记录、ctx.userMessage 等单消息语义场景使用。
+ *
+ * 泛型 T 允许传入 ModelMessage 的扩展形态（如 AgentMessage），返回同形态消息。
  */
-export function pickPrimaryUserMessage(messages: ModelMessage[]): ModelMessage | undefined {
+export function pickPrimaryUserMessage<T extends ModelMessage>(messages: T[]): T | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') return messages[i];
   }

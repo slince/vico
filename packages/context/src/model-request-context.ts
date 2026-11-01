@@ -2,8 +2,7 @@
 import type {ModelMessage} from 'ai';
 import {getMessageText, pickPrimaryUserMessage} from '@vico/model';
 import type {Tool} from '@vico/tool';
-import type {Thread} from '@vico/thread';
-import type {TurnSession, TurnStep} from '@vico/thread';
+import type {AgentMessage, Thread, TurnSession, TurnStep} from '@vico/thread';
 import {PromptSectionBuilder} from './prompt-section-builder.js';
 import {ToolRegistry} from './tool-registry.js';
 
@@ -21,10 +20,10 @@ export interface AgentRef {
 export class ModelRequestContext {
   /** Agent 配置（只读引用） */
   readonly agent: AgentRef;
-  /** 本轮输入消息组 */
+  /** 本轮输入消息组 — 用户原始输入，无 usage 等扩展字段 */
   readonly userMessages: ModelMessage[];
   /** 消息列表 — 处理器可追加 history（unshift） */
-  messages: ModelMessage[];
+  messages: AgentMessage[];
   /** 暴露给 LLM 的工具注册表（以工具名为键，处理器可增删改查） */
   tools: ToolRegistry;
   /** 当前 turn 会话（身份 + 线程引用） */
@@ -46,7 +45,7 @@ export class ModelRequestContext {
   }: {
     agent: AgentRef;
     userMessages?: ModelMessage[];
-    messages?: ModelMessage[];
+    messages?: AgentMessage[];
     tools?: Tool[];
     session?: TurnSession;
     step?: TurnStep;
