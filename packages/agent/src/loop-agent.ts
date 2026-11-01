@@ -196,7 +196,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 统一中断源：TurnOutput.abort() / 流 cancel 直接取消它，外部 signal 经聚合联动到同一 ac
     const abortController = createAggregatedAbortController(options.signal);
-    
+
     const stream = new ReadableStream<TextStreamPart<TToolSet>>({
       start: async (controller) => {
         try {
@@ -677,7 +677,6 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     if (modelResult.text || modelResult.toolCalls.length > 0) {
       const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning, pendingApprovalCalls);
       context.messages.push(assistantMsg);
-
       // usage 与 assistant 消息一一对应：仅在持久化副本上挂载，消息链保持纯净（不随上下文发给模型）
       await this.persistMessages(context, [{ ...assistantMsg, usage: modelResult.usage }]);
     }
