@@ -4,6 +4,8 @@
     "thinking": "思考中...",
     "copy": "複製",
     "copied": "已複製！",
+    "completed": "已完成",
+    "completedWithDuration": "已完成，用時 {{duration}}",
     "tokenUsage": {
       "label": "Token 用量",
       "input": "輸入",
@@ -143,6 +145,7 @@
       "title": "向使用者釐清",
       "modeSingle": "單選",
       "modeMultiple": "多選",
+      "recommended": "推薦",
       "customPlaceholder": "或自由填寫...",
       "submit": "送出",
       "deny": "拒絕回答",

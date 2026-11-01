@@ -3,10 +3,11 @@ import {z} from 'zod';
 import {createTool} from '../create-tool.js';
 import type {ToolCallContext} from '../types.js';
 
-/** 结构化候选项：label + 可选描述 */
+/** 结构化候选项：label + 可选描述 + 可选“推荐”标记 */
 const askUserOptionSchema = z.object({
   label: z.string().describe('User-visible label for the option'),
   description: z.string().optional().describe('One-line note on the option’s impact or trade-offs'),
+  recommended: z.boolean().optional().describe('Whether this is the recommended option; the UI marks it with a badge'),
 });
 
 /** 单个待回答的问题 */
@@ -15,7 +16,7 @@ const askUserQuestionSchema = z.object({
   question: z.string().describe('The specific question to clarify with the user'),
   header: z.string().optional().describe('Optional short header, e.g. "Confirm" or "Choose mode"'),
   detail: z.string().optional().describe('Supplementary detail shown with the question, not used as an option label'),
-  options: z.array(askUserOptionSchema).optional().describe('Optional choices; put the recommended one first and append "(Recommended)" to its label'),
+  options: z.array(askUserOptionSchema).optional().describe('Optional choices; set `recommended: true` on the option you recommend (typically first)'),
   multiSelect: z.boolean().optional().describe('Whether multiple selections are allowed; defaults to single-select'),
 });
 
@@ -88,7 +89,7 @@ async function executeAskUser(_args: z.infer<typeof askUserParams>, ctx: ToolCal
 export const askUserTool = createTool({
   name: 'ask_user',
   description:
-    'Use when you need to ask the user to clarify, provide more information, or make a choice. Submit questions (a list, so you can ask several at once); each question has id and question, plus optional header, detail, options (choice label + description), and multiSelect. Wait for the user’s answer before continuing. For single-select the user can type freely (custom overrides the selection) or pick one option; for multi-select the user picks several options and custom supplements them.',
+    'Use when you need to ask the user to clarify, provide more information, or make a choice. Submit questions (a list, so you can ask several at once); each question has id and question, plus optional header, detail, options (choice label + description + optional `recommended` flag to mark the suggested choice), and multiSelect. Wait for the user’s answer before continuing. For single-select the user can type freely (custom overrides the selection) or pick one option; for multi-select the user picks several options and custom supplements them.',
   inputSchema: askUserParams,
   outputSchema: askUserOutputSchema,
   policy: 'always',

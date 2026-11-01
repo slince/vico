@@ -66,13 +66,25 @@ function QuestionField({question, state, disabled, onToggle, onCustom}: Question
                 onClick={() => onToggle(option.label)}
                 disabled={disabled}
                 className={cn(
-                  'px-2.5 py-1 text-xs rounded-full border transition-colors disabled:opacity-50',
+                  'inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border transition-colors disabled:opacity-50',
                   isSelected
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border bg-background hover:bg-muted',
                 )}
               >
                 {option.label}
+                {option.recommended === true && (
+                  <span
+                    className={cn(
+                      'text-[10px] leading-none px-1 py-0.5 rounded-full border',
+                      isSelected
+                        ? 'border-primary/40 bg-background/60 text-primary'
+                        : 'border-primary/30 bg-primary/10 text-primary',
+                    )}
+                  >
+                    {t('tool.askUser.recommended')}
+                  </span>
+                )}
               </button>
             );
           })}

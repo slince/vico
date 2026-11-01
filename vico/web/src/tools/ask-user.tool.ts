@@ -14,6 +14,7 @@ import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-su
 const askUserOptionSchema = z.object({
   label: z.string(),
   description: z.string().optional(),
+  recommended: z.boolean().optional(),
 });
 const askUserQuestionSchema = z.object({
   id: z.string(),

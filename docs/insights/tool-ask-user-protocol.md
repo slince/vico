@@ -13,7 +13,7 @@ ask_user 是 `@vico/core` 内置的 HITL 澄清工具：LLM 暂停 turn，向用
     "question": "是否清理这三个文件？",
     "header": "确认",
     "detail": "将删除 3 个过期文件",
-    "options": [{ "label": "删除 (推荐)", "description": "移除过期文件" }],
+    "options": [{ "label": "删除", "description": "移除过期文件", "recommended": true }],
     "multiSelect": false
   }]
 }
@@ -22,12 +22,13 @@ ask_user 是 `@vico/core` 内置的 HITL 澄清工具：LLM 暂停 turn，向用
 输出（`answers[]`，逐条对应问题）：
 
 ```json
-{ "answers": [{ "id": "cleanup", "selected": ["删除 (推荐)"], "custom": "" }] }
+{ "answers": [{ "id": "cleanup", "selected": ["删除"], "custom": "" }] }
 ```
 
 语义约定：
 - **单选**：自由文本 `custom` **覆盖** `selected`
 - **多选**：自由文本 `custom` **补充** `selected`
+- 候选项可带 `recommended: true` 标记推荐项（通常放在第一位），前端在选项后渲染「推荐」徽标；该字段仅作展示提示，不影响回答编码（`selected` 仍是选项 `label`）
 - 未回答的问题保留 `{ id, selected: [] }`，不破坏批量结构
 
 ## 机制（数据流）
@@ -50,7 +51,7 @@ deepseek-harness 的 `ask_user_question` 用「execute 内 await 能力缝 water
 
 ## 相关文件
 
-- 后端：`packages/core/src/tool/builtin/basic/ask-user-tool.ts`（schema + `parseAskUserAnswers` + execute 读 `ctx.approval.reason`）
-- 后端：`packages/core/src/agent/tool-executor.ts`（execute 逐 call 注入 approval）
-- 后端：`packages/core/src/tool/types.ts`（`ToolCallContext.approval` 字段）
+- 后端：`packages/tool/src/builtin/ask-user-tool.ts`（schema + `parseAskUserAnswers` + execute 读 `ctx.approval.reason`）
+- 后端：`packages/tool/src/tool-executor.ts`（execute 逐 call 注入 approval）
+- 后端：`packages/tool/src/types.ts`（`ToolCallContext.approval` 字段）
 - 前端：`vico/web/src/tools/ask-user.tool.ts`、`vico/web/src/tools/ToolUIs/ask-user-ui.tsx`

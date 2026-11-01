@@ -9,11 +9,12 @@
 import {type PartState, type ToolCallMessagePartProps, useAui, useAuiState,} from "@assistant-ui/react";
 import {CheckIcon, ChevronRightIcon} from "lucide-react";
 import {createContext, type ReactNode, useContext, useEffect, useRef, useState,} from "react";
+import {useTranslation} from "react-i18next";
 
 import {cn} from "@/lib/utils";
 import {toolkit} from "@/tools/toolkit";
 import type {VicoToolkitDefinitionEntry} from "@/tools/tool-summary";
-import {formatElapsedCn} from "../utils/task";
+import {formatElapsed, formatElapsedCn} from "../utils/task";
 import {CollapsibleContent, CollapsibleRoot as Collapsible, CollapsibleTrigger,} from "./collapsible-root";
 import {collapsePanel} from "./surfaces";
 import {ToolFallback} from "./tool-fallback.aui";
@@ -103,19 +104,28 @@ function useMessageStreamDuration(): number | undefined {
 function CompletedActivityGroup({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const elapsed = useContext(MessageStreamDurationContext);
+  const {t, i18n} = useTranslation("assistant");
 
-  const duration = elapsed !== undefined ? formatElapsedCn(elapsed) : undefined;
+  // 时长文案跟随当前语言：中文用「分/秒」，其余语言用英文缩写
+  const isZh = i18n.language?.toLowerCase().startsWith("zh");
+  const duration =
+    elapsed !== undefined
+      ? isZh
+        ? formatElapsedCn(elapsed)
+        : formatElapsed(elapsed)
+      : undefined;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="my-2">
-      <CollapsibleTrigger className="group/trigger text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex w-full items-center gap-1.5 rounded-md py-1 text-sm outline-none focus-visible:ring-[3px]">
+      <CollapsibleTrigger className="group/trigger text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex w-full cursor-pointer items-center gap-1.5 rounded-md py-1 text-sm outline-none focus-visible:ring-[3px]">
         <CheckIcon
           aria-hidden="true"
           className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
         />
         <span className="text-foreground/80 tabular-nums">
-          已完成
-          {duration !== undefined && <>，用时 {duration}</>}
+          {duration !== undefined
+            ? t("message.completedWithDuration", {duration})
+            : t("message.completed")}
         </span>
         <ChevronRightIcon
           aria-hidden="true"

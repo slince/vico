@@ -6,6 +6,8 @@
     "loading": "加载对话中...",
     "copy": "复制",
     "copied": "已复制！",
+    "completed": "已完成",
+    "completedWithDuration": "已完成，用时 {{duration}}",
     "tokenUsage": {
       "label": "Token 用量",
       "input": "输入",
@@ -147,6 +149,7 @@
       "title": "向用户澄清",
       "modeSingle": "单选",
       "modeMultiple": "多选",
+      "recommended": "推荐",
       "customPlaceholder": "或自由填写...",
       "submit": "提交",
       "deny": "拒绝回答",
