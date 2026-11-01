@@ -47,7 +47,6 @@ export class ModelContextCompactor implements ContextCompactor {
 
   private readonly locks = new KeyedMutex();
   private readonly busyThreads = new Set<string>();
-  private readonly overflowRetries = new WeakMap<Thread, number>();
 
   constructor(options: ModelContextCompactorOptions) {
     this.thread = options.thread;
@@ -57,16 +56,8 @@ export class ModelContextCompactor implements ContextCompactor {
     this.settings = resolveSettings(options.settings);
   }
 
-  noteModelSuccess(thread: Thread): void {
-    this.overflowRetries.delete(thread);
-  }
-
   async compactIfNeeded(thread: Thread, modelClient: ModelClient, trigger: CompactionTrigger, signal: AbortSignal): Promise<CompactionResult | null> {
     if (!this.settings.auto) return null;
-    if (trigger === 'context-overflow') {
-      const r = this.overflowRetries.get(thread) ?? 0;
-      if (r >= this.settings.maxOverflowRetries) return null; // 超限，不再重试
-    }
     return this.locks.run(thread.id, () => this.compactLocked(thread, modelClient, trigger, signal));
   }
 
@@ -131,10 +122,6 @@ export class ModelContextCompactor implements ContextCompactor {
         ...(candidate.summaryEntryId ? [candidate.summaryEntryId] : []),
         ...headMessageIds,
       ]);
-
-      if (trigger === 'context-overflow') {
-        this.overflowRetries.set(thread, (this.overflowRetries.get(thread) ?? 0) + 1);
-      }
 
       return {
         summaryMessageId: created.id,

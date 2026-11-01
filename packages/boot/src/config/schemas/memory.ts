@@ -12,7 +12,6 @@ export const memoryCompactionSchema = z.object({
   summarization_provider: z.string().optional(),
   summarization_model: z.string().optional(),
   max_tokens: z.number().optional(),
-  max_overflow_retries: z.number().optional(),
 });
 
 /** 记忆配置（短期窗口 / 长期抽取 / 上下文压缩 / 语义记忆后端） */

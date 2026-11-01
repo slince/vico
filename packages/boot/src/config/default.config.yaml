@@ -23,7 +23,6 @@ memory:
     headroom_tokens: 65536
     retain_ratio: 0.16
     max_tokens: 65536
-    max_overflow_retries: 1
 
 model:
   context_window: 131072

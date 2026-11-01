@@ -904,9 +904,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     const first = await attempt();
 
-    // 正常响应 → 清零 context-overflow 重试计数
     if (!first.error) {
-      this.compactor?.noteModelSuccess(context.session.thread);
       return first;
     }
 

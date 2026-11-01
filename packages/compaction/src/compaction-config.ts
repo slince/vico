@@ -10,7 +10,6 @@ export interface CompactionSettings {
   summarizationProvider?: string;
   summarizationModel?: string;
   maxTokens?: number;
-  maxOverflowRetries?: number;
 }
 
 /** 解析后的压缩设置（全部非可选） */
@@ -23,7 +22,6 @@ export interface ResolvedCompactionSettings {
   summarizationProvider?: string;
   summarizationModel?: string;
   maxTokens: number;
-  maxOverflowRetries: number;
 }
 
 export const DEFAULT_COMPACTION_SETTINGS: ResolvedCompactionSettings = {
@@ -32,7 +30,6 @@ export const DEFAULT_COMPACTION_SETTINGS: ResolvedCompactionSettings = {
   headroomTokens: 65536,
   retainRatio: 0.16,
   maxTokens: 65536,
-  maxOverflowRetries: 1,
 };
 
 /**
