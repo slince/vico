@@ -58,6 +58,7 @@ import {
   ThumbsUpIcon,
 } from "lucide-react";
 import {type ComponentType, createContext, type FC, type PropsWithChildren, useContext,} from "react";
+import {AssistantThinking} from "@/components/assistant-ui/assistant-thinking";
 import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
 import {AgentSelectorAction} from "@/components/assistant-ui/agent-selector-action";
 import {ApprovalModeSelectorAction} from "@/components/assistant-ui/approval-mode-selector-action";
@@ -637,6 +638,8 @@ const AssistantMessage: FC = () => {
             }
           }}
         </MessagePrimitive.GroupedParts>
+        {/* 运行中的活动指示（思考中 / 正在执行某工具 + 已用时）；非运行态内部自动返回 null */}
+        <AssistantThinking />
         <MessageError />
       </div>
 
