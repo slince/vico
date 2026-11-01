@@ -105,35 +105,21 @@ export interface TurnTokenBudget {
   tokens: number;
 }
 
-/** 压缩区间：待归档 head */
-export interface CompactableRange {
-  headTurnIds: string[];
-  headTokens: number;
-}
-
 /**
- * 从尾部向前累计 token 到 retainTokens 预算，head 为剩余 turn（对齐 deepseek selectCompactableRange 的 turn 粒度简化）。
- * summaryTokens 计入 head（旧摘要随增量折叠进新摘要）。
+ * 从尾部向前累计 token 到 retainTokens 预算，返回待归档 head 的 turnId 列表（最旧在前）。
  * retainTokens <= 0 表示不保留尾部（context-overflow 强制压缩全部）；总 token 不足预算或 head 为空返回 null。
  */
-export function selectCompactableRange(
-  turns: TurnTokenBudget[],
-  summaryTokens: number,
-  retainTokens: number,
-): CompactableRange | null {
-  let tailStart = turns.length;
-  if (retainTokens > 0) {
-    let tailRoute = 0;
-    for (let i = turns.length - 1; i >= 0; i--) {
-      tailRoute += turns[i].tokens;
-      if (tailRoute >= retainTokens) { tailStart = i; break; }
-    }
-    if (tailRoute < retainTokens) return null; // 尾部累计不足预算，全部保留
+export function selectCompactableRange(turns: TurnTokenBudget[], retainTokens: number): string[] | null {
+  if (retainTokens <= 0) {
+    return turns.length > 0 ? turns.map((t) => t.turnId) : null;
   }
-  if (tailStart === 0) return null; // 无 head turn
-  const head = turns.slice(0, tailStart);
-  return {
-    headTurnIds: head.map((t) => t.turnId),
-    headTokens: summaryTokens + head.reduce((s, t) => s + t.tokens, 0),
-  };
+  let tailTokens = 0;
+  for (let i = turns.length - 1; i >= 0; i--) {
+    tailTokens += turns[i].tokens;
+    if (tailTokens >= retainTokens) {
+      // i 是 tail 的起点；i===0 时 head 为空
+      return i > 0 ? turns.slice(0, i).map((t) => t.turnId) : null;
+    }
+  }
+  return null; // 总 token 不足预算，全部保留
 }

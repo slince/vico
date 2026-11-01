@@ -133,14 +133,13 @@ export class ModelContextCompactor implements ContextCompactor {
         return null;
       }
 
-      const range = selectCompactableRange(
+      const headTurnIds = selectCompactableRange(
         candidate.map((t) => ({ turnId: t.turnId, tokens: estimateMessages(t.messages) })),
-        0, // 旧摘要已作为普通消息归入对应 turn，无独立 summary token
         retainTokens,
       );
-      if (!range) return null;
+      if (!headTurnIds) return null;
 
-      const headTurns = candidate.filter((t) => range.headTurnIds.includes(t.turnId));
+      const headTurns = candidate.filter((t) => headTurnIds.includes(t.turnId));
       const headMessages = headTurns.flatMap((t) => t.messages);
       const headMessageIds = headTurns.flatMap((t) => t.messageIds);
 
@@ -164,8 +163,8 @@ export class ModelContextCompactor implements ContextCompactor {
         summaryMessageId: created.id,
         // 内存消息链中的摘要按 user 角色注入（与 toModelMessages 的 summary→user 映射一致）
         summary: { id: created.id, role: 'user', content: summaryText, turnId: summaryTurnId },
-        archivedTurnIds: range.headTurnIds,
-        removedTokens: range.headTokens,
+        archivedTurnIds: headTurnIds,
+        removedTokens: estimateMessages(headMessages),
       };
     } finally {
       this.busyThreads.delete(thread.id);

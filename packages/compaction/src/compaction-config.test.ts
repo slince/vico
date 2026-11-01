@@ -59,23 +59,20 @@ describe('selectCompactableRange', () => {
 
   it('从尾部累计到 retainTokens，head = 剩余 turn', () => {
     // retainTokens=350：尾部累计 t3(300)→t2(500)>=350 停在 t2，保留 [t2,t3]，head=[t1]
-    const r = selectCompactableRange(turns, 50, 350);
-    expect(r!.headTurnIds).toEqual(['t1']);
-    expect(r!.headTokens).toBe(50 + 100);
+    expect(selectCompactableRange(turns, 350)).toEqual(['t1']);
   });
 
   it('总 token 不足 retainTokens 时返回 null（全部保留）', () => {
-    expect(selectCompactableRange(turns, 50, 1000)).toBeNull();
+    expect(selectCompactableRange(turns, 1000)).toBeNull();
   });
 
-  it('retainTokens=0 时压缩全部 turn（head = 全部）', () => {
-    const r = selectCompactableRange(turns, 50, 0);
-    expect(r!.headTurnIds).toEqual(['t1', 't2', 't3']);
+  it('retainTokens<=0 时压缩全部 turn（head = 全部）', () => {
+    expect(selectCompactableRange(turns, 0)).toEqual(['t1', 't2', 't3']);
   });
 
   it('head 为空时返回 null', () => {
-    expect(selectCompactableRange([], 50, 0)).toBeNull();
-    // retainTokens 很小但只有一个 turn：tailStart 会落在 0 → null
-    expect(selectCompactableRange([{ turnId: 't1', tokens: 100 }], 0, 10)).toBeNull();
+    expect(selectCompactableRange([], 0)).toBeNull();
+    // 只有一个 turn 且其 token 已足够保留：head 为空 → null
+    expect(selectCompactableRange([{ turnId: 't1', tokens: 100 }], 10)).toBeNull();
   });
 });
