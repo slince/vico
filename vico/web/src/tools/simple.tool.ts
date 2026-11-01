@@ -7,7 +7,7 @@
  */
 import {z} from 'zod/v4';
 import {ListChecks} from 'lucide-react';
-import {SimpleToolRenderer} from './ToolUIs/simple-ui';
+import {TodoWriteRenderer} from './ToolUIs/todo-ui';
 import type {ToolRunActivitySummary, VicoToolkitDefinitionEntry} from './tool-summary';
 
 // ── todo_write ──
@@ -43,6 +43,6 @@ export function summarizeTodoWrite(args: TodoWriteArgs): ToolRunActivitySummary 
 export const todoWriteTool: VicoToolkitDefinitionEntry<TodoWriteArgs, TodoWriteResult> = {
   description: '创建和更新结构化任务列表，用于跟踪多步任务的执行进度。每次调用会替换全部任务列表。',
   parameters: todoWriteSchema,
-  render: SimpleToolRenderer,
+  render: TodoWriteRenderer,
   summarize: summarizeTodoWrite,
 };

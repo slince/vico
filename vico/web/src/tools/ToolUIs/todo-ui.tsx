@@ -1,16 +1,11 @@
 /**
- * 简单工具 UI — 渲染 todo_write 工具（auto，无需审批）。
+ * 任务清单工具 UI — 渲染 todo_write 工具（auto，无需审批）。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
-import { useTranslation } from 'react-i18next';
+import {useTranslation} from 'react-i18next';
 import {ListChecks} from 'lucide-react';
 import {ToolCard} from './tool-card';
-import type {TodoWriteResult} from '../simple.tool';
-
-/** 工具名 → 图标 */
-const TOOL_ICON: Record<string, React.ElementType> = {
-  todo_write: ListChecks,
-};
+import type {TodoWriteArgs, TodoWriteResult} from '../simple.tool';
 
 /** todo 任务状态 → 展示颜色（tailwind 语义） */
 const TODO_STATUS_COLOR: Record<string, string> = {
@@ -47,10 +42,9 @@ function TodoView({result}: {result: TodoWriteResult}) {
 }
 
 /**
- * 简单工具渲染器 — 统一处理 simple 类工具（当前仅 todo_write）。
+ * 任务清单渲染器 — 渲染 todo_write 工具的结果。
  */
-export const SimpleToolRenderer: ToolCallMessagePartComponent = ({
-  toolName,
+export const TodoWriteRenderer: ToolCallMessagePartComponent<TodoWriteArgs, TodoWriteResult> = ({
   status,
   result,
   isError,
@@ -61,13 +55,11 @@ export const SimpleToolRenderer: ToolCallMessagePartComponent = ({
   respondToApproval,
 }) => {
   const {t} = useTranslation('assistant');
-  const title = t(`tool.simple.title.${toolName}`, {defaultValue: toolName});
-  const Icon = TOOL_ICON[toolName] ?? ListChecks;
 
   return (
     <ToolCard
-      title={title}
-      icon={Icon}
+      title={t('tool.simple.title.todo_write')}
+      icon={ListChecks}
       status={status}
       result={result}
       isError={isError}
@@ -77,7 +69,7 @@ export const SimpleToolRenderer: ToolCallMessagePartComponent = ({
       addResult={addResult}
       respondToApproval={respondToApproval}
     >
-      {result && toolName === 'todo_write' && <TodoView result={result} />}
+      {result && <TodoView result={result} />}
     </ToolCard>
   );
 };
