@@ -42,7 +42,7 @@
 
 ## edit 简化为单一字面量替换
 
-`editTool` 原本一个工具塞了 4 种模式（字面量替换 / 批量 `edits[]` / 行号范围编辑 / 行号插入），10 个参数 + 手写 if/else 判模式。行号编辑对 LLM 天然脆弱（行号漂移、模型数行不准），且全仓库无任何代码、eval 使用；deepseek 与 Claude Code 均已放弃行号编辑。现砍到只剩字面量替换：`{ path, oldText, newText, replaceAll? }`，一次一处或 `replaceAll` 全替换，「插入」用锚点字面量替换表达。前端 `vico/web/src/tools/filesystem.tool.ts` 的平行定义同步收敛。
+`editTool` 原本一个工具塞了 4 种模式（字面量替换 / 批量 `edits[]` / 行号范围编辑 / 行号插入），10 个参数 + 手写 if/else 判模式。行号编辑对 LLM 天然脆弱（行号漂移、模型数行不准），且全仓库无任何代码、eval 使用；deepseek 与 Claude Code 均已放弃行号编辑。现砍到只剩字面量替换：`{ path, oldText, newText, replaceAll? }`，一次一处或 `replaceAll` 全替换，「插入」用锚点字面量替换表达。前端 `vico/web/src/tools/edit.tool.ts`（原 `filesystem.tool.ts` 拆分而来）的平行定义同步收敛。
 
 替换核心对齐 deepseek `tool-fs` 的 `applyLiteralEdit`（`fs-local/src/fsio.ts`）：
 

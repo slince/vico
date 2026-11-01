@@ -10,7 +10,7 @@ import {Check, Copy, FileText} from 'lucide-react';
 import {guessLanguage} from '@/components/file-explorer/codemirror-language';
 import {SyntaxHighlighter} from '@/components/assistant-ui/elements/shiki-highlighter';
 import {ToolCard} from './tool-card';
-import type {ReadArgs, ReadResult} from '../filesystem.tool';
+import type {ReadArgs, ReadResult} from '../read.tool';
 
 /** 复制按钮 — 点击将文本写入剪贴板，成功后显示绿色对勾 */
 function CopyButton({text, label}: {text: string; label: string}) {

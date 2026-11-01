@@ -23,7 +23,19 @@
     "newThread": "New chat",
     "today": "Today",
     "yesterday": "Yesterday",
-    "earlier": "Earlier"
+    "earlier": "Earlier",
+    "unread": "Unread",
+    "search": "Search threads",
+    "noResults": "No threads found",
+    "newChat": "New Chat",
+    "loading": "Loading threads",
+    "running": "Running",
+    "rename": "Rename",
+    "moreOptions": "More options",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "delete": "Delete",
+    "archived": "Archived"
   },
   "welcome": { "title": "How can I help you?" },
   "thread": {

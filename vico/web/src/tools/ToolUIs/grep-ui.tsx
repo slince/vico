@@ -5,7 +5,7 @@ import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
 import {Search} from 'lucide-react';
 import {ToolCard} from './tool-card';
-import type {GrepArgs, GrepResult} from '../filesystem.tool';
+import type {GrepArgs, GrepResult} from '../grep.tool';
 
 /** grep 结果视图 — 搜索结果文本 */
 function GrepView({result}: {result: GrepResult}) {

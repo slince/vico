@@ -32,6 +32,7 @@ import {
   type ComponentPropsWithoutRef,
   type FC,
 } from "react";
+import {useTranslation} from "react-i18next";
 
 /** ThreadList 顶层组件 — searchable 控制是否渲染搜索框（默认 true），showNew 控制是否渲染新建按钮（默认 true） */
 export const ThreadList: FC<{ searchable?: boolean; showNew?: boolean }> = ({
@@ -60,6 +61,7 @@ export const ThreadListSearch = forwardRef<
     onValueChange: (value: string) => void;
   }
 >(({ className, value, onValueChange, ...props }, ref) => {
+  const {t} = useTranslation("assistant");
   return (
     <div data-slot="aui_thread-list-search" className="relative px-0.5 py-1">
       <SearchIcon
@@ -71,8 +73,8 @@ export const ThreadListSearch = forwardRef<
         type="search"
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
-        aria-label="Search threads"
-        placeholder="Search threads"
+        aria-label={t("threadList.search")}
+        placeholder={t("threadList.search")}
         className={cn("h-8 ps-8 text-sm", className)}
         {...props}
       />
@@ -115,27 +117,31 @@ export const ThreadListItems: FC<
 
 const DAY_IN_MS = 86_400_000;
 
+/** 返回日期分组对应的 i18n key（today/yesterday/earlier），渲染时再翻译 */
 const dateGroupLabel = (
   date: Date | undefined,
   startOfToday: number,
 ): string => {
-  if (!date || date.getTime() >= startOfToday) return "Today";
-  if (date.getTime() >= startOfToday - DAY_IN_MS) return "Yesterday";
-  return "Earlier";
+  if (!date || date.getTime() >= startOfToday) return "today";
+  if (date.getTime() >= startOfToday - DAY_IN_MS) return "yesterday";
+  return "earlier";
 };
 
 export type ThreadListGroup = { label: string; indices: number[] };
 
 /**
  * Filters the thread list by title and buckets the matches by last activity
- * (Today, Yesterday, Earlier). `groups` is null when no thread carries a
- * date, in which case `filteredIndices` keeps the runtime order.
+ * (today / yesterday / earlier i18n keys). `groups` is null when no thread
+ * carries a date, in which case `filteredIndices` keeps the runtime order.
  */
 export const useThreadListGroups = (searchQuery = "") => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
+  const {t} = useTranslation("assistant");
 
   const query = searchQuery.trim().toLowerCase();
+  // 未命名会话在搜索时按本地化默认标题匹配
+  const newChatFallback = t("threadList.newChat");
 
   return useMemo(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
@@ -145,7 +151,7 @@ export const useThreadListGroups = (searchQuery = "") => {
       .filter(
         ({ id }) =>
           !query ||
-          (itemsById.get(id)?.title || "New Chat")
+          (itemsById.get(id)?.title || newChatFallback)
             .toLowerCase()
             .includes(query),
       )
@@ -175,7 +181,7 @@ export const useThreadListGroups = (searchQuery = "") => {
       }
     }
     return { threadIds, filteredIndices, groups: result };
-  }, [threadIds, threadItems, query]);
+  }, [threadIds, threadItems, query, newChatFallback]);
 };
 
 const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
@@ -183,6 +189,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
 }) => {
   const { threadIds, filteredIndices, groups } =
     useThreadListGroups(searchQuery);
+  const {t} = useTranslation("assistant");
   const query = searchQuery.trim();
 
   if (query && filteredIndices.length === 0) {
@@ -191,7 +198,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
         data-slot="aui_thread-list-empty"
         className="text-muted-foreground px-2.5 py-4 text-sm"
       >
-        No threads found
+        {t("threadList.noResults")}
       </div>
     );
   }
@@ -212,7 +219,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
         data-slot="aui_thread-list-group-label"
         className="text-muted-foreground px-2.5 pt-3 pb-1 text-xs font-medium"
       >
-        {group.label}
+        {t(`threadList.${group.label}`)}
       </div>
       {group.indices.map((index) => (
         <ThreadListPrimitive.ItemByIndex
@@ -229,6 +236,7 @@ export const ThreadListNew = forwardRef<
   HTMLButtonElement,
   ComponentPropsWithoutRef<typeof Button> & { labelClassName?: string }
 >(({ className, labelClassName, children, ...props }, ref) => {
+  const {t} = useTranslation("assistant");
   return (
     <ThreadListPrimitive.New asChild>
       <Button
@@ -251,7 +259,7 @@ export const ThreadListNew = forwardRef<
               data-slot="aui_thread-list-new-label"
               className={cn("whitespace-nowrap", labelClassName)}
             >
-              New Thread
+              {t("threadList.newThread")}
             </span>
           </>
         )}
@@ -263,13 +271,14 @@ export const ThreadListNew = forwardRef<
 ThreadListNew.displayName = "ThreadListNew";
 
 const ThreadListSkeleton: FC = () => {
+  const {t} = useTranslation("assistant");
   return (
     <div className="flex flex-col gap-0.5">
       {Array.from({ length: 5 }, (_, i) => (
         <div
           key={i}
           role="status"
-          aria-label="Loading threads"
+          aria-label={t("threadList.loading")}
           data-slot="aui_thread-list-skeleton-wrapper"
           className="flex h-8 items-center px-2.5"
         >
@@ -285,6 +294,7 @@ const ThreadListSkeleton: FC = () => {
 
 export const ThreadListItem: FC = () => {
   const isRunning = useAuiState((s) => s.threadListItem.isRunning);
+  const {t} = useTranslation("assistant");
   const [isRenaming, setIsRenaming] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
@@ -324,9 +334,9 @@ export const ThreadListItem: FC = () => {
             data-slot="aui_thread-list-item-title"
             className="min-w-0 flex-1 truncate"
           >
-            <ThreadListItemPrimitive.Title fallback="New Chat" />
+            <ThreadListItemPrimitive.Title fallback={t("threadList.newChat")} />
           </span>
-          {isRunning && <span className="sr-only">Running</span>}
+          {isRunning && <span className="sr-only">{t("threadList.running")}</span>}
         </ThreadListItemPrimitive.Trigger>
       )}
       <ThreadListItemMore onRename={() => setIsRenaming(true)} />
@@ -339,6 +349,7 @@ const ThreadListItemRename: FC<{
 }> = ({ onDone }) => {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
+  const {t} = useTranslation("assistant");
   const [value, setValue] = useState(title);
   const inputRef = useRef<HTMLInputElement>(null);
   const settledRef = useRef(false);
@@ -380,7 +391,7 @@ const ThreadListItemRename: FC<{
       ref={inputRef}
       autoFocus
       data-slot="aui_thread-list-item-rename"
-      aria-label="Rename thread"
+      aria-label={t("threadList.rename")}
       value={value}
       className="h-7 min-w-0 flex-1 ps-2.5 pe-9 text-sm"
       onChange={(event) => setValue(event.target.value)}
@@ -409,6 +420,7 @@ const MORE_ITEM_DESTRUCTIVE_CLASS =
 const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
   // 归档会话不提供重命名 / 归档，改为「取消归档」
   const isArchived = useAuiState((s) => s.threadListItem.status === "archived");
+  const {t} = useTranslation("assistant");
 
   return (
     <ThreadListItemMorePrimitive.Root sharedFocusGroup>
@@ -420,7 +432,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
           className="data-[state=open]:bg-accent absolute end-1.5 top-1/2 size-6 -translate-y-1/2 cursor-pointer p-0 opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-3.5" />
-          <span className="sr-only">More options</span>
+          <span className="sr-only">{t("threadList.moreOptions")}</span>
         </Button>
       </ThreadListItemMorePrimitive.Trigger>
       <ThreadListItemMorePrimitive.Content
@@ -437,7 +449,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
             onSelect={onRename}
           >
             <PencilIcon className="size-4" />
-            Rename
+            {t("threadList.rename")}
           </ThreadListItemMorePrimitive.Item>
         )}
         {isArchived ? (
@@ -447,7 +459,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
               className={MORE_ITEM_CLASS}
             >
               <ArchiveRestoreIcon className="size-4" />
-              Unarchive
+              {t("threadList.unarchive")}
             </ThreadListItemMorePrimitive.Item>
           </ThreadListItemPrimitive.Unarchive>
         ) : (
@@ -457,7 +469,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
               className={MORE_ITEM_CLASS}
             >
               <ArchiveIcon className="size-4" />
-              Archive
+              {t("threadList.archive")}
             </ThreadListItemMorePrimitive.Item>
           </ThreadListItemPrimitive.Archive>
         )}
@@ -467,7 +479,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
             className={MORE_ITEM_DESTRUCTIVE_CLASS}
           >
             <TrashIcon className="size-4" />
-            Delete
+            {t("threadList.delete")}
           </ThreadListItemMorePrimitive.Item>
         </ThreadListItemPrimitive.Delete>
       </ThreadListItemMorePrimitive.Content>
@@ -478,6 +490,7 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
 /** 归档会话分区 — 仅在有归档会话时展示，点击条目切换时 assistant-ui 会自动取消归档 */
 const ArchivedThreadList: FC = () => {
   const archivedThreadIds = useAuiState((s) => s.threads.archivedThreadIds);
+  const {t} = useTranslation("assistant");
   if (archivedThreadIds.length === 0) return null;
 
   return (
@@ -486,7 +499,7 @@ const ArchivedThreadList: FC = () => {
       className="mt-2 border-t pt-1"
     >
       <div className="text-muted-foreground px-2.5 pt-1 pb-1 text-xs font-medium">
-        Archived
+        {t("threadList.archived")}
       </div>
       {archivedThreadIds.map((id, index) => (
         <ThreadListPrimitive.ItemByIndex

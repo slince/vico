@@ -5,7 +5,7 @@ import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
 import {FileSearch, FileText} from 'lucide-react';
 import {ToolCard} from './tool-card';
-import type {GlobArgs, GlobResult} from '../filesystem.tool';
+import type {GlobArgs, GlobResult} from '../glob.tool';
 
 /** glob 结果视图 — 文件路径列表 */
 function GlobView({result}: {result: GlobResult}) {
