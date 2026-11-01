@@ -145,7 +145,7 @@ export function ToolCard({
       }
 
       return (
-        <div className="border rounded-lg p-3 my-2 bg-muted/30">
+        <div className="p-3 my-2">
           <div className="flex items-center gap-2">
             <Icon size={14} className="text-muted-foreground" />
             <span className="text-sm font-medium">{title}</span>

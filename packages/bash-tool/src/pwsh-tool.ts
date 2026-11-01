@@ -14,7 +14,7 @@ const PWSH_ARGS = ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command'];
 const pwshParams = z.object({
   command: z.string().describe('The PowerShell command to execute'),
   timeout: z.number().min(1).max(600000).default(120000).describe('Timeout in milliseconds'),
-  dryRun: z.boolean().optional().describe('Preview the command without executing it'),
+  description: z.string().describe('The intent or purpose of running this command'),
 });
 
 /** pwsh 工具的结构化输出 */
@@ -41,7 +41,7 @@ export function createPwshTool(
   return createTool({
     name: 'pwsh',
     description:
-      'Execute a PowerShell command in the workspace root, primarily for Windows hosts, and return its standard output, standard error and exit code. Supports a timeout (default 120000ms). Set dryRun=true to preview the command without executing it.',
+      'Execute a PowerShell command in the workspace root, primarily for Windows hosts, and return its standard output, standard error and exit code. Supports a timeout (default 120000ms). Provide a description of the command intent.',
     inputSchema: pwshParams,
     outputSchema: pwshOutput,
     policy: 'auto',
@@ -49,10 +49,6 @@ export function createPwshTool(
     tags: ['requires-workspace'],
     async execute(args: z.infer<typeof pwshParams>, ctx: ToolCallContext): Promise<PwshOutput> {
       const cwd = resolveWorkspacePath(ctx.session.workspace!, '.');
-
-      if (args.dryRun) {
-        return { stdout: `[DRY RUN] Would execute in ${cwd}:\n  ${args.command}`, stderr: '', exitCode: null };
-      }
 
       const result = await executor.execute({ raw: args.command, segments: [], cwd, timeout: args.timeout });
 
