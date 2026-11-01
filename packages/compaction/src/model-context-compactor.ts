@@ -6,7 +6,7 @@ import {toModelMessages} from '@vico/thread';
 import type {ModelConfig} from '@vico/model';
 import {createLanguageModel, getMessageText, ModelClient} from '@vico/model';
 import {KeyedMutex} from '@vico/utils';
-import {estimateMessage, measure} from './token-estimator.js';
+import {estimateMessage, estimateMessages, measure} from './token-estimator.js';
 import {
   resolveCompactSpec,
   type ResolvedCompactionSettings,
@@ -91,15 +91,15 @@ export class ModelContextCompactor implements ContextCompactor {
         ...(candidate.summary ? [candidate.summary] : []),
         ...candidate.turns.flatMap((t) => t.messages),
       ];
-      const measurement = measure(allMessages);
+      const totalTokens = measure(allMessages);
 
       // pressure（非 compactNow）阈值判定
-      if (!opts.skipThreshold && trigger === 'pressure' && measurement.totalTokens < thresholdTokens) {
+      if (!opts.skipThreshold && trigger === 'pressure' && totalTokens < thresholdTokens) {
         return null;
       }
 
       const range = selectCompactableRange(
-        candidate.turns.map((t) => ({ turnId: t.turnId, tokens: measure(t.messages).surfaceTokens })),
+        candidate.turns.map((t) => ({ turnId: t.turnId, tokens: estimateMessages(t.messages) })),
         candidate.summary ? estimateMessage(candidate.summary) : 0,
         retainTokens,
       );
@@ -189,7 +189,7 @@ export class ModelContextCompactor implements ContextCompactor {
   private async summarize(head: AgentMessage[], oldSummary: AgentMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
     const client = this.resolveSummaryClient(modelClient);
     // shrink 基线 = 被归档口径（旧摘要 + head），与 selectCompactableRange 的 headTokens 一致
-    const headTokens = measure(head).surfaceTokens + (oldSummary ? estimateMessage(oldSummary) : 0);
+    const headTokens = estimateMessages(head) + (oldSummary ? estimateMessage(oldSummary) : 0);
 
     // 摘要输入：旧摘要折叠进新摘要（以 system 角色传入——summary 非 provider 可识别角色，避免 standardizePrompt 拒绝）
     const input: ModelMessage[] = [];

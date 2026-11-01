@@ -10,14 +10,6 @@ export const BLOCK_OVERHEAD = 4;
 /** 每条消息 role 字段框架开销 */
 export const ROLE_OVERHEAD = 4;
 
-/** 测量结果 */
-export interface TokenMeasurement {
-  /** usage 锚定后的投影 token；无可用 usage 时 = surfaceTokens */
-  totalTokens: number;
-  /** Σ 启发式估算 token */
-  surfaceTokens: number;
-}
-
 /**
  * 估算 content（string 或 parts 数组）的 token 数。
  * text/reasoning → 文本密度 + block 开销；tool-call → 名 + 参数 + block 开销；其它 → JSON 密度 + block 开销。
@@ -58,6 +50,11 @@ export function estimateMessage(msg: ModelMessage): number {
   return estimateContent(msg.content) + ROLE_OVERHEAD;
 }
 
+/** 批量启发式估算：逐消息求和（不含 usage 锚定） */
+export function estimateMessages(messages: ModelMessage[]): number {
+  return messages.reduce((sum, m) => sum + estimateMessage(m), 0);
+}
+
 /**
  * 找消息链中最近一条携带 usage 的消息，以其 input token 消耗量为基线，
  * 加上该消息之后其它消息的启发式估算。无可用 usage 时返回 null。
@@ -70,18 +67,16 @@ function anchoredTokens(messages: AgentMessage[]): number | null {
     const inputTokens = messages[i].usage?.inputTokens.total;
     if (inputTokens === undefined) continue;
     // input token 覆盖 [0..i]，其后的消息逐条估算补差
-    const trailing = messages.slice(i + 1).reduce((sum, m) => sum + estimateMessage(m), 0);
+    const trailing = estimateMessages(messages.slice(i + 1));
     return inputTokens + trailing;
   }
   return null;
 }
 
 /**
- * 批量测量：surfaceTokens 为逐消息启发式估算之和；totalTokens 优先用消息链
- * 最近一条 usage 的 input token 锚定（加其后消息估算），无可用 usage 时退化为 surfaceTokens。
+ * 测量当前上下文的 token 占用：优先用消息链最近一条 usage 的 input token 锚定
+ * （加其后消息估算），无可用 usage 时退化为纯启发式估算。
  */
-export function measure(messages: AgentMessage[]): TokenMeasurement {
-  const surfaceTokens = messages.reduce((sum, m) => sum + estimateMessage(m), 0);
-  const totalTokens = anchoredTokens(messages) ?? surfaceTokens;
-  return { totalTokens, surfaceTokens };
+export function measure(messages: AgentMessage[]): number {
+  return anchoredTokens(messages) ?? estimateMessages(messages);
 }

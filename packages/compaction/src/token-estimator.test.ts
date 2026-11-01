@@ -3,7 +3,7 @@ import type { ModelMessage } from 'ai';
 import type { AgentMessage } from '@vico/thread';
 import {
   BLOCK_OVERHEAD, CHARS_PER_TOKEN, ROLE_OVERHEAD,
-  estimateContent, estimateMessage, measure,
+  estimateContent, estimateMessage, estimateMessages, measure,
 } from './token-estimator.js';
 
 /** 构造字段齐全的 usage（input token 数可定制） */
@@ -44,9 +44,9 @@ describe('token-estimator', () => {
     expect(estimateMessage(msg)).toBe(Math.ceil(3 / CHARS_PER_TOKEN) + ROLE_OVERHEAD);
   });
 
-  it('measure 无 usage 时 totalTokens = surfaceTokens', () => {
-    const m = measure([{ role: 'user', content: 'hello' }]);
-    expect(m.totalTokens).toBe(m.surfaceTokens);
+  it('measure 无 usage 时退化为纯启发式估算', () => {
+    const messages: AgentMessage[] = [{ role: 'user', content: 'hello' }];
+    expect(measure(messages)).toBe(estimateMessages(messages));
   });
 
   it('measure 以最近一条 usage 的 input token 为基线，加其后消息估算', () => {
@@ -55,9 +55,7 @@ describe('token-estimator', () => {
       { role: 'assistant', content: 'reply', usage: usage(1000) },
       { role: 'user', content: 'second' },
     ];
-    const m = measure(messages);
-    expect(m.totalTokens).toBe(1000 + estimateMessage(messages[2]));
-    expect(m.surfaceTokens).toBe(messages.reduce((s, x) => s + estimateMessage(x), 0));
+    expect(measure(messages)).toBe(1000 + estimateMessage(messages[2]));
   });
 
   it('measure 取最近一条带 usage 的消息（忽略更早的 usage）', () => {
@@ -68,11 +66,10 @@ describe('token-estimator', () => {
       { role: 'assistant', content: 'd', usage: usage(200) },
       { role: 'user', content: 'e' },
     ];
-    const m = measure(messages);
-    expect(m.totalTokens).toBe(200 + estimateMessage(messages[4]));
+    expect(measure(messages)).toBe(200 + estimateMessage(messages[4]));
   });
 
-  it('usage 存在但 inputTokens.total 未上报时退化为 surfaceTokens', () => {
+  it('usage 存在但 inputTokens.total 未上报时退化为纯启发式估算', () => {
     const messages: AgentMessage[] = [
       { role: 'user', content: 'a' },
       {
@@ -84,7 +81,14 @@ describe('token-estimator', () => {
         },
       },
     ];
-    const m = measure(messages);
-    expect(m.totalTokens).toBe(m.surfaceTokens);
+    expect(measure(messages)).toBe(estimateMessages(messages));
+  });
+
+  it('estimateMessages 逐消息求和', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: 'a' },
+      { role: 'user', content: 'b' },
+    ];
+    expect(estimateMessages(messages)).toBe(estimateMessage(messages[0]) + estimateMessage(messages[1]));
   });
 });
