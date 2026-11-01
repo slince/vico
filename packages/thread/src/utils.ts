@@ -16,16 +16,17 @@ export function toModelMessages(entries: Message[]): ModelMessage[] {
 }
 
 /**
- * 待持久化消息：原生 ModelMessage 附带可选的单次调用用量。
- * usage 与消息一一对应 —— 仅 assistant 消息携带（该次模型调用的完整用量）。
+ * Agent 内部统一消息载体：原生 ModelMessage 附带 Vico 侧扩展字段。
+ * 当前扩展 usage（该次调用的完整用量，仅 assistant 消息携带）；
+ * 后续可在此继续追加 agent 运行时所需的其它元数据。
  */
-export type MessageWithUsage = ModelMessage & { usage?: UsageMetrics };
+export type AgentMessage = ModelMessage & { usage?: UsageMetrics };
 
 /**
  * 原生 ModelMessage → ThreadStore 持久化字段（content 原样透传，usage 写入 metadata）。
  * usage 仅存在于持久化副本，不进入发往模型的消息链。
  */
-export function fromModelMessage(msg: MessageWithUsage): Pick<Message, 'role'|'content'|'metadata'> {
+export function fromModelMessage(msg: AgentMessage): Pick<Message, 'role'|'content'|'metadata'> {
   const entry: Pick<Message, 'role'|'content'|'metadata'> = {
     role: msg.role,
     content: msg.content,
