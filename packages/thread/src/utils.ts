@@ -5,13 +5,18 @@ import type {ModelMessage, ToolUIPart, UIMessage} from 'ai';
 import type {ToolApprovalRequest, ToolApprovalResponse, ToolCallPart, ToolResultPart} from '@ai-sdk/provider-utils';
 
 /**
- * ThreadStore Message → 原生 ModelMessage（content 原样透传，不再反序列化）。
+ * ThreadStore Message → AgentMessage（content 原样透传，usage 从 metadata 还原）。
  * summary 是压缩内部角色，provider 不识别，统一映射为 user 消息注入。
  */
-export function toModelMessages(entries: Message[]): ModelMessage[] {
+export function toModelMessages(entries: Message[]): AgentMessage[] {
   return entries.map((e) => {
     const role = e.role === 'summary' ? 'user' : e.role;
-    return { role, content: e.content } as ModelMessage;
+    const msg = { role, content: e.content } as AgentMessage;
+    // usage 由 fromModelMessage 写入 metadata，这里还原到消息载体上
+    if (e.metadata?.usage !== undefined) {
+      msg.usage = e.metadata.usage as UsageMetrics;
+    }
+    return msg;
   });
 }
 
