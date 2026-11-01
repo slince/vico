@@ -1,5 +1,6 @@
-// @vico/compaction - Token 估算：分 part 定价 + ROLE/BLOCK 开销 + usage 锚定（对齐 deepseek dsh-token-meter）
+// @vico/compaction - Token 估算：分 part 定价 + ROLE/BLOCK 开销 + 消息链自带 usage 锚定
 import type {ModelMessage} from 'ai';
+import type {AgentMessage} from '@vico/thread';
 import {getMessageText} from '@vico/model';
 
 /** 每 token 对应字符数（固定启发式） */
@@ -9,15 +10,9 @@ export const BLOCK_OVERHEAD = 4;
 /** 每条消息 role 字段框架开销 */
 export const ROLE_OVERHEAD = 4;
 
-/** usage 锚定输入：最近 provider 上报 prompt token 与采样时 surface 快照 */
-export interface TokenAnchor {
-  pressureTokens: number;
-  sampledSurfaceTokens: number;
-}
-
 /** 测量结果 */
 export interface TokenMeasurement {
-  /** usage 锚定后的投影 token；无 anchor 时 = surfaceTokens */
+  /** usage 锚定后的投影 token；无可用 usage 时 = surfaceTokens */
   totalTokens: number;
   /** Σ 启发式估算 token */
   surfaceTokens: number;
@@ -64,14 +59,29 @@ export function estimateMessage(msg: ModelMessage): number {
 }
 
 /**
- * 批量测量：逐消息启发式估算后累加，有 anchor 时做 usage 投影。
- * 注意：anchor.pressureTokens 是 provider 上报的完整请求 input token（含 system prompt / 历史 / 工具定义），
- * 与 surfaceTokens（仅窗口内消息 + 摘要的启发式价格）口径不同，投影是近似校准而非精确换算。
+ * 找消息链中最近一条携带 usage 的消息，以其 input token 消耗量为基线，
+ * 加上该消息之后其它消息的启发式估算。无可用 usage 时返回 null。
+ *
+ * usage 是消息自带的 in-band 元数据（assistant 消息经 persistMessages 挂载），
+ * 其 input token 已覆盖该消息之前的完整上下文，故只需补算其后的增量。
  */
-export function measure(messages: ModelMessage[], anchor?: TokenAnchor): TokenMeasurement {
+function anchoredTokens(messages: AgentMessage[]): number | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const inputTokens = messages[i].usage?.inputTokens.total;
+    if (inputTokens === undefined) continue;
+    // input token 覆盖 [0..i]，其后的消息逐条估算补差
+    const trailing = messages.slice(i + 1).reduce((sum, m) => sum + estimateMessage(m), 0);
+    return inputTokens + trailing;
+  }
+  return null;
+}
+
+/**
+ * 批量测量：surfaceTokens 为逐消息启发式估算之和；totalTokens 优先用消息链
+ * 最近一条 usage 的 input token 锚定（加其后消息估算），无可用 usage 时退化为 surfaceTokens。
+ */
+export function measure(messages: AgentMessage[]): TokenMeasurement {
   const surfaceTokens = messages.reduce((sum, m) => sum + estimateMessage(m), 0);
-  const totalTokens = anchor
-    ? Math.max(0, anchor.pressureTokens + surfaceTokens - anchor.sampledSurfaceTokens)
-    : surfaceTokens;
+  const totalTokens = anchoredTokens(messages) ?? surfaceTokens;
   return { totalTokens, surfaceTokens };
 }

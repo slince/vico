@@ -1,7 +1,7 @@
 // @vico/compaction — ModelContextCompactor 默认实现（持久化增量滚动压缩）
 import {randomUUID} from 'node:crypto';
 import type {ModelMessage} from 'ai';
-import type {Thread, ThreadStore} from '@vico/thread';
+import type {AgentMessage, Thread, ThreadStore} from '@vico/thread';
 import {toModelMessages} from '@vico/thread';
 import type {ModelConfig} from '@vico/model';
 import {createLanguageModel, getMessageText, ModelClient} from '@vico/model';
@@ -27,9 +27,9 @@ function frameSummary(text: string): string {
 }
 
 /** 候选 surface 段：摘要（可空）+ 各已完成 turn 消息 */
-interface CandidateTurn { turnId: string; messages: ModelMessage[]; messageIds: string[] }
+interface CandidateTurn { turnId: string; messages: AgentMessage[]; messageIds: string[] }
 interface Candidate {
-  summary: ModelMessage | null;
+  summary: AgentMessage | null;
   summaryEntryId?: string;
   turns: CandidateTurn[];
 }
@@ -47,8 +47,6 @@ export class ModelContextCompactor implements ContextCompactor {
 
   private readonly locks = new KeyedMutex();
   private readonly busyThreads = new Set<string>();
-  private readonly pressureTokens = new Map<string, number>();
-  private readonly sampledSurfaceTokens = new Map<string, number>();
   private readonly overflowRetries = new WeakMap<Thread, number>();
 
   constructor(options: ModelContextCompactorOptions) {
@@ -57,16 +55,6 @@ export class ModelContextCompactor implements ContextCompactor {
     this.modelConfig = options.modelConfig;
     this.reservedCompletionTokens = options.maxTokens ?? 0;
     this.settings = resolveSettings(options.settings);
-  }
-
-  recordUsage(threadId: string, pressureTokens: number | undefined): void {
-    if (pressureTokens === undefined) {
-      // 无 usage 上报 → 清除锚点与上次采样，回退无锚定启发式估算（避免与后续 usage 错位配对）
-      this.pressureTokens.delete(threadId);
-      this.sampledSurfaceTokens.delete(threadId);
-      return;
-    }
-    this.pressureTokens.set(threadId, pressureTokens);
   }
 
   noteModelSuccess(thread: Thread): void {
@@ -99,17 +87,11 @@ export class ModelContextCompactor implements ContextCompactor {
       if (candidate.turns.length === 0) return null;
 
       const { retainTokens, thresholdTokens } = this.resolveSpec(trigger);
-      const allMessages = [
+      const allMessages: AgentMessage[] = [
         ...(candidate.summary ? [candidate.summary] : []),
         ...candidate.turns.flatMap((t) => t.messages),
       ];
-      // 锚定需 pressureTokens 与 sampledSurfaceTokens 同周期配对；任一缺失则退化为无锚定启发式估算
-      const hasAnchor = this.pressureTokens.has(thread.id) && this.sampledSurfaceTokens.has(thread.id);
-      const anchor = hasAnchor
-        ? { pressureTokens: this.pressureTokens.get(thread.id)!, sampledSurfaceTokens: this.sampledSurfaceTokens.get(thread.id)! }
-        : undefined;
-      const measurement = measure(allMessages, anchor);
-      this.sampledSurfaceTokens.set(thread.id, measurement.surfaceTokens);
+      const measurement = measure(allMessages);
 
       // pressure（非 compactNow）阈值判定
       if (!opts.skipThreshold && trigger === 'pressure' && measurement.totalTokens < thresholdTokens) {
@@ -204,7 +186,7 @@ export class ModelContextCompactor implements ContextCompactor {
    * 增量摘要：独立摘要模型（若配置）或复用传入 modelClient。
    * 失败（重试耗尽 / 空输出 / shrink check 不通过）时返回 null——调用方 no-op，不写摘要、不归档（spec §10）。
    */
-  private async summarize(head: ModelMessage[], oldSummary: ModelMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
+  private async summarize(head: AgentMessage[], oldSummary: AgentMessage | null, modelClient: ModelClient, signal: AbortSignal): Promise<string | null> {
     const client = this.resolveSummaryClient(modelClient);
     // shrink 基线 = 被归档口径（旧摘要 + head），与 selectCompactableRange 的 headTokens 一致
     const headTokens = measure(head).surfaceTokens + (oldSummary ? estimateMessage(oldSummary) : 0);

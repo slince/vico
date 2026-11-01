@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { ModelMessage } from 'ai';
+import type { AgentMessage } from '@vico/thread';
 import {
   BLOCK_OVERHEAD, CHARS_PER_TOKEN, ROLE_OVERHEAD,
   estimateContent, estimateMessage, measure,
 } from './token-estimator.js';
+
+/** 构造字段齐全的 usage（input token 数可定制） */
+function usage(inputTotal: number): NonNullable<AgentMessage['usage']> {
+  return {
+    inputTokens: { total: inputTotal, noCache: inputTotal, cacheRead: 0, cacheWrite: 0 },
+    outputTokens: { total: 10, text: 10, reasoning: 0 },
+  };
+}
 
 describe('token-estimator', () => {
   it('纯文本 string content 按 chars/4 + block 开销计', () => {
@@ -35,24 +44,47 @@ describe('token-estimator', () => {
     expect(estimateMessage(msg)).toBe(Math.ceil(3 / CHARS_PER_TOKEN) + ROLE_OVERHEAD);
   });
 
-  it('measure 无 anchor 时 totalTokens = surfaceTokens', () => {
+  it('measure 无 usage 时 totalTokens = surfaceTokens', () => {
     const m = measure([{ role: 'user', content: 'hello' }]);
     expect(m.totalTokens).toBe(m.surfaceTokens);
   });
 
-  it('measure 有 anchor 时 totalTokens = max(0, pressure + surface - sampled)', () => {
-    const m = measure(
-      [{ role: 'user', content: 'hello' }],
-      { pressureTokens: 1000, sampledSurfaceTokens: 800 },
-    );
-    expect(m.totalTokens).toBe(1000 + m.surfaceTokens - 800);
+  it('measure 以最近一条 usage 的 input token 为基线，加其后消息估算', () => {
+    const messages: AgentMessage[] = [
+      { role: 'user', content: 'first' },
+      { role: 'assistant', content: 'reply', usage: usage(1000) },
+      { role: 'user', content: 'second' },
+    ];
+    const m = measure(messages);
+    expect(m.totalTokens).toBe(1000 + estimateMessage(messages[2]));
+    expect(m.surfaceTokens).toBe(messages.reduce((s, x) => s + estimateMessage(x), 0));
   });
 
-  it('measure anchor 使投影为负时取 0', () => {
-    const m = measure(
-      [{ role: 'user', content: 'hello' }],
-      { pressureTokens: 10, sampledSurfaceTokens: 800 },
-    );
-    expect(m.totalTokens).toBe(0);
+  it('measure 取最近一条带 usage 的消息（忽略更早的 usage）', () => {
+    const messages: AgentMessage[] = [
+      { role: 'user', content: 'a' },
+      { role: 'assistant', content: 'b', usage: usage(100) },
+      { role: 'user', content: 'c' },
+      { role: 'assistant', content: 'd', usage: usage(200) },
+      { role: 'user', content: 'e' },
+    ];
+    const m = measure(messages);
+    expect(m.totalTokens).toBe(200 + estimateMessage(messages[4]));
+  });
+
+  it('usage 存在但 inputTokens.total 未上报时退化为 surfaceTokens', () => {
+    const messages: AgentMessage[] = [
+      { role: 'user', content: 'a' },
+      {
+        role: 'assistant',
+        content: 'b',
+        usage: {
+          inputTokens: { total: undefined, noCache: undefined, cacheRead: undefined, cacheWrite: undefined },
+          outputTokens: { total: 10, text: 10, reasoning: 0 },
+        },
+      },
+    ];
+    const m = measure(messages);
+    expect(m.totalTokens).toBe(m.surfaceTokens);
   });
 });

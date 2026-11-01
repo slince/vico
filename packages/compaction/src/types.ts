@@ -20,8 +20,6 @@ export interface CompactionResult {
 export interface ContextCompactor {
   compactIfNeeded(thread: Thread, modelClient: ModelClient, trigger: CompactionTrigger, signal: AbortSignal): Promise<CompactionResult | null>;
   compactNow(thread: Thread, modelClient: ModelClient, signal: AbortSignal): Promise<CompactionResult | null>;
-  /** pressureTokens 为 undefined 时表示本轮无 usage 上报，应清除锚点而非写入 0 */
-  recordUsage(threadId: string, pressureTokens: number | undefined): void;
   /** 任一 turn 收到正常 assistant 消息时调用，清零 context-overflow 重试计数 */
   noteModelSuccess(thread: Thread): void;
 }
