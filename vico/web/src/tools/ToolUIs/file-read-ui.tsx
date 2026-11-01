@@ -6,9 +6,9 @@
  *   glob → 匹配文件列表
  *   grep → 搜索结果文本
  */
-import {useEffect, useState} from 'react';
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
+import {useCopyToClipboard} from 'react-use';
 import {Check, Copy, FileSearch, FileText, Search} from 'lucide-react';
 import {guessLanguage} from '@/components/file-explorer/codemirror-language';
 import {SyntaxHighlighter} from '@/components/assistant-ui/elements/shiki-highlighter';
@@ -29,32 +29,19 @@ const TOOL_ICON: Record<string, React.ElementType> = {
   grep: Search,
 };
 
-/** 复制按钮 — 点击将文本写入剪贴板，成功后短暂显示对勾 */
+/** 复制按钮 — 点击将文本写入剪贴板，成功后显示绿色对勾 */
 function CopyButton({text, label}: {text: string; label: string}) {
-  const [copied, setCopied] = useState(false);
+  const [clipboard, copyToClipboard] = useCopyToClipboard();
 
-  // 复制成功后显示对勾，1.5s 后恢复；effect 里清理定时器避免重复触发
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 1500);
-    return () => clearTimeout(timer);
-  }, [copied]);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-    } catch {
-      // 剪贴板不可用（非 https 等）时静默忽略
-    }
-  };
+  // 复制成功且复制值等于目标文本时，显示绿色对勾
+  const copied = clipboard.value === text && clipboard.error == null;
 
   return (
     <button
       type="button"
       title={label}
       aria-label={label}
-      onClick={() => void copy()}
+      onClick={() => copyToClipboard(text)}
       className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
     >
       {copied ? (

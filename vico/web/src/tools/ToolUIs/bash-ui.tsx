@@ -42,7 +42,7 @@ function ExecResult({command, result}: {command: string; result?: BashResult}) {
             title={t('tool.exec.copy')}
             className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            {copied ? <Check size={12} /> : <Copy size={12} />}
+            {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
           </button>
         </div>
 
