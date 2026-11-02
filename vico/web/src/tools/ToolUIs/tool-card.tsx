@@ -145,7 +145,7 @@ function ToolCardShell({
         )}
       >
         <Icon size={14} className="shrink-0 text-muted-foreground" />
-        <span className={cn('text-sm font-medium truncate', style.title)}>
+        <span className={cn('text-sm truncate', style.title)}>
           {title}
         </span>
         {subtitle && (
