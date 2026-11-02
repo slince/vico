@@ -10,13 +10,14 @@ import {
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import { type FC, memo, useMemo, useRef } from "react";
-import type { TextMessagePartProps } from "@assistant-ui/react";
+import { useAuiState, type TextMessagePartProps } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { FileLink } from "@/components/assistant-ui/elements/file-link";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { isFilePathCandidate, isFileLinkHref } from "@/lib/file-link";
+import { isFileLinkHref } from "@/lib/file-link";
+import { collectFilePaths, resolveFileMention } from "@/lib/file-mentions";
 import { cn } from "@/lib/utils";
 
 type MarkdownTextProps = Partial<TextMessagePartProps> & {
@@ -40,14 +41,21 @@ const useShallowStable = <T extends Record<string, unknown> | undefined>(
 };
 
 const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
+  // 当前 assistant 消息（message 渲染树内自动绑定），收集本消息真实文件路径。
+  // 文件链接只认「本消息里真实 read/write/edit/glob 过的文件」，不靠「像路径」启发式。
+  const message = useAuiState((s) => s.optional.message);
+  const filePaths = useMemo(() => collectFilePaths(message), [message]);
+
   const stableComponents = useShallowStable(components);
   const markdownComponents = useMemo(() => {
-    if (!stableComponents) return defaultComponents;
+    const fileComponents = buildFileComponents(filePaths);
+    if (!stableComponents) return { ...defaultComponents, ...fileComponents };
     return {
       ...defaultComponents,
+      ...fileComponents,
       ...memoizeMarkdownComponents(stableComponents),
     };
-  }, [stableComponents]);
+  }, [filePaths, stableComponents]);
 
   return (
     <MarkdownTextPrimitive
@@ -84,6 +92,55 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
     </div>
   );
 };
+
+/**
+ * 构建带文件词汇表的 `a` / `code` 覆盖组件。
+ *
+ * 行内代码 token 或非外部协议的链接 href，命中「本消息真实文件路径」的
+ * 精确匹配或唯一 basename 匹配时，渲染为可点击的 FileLink；否则保持普通渲染。
+ * 文件检测不做「像路径」启发式——只有真实 read/write/edit/glob 过的文件可点。
+ */
+function buildFileComponents(filePaths: readonly string[]) {
+  return memoizeMarkdownComponents({
+    a: ({ className, href, children, ...props }) => {
+      if (typeof href === 'string' && isFileLinkHref(href)) {
+        const hit = resolveFileMention(filePaths, href);
+        if (hit !== undefined) return <FileLink path={hit} />;
+      }
+      return (
+        <a
+          className={cn(
+            "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
+            className,
+          )}
+          href={href}
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    },
+    code: function Code({ className, children, ...props }) {
+      const isCodeBlock = useIsMarkdownCodeBlock();
+      if (!isCodeBlock && typeof children === 'string') {
+        const hit = resolveFileMention(filePaths, children);
+        if (hit !== undefined) return <FileLink path={hit} />;
+      }
+      return (
+        <code
+          className={cn(
+            !isCodeBlock &&
+              "aui-md-inline-code bg-muted rounded-md px-1.5 py-0.5 font-mono text-[0.85em]",
+            className,
+          )}
+          {...props}
+        >
+          {children}
+        </code>
+      );
+    },
+  });
+}
 
 const defaultComponents = memoizeMarkdownComponents({
   h1: ({ className, ...props }) => (
@@ -149,24 +206,6 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  a: ({ className, href, children, ...props }) => {
-    // 文件链接：非外部协议的 href 且像文件路径时，渲染为可点击的文件引用
-    if (typeof href === 'string' && isFileLinkHref(href)) {
-      return <FileLink path={href} />;
-    }
-    return (
-      <a
-        className={cn(
-          "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
-          className,
-        )}
-        href={href}
-        {...props}
-      >
-        {children}
-      </a>
-    );
-  },
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
@@ -262,24 +301,5 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  code: function Code({ className, children, ...props }) {
-    const isCodeBlock = useIsMarkdownCodeBlock();
-    // 行内代码且内容像文件路径 → 渲染为可点击文件链接
-    if (!isCodeBlock && typeof children === 'string' && isFilePathCandidate(children)) {
-      return <FileLink path={children} />;
-    }
-    return (
-      <code
-        className={cn(
-          !isCodeBlock &&
-            "aui-md-inline-code bg-muted rounded-md px-1.5 py-0.5 font-mono text-[0.85em]",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </code>
-    );
-  },
   CodeHeader,
 });
