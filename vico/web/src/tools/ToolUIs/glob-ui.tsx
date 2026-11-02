@@ -12,9 +12,9 @@ import type {GlobArgs, GlobResult} from '../glob.tool';
 function GlobView({result}: {result: GlobResult}) {
   return (
     <ul className="space-y-0.5">
-      {result.files.map((file, i) => (
+      {result.paths.map((path, i) => (
         <li key={i} className="text-xs">
-          <FileLink path={file} className="min-w-0" />
+          <FileLink path={path} className="min-w-0" />
         </li>
       ))}
     </ul>

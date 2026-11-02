@@ -15,8 +15,8 @@ const globSchema = z.object({
   limit: z.number().int().default(200).describe('返回文件的最大数量'),
 });
 const globOutputSchema = z.object({
-  files: z.array(z.string()),
-  count: z.number().int(),
+  root: z.string(),
+  paths: z.array(z.string()),
 });
 export type GlobArgs = z.infer<typeof globSchema>;
 export type GlobResult = z.infer<typeof globOutputSchema>;

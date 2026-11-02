@@ -68,9 +68,15 @@ function parseGrepMatches(stdout: string): GrepMatch[] {
   return matches;
 }
 
+/** 单条匹配记录（结构化，与 deepseek-harness 的 grep 输出对齐） */
+const grepMatchSchema = z.object({
+  path: z.string(),
+  lineNumber: z.number().int(),
+  line: z.string(),
+});
+
 const grepOutputSchema = z.object({
-  matches: z.string(),
-  count: z.number().int(),
+  matches: z.array(grepMatchSchema),
 });
 
 type GrepOutput = z.infer<typeof grepOutputSchema>;
@@ -98,15 +104,16 @@ export function createGrepTool() {
         signal: ctx.signal,
       });
 
-      if (noMatches) return { matches: 'No matches found', count: 0 };
+      if (noMatches) return { matches: [] };
 
       const all = parseGrepMatches(stdout);
-      const limited = all.slice(0, args.limit);
-      const matches = limited
-        .map((m) => `${toWorkdirRelative(m.path, cwd)}:${m.lineNumber}:${m.line}`)
-        .join('\n');
+      const matches = all.slice(0, args.limit).map((m) => ({
+        path: toWorkdirRelative(m.path, cwd),
+        lineNumber: m.lineNumber,
+        line: m.line,
+      }));
 
-      return { matches: matches || 'No matches found', count: limited.length };
+      return { matches };
     },
   });
 }

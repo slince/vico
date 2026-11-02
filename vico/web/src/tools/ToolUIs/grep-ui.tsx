@@ -7,18 +7,31 @@ import {Search} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {GrepArgs, GrepResult} from '../grep.tool';
 
-/** grep 结果视图 — 搜索结果文本 */
+/** grep 结果视图 — 结构化匹配结果，按文件分组展示 */
 function GrepView({result}: {result: GrepResult}) {
   const {t} = useTranslation('assistant');
+  if (result.matches.length === 0) {
+    return <p className="text-xs text-muted-foreground">{t('tool.fileRead.noMatch')}</p>;
+  }
+
+  // 按 path 分组，保持首个出现顺序
+  const byFile = new Map<string, GrepResult['matches']>();
+  for (const match of result.matches) {
+    const group = byFile.get(match.path);
+    if (group) group.push(match);
+    else byFile.set(match.path, [match]);
+  }
+
   return (
-    <div className="space-y-1">
-      {result.count > 0 ? (
-        <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2">
-          {result.matches}
-        </pre>
-      ) : (
-        <p className="text-xs text-muted-foreground">{t('tool.fileRead.noMatch')}</p>
-      )}
+    <div className="space-y-2">
+      {[...byFile].map(([path, matches]) => (
+        <div key={path} className="space-y-0.5">
+          <p className="font-mono text-xs text-muted-foreground truncate">{path}</p>
+          <pre className="text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2">
+            {matches.map((m) => `Line ${m.lineNumber}: ${m.line}`).join('\n')}
+          </pre>
+        </div>
+      ))}
     </div>
   );
 }

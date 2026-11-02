@@ -105,7 +105,7 @@ export function ChatSidebar({ threadId }: { threadId: string }) {
                 <ContextMenuTrigger asChild>
                   <div
                     className={cn(
-                      'group flex shrink-0 cursor-pointer items-center gap-1 border-r px-3 py-1.5 text-xs transition-colors max-w-[180px]',
+                      'group mx-0.5 flex shrink-0 cursor-pointer items-center gap-1 rounded px-3 py-1.5 text-xs transition-colors max-w-[180px]',
                       isActive
                         ? 'bg-muted'
                         : 'hover:bg-accent/50 text-muted-foreground',

@@ -34,8 +34,8 @@ function buildGlobArgv(pattern: string, path?: string): string[] {
 }
 
 const globOutputSchema = z.object({
-  files: z.array(z.string()),
-  count: z.number().int(),
+  root: z.string(),
+  paths: z.array(z.string()),
 });
 
 type GlobOutput = z.infer<typeof globOutputSchema>;
@@ -57,22 +57,22 @@ export function createGlobTool() {
       const workspace = ctx.session.workspace!;
       const cwd = resolveWorkspacePath(workspace, '.');
       const searchPath = args.path ? resolveWorkspacePath(workspace, args.path) : undefined;
+      const root = searchPath ? toWorkdirRelative(searchPath, cwd) : '.';
 
       const { stdout, noMatches } = await runRipgrep(buildGlobArgv(args.pattern, searchPath), {
         cwd,
         signal: ctx.signal,
       });
 
-      if (noMatches) return { files: [], count: 0 };
+      if (noMatches) return { root, paths: [] };
 
-      const files: string[] = [];
+      const paths: string[] = [];
       for (const line of stdout.split('\n')) {
         if (line.length === 0) continue;
-        files.push(toWorkdirRelative(line, cwd));
+        paths.push(toWorkdirRelative(line, cwd));
       }
 
-      const limited = files.slice(0, args.limit);
-      return { files: limited, count: limited.length };
+      return { root, paths: paths.slice(0, args.limit) };
     },
   });
 }

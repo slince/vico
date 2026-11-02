@@ -17,9 +17,13 @@ const grepSchema = z.object({
   '-i': z.boolean().optional().describe('忽略大小写'),
   context: z.number().int().optional().describe('每个匹配周围的上下文行数'),
 });
+const grepMatchSchema = z.object({
+  path: z.string(),
+  lineNumber: z.number().int(),
+  line: z.string(),
+});
 const grepOutputSchema = z.object({
-  matches: z.string(),
-  count: z.number().int(),
+  matches: z.array(grepMatchSchema),
 });
 export type GrepArgs = z.infer<typeof grepSchema>;
 export type GrepResult = z.infer<typeof grepOutputSchema>;
