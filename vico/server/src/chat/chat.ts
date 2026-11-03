@@ -6,7 +6,8 @@ import type {ApprovalMode} from '@vico/tool';
 import type {ReasoningEffort} from '@vico/model';
 import type {Thread} from '@vico/thread';
 import {getAgent} from '../agent/get-agent.js';
-import type {UIMessage} from 'ai';
+import {convertToModelMessages, validateUIMessages, type UIMessage} from 'ai';
+import type {ModelMessage} from '@ai-sdk/provider-utils';
 
 export interface ExecuteChatParams {
   agentId: string;
@@ -95,6 +96,17 @@ async function resolveThread(
   return agent.createThread({ userId, title: deriveTitle(message), workspace });
 }
 
+/**
+ * UIMessage → ModelMessage（审批响应随 parts 下传，引擎内部经 extractApprovalResponses 提取）。
+ * 与旧 normalizeUserMessage 的 UIMessage 分支语义一致：取转换后的最后一条。
+ */
+async function uiMessageToModelMessages(message: UIMessage): Promise<ModelMessage[]> {
+  const validated = await validateUIMessages({ messages: [message] });
+  const converted = await convertToModelMessages(validated, { ignoreIncompleteToolCalls: true });
+  const last = converted[converted.length - 1];
+  return last ? [last] : [];
+}
+
 /** 执行 Agent 对话 — 通过 agent.stream，自动处理新对话和暂停恢复 */
 export async function executeAgentChat(
   params: ExecuteChatParams,
@@ -104,7 +116,8 @@ export async function executeAgentChat(
   const agent = await getAgent(agentId);
   const thread = await resolveThread(agent, threadId, userId, message, workspace);
 
-  const output = await agent.stream(message ? [message] : [], {
+  const modelMessages = message ? await uiMessageToModelMessages(message) : [];
+  const output = await agent.stream(modelMessages, {
     thread, model, reasoning,
     approvalMode, signal
   });

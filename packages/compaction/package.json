@@ -11,10 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/provider-utils": "catalog:",
     "@vico/model": "workspace:*",
     "@vico/thread": "workspace:*",
-    "@vico/utils": "workspace:*",
-    "ai": "catalog:"
+    "@vico/utils": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -1,5 +1,6 @@
 import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
-import {type ThreadStore, toUiMessages} from '@vico/thread';
+import {type ThreadStore} from '@vico/thread';
+import {toUiMessages} from './ui-messages.js';
 import type {AgentManager} from '../agent/agent-manager.js';
 
 /** 前台展示的消息角色 */

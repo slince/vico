@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ModelMessage } from 'ai';
+import type { ModelMessage } from '@ai-sdk/provider-utils';
 import type { PersistableMessage } from '@vico/thread';
 import {
   BLOCK_OVERHEAD, CHARS_PER_TOKEN, ROLE_OVERHEAD,

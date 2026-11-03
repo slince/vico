@@ -1,6 +1,43 @@
-// @vico/stream - 流式解析、用量计量与 turn 事件
+// @vico/stream - 流式解析、用量计量与 turn 事件（引擎层 Chunk 协议）
 
-export type { CallModelResult, UserMessage } from './types.js';
+export type {
+  Chunk,
+  ChunkType,
+  ChunkDraft,
+  UserMessage,
+  CallModelResult,
+  JSONValue,
+  JSONObject,
+  ProviderMetadata,
+  StartPayload,
+  TextStartPayload,
+  TextDeltaPayload,
+  TextEndPayload,
+  ReasoningStartPayload,
+  ReasoningDeltaPayload,
+  ReasoningEndPayload,
+  ToolInputStartPayload,
+  ToolInputDeltaPayload,
+  ToolInputEndPayload,
+  ToolCallPayload,
+  ToolResultPayload,
+  ToolErrorPayload,
+  ToolOutputDeniedPayload,
+  ToolApprovalRequestPayload,
+  ToolApprovalResponsePayload,
+  FilePayload,
+  SourcePayload,
+  CustomPayload,
+  RawPayload,
+  StartStepPayload,
+  FinishStepPayload,
+  FinishPayload,
+  ErrorPayload,
+  AbortPayload,
+  StepPerformance,
+  TotalUsage,
+} from './types.js';
+export { stampRunId } from './types.js';
 export { createModelStreamTransformer } from './model-stream-transformer.js';
 export {
   createToolCall,
@@ -14,5 +51,6 @@ export {
   finishStepPart,
   finishPart,
   type FinishStepParams,
+  type FinishReason,
 } from './stream-parts.js';
 export { emptyUsage, addTokenCount, addUsage, fromV4Usage } from './usage.js';

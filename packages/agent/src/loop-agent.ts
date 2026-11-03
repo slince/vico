@@ -2,7 +2,7 @@
 import {randomUUID} from 'node:crypto';
 import type {Logger} from 'pino';
 import pino from 'pino';
-import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
+import type {ModelMessage} from '@ai-sdk/provider-utils';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
 import type {ModelRequest, ReasoningEffort} from '@vico/model';
@@ -25,7 +25,8 @@ import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@
 import {fromModelMessage, type PersistableMessage} from '@vico/thread';
 import type {ToolApproval} from '@vico/types';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
-import type {CallModelResult, UserMessage} from '@vico/stream';
+import type {CallModelResult, Chunk, UserMessage} from '@vico/stream';
+import {stampRunId} from '@vico/stream';
 import {
   addUsage,
   createModelStreamTransformer,
@@ -60,7 +61,7 @@ export interface LoopAgentOptions extends AgentOptions {
 }
 
 /** LoopAgent — Agent 默认实现，编排 model→tool→repeat 循环 */
-export class LoopAgent<TToolSet extends ToolSet = ToolSet>
+export class LoopAgent
   implements Agent {
 
   readonly id: string;
@@ -197,13 +198,17 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     // 统一中断源：TurnOutput.abort() / 流 cancel 直接取消它，外部 signal 经聚合联动到同一 ac
     const abortController = createAggregatedAbortController(options.signal);
 
-    const stream = new ReadableStream<TextStreamPart<TToolSet>>({
+    // runId：本次 stream() 调用的标识，盖章到每条 chunk（暂停恢复走新 run，产生新 runId）
+    const runId = randomUUID();
+
+    const stream = new ReadableStream<Chunk>({
       start: async (controller) => {
         try {
           const result = await this.start({
             userMessages,
             signal: abortController.signal,
             controller,
+            runId,
             thread: options.thread,
             reasoning: options.reasoning,
             modelClient: this.resolveModelClient(options.model),
@@ -214,7 +219,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         } catch (err) {
           const error = err instanceof Error ? err : String(err);
           // 向流内透出错误 part（controller 可能已关闭，静默兜底）
-          try { controller.enqueue({ type: 'error', error }); } catch { /* already closed */ }
+          try { controller.enqueue(stampRunId(runId, { type: 'error', payload: { error } })); } catch { /* already closed */ }
           // 始终 resolve：错误已通过流透出，消费者无需 try-catch
           resolve({ status: 'failed', steps: 0, usage: emptyUsage(), messages: [], error });
         } finally {
@@ -268,13 +273,14 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   private async start(ctx: {
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
+    controller: ReadableStreamDefaultController<Chunk>;
+    runId: string;
     thread: Thread;
     reasoning?: ReasoningEffort;
     modelClient: ModelClient;
     approvalMode?: ApprovalMode;
   }): Promise<TurnResult> {
-    const { userMessages, signal, controller, thread, reasoning, modelClient, approvalMode } = ctx;
+    const { userMessages, signal, controller, runId, thread, reasoning, modelClient, approvalMode } = ctx;
 
     const workspace = thread.metadata?.workspace ?? this.workspace;
 
@@ -296,7 +302,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     }
 
     const session: TurnSession = { workspace, thread, turn };
-    return this.startTurn({ session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode });
+    return this.startTurn({ session, userMessages, signal, controller, runId, checkpoint, reasoning, modelClient, approvalMode });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -304,16 +310,17 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     session: TurnSession;
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
+    controller: ReadableStreamDefaultController<Chunk>;
+    runId: string;
     checkpoint: Checkpoint;
     reasoning?: ReasoningEffort;
     modelClient: ModelClient;
     approvalMode?: ApprovalMode;
   }): Promise<TurnResult> {
-    const { session, userMessages, signal, controller, checkpoint, reasoning, modelClient, approvalMode } = params;
+    const { session, userMessages, signal, controller, runId, checkpoint, reasoning, modelClient, approvalMode } = params;
 
     this.emit({ type: 'turn.start', thread: session.thread, turn: session.turn });
-    controller.enqueue({ type: 'start' });
+    controller.enqueue(stampRunId(runId, { type: 'start', payload: {} }));
 
     const {decisions} = extractApprovalResponses(userMessages)
 
@@ -321,7 +328,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 洋葱执行：各处理器前置注入（enter 段）→ 核心（构建 TurnContext + runLoop）→ 逆序后置（resolve 段）。
     // 核心产物经闭包传出；resolve 段跑完后统一交给 finalizeTurn 收尾（落库 + 流终结）。
-    let context: TurnContext<TToolSet>;
+    let context: TurnContext;
     let loopResult: StepLoopResult;
     await this.contextProcessors.execute(requestContext, async () => {
       // 本轮次的上下文对象：洋葱产出的 systemPrompt / tools 物化为快照，可变上下文不再透传
@@ -334,6 +341,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
         session,
         signal,
         controller,
+        runId,
         checkpoint,
         // 恢复暂停的 turn 时从 metadata.usage 读回已累计用量，跨暂停不丢量
         usage: session.turn.metadata?.usage ?? emptyUsage(),
@@ -368,7 +376,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 注意：resolve 类后置处理（如情景记忆落库）已由洋葱 unwind 在 execute 中跑完，
    * 本方法只负责「落库 + 流终结」，保证 finish part 是流内最后一个事件。
    */
-  private async finalizeTurn(context: TurnContext<TToolSet>, result: StepLoopResult): Promise<TurnResult> {
+  private async finalizeTurn(context: TurnContext, result: StepLoopResult): Promise<TurnResult> {
 
     const {session: {thread, turn}} = context
     const usage = addUsage(context.usage, result.usage);
@@ -377,7 +385,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
     if (result.status === 'paused') {
       this.log.info({ turnId: turn.id, steps: result.steps }, 'turn paused');
       // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
-      context.controller.enqueue(finishPart('stop', usage));
+      context.controller.enqueue(stampRunId(context.runId, finishPart('stop', usage)));
       this.emit({ type: 'turn.end', thread, turn });
       return {
         status: 'paused',
@@ -399,7 +407,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       });
       await this.saveCheckpoint(context, 'failed')
 
-      context.controller.enqueue(finishPart('error', usage));
+      context.controller.enqueue(stampRunId(context.runId, finishPart('error', usage)));
       this.emit({ type: 'turn.end', thread, turn });
 
       return {
@@ -429,9 +437,9 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 终态生命周期 part：中断先发 abort，再统一发 finish
     if (result.status === 'aborted') {
-      context.controller.enqueue({ type: 'abort' });
+      context.controller.enqueue(stampRunId(context.runId, { type: 'abort', payload: {} }));
     }
-    context.controller.enqueue(finishPart(result.status === 'aborted' ? 'other' : 'stop', usage));
+    context.controller.enqueue(stampRunId(context.runId, finishPart(result.status === 'aborted' ? 'other' : 'stop', usage)));
     this.emit({ type: 'turn.end', thread, turn });
 
     return {
@@ -447,7 +455,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 执行 step loop，由 startTurn 的洋葱核心调用（新 turn 与恢复共用）。
    */
-  private async runLoop(context: TurnContext<TToolSet>): Promise<StepLoopResult> {
+  private async runLoop(context: TurnContext): Promise<StepLoopResult> {
     let usage = emptyUsage();
 
     const {session: {turn}, signal, checkpoint} = context
@@ -507,7 +515,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @param partial
    * @private
    */
-  private async saveCheckpoint(context: TurnContext<TToolSet>, nextAction: NextAction, partial?: CheckpointApprovalCalls): Promise<Checkpoint> {
+  private async saveCheckpoint(context: TurnContext, nextAction: NextAction, partial?: CheckpointApprovalCalls): Promise<Checkpoint> {
 
     const {checkpoint} = context
 
@@ -539,7 +547,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @param context
    * @private
    */
-  private async loadCheckpoint(context: TurnContext<TToolSet>){
+  private async loadCheckpoint(context: TurnContext){
     const {checkpoint} = context
 
     // 已完结的忽略
@@ -573,7 +581,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       const scope = decision?.scope ?? 'turn';
       const reason = decision?.reason;
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路），reason 携带用户文本回答
-      context.controller.enqueue(toolApprovalResponsePart(pendingCall, approved, { scope, reason }));
+      context.controller.enqueue(stampRunId(context.runId, toolApprovalResponsePart(pendingCall, approved, { scope, reason })));
       if (approved) {
         // 批准后正常执行 execute（澄清类工具从 ctx.approval 读取用户回答）
         approvedCalls.push(pendingCall);
@@ -588,7 +596,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           sessionScopedTools.add(pendingCall.name);
         }
       } else {
-        context.controller.enqueue(toolOutputDeniedPart(pendingCall));
+        context.controller.enqueue(stampRunId(context.runId, toolOutputDeniedPart(pendingCall)));
         deniedResults.push({
           callId: pendingCall.id, name: pendingCall.name,
           status: 'error', output: null,
@@ -613,7 +621,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * @param deniedResults
    * @private
    */
-  private async executeToolCalls(context: TurnContext<TToolSet>, approvedCalls: ToolCall[], deniedResults: ToolResult[]){
+  private async executeToolCalls(context: TurnContext, approvedCalls: ToolCall[], deniedResults: ToolResult[]){
     // 预先保存checkpoint
     if (approvedCalls.length  === 0 && deniedResults.length === 0) {
       return
@@ -627,7 +635,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
 
     // 执行本轮批准的调用；拒绝结果一并落消息链
     const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context, (call, result) => {
-      context.controller.enqueue(toolResultPart(result, call.args));
+      context.controller.enqueue(stampRunId(context.runId, toolResultPart(result, call.args)));
     });
     await this.appendToolResults([...toolResults, ...deniedResults], context);
 
@@ -649,7 +657,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    *   - `pause`：存在待审批工具，暂停 turn 等待客户端审批（附 pendingApprovalCalls）
    *   - `continue`：工具已审批通过，交由 runLoop 落「计划版本」后执行
    */
-  private async executeModelStep(step: TurnStep, context: TurnContext<TToolSet>): Promise<ModelStepResult> {
+  private async executeModelStep(step: TurnStep, context: TurnContext): Promise<ModelStepResult> {
 
     let usage = emptyUsage();
 
@@ -696,7 +704,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 解析工具审批：遍历 toolCalls，按策略分类为 approvedCalls / deniedResults / pendingApprovalCalls。
    */
-  private async resolveToolApprovals(toolCalls: ToolCall[], context: TurnContext<TToolSet>): Promise<ResolvedApprovals> {
+  private async resolveToolApprovals(toolCalls: ToolCall[], context: TurnContext): Promise<ResolvedApprovals> {
     const approvedCalls: ToolCall[] = [];
     const deniedResults: ToolResult[] = [];
     const pendingApprovalCalls: ToolCall[] = [];
@@ -712,7 +720,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           status: 'error', output: null,
           error: `Tool "${call.name}" 未找到`,
         });
-        context.controller.enqueue(toolOutputDeniedPart(call));
+        context.controller.enqueue(stampRunId(context.runId, toolOutputDeniedPart(call)));
         continue;
       }
 
@@ -740,7 +748,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
           break;
         }
         case 'paused': {
-          context.controller.enqueue(toolApprovalRequestPart(call));
+          context.controller.enqueue(stampRunId(context.runId, toolApprovalRequestPart(call)));
           pendingApprovalCalls.push(call);
           break;
         }
@@ -750,7 +758,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
             status: 'error', output: null,
             error: decision.reason ?? 'Blocked by policy',
           });
-          context.controller.enqueue(toolOutputDeniedPart(call));
+          context.controller.enqueue(stampRunId(context.runId, toolOutputDeniedPart(call)));
           break;
         }
       }
@@ -762,7 +770,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 批量持久化 session 级工具审批到 thread.metadata。
    */
-  private async saveSessionApprovals(context: TurnContext<TToolSet>, toolNames: Set<string>): Promise<void> {
+  private async saveSessionApprovals(context: TurnContext, toolNames: Set<string>): Promise<void> {
     if (toolNames.size === 0) return;
 
     const meta = context.session.thread.metadata ?? {};
@@ -778,7 +786,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 从 thread.metadata 加载 session 级审批，预填入 approvedTools Map。
    */
-  private loadSessionApprovals(session: TurnSession, context: TurnContext<TToolSet>): void {
+  private loadSessionApprovals(session: TurnSession, context: TurnContext): void {
     const sessionApproved = session.thread.metadata?.approvedTools;
     if (!sessionApproved) return;
     for (const [name, entry] of Object.entries(sessionApproved)) {
@@ -792,7 +800,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   /**
    * 批量持久化消息到 threadStore。
    */
-  async persistMessages(context: TurnContext<TToolSet>, messages: PersistableMessage[]): Promise<void> {
+  async persistMessages(context: TurnContext, messages: PersistableMessage[]): Promise<void> {
     if (messages.length === 0) {
       return
     }
@@ -819,7 +827,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
   };
 
   /** 工具结果 → 原生 tool 消息 + 批量持久化 */
-  async appendToolResults(toolResults: ToolResult[], context: TurnContext<TToolSet>): Promise<void> {
+  async appendToolResults(toolResults: ToolResult[], context: TurnContext): Promise<void> {
     if (toolResults.length === 0) {
       return
     }
@@ -839,7 +847,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 直接复用 TurnContext（已注入历史 + session.turn），不再自行查询历史。
    * 未配置 compactor 或 contextWindow 缺失时静默跳过（告警），不阻塞 turn。
    */
-  private async compactForPressure(context: TurnContext<TToolSet>): Promise<void> {
+  private async compactForPressure(context: TurnContext): Promise<void> {
     if (!this.compactor) return;
     try {
       const result = await this.compactor.compactIfNeeded(context, 'pressure');
@@ -853,7 +861,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 把压缩结果应用到内存消息链：剔除被归档 turn 的消息、前置新 summary，原地 splice 使 step.messages 同步。
    * 不重新回查 thread store，直接复用压缩前消息 + 压缩结果。
    */
-  private applyCompaction(context: TurnContext<TToolSet>, result: CompactionResult): void {
+  private applyCompaction(context: TurnContext, result: CompactionResult): void {
     const archived = new Set(result.archivedTurnIds);
     // 保留未归档 turn 的消息（含当前 turn 自身消息，其 turnId 不在 archivedTurnIds 中）
     const retained = context.messages.filter((m) => !archived.has(m.turnId));
@@ -873,12 +881,12 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
    * 单次模型调用（含 context-overflow 压缩恢复）。messages 已由洋葱处理器注入历史，
    * systemPrompt / tools 为构建 TurnContext 时物化的快照。
    */
-  private async callModel(step: TurnStep, context: TurnContext<TToolSet>): Promise<CallModelResult> {
+  private async callModel(step: TurnStep, context: TurnContext): Promise<CallModelResult> {
     const { controller } = context;
 
     const resolveError = (error: Error | string): CallModelResult => {
       try {
-        controller.enqueue({ type: 'error', error });
+        controller.enqueue(stampRunId(context.runId, { type: 'error', payload: { error } }));
       } catch (e) {
         this.log.warn({ threadId: context.session.thread.id, err: e }, 'controller closed, error enqueue ignored');
       }
@@ -899,7 +907,7 @@ export class LoopAgent<TToolSet extends ToolSet = ToolSet>
       };
       try {
         const result = await context.modelClient.stream(request);
-        const stream = result.stream.pipeThrough(createModelStreamTransformer<TToolSet>(request));
+        const stream = result.stream.pipeThrough(createModelStreamTransformer(context.runId, request));
         await forwardToController(stream, controller);
         return result.result();
       } catch (e) {

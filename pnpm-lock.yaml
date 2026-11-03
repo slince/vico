@@ -250,6 +250,9 @@ importers:
 
   packages/agent:
     dependencies:
+      '@ai-sdk/provider-utils':
+        specifier: 'catalog:'
+        version: 5.0.67(zod@4.6.7)
       '@vico/checkpoint':
         specifier: workspace:*
         version: link:../checkpoint
@@ -286,9 +289,6 @@ importers:
       '@vico/utils':
         specifier: workspace:*
         version: link:../utils
-      ai:
-        specifier: 'catalog:'
-        version: 7.0.150(zod@4.6.7)
       pino:
         specifier: 'catalog:'
         version: 10.4.0
@@ -534,6 +534,9 @@ importers:
 
   packages/compaction:
     dependencies:
+      '@ai-sdk/provider-utils':
+        specifier: 'catalog:'
+        version: 5.0.67(zod@4.6.7)
       '@vico/model':
         specifier: workspace:*
         version: link:../model
@@ -543,9 +546,6 @@ importers:
       '@vico/utils':
         specifier: workspace:*
         version: link:../utils
-      ai:
-        specifier: 'catalog:'
-        version: 7.0.150(zod@4.6.7)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -559,6 +559,9 @@ importers:
 
   packages/context:
     dependencies:
+      '@ai-sdk/provider-utils':
+        specifier: 'catalog:'
+        version: 5.0.67(zod@4.6.7)
       '@vico/memory':
         specifier: workspace:*
         version: link:../memory
@@ -580,9 +583,6 @@ importers:
       '@vico/utils':
         specifier: workspace:*
         version: link:../utils
-      ai:
-        specifier: 'catalog:'
-        version: 7.0.150(zod@4.6.7)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -758,9 +758,6 @@ importers:
       '@vico/types':
         specifier: workspace:*
         version: link:../types
-      ai:
-        specifier: 'catalog:'
-        version: 7.0.150(zod@4.6.7)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -853,6 +850,12 @@ importers:
 
   packages/stream:
     dependencies:
+      '@ai-sdk/provider':
+        specifier: 'catalog:'
+        version: 4.0.33
+      '@ai-sdk/provider-utils':
+        specifier: 'catalog:'
+        version: 5.0.67(zod@4.6.7)
       '@vico/model':
         specifier: workspace:*
         version: link:../model
@@ -862,9 +865,6 @@ importers:
       '@vico/types':
         specifier: workspace:*
         version: link:../types
-      ai:
-        specifier: 'catalog:'
-        version: 7.0.150(zod@4.6.7)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -903,9 +903,6 @@ importers:
       '@vico/types':
         specifier: workspace:*
         version: link:../types
-      ai:
-        specifier: 'catalog:'
-        version: 7.0.150(zod@4.6.7)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -997,6 +994,9 @@ importers:
 
   vico/server:
     dependencies:
+      '@ai-sdk/provider-utils':
+        specifier: 'catalog:'
+        version: 5.0.67(zod@4.6.7)
       '@aws-sdk/client-s3':
         specifier: ^3.1072.0
         version: 3.1152.0
@@ -1042,6 +1042,9 @@ importers:
       '@vico/skill':
         specifier: workspace:*
         version: link:../../packages/skill
+      '@vico/stream':
+        specifier: workspace:*
+        version: link:../../packages/stream
       '@vico/terminal':
         specifier: workspace:*
         version: link:../../packages/terminal

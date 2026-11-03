@@ -12,8 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/provider-utils": "catalog:",
-    "@vico/types": "workspace:*",
-    "ai": "catalog:"
+    "@vico/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

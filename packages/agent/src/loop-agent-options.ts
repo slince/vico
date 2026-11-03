@@ -3,7 +3,8 @@ import {type ApprovalMode, type Tool, ToolCall, ToolResult} from '@vico/tool';
 import type {Checkpoint} from '@vico/checkpoint';
 import type {ReasoningEffort} from '@vico/model';
 import type {ModelClient} from '@vico/model';
-import type {ModelMessage, TextStreamPart, ToolSet} from 'ai';
+import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {Chunk} from '@vico/stream';
 import {Thread, Turn} from '@vico/thread';
 import type {AgentMessage, TurnSession} from '@vico/thread';
 
@@ -34,7 +35,7 @@ export interface ResolvedApprovals {
 }
 
 /** executeModelStep / callModel 共享上下文 */
-export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
+export interface TurnContext {
   /** 洋葱处理器产出的最终系统提示词（渲染快照，turn 内不变） */
   systemPrompt: string
   /** 洋葱处理器产出的最终工具列表（快照，turn 内不变） */
@@ -46,8 +47,10 @@ export interface TurnContext<TToolSet extends ToolSet = ToolSet> {
   approvedTools: Map<string, ToolApproval>;
   /** turn 级中断信号，贯穿 model 调用和工具执行 */
   signal: AbortSignal;
-  /** 流控制器，用于向客户端推送 chunk（引擎层协议 TextStreamPart） */
-  controller: ReadableStreamDefaultController<TextStreamPart<TToolSet>>;
+  /** 流控制器，用于向客户端推送 chunk（引擎层协议 Chunk） */
+  controller: ReadableStreamDefaultController<Chunk>;
+  /** 本次 run 的 runId（盖章到每条 chunk） */
+  runId: string;
   /** 本 turn 的 checkpoint 对象（startTurn/resumeTurn 创建，append-only 版本链：step 完成 / pause / 终态时由 loop-agent append 新版本） */
   checkpoint: Checkpoint;
   usage: UsageMetrics;

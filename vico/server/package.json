@@ -15,6 +15,7 @@
     "eval:ci": "tsx src/agent/evals/ci-smoke.ts"
   },
   "dependencies": {
+    "@ai-sdk/provider-utils": "catalog:",
     "@aws-sdk/client-s3": "^3.1072.0",
     "@aws-sdk/s3-presigned-post": "^3.1072.0",
     "@aws-sdk/s3-request-presigner": "^3.1072.0",
@@ -30,6 +31,7 @@
     "@vico/model": "workspace:*",
     "@vico/rag": "workspace:*",
     "@vico/skill": "workspace:*",
+    "@vico/stream": "workspace:*",
     "@vico/terminal": "workspace:*",
     "@vico/thread": "workspace:*",
     "@vico/thread-libsql": "workspace:*",

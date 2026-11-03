@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/provider-utils": "catalog:",
     "@vico/checkpoint": "workspace:*",
     "@vico/compaction": "workspace:*",
     "@vico/context": "workspace:*",
@@ -22,7 +23,6 @@
     "@vico/tool": "workspace:*",
     "@vico/types": "workspace:*",
     "@vico/utils": "workspace:*",
-    "ai": "catalog:",
     "pino": "catalog:",
     "zod": "catalog:"
   },

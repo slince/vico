@@ -16,5 +16,5 @@ export {
   toToolSet,
   type ContentPart,
 } from './message-utils.js';
-export type { ModelMessage, UIMessage, UIMessageChunk, ToolSet } from 'ai';
-export { convertToModelMessages, validateUIMessages } from 'ai';
+export type { ModelMessage, ToolSet } from '@ai-sdk/provider-utils';
+export { standardizePrompt, convertToLanguageModelPrompt, prepareTools, type StandardizedPrompt } from './prompt-conversion.js';

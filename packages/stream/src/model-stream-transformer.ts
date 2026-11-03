@@ -1,12 +1,11 @@
-// @vico/stream - createModelStreamTransformer: 将 provider 原生 V4 流转换为引擎层 TextStreamPart 的 TransformStream
-import type {CallWarning, TextStreamPart, ToolSet} from 'ai';
-
-import type {ToolCall} from '@vico/tool';
-import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart,} from './stream-parts.js';
+// @vico/stream - createModelStreamTransformer: 将 provider 原生 V4 流转换为引擎层 Chunk 的 TransformStream
 import type {ModelRequest, ModelStreamPart} from '@vico/model';
+import type {ToolCall} from '@vico/tool';
+import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart} from './stream-parts.js';
+import {stampRunId, type Chunk, type CustomPayload, type RawPayload, type SourcePayload} from './types.js';
 
 /**
- * 创建 V4 → 引擎层 TextStreamPart 的 TransformStream。
+ * 创建 V4 → 引擎层 Chunk 的 TransformStream。
  *
  * 转换逻辑（V4 → 引擎层协议映射）与 step 级状态（start-step / response-metadata / finish-step）
  * 内聚在 transform 回调中；文本 / 推理 / 工具调用 / usage 的累积仍由 BufferedModelStream 完成，
@@ -15,13 +14,15 @@ import type {ModelRequest, ModelStreamPart} from '@vico/model';
  * 从 LoopAgent.callModel 中抽出，使 V4 → 引擎层协议的映射逻辑独立成函数，
  * callModel 仅负责组装请求、获取流，并将流 pipeThrough 本转换器后转发。
  *
+ * @param runId - 本次 stream() 调用的 run 标识（盖章到每条 chunk）
  * @param request - 本 step 模型请求（供 start-step part 携带 request）
- * @returns provider 原生 V4 part → 引擎层 TextStreamPart 的转换流
+ * @returns provider 原生 V4 part → 引擎层 Chunk 的转换流
  */
-export function createModelStreamTransformer<TToolSet extends ToolSet = ToolSet>(
+export function createModelStreamTransformer(
+  runId: string,
   request: ModelRequest,
-): TransformStream<ModelStreamPart, TextStreamPart<TToolSet>> {
-  // ── V4 → TextStreamPart 转换所需的 step 级状态 ──
+): TransformStream<ModelStreamPart, Chunk> {
+  // ── V4 → Chunk 转换所需的 step 级状态 ──
   const stepStartTime = Date.now();
   /** 首个输出 chunk 到达时间（性能指标 timeToFirstOutputMs） */
   let firstChunkTime: number | undefined;
@@ -34,15 +35,15 @@ export function createModelStreamTransformer<TToolSet extends ToolSet = ToolSet>
 
   /** start-step 兜底：stream-start 时携带 warnings 触发，其余 part 到达前无 warnings 兜底触发 */
   const ensureStepStarted = (
-    controller: TransformStreamDefaultController<TextStreamPart<TToolSet>>,
-    warnings: CallWarning[] = [],
+    controller: TransformStreamDefaultController<Chunk>,
+    warnings: import('@ai-sdk/provider').SharedV4Warning[] = [],
   ): void => {
     if (stepStarted) return;
     stepStarted = true;
-    controller.enqueue(startStepPart(request.messages, warnings));
+    controller.enqueue(stampRunId(runId, startStepPart(request.messages, warnings)));
   };
 
-  return new TransformStream<ModelStreamPart, TextStreamPart<TToolSet>>({
+  return new TransformStream<ModelStreamPart, Chunk>({
     transform(chunk, controller) {
       // stream-start 携带 warnings → start-step；不对外透出 stream-start 本身
       if (chunk.type === 'stream-start') {
@@ -54,28 +55,38 @@ export function createModelStreamTransformer<TToolSet extends ToolSet = ToolSet>
       switch (chunk.type) {
         // ── 同形透传（重建对象以对齐引擎层类型）──
         case 'text-start':
+          controller.enqueue(stampRunId(runId, { type: 'text-start', payload: { id: chunk.id, providerMetadata: chunk.providerMetadata } }));
+          break;
         case 'text-end':
+          controller.enqueue(stampRunId(runId, { type: 'text-end', payload: { id: chunk.id, providerMetadata: chunk.providerMetadata } }));
+          break;
         case 'reasoning-start':
+          controller.enqueue(stampRunId(runId, { type: 'reasoning-start', payload: { id: chunk.id, providerMetadata: chunk.providerMetadata } }));
+          break;
         case 'reasoning-end':
-          controller.enqueue(chunk);
+          controller.enqueue(stampRunId(runId, { type: 'reasoning-end', payload: { id: chunk.id, providerMetadata: chunk.providerMetadata } }));
           break;
 
-        // ── 文本/推理 delta：V4 的 delta 字段 → TextStreamPart 的 text 字段 ──
+        // ── 文本/推理 delta：V4 的 delta 字段 → Chunk 的 text 字段 ──
         case 'text-delta':
           firstChunkTime ??= Date.now();
-          controller.enqueue({ type: 'text-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
+          controller.enqueue(stampRunId(runId, { type: 'text-delta', payload: { id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata } }));
           break;
 
         case 'reasoning-delta':
           firstChunkTime ??= Date.now();
-          controller.enqueue({ type: 'reasoning-delta', id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata });
+          controller.enqueue(stampRunId(runId, { type: 'reasoning-delta', payload: { id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata } }));
           break;
 
         // ── 工具输入流式（同形透传）──
         case 'tool-input-start':
+          controller.enqueue(stampRunId(runId, { type: 'tool-input-start', payload: { toolCallId: chunk.id, toolName: chunk.toolName, providerExecuted: chunk.providerExecuted, providerMetadata: chunk.providerMetadata } }));
+          break;
         case 'tool-input-delta':
+          controller.enqueue(stampRunId(runId, { type: 'tool-input-delta', payload: { toolCallId: chunk.id, delta: chunk.delta, providerMetadata: chunk.providerMetadata } }));
+          break;
         case 'tool-input-end':
-          controller.enqueue(chunk);
+          controller.enqueue(stampRunId(runId, { type: 'tool-input-end', payload: { toolCallId: chunk.id, providerMetadata: chunk.providerMetadata } }));
           break;
 
         case 'tool-call': {
@@ -92,34 +103,56 @@ export function createModelStreamTransformer<TToolSet extends ToolSet = ToolSet>
           }
           const call: ToolCall = { id: chunk.toolCallId, name: chunk.toolName, args };
           callsById.set(call.id, call);
-          controller.enqueue(createToolCall(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }));
+          controller.enqueue(stampRunId(runId, {
+            type: 'tool-call',
+            payload: createToolCall(call, { providerExecuted: chunk.providerExecuted, invalid, error: parseError }),
+          }));
           break;
         }
 
         // ── provider 端执行的工具结果：isError 分流 tool-result / tool-error ──
         case 'tool-result':
-          controller.enqueue(v4ToolResultPart(chunk, callsById.get(chunk.toolCallId)?.args));
+          controller.enqueue(stampRunId(runId, v4ToolResultPart(chunk, callsById.get(chunk.toolCallId)?.args)));
           break;
 
         // ── provider 端审批请求：关联已记录的 toolCall（查不到则合成占位调用）──
         case 'tool-approval-request': {
           const call = callsById.get(chunk.toolCallId) ?? { id: chunk.toolCallId, name: 'unknown', args: {} };
-          controller.enqueue({ type: 'tool-approval-request', approvalId: chunk.approvalId, toolCall: createToolCall(call, { providerExecuted: true }) });
+          controller.enqueue(stampRunId(runId, {
+            type: 'tool-approval-request',
+            payload: { approvalId: chunk.approvalId, toolCall: createToolCall(call, { providerExecuted: true }) },
+          }));
           break;
         }
 
-        // ── 文件：V4 data/url 变体 → GeneratedFile ──
+        // ── 文件：V4 data/url 变体 → FilePayload ──
         case 'file':
         case 'reasoning-file':
-          controller.enqueue(v4FilePart(chunk));
+          controller.enqueue(stampRunId(runId, v4FilePart(chunk)));
           break;
 
-        // ── 同形透传：Source = LanguageModelV4Source ──
-        case 'source':
-        case 'custom':
-        case 'raw':
-          controller.enqueue(chunk);
+        // ── 来源引用 → SourcePayload ──
+        case 'source': {
+          const payload: SourcePayload = chunk.sourceType === 'url'
+            ? { sourceType: 'url', id: chunk.id, url: chunk.url, title: chunk.title, providerMetadata: chunk.providerMetadata }
+            : { sourceType: 'document', id: chunk.id, mediaType: chunk.mediaType, title: chunk.title, filename: chunk.filename, providerMetadata: chunk.providerMetadata };
+          controller.enqueue(stampRunId(runId, { type: 'source', payload }));
           break;
+        }
+
+        // ── 自定义 provider 内容 → CustomPayload ──
+        case 'custom': {
+          const payload: CustomPayload = { kind: chunk.kind, providerMetadata: chunk.providerMetadata };
+          controller.enqueue(stampRunId(runId, { type: 'custom', payload }));
+          break;
+        }
+
+        // ── 原始 provider 事件 → RawPayload ──
+        case 'raw': {
+          const payload: RawPayload = { raw: chunk.rawValue };
+          controller.enqueue(stampRunId(runId, { type: 'raw', payload }));
+          break;
+        }
 
         // ── 响应元数据：捕获进 finish-step.response ──
         case 'response-metadata':
@@ -128,19 +161,19 @@ export function createModelStreamTransformer<TToolSet extends ToolSet = ToolSet>
 
         // ── V4 finish（单次调用级）→ finish-step（携带 response/usage/performance）──
         case 'finish':
-          controller.enqueue(finishStepPart({
+          controller.enqueue(stampRunId(runId, finishStepPart({
             usage: chunk.usage,
             finishReason: chunk.finishReason,
             providerMetadata: chunk.providerMetadata,
             response: responseMeta,
             startTime: stepStartTime,
             firstChunkTime,
-          }));
+          })));
           break;
 
         case 'error': {
-          const err = chunk.error instanceof Error ? chunk.error : String(chunk.error);
-          controller.enqueue({ type: 'error', error: err });
+          const err = chunk.error instanceof Error ? chunk.error.message : String(chunk.error);
+          controller.enqueue(stampRunId(runId, { type: 'error', payload: { error: err } }));
           break;
         }
       }

@@ -10,14 +10,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/provider-utils": "catalog:",
     "@vico/memory": "workspace:*",
     "@vico/model": "workspace:*",
     "@vico/rag": "workspace:*",
     "@vico/skill": "workspace:*",
     "@vico/thread": "workspace:*",
     "@vico/tool": "workspace:*",
-    "@vico/utils": "workspace:*",
-    "ai": "catalog:"
+    "@vico/utils": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

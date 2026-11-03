@@ -1,11 +1,12 @@
 import {Hono} from 'hono';
-import {createUIMessageStreamResponse, toUIMessageStream, UIMessage} from 'ai';
+import {createUIMessageStreamResponse, UIMessage} from 'ai';
 import type {ApprovalMode} from '@vico/tool';
 import type {ReasoningEffort} from '@vico/model';
 import type {UsageMetrics} from '@vico/types';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
+import {chunkToUIMessageStream} from '../chat/chunk-to-uimessage.js';
 
 /** 从请求体提取最后一条 UIMessage */
 function extractLastMessage(body: Record<string, unknown>): UIMessage | undefined {
@@ -91,7 +92,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
     });
 
     return createUIMessageStreamResponse({
-      stream: toUIMessageStream({
+      stream: chunkToUIMessageStream({
         stream: output.stream,
         onError: (err) => {
           if (typeof err === 'string') {
