@@ -1,8 +1,10 @@
 // @vico/stream - 流式解析、用量计量与 turn 事件（引擎层 Chunk 协议）
 
 export type {
-  Chunk,
+  BaseChunkType,
+  DataChunkType,
   ChunkType,
+  ChunkKind,
   ChunkDraft,
   UserMessage,
   CallModelResult,

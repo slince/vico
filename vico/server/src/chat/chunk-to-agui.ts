@@ -1,17 +1,17 @@
-// vico/server - Chunk → ag-ui 事件流（目标态适配器）。
+// vico/server - ChunkType → ag-ui 事件流（目标态适配器）。
 //
-// 引擎只产出 Chunk（{ type, runId, payload }）；本模块将其转换为 ag-ui 协议事件，
+// 引擎只产出 ChunkType（{ type, runId, payload }）；本模块将其转换为 ag-ui 协议事件，
 // 经 SSE 返回给前端。审批门禁用 ag-ui interrupts 表达：
 //   tool-approval-request → 记录 interrupt，finish 时以 RUN_FINISHED{outcome:'interrupt'} 收尾；
 //   恢复时前端经 RunAgentInput.resume 回传决议，由 api/chat 还原为 tool-approval-response。
 import {randomUUID} from 'node:crypto';
 import {EventType, type Event, type Interrupt, type TokenUsage} from '@ag-ui/core';
-import type {Chunk} from '@vico/stream';
+import type {ChunkType} from '@vico/stream';
 import type {UsageMetrics} from '@vico/types';
 
-/** 把引擎 Chunk 流转换为 ag-ui 事件流 */
+/** 把引擎 ChunkType 流转换为 ag-ui 事件流 */
 export function chunkToAgUiStream(opts: {
-  stream: ReadableStream<Chunk>;
+  stream: ReadableStream<ChunkType>;
   threadId: string;
   runId: string;
 }): ReadableStream<Event> {
@@ -29,7 +29,7 @@ export function chunkToAgUiStream(opts: {
   let errorMessage: string | undefined;
   let finished = false;
 
-  const controller = new TransformStream<Chunk, Event>({
+  const controller = new TransformStream<ChunkType, Event>({
     transform(chunk, enqueue) {
       switch (chunk.type) {
         case 'start':
@@ -184,6 +184,15 @@ export function chunkToAgUiStream(opts: {
           }
           break;
         }
+
+        default:
+          // data-* 自定义数据通道 → CUSTOM 事件
+          enqueue.enqueue({
+            type: EventType.CUSTOM,
+            name: chunk.type.slice('data-'.length),
+            value: chunk.data,
+          });
+          break;
       }
     },
 

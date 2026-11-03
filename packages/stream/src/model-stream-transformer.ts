@@ -1,11 +1,11 @@
-// @vico/stream - createModelStreamTransformer: 将 provider 原生 V4 流转换为引擎层 Chunk 的 TransformStream
+// @vico/stream - createModelStreamTransformer: 将 provider 原生 V4 流转换为引擎层 ChunkType 的 TransformStream
 import type {ModelRequest, ModelStreamPart} from '@vico/model';
 import type {ToolCall} from '@vico/tool';
 import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart} from './stream-parts.js';
-import {stampRunId, type Chunk, type CustomPayload, type RawPayload, type SourcePayload} from './types.js';
+import {stampRunId, type ChunkType, type CustomPayload, type RawPayload, type SourcePayload} from './types.js';
 
 /**
- * 创建 V4 → 引擎层 Chunk 的 TransformStream。
+ * 创建 V4 → 引擎层 ChunkType 的 TransformStream。
  *
  * 转换逻辑（V4 → 引擎层协议映射）与 step 级状态（start-step / response-metadata / finish-step）
  * 内聚在 transform 回调中；文本 / 推理 / 工具调用 / usage 的累积仍由 BufferedModelStream 完成，
@@ -16,13 +16,13 @@ import {stampRunId, type Chunk, type CustomPayload, type RawPayload, type Source
  *
  * @param runId - 本次 stream() 调用的 run 标识（盖章到每条 chunk）
  * @param request - 本 step 模型请求（供 start-step part 携带 request）
- * @returns provider 原生 V4 part → 引擎层 Chunk 的转换流
+ * @returns provider 原生 V4 part → 引擎层 ChunkType 的转换流
  */
 export function createModelStreamTransformer(
   runId: string,
   request: ModelRequest,
-): TransformStream<ModelStreamPart, Chunk> {
-  // ── V4 → Chunk 转换所需的 step 级状态 ──
+): TransformStream<ModelStreamPart, ChunkType> {
+  // ── V4 → ChunkType 转换所需的 step 级状态 ──
   const stepStartTime = Date.now();
   /** 首个输出 chunk 到达时间（性能指标 timeToFirstOutputMs） */
   let firstChunkTime: number | undefined;
@@ -35,7 +35,7 @@ export function createModelStreamTransformer(
 
   /** start-step 兜底：stream-start 时携带 warnings 触发，其余 part 到达前无 warnings 兜底触发 */
   const ensureStepStarted = (
-    controller: TransformStreamDefaultController<Chunk>,
+    controller: TransformStreamDefaultController<ChunkType>,
     warnings: import('@ai-sdk/provider').SharedV4Warning[] = [],
   ): void => {
     if (stepStarted) return;
@@ -43,7 +43,7 @@ export function createModelStreamTransformer(
     controller.enqueue(stampRunId(runId, startStepPart(request.messages, warnings)));
   };
 
-  return new TransformStream<ModelStreamPart, Chunk>({
+  return new TransformStream<ModelStreamPart, ChunkType>({
     transform(chunk, controller) {
       // stream-start 携带 warnings → start-step；不对外透出 stream-start 本身
       if (chunk.type === 'stream-start') {
@@ -67,7 +67,7 @@ export function createModelStreamTransformer(
           controller.enqueue(stampRunId(runId, { type: 'reasoning-end', payload: { id: chunk.id, providerMetadata: chunk.providerMetadata } }));
           break;
 
-        // ── 文本/推理 delta：V4 的 delta 字段 → Chunk 的 text 字段 ──
+        // ── 文本/推理 delta：V4 的 delta 字段 → ChunkType 的 text 字段 ──
         case 'text-delta':
           firstChunkTime ??= Date.now();
           controller.enqueue(stampRunId(runId, { type: 'text-delta', payload: { id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata } }));

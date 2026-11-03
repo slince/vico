@@ -234,49 +234,64 @@ export interface AbortPayload {}
 // 引擎层输出协议（平替 TextStreamPart<TToolSet>，去掉 TOOLS 泛型，改为 JSON 安全）
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type Chunk =
-  | { type: 'start'; runId: string; payload: StartPayload }
-  | { type: 'text-start'; runId: string; payload: TextStartPayload }
-  | { type: 'text-delta'; runId: string; payload: TextDeltaPayload }
-  | { type: 'text-end'; runId: string; payload: TextEndPayload }
-  | { type: 'reasoning-start'; runId: string; payload: ReasoningStartPayload }
-  | { type: 'reasoning-delta'; runId: string; payload: ReasoningDeltaPayload }
-  | { type: 'reasoning-end'; runId: string; payload: ReasoningEndPayload }
-  | { type: 'tool-input-start'; runId: string; payload: ToolInputStartPayload }
-  | { type: 'tool-input-delta'; runId: string; payload: ToolInputDeltaPayload }
-  | { type: 'tool-input-end'; runId: string; payload: ToolInputEndPayload }
-  | { type: 'tool-call'; runId: string; payload: ToolCallPayload }
-  | { type: 'tool-result'; runId: string; payload: ToolResultPayload }
-  | { type: 'tool-error'; runId: string; payload: ToolErrorPayload }
-  | { type: 'tool-output-denied'; runId: string; payload: ToolOutputDeniedPayload }
-  | { type: 'tool-approval-request'; runId: string; payload: ToolApprovalRequestPayload }
-  | { type: 'tool-approval-response'; runId: string; payload: ToolApprovalResponsePayload }
-  | { type: 'file'; runId: string; payload: FilePayload }
-  | { type: 'reasoning-file'; runId: string; payload: FilePayload }
-  | { type: 'source'; runId: string; payload: SourcePayload }
-  | { type: 'custom'; runId: string; payload: CustomPayload }
-  | { type: 'raw'; runId: string; payload: RawPayload }
-  | { type: 'start-step'; runId: string; payload: StartStepPayload }
-  | { type: 'finish-step'; runId: string; payload: FinishStepPayload }
-  | { type: 'finish'; runId: string; payload: FinishPayload }
-  | { type: 'error'; runId: string; payload: ErrorPayload }
-  | { type: 'abort'; runId: string; payload: AbortPayload };
+/** 公共信封：所有 payload chunk 携带的 run 标识 */
+export interface BaseChunkType {
+  runId: string;
+}
+
+/** 自定义数据通道（无 runId/payload，透传任意结构化数据给前端） */
+export type DataChunkType = {
+  type: `data-${string}`;
+  data: unknown;
+  id?: string;
+  /** true 时仅流给客户端、不持久化到存储 */
+  transient?: boolean;
+};
+
+export type ChunkType =
+  | (BaseChunkType & { type: 'start'; payload: StartPayload })
+  | (BaseChunkType & { type: 'text-start'; payload: TextStartPayload })
+  | (BaseChunkType & { type: 'text-delta'; payload: TextDeltaPayload })
+  | (BaseChunkType & { type: 'text-end'; payload: TextEndPayload })
+  | (BaseChunkType & { type: 'reasoning-start'; payload: ReasoningStartPayload })
+  | (BaseChunkType & { type: 'reasoning-delta'; payload: ReasoningDeltaPayload })
+  | (BaseChunkType & { type: 'reasoning-end'; payload: ReasoningEndPayload })
+  | (BaseChunkType & { type: 'tool-input-start'; payload: ToolInputStartPayload })
+  | (BaseChunkType & { type: 'tool-input-delta'; payload: ToolInputDeltaPayload })
+  | (BaseChunkType & { type: 'tool-input-end'; payload: ToolInputEndPayload })
+  | (BaseChunkType & { type: 'tool-call'; payload: ToolCallPayload })
+  | (BaseChunkType & { type: 'tool-result'; payload: ToolResultPayload })
+  | (BaseChunkType & { type: 'tool-error'; payload: ToolErrorPayload })
+  | (BaseChunkType & { type: 'tool-output-denied'; payload: ToolOutputDeniedPayload })
+  | (BaseChunkType & { type: 'tool-approval-request'; payload: ToolApprovalRequestPayload })
+  | (BaseChunkType & { type: 'tool-approval-response'; payload: ToolApprovalResponsePayload })
+  | (BaseChunkType & { type: 'file'; payload: FilePayload })
+  | (BaseChunkType & { type: 'reasoning-file'; payload: FilePayload })
+  | (BaseChunkType & { type: 'source'; payload: SourcePayload })
+  | (BaseChunkType & { type: 'custom'; payload: CustomPayload })
+  | (BaseChunkType & { type: 'raw'; payload: RawPayload })
+  | (BaseChunkType & { type: 'start-step'; payload: StartStepPayload })
+  | (BaseChunkType & { type: 'finish-step'; payload: FinishStepPayload })
+  | (BaseChunkType & { type: 'finish'; payload: FinishPayload })
+  | (BaseChunkType & { type: 'error'; payload: ErrorPayload })
+  | (BaseChunkType & { type: 'abort'; payload: AbortPayload })
+  | DataChunkType;
 
 /** Chunk 类型字面量联合 */
-export type ChunkType = Chunk['type'];
+export type ChunkKind = ChunkType['type'];
 
-/** 未携带 runId 的 chunk 草稿（part 构造函数的返回形态，由 run 边界统一盖章 runId） */
-export type ChunkDraft = Omit<Chunk, 'runId'>;
+/** 未携带 runId 的 payload chunk 草稿（part 构造函数的返回形态，由 run 边界统一盖章 runId） */
+export type ChunkDraft = Omit<Exclude<ChunkType, DataChunkType>, 'runId'>;
 
 /**
- * 给 chunk 草稿盖章 runId，产出完整 Chunk。
+ * 给 payload chunk 草稿盖章 runId，产出完整 ChunkType。
  *
  * @param runId - 本次 stream() 调用的 run 标识
- * @param draft - chunk 草稿（{ type, payload }）
- * @returns 完整 Chunk
+ * @param draft - payload chunk 草稿（{ type, payload }）
+ * @returns 完整 ChunkType（DataChunkType 不经过本函数）
  */
-export function stampRunId(runId: string, draft: ChunkDraft): Chunk {
-  return { ...draft, runId } as Chunk;
+export function stampRunId(runId: string, draft: ChunkDraft): ChunkType {
+  return { ...draft, runId } as ChunkType;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

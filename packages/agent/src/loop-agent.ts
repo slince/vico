@@ -25,7 +25,7 @@ import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@
 import {fromModelMessage, type PersistableMessage} from '@vico/thread';
 import type {ToolApproval} from '@vico/types';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
-import type {CallModelResult, Chunk, UserMessage} from '@vico/stream';
+import type {CallModelResult, ChunkType, UserMessage} from '@vico/stream';
 import {stampRunId} from '@vico/stream';
 import {
   addUsage,
@@ -201,7 +201,7 @@ export class LoopAgent
     // runId：本次 stream() 调用的标识，盖章到每条 chunk（暂停恢复走新 run，产生新 runId）
     const runId = randomUUID();
 
-    const stream = new ReadableStream<Chunk>({
+    const stream = new ReadableStream<ChunkType>({
       start: async (controller) => {
         try {
           const result = await this.start({
@@ -273,7 +273,7 @@ export class LoopAgent
   private async start(ctx: {
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<Chunk>;
+    controller: ReadableStreamDefaultController<ChunkType>;
     runId: string;
     thread: Thread;
     reasoning?: ReasoningEffort;
@@ -310,7 +310,7 @@ export class LoopAgent
     session: TurnSession;
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<Chunk>;
+    controller: ReadableStreamDefaultController<ChunkType>;
     runId: string;
     checkpoint: Checkpoint;
     reasoning?: ReasoningEffort;

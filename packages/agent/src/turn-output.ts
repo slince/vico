@@ -1,5 +1,5 @@
 // @vico/agent - TurnOutput: runTurn 的返回值，封装流和结果
-import type {Chunk} from '@vico/stream';
+import type {ChunkType} from '@vico/stream';
 import type {TurnResult} from './loop-agent-options.js';
 
 /**
@@ -8,8 +8,8 @@ import type {TurnResult} from './loop-agent-options.js';
  * 驱动 turn 产出并回收最终结果；已被消费（如 SSE 转发）则直接等待其读完。
  */
 export class TurnOutput {
-  /** 引擎输出流（Chunk 协议） */
-  readonly stream: ReadableStream<Chunk>;
+  /** 引擎输出流（ChunkType 协议） */
+  readonly stream: ReadableStream<ChunkType>;
 
   /** turn 完成后的最终结果（由 run() 内部 resolve，永不 reject） */
   private readonly resultPromise: Promise<TurnResult>;
@@ -17,7 +17,7 @@ export class TurnOutput {
   private readonly abortController: AbortController;
 
   constructor(
-    stream: ReadableStream<Chunk>,
+    stream: ReadableStream<ChunkType>,
     resultPromise: Promise<TurnResult>,
     abortController: AbortController,
   ) {
