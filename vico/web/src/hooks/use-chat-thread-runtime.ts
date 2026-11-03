@@ -1,21 +1,19 @@
 /**
- * 对话线程运行时 hook — 为单个线程创建 useChatRuntime 实例。
+ * 对话线程运行时 hook — 为单个线程创建 useAgUiRuntime 实例。
  *
- * 封装 transport 创建、历史适配器注入、onFinish threadId 回写和错误处理，
+ * 封装 HttpAgent 创建、历史适配器注入、onRunFinished threadId 回写和错误处理，
  * useAssistantRuntime 的 runtimeHook 和 useTeamAssistantRuntime 共用此 hook。
  */
-import {useMemo, useRef} from 'react';
-import {useChatRuntime} from '@assistant-ui/react-ai-sdk';
-import {AssistantChatTransport} from '@assistant-ui/ai-sdk';
-import {lastAssistantMessageIsCompleteWithApprovalResponses} from 'ai';
+import {useEffect, useMemo, useRef} from 'react';
+import {HttpAgent} from '@ag-ui/client';
+import {useAgUiRuntime} from '@assistant-ui/react-ag-ui';
+import {useAui, useAuiState, WebSpeechDictationAdapter, type LanguageModelConfig} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
 
 import {createThreadHistoryAdapter} from '@/lib/thread-adapter';
-import {useAuiState, WebSpeechDictationAdapter} from "@assistant-ui/react";
 
 /**
  * i18n 语言 → Web Speech API `SpeechRecognition.lang`（BCP-47）映射。
- * i18n 的英文 key 是 `en`，而 Web Speech 识别英语需用更精确的 `en-US`。
  */
 const SPEECH_LANG_MAP: Record<string, string> = {
   en: 'en-US',
@@ -24,7 +22,7 @@ const SPEECH_LANG_MAP: Record<string, string> = {
 };
 
 export interface UseChatThreadRuntimeOptions {
-  /** Agent ID — Agent 详情页测试区传入（写入顶层 body.agentId）；Chat 路由不传（走 config.agentId） */
+  /** Agent ID — Agent 详情页测试区传入（注入 modelContext → forwardedProps.agentId）；Chat 路由不传 */
   agentId?: string;
   /** 首次对话创建 thread 后的回调 */
   onThreadCreated?: (threadId: string) => void;
@@ -33,87 +31,68 @@ export interface UseChatThreadRuntimeOptions {
 }
 
 /**
- * 为指定线程创建 AssistantRuntime。
+ * 为指定线程创建 AssistantRuntime（ag-ui 协议）。
  *
  * @param options - 配置选项
  * @returns AssistantRuntime 实例
  */
-export function useChatThreadRuntime({agentId, onThreadCreated, onError,}: UseChatThreadRuntimeOptions) {
+export function useChatThreadRuntime({agentId, onThreadCreated, onError}: UseChatThreadRuntimeOptions) {
+  // 线程真实 ID（initialize 预创建后写入 remoteId；本地临时 ID 时为 undefined）
+  const remoteId = useAuiState((state) => state.threadListItem.remoteId);
 
-  const threadId = useAuiState(state => state.threadListItem.id);
-
-  // 历史消息适配器 — 使用 useChatRuntime 的 adapters.history 自动加载
+  // 历史消息适配器 — 使用 useAgUiRuntime 的 adapters.history 自动加载
   const history = useMemo(
-    () => createThreadHistoryAdapter(threadId),
-    [threadId],
+    () => createThreadHistoryAdapter(remoteId),
+    [remoteId],
   );
 
-  // 用 ref 持有 onThreadCreated，避免 fetch 闭包捕获旧引用
+  // 用 ref 持有 onThreadCreated，避免订阅闭包捕获旧引用
   const onThreadCreatedRef = useRef(onThreadCreated);
   onThreadCreatedRef.current = onThreadCreated;
 
-  // 从响应头提取的 threadId，待 onFinish 消费
-  const newThreadIdRef = useRef<string | null>(null);
+  // Agent 详情页测试区：把固定 agentId 注入 modelContext → forwardedProps.agentId
+  const aui = useAui();
+  useEffect(() => {
+    if (!agentId) return;
+    const config = { agentId } as LanguageModelConfig & { agentId?: string };
+    return aui.modelContext.register({
+      getModelContext: () => ({ config }),
+    });
+  }, [aui, agentId]);
 
-  // 为此线程创建 transport — threadId 为对话 ID（新线程则为本地 ID）
-  // 使用 AssistantChatTransport（而非 DefaultChatTransport）以自动把
-  // modelContext（ModelSelector / AgentSelector 等注册的 config）注入请求 body。
-  const transport = useMemo(() => new AssistantChatTransport({
-        api: '/api/v1/chat',
-        credentials: 'include',
-        // Agent 详情页测试区走顶层 body.agentId；Chat 路由的 agentId 由 AgentSelector
-        // 通过 modelContext 注入 body.config.agentId，这里不写顶层字段。
-        body: () => (agentId ? { agentId } : {}),
-        prepareSendMessagesRequest: ({ messages, body, id }) => {
-          const lastMsg = messages[messages.length - 1];
-
-          return {
-            body: {
-              ...body,
-              // AssistantChatTransport 在发送前已 await initialize 拿到真实 remoteId，
-              // 这里用 id（remoteId）而非本地 threadId，服务端据此复用已创建的线程。
-              threadId: id,
-              messages: lastMsg ? [lastMsg] : [],
-            },
-          };
-        },
-        // 拦截响应头，记录服务端返回的真实 threadId，待流结束后在 onFinish 中使用
-        fetch: async (url, init) => {
-          const response = await fetch(url, init);
-          const newId = response.headers.get('x-thread-id');
-          if (newId && newId !== threadId) {
-            newThreadIdRef.current = newId;
-          }
-          return response;
-        },
-      }),
-    [agentId, threadId],
-  );
+  // 为此线程创建 HttpAgent — 自定义 fetch 注入 credentials（session cookie）
+  const agent = useMemo(() => {
+    const http = new HttpAgent({
+      url: '/api/v1/chat',
+      threadId: remoteId,
+      fetch: (url, init) => fetch(url, { ...init, credentials: 'include' }),
+    });
+    // RUN_FINISHED 时回写服务端真实 threadId（服务端新建线程的兜底路径）
+    http.subscribe({
+      onRunFinishedEvent: ({ event }) => {
+        const newThreadId = event.threadId;
+        if (newThreadId && newThreadId !== remoteId) {
+          onThreadCreatedRef.current?.(newThreadId);
+        }
+      },
+    });
+    return http;
+  }, [remoteId]);
 
   // 语音听写适配器 — 识别语言跟随应用 i18n 设置，切换语言时重建
   const { i18n } = useTranslation();
   const dictation = useMemo(
     () => new WebSpeechDictationAdapter({
       language: SPEECH_LANG_MAP[i18n.language] ?? i18n.language,
-      continuous: true, // keep recording after pauses (default: true)
-      interimResults: true, // emit interim transcripts (default: true)
+      continuous: true,
+      interimResults: true,
     }),
     [i18n.language],
   );
 
-  return useChatRuntime({
-    transport,
-    id: threadId,
+  return useAgUiRuntime({
+    agent,
     adapters: { history, dictation },
-    // 当所有审批决议就绪时自动发送（无需用户手动输入消息）
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-    onFinish: () => {
-      const newThreadId = newThreadIdRef.current;
-      if (newThreadId && newThreadId !== threadId) {
-        onThreadCreatedRef.current?.(newThreadId);
-        newThreadIdRef.current = null;
-      }
-    },
     onError: (err: Error) => {
       if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
         console.warn('[chat] 流式请求收到 401/Unauthorized，会话可能失效，暂不跳转登录页', { message: err.message });

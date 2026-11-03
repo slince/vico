@@ -41,14 +41,13 @@
 - `ai/internal` 的 `standardizePrompt` / `convertToLanguageModelPrompt` / `prepareTools` → 本地重实现于 [`packages/model/src/prompt-conversion.ts`](../../packages/model/src/prompt-conversion.ts)（Vico 子集：文本/推理/工具调用/工具结果/审批标记；连续 tool 消息合并、空 tool 消息剔除、`tool-approval-request` 剥离、非 providerExecuted `tool-approval-response` 剥离）。
 - `ModelMessage` / `ToolSet` / `ToolCallPart` / `ToolResultPart` / `ToolApprovalRequest/Response` / `tool` / `asSchema` 等 → `@ai-sdk/provider-utils`；`LanguageModelV4*` / `SharedV4*` / `JSONValue` → `@ai-sdk/provider`。
 
-## 四、分层（过渡态）
+## 四、分层
 
 ```
 ModelClient.stream()      → LanguageModelV4StreamPart   (@ai-sdk/provider，保留)
   └ createModelStreamTransformer(runId, request)
 TurnOutput.stream         → Chunk                       (引擎合同，本协议)
-  └ vico/server chunk-to-uimessage.ts（过渡）→ TextStreamPart → toUIMessageStream → UIMessageChunk
-  └ vico/server chunk-to-agui.ts（目标态，见 ag-ui 迁移方案）→ ag-ui 事件
+  └ vico/server chunk-to-agui.ts → ag-ui 事件 → SSE    (前端 @assistant-ui/react-ag-ui 消费)
 ```
 
 ## 五、包依赖变化

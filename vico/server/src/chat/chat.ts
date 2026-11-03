@@ -5,14 +5,14 @@ import type {Agent, TurnOutput} from '@vico/agent';
 import type {ApprovalMode} from '@vico/tool';
 import type {ReasoningEffort} from '@vico/model';
 import type {Thread} from '@vico/thread';
+import {getMessageText, pickPrimaryUserMessage} from '@vico/model';
 import {getAgent} from '../agent/get-agent.js';
-import {convertToModelMessages, validateUIMessages, type UIMessage} from 'ai';
 import type {ModelMessage} from '@ai-sdk/provider-utils';
 
 export interface ExecuteChatParams {
   agentId: string;
-  /** 用户消息：原生 UIMessage（审批响应随 parts 下传，agent 内部自动提取） */
-  message: UIMessage;
+  /** 本轮输入消息（原生 ModelMessage；审批响应随 tool-approval-response part 下传） */
+  messages: ModelMessage[];
   /** 客户端传入的真实线程 ID；为空时新建线程 */
   threadId?: string;
   userId?: string;
@@ -38,18 +38,14 @@ export interface ExecuteChatResult {
 const TITLE_MAX_LENGTH = 30;
 
 /**
- * 从用户消息提取会话标题（拼接文本 part，超长截断），空则返回 undefined。
+ * 从本轮输入消息提取会话标题（拼接文本，超长截断），空则返回 undefined。
  *
- * @param message - 用户消息（UIMessage）
+ * @param messages - 本轮输入消息组
  * @returns 标题文本，无文本时为 undefined
  */
-function deriveTitle(message: UIMessage | undefined): string | undefined {
-  if (!message) return undefined;
-  const text = message.parts
-    .filter((p) => p.type === 'text')
-    .map((p) => p.text)
-    .join('')
-    .trim();
+function deriveTitle(messages: ModelMessage[]): string | undefined {
+  if (messages.length === 0) return undefined;
+  const text = getMessageText(pickPrimaryUserMessage(messages) ?? messages[0]!).trim();
   if (!text) return undefined;
   return text.length > TITLE_MAX_LENGTH ? `${text.slice(0, TITLE_MAX_LENGTH)}…` : text;
 }
@@ -60,7 +56,7 @@ function deriveTitle(message: UIMessage | undefined): string | undefined {
  * @param agent - 已解析的 Agent 实例
  * @param threadId - 客户端传入的线程 ID（可能为空）
  * @param userId - 当前用户 ID，用于校验线程归属
- * @param message
+ * @param messages - 本轮输入消息组（用于标题派生）
  * @param workspace - 客户端选择的工作区（新建线程时写入；复用线程时若与已存工作区不符则回写）
  * @returns 待执行的 Thread
  */
@@ -68,7 +64,7 @@ async function resolveThread(
   agent: Agent,
   threadId: string | undefined,
   userId: string | undefined,
-  message: UIMessage,
+  messages: ModelMessage[],
   workspace?: string,
 ): Promise<Thread> {
   if (threadId) {
@@ -76,7 +72,7 @@ async function resolveThread(
     // 仅复用归属当前用户的线程，防止跨用户恢复他人会话
     if (existing && (!existing.userId || existing.userId === userId)) {
       // 线程由前端提交前预先创建，标题为默认值；此处用首条消息补全标题
-      const title = deriveTitle(message);
+      const title = deriveTitle(messages);
       const needsTitle = !!title && (!existing.title || existing.title === 'New thread');
       // 工作区与当前传参不符时，按当前传参回写 thread.metadata.workspace
       const needsWorkspace = !!workspace && existing.metadata?.workspace !== workspace;
@@ -93,31 +89,19 @@ async function resolveThread(
       return existing;
     }
   }
-  return agent.createThread({ userId, title: deriveTitle(message), workspace });
-}
-
-/**
- * UIMessage → ModelMessage（审批响应随 parts 下传，引擎内部经 extractApprovalResponses 提取）。
- * 与旧 normalizeUserMessage 的 UIMessage 分支语义一致：取转换后的最后一条。
- */
-async function uiMessageToModelMessages(message: UIMessage): Promise<ModelMessage[]> {
-  const validated = await validateUIMessages({ messages: [message] });
-  const converted = await convertToModelMessages(validated, { ignoreIncompleteToolCalls: true });
-  const last = converted[converted.length - 1];
-  return last ? [last] : [];
+  return agent.createThread({ userId, title: deriveTitle(messages), workspace });
 }
 
 /** 执行 Agent 对话 — 通过 agent.stream，自动处理新对话和暂停恢复 */
 export async function executeAgentChat(
   params: ExecuteChatParams,
 ): Promise<ExecuteChatResult> {
-  const { agentId, message, threadId, userId, model, reasoning, approvalMode, workspace, signal } = params;
+  const { agentId, messages, threadId, userId, model, reasoning, approvalMode, workspace, signal } = params;
 
   const agent = await getAgent(agentId);
-  const thread = await resolveThread(agent, threadId, userId, message, workspace);
+  const thread = await resolveThread(agent, threadId, userId, messages, workspace);
 
-  const modelMessages = message ? await uiMessageToModelMessages(message) : [];
-  const output = await agent.stream(modelMessages, {
+  const output = await agent.stream(messages, {
     thread, model, reasoning,
     approvalMode, signal
   });

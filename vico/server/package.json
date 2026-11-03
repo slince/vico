@@ -15,6 +15,7 @@
     "eval:ci": "tsx src/agent/evals/ci-smoke.ts"
   },
   "dependencies": {
+    "@ag-ui/core": "^1.0.3",
     "@ai-sdk/provider-utils": "catalog:",
     "@aws-sdk/client-s3": "^3.1072.0",
     "@aws-sdk/s3-presigned-post": "^3.1072.0",
@@ -38,7 +39,6 @@
     "@vico/tool": "workspace:*",
     "@vico/types": "workspace:*",
     "@vico/utils": "workspace:*",
-    "ai": "catalog:",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "files-sdk": "^1.9.0",

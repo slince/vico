@@ -1,5 +1,8 @@
 # Vico 前端报文协议迁移：UIMessage → ag-ui（方案）
 
+> 状态：**已实施**（2026-07）。`ai` 包已从 server + web + 全部 engine 包移除；前端已切到 `@assistant-ui/react-ag-ui`；审批门禁经 ag-ui interrupts 落地。
+> 方案内容保留如下，供评审与后续演进参考。
+
 > 目标态：后端不再输出 ai 包的 `UIMessage`/`UIMessageChunk`，改输出 [AG-UI 协议](https://github.com/ag-ui-protocol/ag-ui) 事件流；前端从 `@assistant-ui/react-ai-sdk`（消费 ai UIMessage SSE）切换到 `@assistant-ui/react-ag-ui`（消费 ag-ui 事件）。
 > 前置依赖：任务一已把引擎输出统一为自有 `Chunk` 协议（`{ type, runId, payload }`），本方案在其之上做 **Chunk → ag-ui 事件** 的边界转换。
 

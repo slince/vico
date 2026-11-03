@@ -1,6 +1,6 @@
 import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
 import {type ThreadStore} from '@vico/thread';
-import {toUiMessages} from './ui-messages.js';
+import {toAgUiMessages} from './agui-messages.js';
 import type {AgentManager} from '../agent/agent-manager.js';
 
 /** 前台展示的消息角色 */
@@ -56,7 +56,7 @@ export class ThreadManager {
       messageCount = all.length;
     }
 
-    const messages = toUiMessages(entries);
+    const messages = toAgUiMessages(entries);
     return { ...thread, messageCount, messages};
   }
 

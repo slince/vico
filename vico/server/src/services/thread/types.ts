@@ -1,5 +1,5 @@
 import type {Thread} from '@vico/thread';
-import {UIMessage} from "ai";
+import type {Message as AgUiMessage} from '@ag-ui/core';
 
 /** 列表返回的线程项 — 在 Thread 基础上附加可见消息计数 */
 export interface ThreadItem extends Thread {
@@ -7,9 +7,9 @@ export interface ThreadItem extends Thread {
   messageCount: number;
 }
 
-/** 详情返回的线程（含消息列表） */
+/** 详情返回的线程（含消息列表，ag-ui 消息协议） */
 export interface ThreadDetail extends ThreadItem {
-  messages: UIMessage[];
+  messages: AgUiMessage[];
 }
 
 /** Dashboard 最近的线程项（含最后一条消息预览） */
