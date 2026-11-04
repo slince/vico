@@ -2,7 +2,7 @@ import {Hono} from 'hono';
 import type {RunAgentInput} from '@ag-ui/core';
 import type {ApprovalMode} from '@vico/tool';
 import type {ReasoningEffort} from '@vico/model';
-import {aguiMessagesToModelMessages, aguiSSEResponse, chunkToAgUiStream, resumeToModelMessages} from '@vico/stream-ag-ui';
+import {aguiMessagesToModelMessages, aguiSSEResponse, createChunkToAgUiTransformer, resumeToModelMessages} from '@vico/stream-ag-ui';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
@@ -87,11 +87,10 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       signal: c.req.raw.signal,
     });
 
-    const events = chunkToAgUiStream({
-      stream: output.stream,
+    const events = output.stream.pipeThrough(createChunkToAgUiTransformer({
       threadId: thread.id,
       runId: input.runId,
-    });
+    }));
 
     return aguiSSEResponse(events, { 'x-thread-id': thread.id });
   });

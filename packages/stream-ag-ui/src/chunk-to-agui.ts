@@ -10,19 +10,19 @@ import type {ChunkType} from '@vico/stream';
 import type {UsageMetrics} from '@vico/types';
 
 /**
- * 把引擎 ChunkType 流转换为 ag-ui 事件流。
+ * 创建 ChunkType → ag-ui Event 的 TransformStream。
  *
- * @param opts.stream - 引擎输出的 ChunkType 流（@vico/stream 引擎层协议）
+ * 调用方自行把引擎 ChunkType 流 pipeThrough 本变换流，得到 ag-ui Event 流。
+ *
  * @param opts.threadId - 会话线程 ID（RUN_STARTED / RUN_FINISHED 携带）
  * @param opts.runId - 本次 run 标识（RUN_STARTED / RUN_FINISHED 携带）
- * @returns ag-ui Event 流，可经 SSE 编码返回前端
+ * @returns ChunkType → Event 的变换流
  */
-export function chunkToAgUiStream(opts: {
-  stream: ReadableStream<ChunkType>;
+export function createChunkToAgUiTransformer(opts: {
   threadId: string;
   runId: string;
-}): ReadableStream<Event> {
-  const { stream, threadId, runId } = opts;
+}): TransformStream<ChunkType, Event> {
+  const { threadId, runId } = opts;
 
   // 本次 run 的稳定 assistant 消息 id（所有文本块与工具调用归属同一条 assistant 消息）
   const assistantMessageId = randomUUID();
@@ -36,7 +36,7 @@ export function chunkToAgUiStream(opts: {
   let errorMessage: string | undefined;
   let finished = false;
 
-  const controller = new TransformStream<ChunkType, Event>({
+  return new TransformStream<ChunkType, Event>({
     transform(chunk, enqueue) {
       switch (chunk.type) {
         case 'start':
@@ -210,8 +210,6 @@ export function chunkToAgUiStream(opts: {
       }
     },
   });
-
-  return stream.pipeThrough(controller);
 }
 
 /**

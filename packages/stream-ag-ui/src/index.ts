@@ -6,7 +6,7 @@
 // - agui-messages：ThreadStore Message（ModelMessage.content）→ ag-ui Message（历史展示）
 // - sse：ag-ui 事件流 → SSE Response（text/event-stream 编码）
 
-export { chunkToAgUiStream, toTokenUsage } from './chunk-to-agui.js';
+export { createChunkToAgUiTransformer, toTokenUsage } from './chunk-to-agui.js';
 export { toAgUiMessages } from './agui-messages.js';
 export { aguiMessagesToModelMessages, resumeToModelMessages } from './model-messages.js';
 export { aguiSSEResponse } from './sse.js';

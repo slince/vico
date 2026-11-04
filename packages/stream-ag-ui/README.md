@@ -10,7 +10,7 @@
 
 | 模块 | 函数 | 方向 |
 |------|------|------|
-| `chunk-to-agui` | `chunkToAgUiStream` / `toTokenUsage` | `ChunkType` 流 → ag-ui `Event` 流 |
+| `chunk-to-agui` | `createChunkToAgUiTransformer` / `toTokenUsage` | `ChunkType` 流 → ag-ui `Event` 流（返回 `TransformStream`，调用方 `pipeThrough`） |
 | `model-messages` | `aguiMessagesToModelMessages` / `resumeToModelMessages` | ag-ui `Message` / `resume` → `ModelMessage[]` |
 | `agui-messages` | `toAgUiMessages` | `Message`（`ModelMessage.content`）→ ag-ui `Message[]`（历史展示） |
 | `sse` | `aguiSSEResponse` | ag-ui `Event` 流 → `text/event-stream` `Response` |
@@ -19,7 +19,7 @@
 
 ```
 引擎 LoopAgent → ChunkType 流 (@vico/stream)
-    │ chunkToAgUiStream
+    │ pipeThrough(createChunkToAgUiTransformer(...))
     ▼
 ag-ui Event 流 → aguiSSEResponse → SSE → 前端 @assistant-ui/react-ag-ui
 
