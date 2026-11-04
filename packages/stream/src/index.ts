@@ -40,6 +40,7 @@ export type {
   TotalUsage,
 } from './types.js';
 export { stampRunId } from './types.js';
+export { ChunkWriter } from './chunk-writer.js';
 export { createModelStreamTransformer } from './model-stream-transformer.js';
 export {
   createToolCall,

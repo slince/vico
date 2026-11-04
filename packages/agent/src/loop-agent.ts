@@ -26,7 +26,7 @@ import {fromModelMessage, type PersistableMessage} from '@vico/thread';
 import type {ToolApproval} from '@vico/types';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
 import type {CallModelResult, ChunkType, UserMessage} from '@vico/stream';
-import {stampRunId} from '@vico/stream';
+import {ChunkWriter, stampRunId} from '@vico/stream';
 import {
   addUsage,
   createModelStreamTransformer,
@@ -39,7 +39,7 @@ import {
 } from '@vico/stream';
 import {type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '@vico/checkpoint';
-import {createAggregatedAbortController, forwardToController, Pipeline} from '@vico/utils';
+import {createAggregatedAbortController, Pipeline} from '@vico/utils';
 import type {ContextProcessor} from '@vico/context';
 import {ModelRequestContext} from '@vico/context';
 import type {
@@ -203,11 +203,13 @@ export class LoopAgent
 
     const stream = new ReadableStream<ChunkType>({
       start: async (controller) => {
+        // 输出写入器：封装 controller，供 TurnContext.output 使用
+        const output = new ChunkWriter(controller);
         try {
           const result = await this.start({
             userMessages,
             signal: abortController.signal,
-            controller,
+            output,
             runId,
             thread: options.thread,
             reasoning: options.reasoning,
@@ -219,7 +221,7 @@ export class LoopAgent
         } catch (err) {
           const error = err instanceof Error ? err : String(err);
           // 向流内透出错误 part（controller 可能已关闭，静默兜底）
-          try { controller.enqueue(stampRunId(runId, { type: 'error', payload: { error } })); } catch { /* already closed */ }
+          try { output.write(stampRunId(runId, { type: 'error', payload: { error } })); } catch { /* already closed */ }
           // 始终 resolve：错误已通过流透出，消费者无需 try-catch
           resolve({ status: 'failed', steps: 0, usage: emptyUsage(), messages: [], error });
         } finally {
@@ -273,14 +275,14 @@ export class LoopAgent
   private async start(ctx: {
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<ChunkType>;
+    output: ChunkWriter;
     runId: string;
     thread: Thread;
     reasoning?: ReasoningEffort;
     modelClient: ModelClient;
     approvalMode?: ApprovalMode;
   }): Promise<TurnResult> {
-    const { userMessages, signal, controller, runId, thread, reasoning, modelClient, approvalMode } = ctx;
+    const { userMessages, signal, output, runId, thread, reasoning, modelClient, approvalMode } = ctx;
 
     const workspace = thread.metadata?.workspace ?? this.workspace;
 
@@ -302,7 +304,7 @@ export class LoopAgent
     }
 
     const session: TurnSession = { workspace, thread, turn };
-    return this.startTurn({ session, userMessages, signal, controller, runId, checkpoint, reasoning, modelClient, approvalMode });
+    return this.startTurn({ session, userMessages, signal, output, runId, checkpoint, reasoning, modelClient, approvalMode });
   }
 
   /** 创建新的 turn 并开始执行 */
@@ -310,17 +312,17 @@ export class LoopAgent
     session: TurnSession;
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    controller: ReadableStreamDefaultController<ChunkType>;
+    output: ChunkWriter;
     runId: string;
     checkpoint: Checkpoint;
     reasoning?: ReasoningEffort;
     modelClient: ModelClient;
     approvalMode?: ApprovalMode;
   }): Promise<TurnResult> {
-    const { session, userMessages, signal, controller, runId, checkpoint, reasoning, modelClient, approvalMode } = params;
+    const { session, userMessages, signal, output, runId, checkpoint, reasoning, modelClient, approvalMode } = params;
 
     this.emit({ type: 'turn.start', thread: session.thread, turn: session.turn });
-    controller.enqueue(stampRunId(runId, { type: 'start', payload: {} }));
+    output.write(stampRunId(runId, { type: 'start', payload: {} }));
 
     const {decisions} = extractApprovalResponses(userMessages)
 
@@ -340,7 +342,7 @@ export class LoopAgent
         approvedTools: new Map<string, ToolApproval>(),
         session,
         signal,
-        controller,
+        output,
         runId,
         checkpoint,
         // 恢复暂停的 turn 时从 metadata.usage 读回已累计用量，跨暂停不丢量
@@ -385,7 +387,7 @@ export class LoopAgent
     if (result.status === 'paused') {
       this.log.info({ turnId: turn.id, steps: result.steps }, 'turn paused');
       // 暂停也关闭本次输出流，发终态 finish part（恢复执行走新的 run/流）
-      context.controller.enqueue(stampRunId(context.runId, finishPart('stop', usage)));
+      context.output.write(stampRunId(context.runId, finishPart('stop', usage)));
       this.emit({ type: 'turn.end', thread, turn });
       return {
         status: 'paused',
@@ -407,7 +409,7 @@ export class LoopAgent
       });
       await this.saveCheckpoint(context, 'failed')
 
-      context.controller.enqueue(stampRunId(context.runId, finishPart('error', usage)));
+      context.output.write(stampRunId(context.runId, finishPart('error', usage)));
       this.emit({ type: 'turn.end', thread, turn });
 
       return {
@@ -437,9 +439,9 @@ export class LoopAgent
 
     // 终态生命周期 part：中断先发 abort，再统一发 finish
     if (result.status === 'aborted') {
-      context.controller.enqueue(stampRunId(context.runId, { type: 'abort', payload: {} }));
+      context.output.write(stampRunId(context.runId, { type: 'abort', payload: {} }));
     }
-    context.controller.enqueue(stampRunId(context.runId, finishPart(result.status === 'aborted' ? 'other' : 'stop', usage)));
+    context.output.write(stampRunId(context.runId, finishPart(result.status === 'aborted' ? 'other' : 'stop', usage)));
     this.emit({ type: 'turn.end', thread, turn });
 
     return {
@@ -581,7 +583,7 @@ export class LoopAgent
       const scope = decision?.scope ?? 'turn';
       const reason = decision?.reason;
       // 回放审批决策到输出流（恢复后的新流可见完整审批链路），reason 携带用户文本回答
-      context.controller.enqueue(stampRunId(context.runId, toolApprovalResponsePart(pendingCall, approved, { scope, reason })));
+      context.output.write(stampRunId(context.runId, toolApprovalResponsePart(pendingCall, approved, { scope, reason })));
       if (approved) {
         // 批准后正常执行 execute（澄清类工具从 ctx.approval 读取用户回答）
         approvedCalls.push(pendingCall);
@@ -596,7 +598,7 @@ export class LoopAgent
           sessionScopedTools.add(pendingCall.name);
         }
       } else {
-        context.controller.enqueue(stampRunId(context.runId, toolOutputDeniedPart(pendingCall)));
+        context.output.write(stampRunId(context.runId, toolOutputDeniedPart(pendingCall)));
         deniedResults.push({
           callId: pendingCall.id, name: pendingCall.name,
           status: 'error', output: null,
@@ -635,7 +637,7 @@ export class LoopAgent
 
     // 执行本轮批准的调用；拒绝结果一并落消息链
     const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context, (call, result) => {
-      context.controller.enqueue(stampRunId(context.runId, toolResultPart(result, call.args)));
+      context.output.write(stampRunId(context.runId, toolResultPart(result, call.args)));
     });
     await this.appendToolResults([...toolResults, ...deniedResults], context);
 
@@ -720,7 +722,7 @@ export class LoopAgent
           status: 'error', output: null,
           error: `Tool "${call.name}" 未找到`,
         });
-        context.controller.enqueue(stampRunId(context.runId, toolOutputDeniedPart(call)));
+        context.output.write(stampRunId(context.runId, toolOutputDeniedPart(call)));
         continue;
       }
 
@@ -748,7 +750,7 @@ export class LoopAgent
           break;
         }
         case 'paused': {
-          context.controller.enqueue(stampRunId(context.runId, toolApprovalRequestPart(call)));
+          context.output.write(stampRunId(context.runId, toolApprovalRequestPart(call)));
           pendingApprovalCalls.push(call);
           break;
         }
@@ -758,7 +760,7 @@ export class LoopAgent
             status: 'error', output: null,
             error: decision.reason ?? 'Blocked by policy',
           });
-          context.controller.enqueue(stampRunId(context.runId, toolOutputDeniedPart(call)));
+          context.output.write(stampRunId(context.runId, toolOutputDeniedPart(call)));
           break;
         }
       }
@@ -882,11 +884,11 @@ export class LoopAgent
    * systemPrompt / tools 为构建 TurnContext 时物化的快照。
    */
   private async callModel(step: TurnStep, context: TurnContext): Promise<CallModelResult> {
-    const { controller } = context;
+    const { output } = context;
 
     const resolveError = (error: Error | string): CallModelResult => {
       try {
-        controller.enqueue(stampRunId(context.runId, { type: 'error', payload: { error } }));
+        output.write(stampRunId(context.runId, { type: 'error', payload: { error } }));
       } catch (e) {
         this.log.warn({ threadId: context.session.thread.id, err: e }, 'controller closed, error enqueue ignored');
       }
@@ -908,7 +910,8 @@ export class LoopAgent
       try {
         const result = await context.modelClient.stream(request);
         const stream = result.stream.pipeThrough(createModelStreamTransformer(context.runId, request));
-        await forwardToController(stream, controller);
+        // 已盖章的 chunk 流泵入输出写入器
+        await output.pipe(stream);
         return result.result();
       } catch (e) {
         return resolveError(e instanceof Error ? e : new Error(String(e)));

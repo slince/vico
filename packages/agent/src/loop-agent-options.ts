@@ -4,7 +4,7 @@ import type {Checkpoint} from '@vico/checkpoint';
 import type {ReasoningEffort} from '@vico/model';
 import type {ModelClient} from '@vico/model';
 import type {ModelMessage} from '@ai-sdk/provider-utils';
-import type {ChunkType} from '@vico/stream';
+import type {ChunkWriter} from '@vico/stream';
 import {Thread, Turn} from '@vico/thread';
 import type {AgentMessage, TurnSession} from '@vico/thread';
 
@@ -47,8 +47,8 @@ export interface TurnContext {
   approvedTools: Map<string, ToolApproval>;
   /** turn 级中断信号，贯穿 model 调用和工具执行 */
   signal: AbortSignal;
-  /** 流控制器，用于向客户端推送 chunk（引擎层协议 ChunkType） */
-  controller: ReadableStreamDefaultController<ChunkType>;
+  /** 引擎输出写入器，用于向客户端推送 chunk（write 追加单条 / pipe 泵入整条流） */
+  output: ChunkWriter;
   /** 本次 run 的 runId（盖章到每条 chunk） */
   runId: string;
   /** 本 turn 的 checkpoint 对象（startTurn/resumeTurn 创建，append-only 版本链：step 完成 / pause / 终态时由 loop-agent append 新版本） */
