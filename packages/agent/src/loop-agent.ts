@@ -5,7 +5,7 @@ import pino from 'pino';
 import type {ModelMessage} from '@ai-sdk/provider-utils';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import type {ModelRequest, ReasoningEffort} from '@vico/model';
+import type {CallModelResult, ModelRequest, ReasoningEffort} from '@vico/model';
 import {
   buildAssistantMessage,
   buildToolResultMessage,
@@ -25,13 +25,13 @@ import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@
 import {fromModelMessage, type PersistableMessage} from '@vico/thread';
 import type {ToolApproval} from '@vico/types';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
-import type {CallModelResult, ChunkType, UserMessage} from '@vico/stream';
-import {ChunkWriter, stampRunId} from '@vico/stream';
+import type {ChunkType, UserMessage} from '@vico/stream';
 import {
   addUsage,
   createModelStreamTransformer,
   emptyUsage,
   finishPart,
+  stampRunId,
   toolApprovalRequestPart,
   toolApprovalResponsePart,
   toolOutputDeniedPart,
@@ -39,7 +39,7 @@ import {
 } from '@vico/stream';
 import {type CompactionResult, type ContextCompactor, isContextOverflowError} from '@vico/compaction';
 import type {Checkpoint, CheckpointApprovalCalls, CheckpointStore, NextAction} from '@vico/checkpoint';
-import {createAggregatedAbortController, Pipeline} from '@vico/utils';
+import {createAggregatedAbortController, Pipeline, StreamWriter} from '@vico/utils';
 import type {ContextProcessor} from '@vico/context';
 import {ModelRequestContext} from '@vico/context';
 import type {
@@ -204,7 +204,7 @@ export class LoopAgent
     const stream = new ReadableStream<ChunkType>({
       start: async (controller) => {
         // 输出写入器：封装 controller，供 TurnContext.output 使用
-        const output = new ChunkWriter(controller);
+        const output = new StreamWriter(controller);
         try {
           const result = await this.start({
             userMessages,
@@ -275,7 +275,7 @@ export class LoopAgent
   private async start(ctx: {
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    output: ChunkWriter;
+    output: StreamWriter<ChunkType>;
     runId: string;
     thread: Thread;
     reasoning?: ReasoningEffort;
@@ -312,7 +312,7 @@ export class LoopAgent
     session: TurnSession;
     userMessages: ModelMessage[];
     signal: AbortSignal;
-    output: ChunkWriter;
+    output: StreamWriter<ChunkType>;
     runId: string;
     checkpoint: Checkpoint;
     reasoning?: ReasoningEffort;
@@ -911,7 +911,7 @@ export class LoopAgent
         const result = await context.modelClient.stream(request);
         const stream = result.stream.pipeThrough(createModelStreamTransformer(context.runId, request));
         // 已盖章的 chunk 流泵入输出写入器
-        await output.pipe(stream);
+        await output.forward(stream);
         return result.result();
       } catch (e) {
         return resolveError(e instanceof Error ? e : new Error(String(e)));

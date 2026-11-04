@@ -1,15 +1,22 @@
-// vico/server - ChunkType → ag-ui 事件流（目标态适配器）。
+// @vico/stream-ag-ui - 引擎 Chunk 流 → ag-ui 事件流适配器。
 //
 // 引擎只产出 ChunkType（{ type, runId, payload }）；本模块将其转换为 ag-ui 协议事件，
 // 经 SSE 返回给前端。审批门禁用 ag-ui interrupts 表达：
 //   tool-approval-request → 记录 interrupt，finish 时以 RUN_FINISHED{outcome:'interrupt'} 收尾；
-//   恢复时前端经 RunAgentInput.resume 回传决议，由 api/chat 还原为 tool-approval-response。
+//   恢复时前端经 RunAgentInput.resume 回传决议，由 model-messages 还原为 tool-approval-response。
 import {randomUUID} from 'node:crypto';
 import {EventType, type Event, type Interrupt, type TokenUsage} from '@ag-ui/core';
 import type {ChunkType} from '@vico/stream';
 import type {UsageMetrics} from '@vico/types';
 
-/** 把引擎 ChunkType 流转换为 ag-ui 事件流 */
+/**
+ * 把引擎 ChunkType 流转换为 ag-ui 事件流。
+ *
+ * @param opts.stream - 引擎输出的 ChunkType 流（@vico/stream 引擎层协议）
+ * @param opts.threadId - 会话线程 ID（RUN_STARTED / RUN_FINISHED 携带）
+ * @param opts.runId - 本次 run 标识（RUN_STARTED / RUN_FINISHED 携带）
+ * @returns ag-ui Event 流，可经 SSE 编码返回前端
+ */
 export function chunkToAgUiStream(opts: {
   stream: ReadableStream<ChunkType>;
   threadId: string;
@@ -207,8 +214,13 @@ export function chunkToAgUiStream(opts: {
   return stream.pipeThrough(controller);
 }
 
-/** UsageMetrics → ag-ui TokenUsage（总量口径） */
-function toTokenUsage(usage: UsageMetrics): TokenUsage {
+/**
+ * UsageMetrics → ag-ui TokenUsage（总量口径）。
+ *
+ * @param usage - 引擎 finish 终态携带的完整用量明细（@vico/types）
+ * @returns ag-ui 协议的 TokenUsage
+ */
+export function toTokenUsage(usage: UsageMetrics): TokenUsage {
   return {
     inputTokens: usage.inputTokens.total,
     outputTokens: usage.outputTokens.total,

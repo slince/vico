@@ -33,6 +33,7 @@
     "@vico/rag": "workspace:*",
     "@vico/skill": "workspace:*",
     "@vico/stream": "workspace:*",
+    "@vico/stream-ag-ui": "workspace:*",
     "@vico/terminal": "workspace:*",
     "@vico/thread": "workspace:*",
     "@vico/thread-libsql": "workspace:*",

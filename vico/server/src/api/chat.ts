@@ -1,13 +1,11 @@
 import {Hono} from 'hono';
-import type {Event, ResumeEntry, RunAgentInput} from '@ag-ui/core';
+import type {RunAgentInput} from '@ag-ui/core';
 import type {ApprovalMode} from '@vico/tool';
 import type {ReasoningEffort} from '@vico/model';
-import type {ModelMessage} from '@ai-sdk/provider-utils';
-import {SESSION_SCOPE_REASON} from '@vico/types';
+import {aguiMessagesToModelMessages, aguiSSEResponse, chunkToAgUiStream, resumeToModelMessages} from '@vico/stream-ag-ui';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
-import {chunkToAgUiStream} from '../chat/chunk-to-agui.js';
 
 /** 合法的推理力度取值（与 @vico/model 的 ReasoningEffort 一致） */
 const REASONING_EFFORTS: readonly ReasoningEffort[] = [
@@ -47,59 +45,6 @@ interface ForwardedConfig {
   reasoningEffort?: string;
   approvalMode?: string;
   workspace?: string;
-}
-
-/** ag-ui resume 决议 payload（工具审批：approved / reason / scope） */
-interface ApprovalResumePayload {
-  approved?: boolean;
-  reason?: string;
-  scope?: 'turn' | 'session';
-}
-
-/**
- * RunAgentInput.resume → ModelMessage（tool-approval-response part，in-band 承载审批决策）。
- * approvalId 复用 toolCallId（引擎约定）；scope:'session' 经 SESSION_SCOPE_REASON 标记。
- */
-function resumeToModelMessages(resume: ResumeEntry[]): ModelMessage[] {
-  const parts = resume.map((r) => {
-    const payload = (r.payload ?? {}) as ApprovalResumePayload;
-    const approved = payload.approved ?? r.status === 'resolved';
-    const reason = payload.scope === 'session' ? SESSION_SCOPE_REASON : payload.reason;
-    return {
-      type: 'tool-approval-response' as const,
-      approvalId: r.interruptId,
-      approved,
-      ...(reason != null ? { reason } : {}),
-    };
-  });
-  return [{ role: 'tool', content: parts } as ModelMessage];
-}
-
-/** ag-ui 消息 → 本轮输入 ModelMessage（历史由 Memory 注入，仅取最后一条 user 消息） */
-function aguiMessagesToModelMessages(messages: RunAgentInput['messages']): ModelMessage[] {
-  const last = messages[messages.length - 1];
-  if (!last || last.role !== 'user') return [];
-  const text = typeof last.content === 'string'
-    ? last.content
-    : last.content.filter((p) => p.type === 'text').map((p) => p.text).join('');
-  return text ? [{ role: 'user', content: text }] : [];
-}
-
-/** 把 ag-ui 事件流编码为 SSE Response */
-function aguiSSEResponse(events: ReadableStream<Event>, headers?: Record<string, string>): Response {
-  const body = events.pipeThrough(new TransformStream<Event, string>({
-    transform(event, controller) {
-      controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
-    },
-  }));
-  return new Response(body, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-      ...headers,
-    },
-  });
 }
 
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {

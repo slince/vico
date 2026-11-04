@@ -13,5 +13,5 @@ export {
   type PriorityMiddleware,
 } from './compose.js';
 export { Pipeline } from './pipeline.js';
-export { forwardToController } from './forward-stream.js';
+export { StreamWriter } from './stream-writer.js';
 export { createAggregatedAbortController } from './abort-signal.js';

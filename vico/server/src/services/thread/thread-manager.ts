@@ -1,6 +1,6 @@
 import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
 import {type ThreadStore} from '@vico/thread';
-import {toAgUiMessages} from './agui-messages.js';
+import {toAgUiMessages} from '@vico/stream-ag-ui';
 import type {AgentManager} from '../agent/agent-manager.js';
 
 /** 前台展示的消息角色 */

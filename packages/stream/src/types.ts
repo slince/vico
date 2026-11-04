@@ -304,6 +304,3 @@ export function stampRunId(runId: string, draft: ChunkDraft): ChunkType {
  * - `ModelMessage[]` — 原生模型消息组，原样作为本轮输入（调用方全权控制，如 few-shot、预置上下文）
  */
 export type UserMessage = string | ModelMessage[];
-
-/** 对外兼容：CallModelResult 上移到 @vico/model，此处 re-export */
-export type { CallModelResult } from '@vico/model';

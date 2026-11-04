@@ -1,10 +1,10 @@
-// vico/server - ThreadStore Message → ag-ui Message 转换（历史展示用）。
+// @vico/stream-ag-ui - ThreadStore Message → ag-ui Message 转换（历史展示用）。
 //
 // 后端持久化仍是 ModelMessage.content；本模块只做 model → ag-ui 的展示映射。
 // 前端用 @assistant-ui/react-ag-ui 的 fromAgUiMessages 还原为 assistant-ui 消息。
-import type {Message as AgUiMessage, AssistantMessage, ReasoningMessage, SystemMessage, ToolCall, ToolMessage, UserMessage} from '@ag-ui/core';
-import type {Message} from '@vico/thread';
+import type {AssistantMessage, Message as AgUiMessage, ReasoningMessage, SystemMessage, ToolCall, ToolMessage, UserMessage} from '@ag-ui/core';
 import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {Message} from '@vico/thread';
 
 /** 提取 parts 数组中的纯文本 */
 function textOf(content: Extract<ModelMessage['content'], unknown[]>): string {
@@ -26,9 +26,13 @@ function toolOutputText(output: unknown): { text: string; isError: boolean } {
 
 /**
  * ThreadStore Message → ag-ui Message（历史展示用）。
+ *
  * - assistant 的 reasoning part → 独立 ReasoningMessage（fromAgUiMessages 会折叠回 assistant）
  * - assistant 的 tool-call part → AssistantMessage.toolCalls
  * - tool 消息的 tool-result part → ToolMessage（error 走 error 字段）
+ *
+ * @param entries - 线程存储返回的消息条目（content 为原生 ModelMessage.content）
+ * @returns 可直接由前端 fromAgUiMessages 还原的 ag-ui 消息数组
  */
 export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
   const result: AgUiMessage[] = [];
