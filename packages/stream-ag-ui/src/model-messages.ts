@@ -4,7 +4,7 @@
 // - messages → 最后一条 user 消息（历史由 Memory 注入）
 // - resume → tool-approval-response（in-band 承载审批决策）
 import type {ResumeEntry, RunAgentInput} from '@ag-ui/core';
-import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {ModelMessage} from '@vico/model';
 import {SESSION_SCOPE_REASON} from '@vico/types';
 
 /** ag-ui resume 决议 payload（工具审批：approved / reason / scope） */

@@ -3,10 +3,9 @@
 // 分层约定：ModelClient 输出 provider 层协议（ModelStreamPart，见 @vico/model 别名），
 // LoopAgent 将其转换为引擎层协议（Chunk）后对外输出，
 // UI 层再转换为 UIMessageChunk（过渡）或 ag-ui 事件（目标态）。本模块承载引擎层 part 的构造逻辑。
-import type {ModelMessage} from '@ai-sdk/provider-utils';
-import type {SharedV4Warning} from '@ai-sdk/provider';
-import type {ModelFile, ModelFinishReason, ModelProviderMetadata, ModelReasoningFile, ModelToolResult, ModelUsage} from '@vico/model';
+import type {ModelFile, ModelFinishReason, ModelMessage, ModelProviderMetadata, ModelReasoningFile, ModelToolResult, ModelUsage} from '@vico/model';
 import {fromV4Usage} from '@vico/model';
+import type {SharedV4Warning} from '@ai-sdk/provider';
 import type {ToolCall, ToolResult} from '@vico/tool';
 import type {UsageMetrics} from '@vico/types';
 import {addTokenCount} from './usage.js';

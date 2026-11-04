@@ -1,5 +1,5 @@
 // @vico/context - ModelRequestContext: 穿过洋葱层各处理器的可变上下文
-import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {ModelMessage} from '@vico/model';
 import {getMessageText, pickPrimaryUserMessage} from '@vico/model';
 import type {Tool} from '@vico/tool';
 import type {AgentMessage, Thread, TurnSession, TurnStep} from '@vico/thread';

@@ -250,9 +250,6 @@ importers:
 
   packages/agent:
     dependencies:
-      '@ai-sdk/provider-utils':
-        specifier: 'catalog:'
-        version: 5.0.67(zod@4.6.7)
       '@vico/checkpoint':
         specifier: workspace:*
         version: link:../checkpoint
@@ -534,9 +531,6 @@ importers:
 
   packages/compaction:
     dependencies:
-      '@ai-sdk/provider-utils':
-        specifier: 'catalog:'
-        version: 5.0.67(zod@4.6.7)
       '@vico/model':
         specifier: workspace:*
         version: link:../model
@@ -559,9 +553,6 @@ importers:
 
   packages/context:
     dependencies:
-      '@ai-sdk/provider-utils':
-        specifier: 'catalog:'
-        version: 5.0.67(zod@4.6.7)
       '@vico/memory':
         specifier: workspace:*
         version: link:../memory
@@ -853,9 +844,6 @@ importers:
       '@ai-sdk/provider':
         specifier: 'catalog:'
         version: 4.0.33
-      '@ai-sdk/provider-utils':
-        specifier: 'catalog:'
-        version: 5.0.67(zod@4.6.7)
       '@vico/model':
         specifier: workspace:*
         version: link:../model
@@ -877,10 +865,13 @@ importers:
     dependencies:
       '@ag-ui/core':
         specifier: ^1.0.3
-        version: 1.0.3(zod@4.6.7)
-      '@ai-sdk/provider-utils':
-        specifier: 'catalog:'
-        version: 5.0.67(zod@4.6.7)
+        version: 1.0.3(zod@3.25.76)
+      '@ag-ui/encoder':
+        specifier: ^1.0.3
+        version: 1.0.3(zod@3.25.76)
+      '@vico/model':
+        specifier: workspace:*
+        version: link:../model
       '@vico/stream':
         specifier: workspace:*
         version: link:../stream
@@ -1022,9 +1013,6 @@ importers:
       '@ag-ui/core':
         specifier: ^1.0.3
         version: 1.0.3(zod@4.6.7)
-      '@ai-sdk/provider-utils':
-        specifier: 'catalog:'
-        version: 5.0.67(zod@4.6.7)
       '@aws-sdk/client-s3':
         specifier: ^3.1072.0
         version: 3.1152.0

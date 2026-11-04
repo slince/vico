@@ -11,9 +11,8 @@
 //   ModelClient 输出 provider 层协议（ModelStreamPart，@vico/model 别名，保留 @ai-sdk/provider）；
 //   LoopAgent 将其转换为引擎层协议（Chunk）后对外输出；
 //   UI 层（服务端路由）再转换为 UIMessageChunk（过渡）或 ag-ui 事件（目标态）。
-import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {ModelMessage, ModelProviderMetadata} from '@vico/model';
 import type {SharedV4Warning} from '@ai-sdk/provider';
-import type {ModelProviderMetadata} from '@vico/model';
 import type {UsageMetrics} from '@vico/types';
 
 /** JSON 值（可安全 JSON.stringify，供 SSE 序列化） */

@@ -2,10 +2,9 @@
 import {randomUUID} from 'node:crypto';
 import type {Logger} from 'pino';
 import pino from 'pino';
-import type {ModelMessage} from '@ai-sdk/provider-utils';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import type {CallModelResult, ModelRequest, ReasoningEffort} from '@vico/model';
+import type {CallModelResult, ModelMessage, ModelRequest, ReasoningEffort} from '@vico/model';
 import {
   buildAssistantMessage,
   buildToolResultMessage,

@@ -3,11 +3,10 @@
  */
 import type {Agent, TurnOutput} from '@vico/agent';
 import type {ApprovalMode} from '@vico/tool';
-import type {ReasoningEffort} from '@vico/model';
+import type {ModelMessage, ReasoningEffort} from '@vico/model';
 import type {Thread} from '@vico/thread';
 import {getMessageText, pickPrimaryUserMessage} from '@vico/model';
 import {getAgent} from '../agent/get-agent.js';
-import type {ModelMessage} from '@ai-sdk/provider-utils';
 
 export interface ExecuteChatParams {
   agentId: string;

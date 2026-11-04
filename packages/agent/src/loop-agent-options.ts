@@ -1,9 +1,7 @@
 import type {ToolApproval, ToolCallApproval, UsageMetrics} from '@vico/types';
 import {type ApprovalMode, type Tool, ToolCall, ToolResult} from '@vico/tool';
 import type {Checkpoint} from '@vico/checkpoint';
-import type {ReasoningEffort} from '@vico/model';
-import type {ModelClient} from '@vico/model';
-import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {ModelClient, ModelMessage, ReasoningEffort} from '@vico/model';
 import type {ChunkType} from '@vico/stream';
 import type {StreamWriter} from '@vico/utils';
 import {Thread, Turn} from '@vico/thread';

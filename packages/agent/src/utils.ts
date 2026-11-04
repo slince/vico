@@ -1,6 +1,6 @@
 import {TurnOutput} from "./turn-output.js";
 import type {TurnResult} from "./loop-agent-options.js";
-import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {ModelMessage} from '@vico/model';
 import type {UserMessage} from '@vico/stream';
 import {MemoryStore} from '@vico/memory';
 import {ContextProcessor} from '@vico/context';

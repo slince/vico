@@ -32,5 +32,6 @@ ModelMessage[] → Agent.stream()
 ## 依赖
 
 - `@ag-ui/core`（ag-ui 事件与消息类型）
-- `@ai-sdk/provider-utils`（`ModelMessage`）
+- `@ag-ui/encoder`（`EventEncoder`：SSE 分帧 + Content-Type 协商）
+- `@vico/model`（`ModelMessage`）
 - `@vico/stream`（`ChunkType`）、`@vico/thread`（`Message`）、`@vico/types`（`UsageMetrics` / `SESSION_SCOPE_REASON`）

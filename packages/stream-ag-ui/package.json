@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@ag-ui/core": "^1.0.3",
-    "@ai-sdk/provider-utils": "catalog:",
+    "@ag-ui/encoder": "^1.0.3",
+    "@vico/model": "workspace:*",
     "@vico/stream": "workspace:*",
     "@vico/thread": "workspace:*",
     "@vico/types": "workspace:*"

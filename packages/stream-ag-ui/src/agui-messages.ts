@@ -3,7 +3,7 @@
 // 后端持久化仍是 ModelMessage.content；本模块只做 model → ag-ui 的展示映射。
 // 前端用 @assistant-ui/react-ag-ui 的 fromAgUiMessages 还原为 assistant-ui 消息。
 import type {AssistantMessage, Message as AgUiMessage, ReasoningMessage, SystemMessage, ToolCall, ToolMessage, UserMessage} from '@ag-ui/core';
-import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {ModelMessage} from '@vico/model';
 import type {Message} from '@vico/thread';
 
 /** 提取 parts 数组中的纯文本 */
