@@ -5,7 +5,8 @@
 import type {AssistantMessage, Message as AgUiMessage, ReasoningMessage, SystemMessage, ToolCall, ToolMessage, UserMessage} from '@ag-ui/core';
 import type {ModelMessage} from '@vico/model';
 import type {Message} from '@vico/thread';
-import {modelContentToAguiContent, type ModelUserContentParts} from './content-parts.js';
+import {modelContentToAguiContent} from './model-to-agui-content.js';
+import {type ModelUserContentParts} from './agui-to-model-content.js';
 
 /** 提取 parts 数组中的纯文本 */
 function textOf(content: Extract<ModelMessage['content'], unknown[]>): string {

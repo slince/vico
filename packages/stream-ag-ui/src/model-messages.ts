@@ -7,7 +7,7 @@
 import type {ResumeEntry, RunAgentInput} from '@ag-ui/core';
 import type {ModelMessage} from '@vico/model';
 import {SESSION_SCOPE_REASON} from '@vico/tool';
-import {aguiContentToModelContent, aguiContentToText} from './content-parts.js';
+import {aguiContentToModelContent, aguiContentToText} from './agui-to-model-content.js';
 
 /** ag-ui resume 决议 payload（工具审批：approved / reason / scope） */
 interface ApprovalResumePayload {

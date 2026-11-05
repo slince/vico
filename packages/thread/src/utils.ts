@@ -1,7 +1,7 @@
 // src/thread/utils.ts — ThreadStore Message 与原生 ModelMessage 的相互转换
 import type {Message, MessageContent} from './thread-store.js';
 import type {UsageMetrics} from '@vico/types';
-import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {ModelMessage} from '@vico/model';
 
 /**
  * ThreadStore Message → AgentMessage（content 原样透传，usage 从 metadata 还原，turnId 原样透传）。
