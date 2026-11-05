@@ -13,8 +13,8 @@
 | `chunk-to-agui` | `createChunkToAgUiTransformer` / `toTokenUsage` | `ChunkType` 流 → ag-ui `Event` 流（返回 `TransformStream`，调用方 `pipeThrough`） |
 | `agui-to-model-content` | `aguiContentToModelContent` / `aguiContentToText` / `ModelUserContentParts` | ag-ui `ContentPart` → `ModelMessage` content part |
 | `model-to-agui-content` | `modelContentToAguiContent` | `ModelMessage` content part → ag-ui `ContentPart` |
-| `model-messages` | `aguiMessagesToModelMessages` / `resumeToModelMessages` | ag-ui `Message` / `resume` → `ModelMessage[]` |
-| `agui-messages` | `toAgUiMessages` | `Message`（`ModelMessage.content`）→ ag-ui `Message[]`（历史展示） |
+| `agui-to-model-messages` | `aguiMessagesToModelMessages` / `resumeToModelMessages` | ag-ui `Message` / `resume` → `ModelMessage[]` |
+| `model-to-agui-messages` | `toAgUiMessages` | `Message`（`ModelMessage.content`）→ ag-ui `Message[]`（历史展示） |
 | `sse` | `aguiSSEResponse` | ag-ui `Event` 流 → `text/event-stream` `Response` |
 
 ## 数据流
