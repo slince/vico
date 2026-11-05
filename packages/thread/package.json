@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/provider-utils": "catalog:",
+    "@vico/model": "workspace:*",
     "@vico/types": "workspace:*"
   },
   "devDependencies": {

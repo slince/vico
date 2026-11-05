@@ -913,9 +913,9 @@ importers:
 
   packages/thread:
     dependencies:
-      '@ai-sdk/provider-utils':
-        specifier: 'catalog:'
-        version: 5.0.67(zod@4.6.7)
+      '@vico/model':
+        specifier: workspace:*
+        version: link:../model
       '@vico/types':
         specifier: workspace:*
         version: link:../types

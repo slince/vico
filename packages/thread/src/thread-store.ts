@@ -1,5 +1,5 @@
 // @vico/thread - Thread module type definitions
-import type {ModelMessage} from '@ai-sdk/provider-utils';
+import type {ModelMessage} from '@vico/model';
 import type {UsageMetrics} from '@vico/types';
 
 /** Session 级工具审批记录 */
