@@ -67,6 +67,8 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError}: UseCha
       threadId: remoteId,
       fetch: (url, init) => fetch(url, { ...init, credentials: 'include' }),
     });
+    // 只把最后一条消息发给后端，历史由后端按 threadId 补全
+    http.use((input, next) => next.run({ ...input, messages: input.messages.slice(-1) }));
     // RUN_FINISHED 时回写服务端真实 threadId（服务端新建线程的兜底路径）
     http.subscribe({
       onRunFinishedEvent: ({ event }) => {
