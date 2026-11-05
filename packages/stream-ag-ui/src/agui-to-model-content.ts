@@ -1,7 +1,7 @@
 // @vico/stream-ag-ui - ag-ui ContentPart → ModelMessage content part 转换。
 //
 // ag-ui 消息 content 用「part 判别联合」（text/image/audio/video/document，媒体经 source 三态：
-// data=base64 / url / file=provider 句柄）；本模块将其映射为 AI SDK 的 TextPart / ImagePart(已弃用) / FilePart。
+// data=base64 / url / file=provider 句柄）；本模块将其映射为 AI SDK 的 TextPart / FilePart（媒体统一走 FilePart）。
 import type {
   AudioPart as AgUiAudioPart,
   ContentPart as AgUiContentPart,
@@ -10,14 +10,14 @@ import type {
   PartSource,
   VideoPart as AgUiVideoPart,
 } from '@ag-ui/core';
-import type {ModelMessage} from '@vico/model';
+import type {FilePart, TextPart} from '@ai-sdk/provider-utils';
 
-/** ModelMessage user 消息的 content parts 数组（AI SDK TextPart | ImagePart | FilePart） */
-export type ModelUserContentParts = Extract<Extract<ModelMessage, { role: 'user' }>['content'], unknown[]>;
+/** ModelMessage user 消息的 content parts 数组（AI SDK TextPart | FilePart） */
+export type ModelUserContentParts = Array<TextPart | FilePart>;
 /** 单个 user content part */
-type ModelUserContentPart = ModelUserContentParts[number];
+type ModelUserContentPart = TextPart | FilePart;
 /** AI SDK FilePart 的 data 字段联合（FileData | DataContent | URL | ProviderReference） */
-type ModelFileData = Extract<ModelUserContentPart, { type: 'file' }>['data'];
+type ModelFileData = FilePart['data'];
 
 /** 媒体 part 无 mimeType 时的顶层媒体类型兜底（document 归 application） */
 const FALLBACK_MEDIA_TYPE: Record<'image' | 'audio' | 'video' | 'document', string> = {
@@ -74,7 +74,7 @@ function aguiContentPartToModelPart(part: AgUiContentPart): ModelUserContentPart
  * string 原样透传；parts 逐个映射（text → text，媒体 → FilePart），无法映射的 part 丢弃。
  *
  * @param content - ag-ui 消息 content（string 或 ContentPart[]）
- * @returns ModelMessage user content（string 或 TextPart/ImagePart/FilePart[]）
+ * @returns ModelMessage user content（string 或 TextPart/FilePart[]）
  */
 export function aguiContentToModelContent(
   content: string | AgUiContentPart[],

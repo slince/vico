@@ -52,7 +52,7 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
         const msg: UserMessage = {
           id: entry.id,
           role: 'user',
-          // user 消息 content 实为 TextPart/ImagePart/FilePart，完整映射保留媒体 part
+          // user 消息 content 实为 TextPart/FilePart，完整映射保留媒体 part
           content: modelContentToAguiContent(content as ModelUserContentParts),
           ...(entry.metadata ? { metadata: entry.metadata as Record<string, unknown> } : {}),
         };

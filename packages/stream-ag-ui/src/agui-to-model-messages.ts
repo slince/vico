@@ -4,7 +4,8 @@
 // - messages → 全部消息逐个映射为 ModelMessage（user/assistant/tool/system/developer；
 //   reasoning 折叠回紧随的 assistant，activity 丢弃）
 // - resume → tool-approval-response（in-band 承载审批决策）
-import type {ResumeEntry, RunAgentInput} from '@ag-ui/core';
+import type {Message, ResumeEntry} from '@ag-ui/core';
+import type {ReasoningPart, TextPart, ToolCallPart} from '@ai-sdk/provider-utils';
 import type {ModelMessage} from '@vico/model';
 import {SESSION_SCOPE_REASON} from '@vico/tool';
 import {aguiContentToModelContent, aguiContentToText} from './agui-to-model-content.js';
@@ -16,8 +17,8 @@ interface ApprovalResumePayload {
   scope?: 'turn' | 'session';
 }
 
-/** ModelMessage assistant 消息的 content parts 数组（text / reasoning / tool-call 等） */
-type AssistantContentParts = Extract<Extract<ModelMessage, { role: 'assistant' }>['content'], unknown[]>;
+/** ModelMessage assistant 消息的 content parts 数组（本轮转换只产出 text / reasoning / tool-call） */
+type AssistantContentParts = Array<TextPart | ReasoningPart | ToolCallPart>;
 
 /**
  * RunAgentInput.resume → ModelMessage（tool-approval-response part，in-band 承载审批决策）。
@@ -64,7 +65,7 @@ function parseToolCallInput(argumentsStr: string): unknown {
  * @param messages - RunAgentInput.messages（ag-ui 消息数组）
  * @returns 全部消息映射出的 ModelMessage 数组
  */
-export function aguiMessagesToModelMessages(messages: RunAgentInput['messages']): ModelMessage[] {
+export function aguiMessagesToModelMessages(messages: Message[]): ModelMessage[] {
   const result: ModelMessage[] = [];
   // assistant tool-call 的 toolCallId → toolName：ag-ui ToolMessage 不携带 toolName，需回填
   const toolNames = new Map<string, string>();

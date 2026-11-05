@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/provider-utils": "catalog:",
     "@ag-ui/core": "^1.0.3",
     "@ag-ui/encoder": "^1.0.3",
     "@vico/model": "workspace:*",

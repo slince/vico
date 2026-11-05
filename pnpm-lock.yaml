@@ -862,10 +862,13 @@ importers:
     dependencies:
       '@ag-ui/core':
         specifier: ^1.0.3
-        version: 1.0.3(zod@3.25.76)
+        version: 1.0.3(zod@4.6.7)
       '@ag-ui/encoder':
         specifier: ^1.0.3
-        version: 1.0.3(zod@3.25.76)
+        version: 1.0.3(zod@4.6.7)
+      '@ai-sdk/provider-utils':
+        specifier: 'catalog:'
+        version: 5.0.67(zod@4.6.7)
       '@vico/model':
         specifier: workspace:*
         version: link:../model
@@ -8956,6 +8959,13 @@ snapshots:
   '@ag-ui/encoder@1.0.3(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 1.0.3(zod@3.25.76)
+      '@ag-ui/proto': 1.0.3
+    transitivePeerDependencies:
+      - zod
+
+  '@ag-ui/encoder@1.0.3(zod@4.6.7)':
+    dependencies:
+      '@ag-ui/core': 1.0.3(zod@4.6.7)
       '@ag-ui/proto': 1.0.3
     transitivePeerDependencies:
       - zod

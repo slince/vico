@@ -1,15 +1,16 @@
 // @vico/stream-ag-ui - ModelMessage content part → ag-ui ContentPart 转换。
 //
-// AI SDK 用 TextPart / ImagePart(已弃用) / FilePart（FilePart.data 经 data/url/reference/text 四态）；
+// AI SDK 用 TextPart / FilePart（FilePart.data 经 data/url/reference/text 四态）；
 // 本模块将其映射回 ag-ui 的 part 判别联合（text/image/audio/video/document + source 三态）。
 import {Buffer} from 'node:buffer';
 import type {ContentPart as AgUiContentPart, PartSource} from '@ag-ui/core';
+import type {FilePart, TextPart} from '@ai-sdk/provider-utils';
 import {type ModelUserContentParts} from './agui-to-model-content.js';
 
 /** 单个 user content part */
-type ModelUserContentPart = ModelUserContentParts[number];
+type ModelUserContentPart = TextPart | FilePart;
 /** AI SDK FilePart 的 data 字段联合（FileData | DataContent | URL | ProviderReference） */
-type ModelFileData = Extract<ModelUserContentPart, { type: 'file' }>['data'];
+type ModelFileData = FilePart['data'];
 
 /** 顶层媒体类型 → ag-ui 媒体 part 种类（file 按 mediaType 判定，text/application 等归 document） */
 function filePartKind(mediaType: string): 'image' | 'audio' | 'video' | 'document' {
@@ -68,10 +69,6 @@ function modelContentPartToAguiPart(part: ModelUserContentPart): AgUiContentPart
   switch (part.type) {
     case 'text':
       return { type: 'text', text: part.text };
-    case 'image': {
-      const source = modelMediaToSource(part.image, part.mediaType ?? 'image');
-      return source ? { type: 'image', source } : undefined;
-    }
     case 'file': {
       const source = modelMediaToSource(part.data, part.mediaType);
       return source ? { type: filePartKind(part.mediaType), source } : undefined;
@@ -83,7 +80,7 @@ function modelContentPartToAguiPart(part: ModelUserContentPart): AgUiContentPart
  * ModelMessage user content → ag-ui 消息 content。
  * string 原样透传；parts 逐个映射（text → text，image/file → 对应媒体 part），无法映射的 part 丢弃。
  *
- * @param content - ModelMessage user content（string 或 TextPart/ImagePart/FilePart[]）
+ * @param content - ModelMessage user content（string 或 TextPart/FilePart[]）
  * @returns ag-ui 消息 content（string 或 ContentPart[]）
  */
 export function modelContentToAguiContent(
