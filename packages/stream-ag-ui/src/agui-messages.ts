@@ -5,6 +5,7 @@
 import type {AssistantMessage, Message as AgUiMessage, ReasoningMessage, SystemMessage, ToolCall, ToolMessage, UserMessage} from '@ag-ui/core';
 import type {ModelMessage} from '@vico/model';
 import type {Message} from '@vico/thread';
+import {modelContentToAguiContent, type ModelUserContentParts} from './content-parts.js';
 
 /** 提取 parts 数组中的纯文本 */
 function textOf(content: Extract<ModelMessage['content'], unknown[]>): string {
@@ -50,7 +51,8 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
         const msg: UserMessage = {
           id: entry.id,
           role: 'user',
-          content: textOf(content),
+          // user 消息 content 实为 TextPart/ImagePart/FilePart，完整映射保留媒体 part
+          content: modelContentToAguiContent(content as ModelUserContentParts),
           ...(entry.metadata ? { metadata: entry.metadata as Record<string, unknown> } : {}),
         };
         result.push(msg);

@@ -12,8 +12,7 @@ import type {
   ToolModelMessage,
   ToolResultOutput,
 } from '@ai-sdk/provider-utils';
-import type {Tool, ToolCall, ToolResult} from '@vico/tool';
-import {SESSION_SCOPE_REASON, type ToolCallApproval} from '@vico/types';
+import {SESSION_SCOPE_REASON, type Tool, type ToolCall, type ToolCallApproval, type ToolResult} from '@vico/tool';
 
 /**
  * 消息 content 的原生 part 联合类型，覆盖 AI SDK 生成/历史场景中的主要 part。

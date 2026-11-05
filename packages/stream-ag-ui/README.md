@@ -11,6 +11,7 @@
 | 模块 | 函数 | 方向 |
 |------|------|------|
 | `chunk-to-agui` | `createChunkToAgUiTransformer` / `toTokenUsage` | `ChunkType` 流 → ag-ui `Event` 流（返回 `TransformStream`，调用方 `pipeThrough`） |
+| `content-parts` | `aguiContentToModelContent` / `modelContentToAguiContent` / `aguiContentToText` | ag-ui `ContentPart` ↔ `ModelMessage` content part 双向转换 |
 | `model-messages` | `aguiMessagesToModelMessages` / `resumeToModelMessages` | ag-ui `Message` / `resume` → `ModelMessage[]` |
 | `agui-messages` | `toAgUiMessages` | `Message`（`ModelMessage.content`）→ ag-ui `Message[]`（历史展示） |
 | `sse` | `aguiSSEResponse` | ag-ui `Event` 流 → `text/event-stream` `Response` |

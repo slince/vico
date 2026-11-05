@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@vico/tool": "workspace:*",
-    "@vico/types": "workspace:*",
     "pino": "catalog:"
   },
   "devDependencies": {

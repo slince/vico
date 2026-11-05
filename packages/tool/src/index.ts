@@ -26,6 +26,8 @@ export type {
   Tool,
   ToolCall,
   ToolResult,
+  ToolCallApproval,
+  ToolApproval,
   ToolPolicy,
   ToolKind,
   ToolTag,
@@ -37,3 +39,4 @@ export type {
   ApprovalResolver,
   ApprovalDecider,
 } from './types.js';
+export { SESSION_SCOPE_REASON } from './types.js';

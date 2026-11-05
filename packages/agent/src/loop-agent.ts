@@ -16,13 +16,12 @@ import {
   ModelClient,
   type ModelRef
 } from '@vico/model';
-import type {ApprovalDecider, ApprovalMode, Tool, ToolCall, ToolResult} from '@vico/tool';
+import type {ApprovalDecider, ApprovalMode, Tool, ToolApproval, ToolCall, ToolResult} from '@vico/tool';
 import {composeResolvers, defaultApprovalResolvers, ToolExecutor} from '@vico/tool';
 import type {Skill} from '@vico/skill';
 import type {MemoryStore} from '@vico/memory';
 import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@vico/thread';
 import {fromModelMessage, type PersistableMessage} from '@vico/thread';
-import type {ToolApproval} from '@vico/types';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
 import type {ChunkType, UserMessage} from '@vico/stream';
 import {

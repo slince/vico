@@ -15,6 +15,7 @@
     "@vico/model": "workspace:*",
     "@vico/stream": "workspace:*",
     "@vico/thread": "workspace:*",
+    "@vico/tool": "workspace:*",
     "@vico/types": "workspace:*"
   },
   "devDependencies": {

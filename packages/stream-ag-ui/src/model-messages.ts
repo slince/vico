@@ -4,9 +4,10 @@
 // - messages → 全部消息逐个映射为 ModelMessage（user/assistant/tool/system/developer；
 //   reasoning 折叠回紧随的 assistant，activity 丢弃）
 // - resume → tool-approval-response（in-band 承载审批决策）
-import type {ContentPart, ResumeEntry, RunAgentInput} from '@ag-ui/core';
+import type {ResumeEntry, RunAgentInput} from '@ag-ui/core';
 import type {ModelMessage} from '@vico/model';
-import {SESSION_SCOPE_REASON} from '@vico/types';
+import {SESSION_SCOPE_REASON} from '@vico/tool';
+import {aguiContentToModelContent, aguiContentToText} from './content-parts.js';
 
 /** ag-ui resume 决议 payload（工具审批：approved / reason / scope） */
 interface ApprovalResumePayload {
@@ -38,15 +39,6 @@ export function resumeToModelMessages(resume: ResumeEntry[]): ModelMessage[] {
     };
   });
   return [{ role: 'tool', content: parts } as ModelMessage];
-}
-
-/** ag-ui 消息 content（string | parts）→ 纯文本（拼接 text part） */
-function aguiContentToText(content: string | ContentPart[]): string {
-  if (typeof content === 'string') return content;
-  return content
-    .filter((p): p is Extract<ContentPart, { type: 'text' }> => p.type === 'text')
-    .map((p) => p.text)
-    .join('');
 }
 
 /** 安全解析工具调用参数：合法 JSON → 对象，非法保留原文（ag-ui 协议允许模型输出非 JSON 参数） */
@@ -91,7 +83,7 @@ export function aguiMessagesToModelMessages(messages: RunAgentInput['messages'])
         break;
 
       case 'user':
-        result.push({ role: 'user', content: aguiContentToText(msg.content) });
+        result.push({ role: 'user', content: aguiContentToModelContent(msg.content) });
         break;
 
       case 'assistant': {

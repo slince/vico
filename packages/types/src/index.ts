@@ -26,32 +26,3 @@ export interface UsageMetrics {
     reasoning: number | undefined;
   };
 }
-
-/** 客户端工具审批决策（将 toolCallId 与审批结果绑定） */
-export interface ToolCallApproval {
-  toolCallId: string;
-  approved: boolean;
-  /** 审批作用域：turn（本 turn 有效）| session（整个 thread 有效），默认 turn */
-  scope?: 'turn' | 'session';
-  /** 用户随审批提交的回答（ask_user 等澄清工具），复用 tool-approval-response 的 reason 字段承载；内容为结构化 answers 的 JSON 字符串 */
-  reason?: string;
-}
-
-/**
- * 会话级放行信号（跨端协议约定）。
- *
- * AI SDK 的 tool-approval-response part 只有 approved/reason 两个可透传字段，
- * 无法直接携带 scope，故约定：客户端点「始终允许」时，把 reason 置为此值，
- * 服务端 extractApprovalResponses 识别后转为 scope: 'session' 并剥离，不进入模型上下文。
- */
-export const SESSION_SCOPE_REASON = '__vico_scope_session__';
-
-/** 单次工具审批在 turn 内的状态记录 */
-export interface ToolApproval {
-  /** 工具名称 */
-  toolName: string;
-  /** 是否已批准 */
-  approved: boolean;
-  /** 批准/拒绝时间戳（Unix ms） */
-  approvedAt: number;
-}

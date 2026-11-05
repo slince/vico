@@ -1,9 +1,8 @@
 // @vico/tool - ToolExecutor: 工具注册与执行
 
-import type { Tool, ToolCall, ToolCallContext, ToolResult } from './types.js';
+import type { Tool, ToolCall, ToolCallApproval, ToolCallContext, ToolResult } from './types.js';
 import { StormBreaker } from './storm-breaker.js';
 import type { TurnSession } from '@vico/thread';
-import type { ToolCallApproval } from '@vico/types';
 
 /** ToolExecutor 执行工具所需的最小上下文（依赖倒置：引擎的 TurnContext 满足此结构） */
 export interface ToolExecutionContext {

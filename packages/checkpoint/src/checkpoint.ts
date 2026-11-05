@@ -1,6 +1,5 @@
 // @vico/checkpoint - Checkpoint 版本树类型 + CheckpointStore 接口 + 版本迁移
-import type {ToolCall, ToolResult} from '@vico/tool';
-import type {ToolApproval, ToolCallApproval} from '@vico/types';
+import type {ToolApproval, ToolCall, ToolCallApproval, ToolResult} from '@vico/tool';
 import {randomUUID} from 'node:crypto';
 
 /** checkpoint 快照（snapshot JSON）schema 当前版本 */
