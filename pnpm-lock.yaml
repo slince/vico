@@ -471,6 +471,9 @@ importers:
       '@vico/tool':
         specifier: workspace:*
         version: link:../tool
+      '@vico/types':
+        specifier: workspace:*
+        version: link:../types
       pino:
         specifier: 'catalog:'
         version: 10.4.0

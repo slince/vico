@@ -1,5 +1,6 @@
 // @vico/checkpoint - Checkpoint 版本树类型 + CheckpointStore 接口 + 版本迁移
 import type {ToolApproval, ToolCall, ToolCallApproval, ToolResult} from '@vico/tool';
+import type {UsageMetrics} from '@vico/types';
 import {randomUUID} from 'node:crypto';
 
 /** checkpoint 快照（snapshot JSON）schema 当前版本 */
@@ -37,6 +38,8 @@ export interface Checkpoint {
   approvedCalls: ToolCall[];
   deniedResults: ToolResult[];
   lastMessageId: string | null;
+  /** turn 累计 token 用量（恢复现场用；旧快照可能缺失，缺失时回退 turn.metadata.usage） */
+  usage?: UsageMetrics;
   schemaVersion: number;
   createdAt: number;
 }
@@ -68,6 +71,8 @@ export interface CheckpointAppendPatch {
   approvedCalls: ToolCall[];
   deniedResults: ToolResult[];
   lastMessageId: string | null;
+  /** turn 累计 token 用量（append 时由调用方写入最新累计值） */
+  usage: UsageMetrics;
 }
 
 /** CheckpointStore 接口（append-only 版本树） */

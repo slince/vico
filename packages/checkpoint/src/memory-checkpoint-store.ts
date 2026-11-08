@@ -37,6 +37,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
       approvedCalls: patch.approvedCalls,
       deniedResults: patch.deniedResults,
       lastMessageId: patch.lastMessageId,
+      usage: patch.usage,
       schemaVersion: CHECKPOINT_CURRENT_VERSION,
       createdAt: Date.now(),
     };
@@ -92,6 +93,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
     checkpoint.approvedCalls = [...source.approvedCalls];
     checkpoint.deniedResults = [...source.deniedResults];
     checkpoint.lastMessageId = source.lastMessageId;
+    checkpoint.usage = source.usage;
     this.store.set(this.key(newTurnId, checkpoint.version), checkpoint);
     return this.snapshot(checkpoint);
   }

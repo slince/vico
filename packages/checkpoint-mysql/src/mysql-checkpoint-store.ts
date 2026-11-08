@@ -33,6 +33,7 @@ export class MysqlCheckpointStore implements CheckpointStore {
       approvedCalls: patch.approvedCalls,
       deniedResults: patch.deniedResults,
       lastMessageId: patch.lastMessageId,
+      usage: patch.usage,
       schemaVersion: CHECKPOINT_CURRENT_VERSION,
       createdAt: Date.now(),
     };
@@ -87,6 +88,7 @@ export class MysqlCheckpointStore implements CheckpointStore {
     checkpoint.approvedCalls = source.approvedCalls;
     checkpoint.deniedResults = source.deniedResults;
     checkpoint.lastMessageId = source.lastMessageId;
+    checkpoint.usage = source.usage;
     await this.db.insert(checkpoints).values(this.toRow(checkpoint));
     return checkpoint;
   }

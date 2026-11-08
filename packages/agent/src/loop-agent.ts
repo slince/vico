@@ -343,8 +343,8 @@ export class LoopAgent
         output,
         runId,
         checkpoint,
-        // 恢复暂停的 turn 时从 metadata.usage 读回已累计用量，跨暂停不丢量
-        usage: session.turn.metadata?.usage ?? emptyUsage(),
+        // 恢复时优先从 checkpoint.usage 读回累计用量（崩溃恢复不丢量），旧快照缺失则回退 turn.metadata.usage
+        usage: checkpoint.usage ?? session.turn.metadata?.usage ?? emptyUsage(),
         reasoning,
         modelClient,
         approvalMode,
@@ -379,7 +379,8 @@ export class LoopAgent
   private async finalizeTurn(context: TurnContext, result: StepLoopResult): Promise<TurnResult> {
 
     const {session: {thread, turn}} = context
-    const usage = addUsage(context.usage, result.usage);
+    // result.usage 已是 runLoop 里累进 context.usage 后的累计值，直接取用，避免与历史用量重复累加
+    const usage = result.usage;
 
     // 暂停时不 finalize trace session，保留会话供恢复时复用
     if (result.status === 'paused') {
@@ -456,8 +457,6 @@ export class LoopAgent
    * 执行 step loop，由 startTurn 的洋葱核心调用（新 turn 与恢复共用）。
    */
   private async runLoop(context: TurnContext): Promise<StepLoopResult> {
-    let usage = emptyUsage();
-
     const {session: {turn}, signal} = context
 
     // 恢复现场 + 解析出待执行工具清单（不执行）；null 表示无待执行（初始 turn / 已完结）
@@ -480,7 +479,8 @@ export class LoopAgent
       // 恢复清单只消费一次（非恢复路径 resume 本就是 null，赋 null 无副作用）
       resume = null;
 
-      usage = addUsage(usage, r.usage);
+      // 累计用量直接累进 context.usage，随 saveCheckpoint 落版本、随 finalize 落库
+      context.usage = addUsage(context.usage, r.usage);
 
       if (r.action === 'pause') {
         // 暂停现场进版本树（nextAction='tool-approval'），步骤未完成，不发 step.end
@@ -490,18 +490,18 @@ export class LoopAgent
           approvedCalls: resolved.approvedCalls,
           deniedResults: resolved.deniedResults,
         })
-        // 暂停前写 usage 快照：历史累计（context.usage）+ 本次 loop 累计，恢复时据此续算
+        // 暂停前写 usage 快照：context.usage 已是累计值（历史 + 本次 loop）
         await this.thread.updateTurn(turn.id, {
           status: 'paused',
           steps,
-          metadata: { ...turn.metadata, usage: addUsage(context.usage, usage) },
+          metadata: { ...turn.metadata, usage: context.usage },
         });
-        return { status: 'paused', steps, usage };
+        return { status: 'paused', steps, usage: context.usage };
       }
 
       // 模型错误导致的 break：短路（步骤异常终止，不发 step.end）
       if (r.action === 'break' && r.error) {
-        return { status: 'failed', steps, usage, error: r.error };
+        return { status: 'failed', steps, usage: context.usage, error: r.error };
       }
 
       // 走到这里只有两种成功情形：break（终态，无工具）或 continue（有工具待执行）。
@@ -520,7 +520,7 @@ export class LoopAgent
       // step 完成 → 推进版本：清单清空，标志本轮决策执行完毕
       steps++;
     }
-    return { status: signal.aborted ? 'aborted' : 'completed', steps, usage };
+    return { status: signal.aborted ? 'aborted' : 'completed', steps, usage: context.usage };
   }
 
   /**
@@ -554,6 +554,8 @@ export class LoopAgent
       approvedCalls: approvedCalls,
       deniedResults: deniedResults,
       lastMessageId: checkpoint.lastMessageId,
+      // 累计用量随版本落库，恢复现场时据此续算（崩溃恢复不丢量）
+      usage: context.usage,
     });
   }
 
