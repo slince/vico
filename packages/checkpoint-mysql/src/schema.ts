@@ -10,7 +10,7 @@ export const checkpoints = mysqlTable('vico_checkpoints', {
   turnId: varchar('turn_id', { length: 36 }).notNull(),
   threadId: varchar('thread_id', { length: 36 }).notNull(),
   version: int('version').notNull(),
-  stepIndex: int('step_index').notNull(),
+  nextStepIndex: int('next_step_index').notNull(),
   nextAction: varchar('next_action', { length: 20 }).notNull(),
   snapshot: text('snapshot').notNull(),
   createdAt: bigint('created_at', { mode: 'number' }).notNull(),

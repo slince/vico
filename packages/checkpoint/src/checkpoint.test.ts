@@ -9,7 +9,7 @@ describe('createCheckpoint（初始版本快照）', () => {
     expect(ckpt.turnId).toBe('turn-1');
     expect(ckpt.threadId).toBe('thread-1');
     expect(ckpt.version).toBe(1);
-    expect(ckpt.stepIndex).toBe(0);
+    expect(ckpt.nextStepIndex).toBe(0);
     expect(ckpt.nextAction).toBe('model');
     expect(ckpt.approvedTools).toEqual([]);
     expect(ckpt.pendingApprovalCalls).toEqual([]);

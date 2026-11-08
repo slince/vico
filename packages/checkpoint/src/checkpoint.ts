@@ -20,7 +20,8 @@ export interface Checkpoint {
   turnId: string;
   threadId: string;
   version: number;
-  stepIndex: number;
+  /** 下一个要执行的 model step 序号（0 起始），恢复时 loop 从该值继续；'model' 边界 = 当前步 + 1，其余阶段 = 当前步 */
+  nextStepIndex: number;
   nextAction: NextAction;
 
   /**
@@ -56,7 +57,8 @@ export type CheckpointApprovalCalls = Pick<
  */
 export interface CheckpointAppendPatch {
   parentId: string | null;
-  stepIndex: number;
+  /** 下一个要执行的 model step 序号，由调用方按「'model' 边界 +1」推导后写入 */
+  nextStepIndex: number;
   nextAction: NextAction;
   /**
    * tool call 决策
@@ -77,7 +79,7 @@ export interface CheckpointAppendPatch {
 
 /** CheckpointStore 接口（append-only 版本树） */
 export interface CheckpointStore {
-  /** 创建初始版本（id=uuid、parentId=null、version=1、stepIndex=0、nextAction=model），turn 开始时调用 */
+  /** 创建初始版本（id=uuid、parentId=null、version=1、nextStepIndex=0、nextAction=model），turn 开始时调用 */
   create(turnId: string, threadId: string): Promise<Checkpoint>;
   /** 追加一个版本：version = 该 turn 最大版本 + 1，生成新 uuid id，parentId 由 patch 显式指定 */
   append(latest: Checkpoint, patch: CheckpointAppendPatch): Promise<Checkpoint>;
@@ -116,7 +118,7 @@ export function createCheckpoint(turnId: string, threadId: string): Checkpoint {
     turnId,
     threadId,
     version: 1,
-    stepIndex: 0,
+    nextStepIndex: 0,
     nextAction: 'model',
     decisions: [],
     approvedTools: [],

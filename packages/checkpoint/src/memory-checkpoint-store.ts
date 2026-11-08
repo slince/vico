@@ -29,7 +29,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
       turnId: latest.turnId,
       threadId: latest.threadId ?? '',
       version: latest.version + 1,
-      stepIndex: patch.stepIndex,
+      nextStepIndex: patch.nextStepIndex,
       nextAction: patch.nextAction,
       decisions: patch.decisions,
       approvedTools: patch.approvedTools,
@@ -86,7 +86,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
     if (!source) return undefined;
     const checkpoint = createCheckpoint(newTurnId, newThreadId);
     checkpoint.parentId = source.id;
-    checkpoint.stepIndex = source.stepIndex;
+    checkpoint.nextStepIndex = source.nextStepIndex;
     checkpoint.nextAction = source.nextAction;
     checkpoint.approvedTools = { ...source.approvedTools };
     checkpoint.pendingApprovalCalls = [...source.pendingApprovalCalls];

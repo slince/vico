@@ -343,8 +343,8 @@ export class LoopAgent
         output,
         runId,
         checkpoint,
-        // 当前 step 序号，从 checkpoint 读回恢复点 N；saveCheckpoint 据此取值
-        stepIndex: checkpoint.stepIndex,
+        // 当前 step 序号，从 checkpoint.nextStepIndex 读回恢复点 N；saveCheckpoint 据此取值
+        stepIndex: checkpoint.nextStepIndex,
         // 从 checkpoint.usage 读回累计用量（崩溃恢复不丢量；usage 为必选字段，createCheckpoint 已初始化空用量）
         usage: checkpoint.usage,
         reasoning,
@@ -534,8 +534,8 @@ export class LoopAgent
 
     const {checkpoint} = context
 
-    // 模型调用，stepIndex + 1（从 context.stepIndex 取当前步，而非 checkpoint 里持久化的值）
-    const stepIndex = nextAction === 'model' ? context.stepIndex + 1 : context.stepIndex;
+    // nextStepIndex 语义：下一个要执行的 model step 序号。'model' 边界当前步已完成，故 = context.stepIndex + 1；其余阶段 = context.stepIndex
+    const nextStepIndex = nextAction === 'model' ? context.stepIndex + 1 : context.stepIndex;
 
     // tool call 已经调用完结，不需要继承
     const withoutToolCall = nextAction === 'model' || nextAction === 'end' || nextAction === 'failed';
@@ -546,7 +546,7 @@ export class LoopAgent
 
     return context.checkpoint = await this.checkpointStore.append(context.checkpoint, {
       parentId: checkpoint.id,
-      stepIndex: stepIndex,
+      nextStepIndex: nextStepIndex,
       nextAction: nextAction,
       decisions: Array.from(context.decisions.values()),
       approvedTools: Array.from(context.approvedTools.values()),

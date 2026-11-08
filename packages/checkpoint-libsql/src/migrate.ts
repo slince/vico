@@ -15,7 +15,11 @@ export async function ensureCheckpointTables(
     SELECT name FROM pragma_table_info('vico_checkpoints')
   `);
   const ckptColNames = ckptCols.map((r) => r[0]);
-  if (ckptColNames.length > 0 && (!ckptColNames.includes('id') || !ckptColNames.includes('parent_id'))) {
+  // 旧结构触发 DROP 重建：① 无 id/parent_id（复合主键版）② 仍用旧列名 step_index（未重命名为 next_step_index）
+  if (ckptColNames.length > 0 && (
+    !ckptColNames.includes('id') || !ckptColNames.includes('parent_id') ||
+    (ckptColNames.includes('step_index') && !ckptColNames.includes('next_step_index'))
+  )) {
     await db.run(sql`DROP TABLE vico_checkpoints`);
   }
 
@@ -27,7 +31,7 @@ export async function ensureCheckpointTables(
       turn_id TEXT NOT NULL,
       thread_id TEXT NOT NULL,
       version INTEGER NOT NULL,
-      step_index INTEGER NOT NULL,
+      next_step_index INTEGER NOT NULL,
       next_action TEXT NOT NULL,
       snapshot TEXT NOT NULL,
       created_at INTEGER NOT NULL,

@@ -10,7 +10,7 @@ export const checkpoints = sqliteTable('vico_checkpoints', {
   turnId: text('turn_id').notNull(),
   threadId: text('thread_id').notNull(),
   version: integer('version').notNull(),
-  stepIndex: integer('step_index').notNull(),
+  nextStepIndex: integer('next_step_index').notNull(),
   nextAction: text('next_action').notNull(),
   snapshot: text('snapshot').notNull(),
   createdAt: integer('created_at').notNull(),

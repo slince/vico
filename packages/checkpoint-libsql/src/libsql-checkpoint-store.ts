@@ -10,12 +10,12 @@ import {checkpoints} from './schema.js';
 /**
  * LibSQL 版本树 {@link CheckpointStore}。
  * 一行一个版本快照（单列主键 id + UNIQUE(turn_id,version)），snapshot 存完整 Checkpoint JSON，
- * step_index / next_action 平铺为索引列，parent_id 表达血缘。读时懒迁移。
+ * next_step_index / next_action 平铺为索引列，parent_id 表达血缘。读时懒迁移。
  */
 export class LibSqlCheckpointStore implements CheckpointStore {
   constructor(private db: LibSQLDatabase<typeof schema>) {}
 
-  /** 创建初始版本（version=1、stepIndex=0、nextAction=model） */
+  /** 创建初始版本（version=1、nextStepIndex=0、nextAction=model） */
   async create(turnId: string, threadId: string): Promise<Checkpoint> {
     const checkpoint = createCheckpoint(turnId, threadId);
     await this.db.insert(checkpoints).values(this.toRow(checkpoint));
@@ -30,7 +30,7 @@ export class LibSqlCheckpointStore implements CheckpointStore {
       turnId: latest.turnId,
       threadId: latest.threadId ?? '',
       version: latest.version + 1,
-      stepIndex: patch.stepIndex,
+      nextStepIndex: patch.nextStepIndex,
       nextAction: patch.nextAction,
       decisions: patch.decisions,
       approvedTools: patch.approvedTools,
@@ -90,7 +90,7 @@ export class LibSqlCheckpointStore implements CheckpointStore {
     if (!source) return undefined;
     const checkpoint = createCheckpoint(newTurnId, newThreadId);
     checkpoint.parentId = source.id;
-    checkpoint.stepIndex = source.stepIndex;
+    checkpoint.nextStepIndex = source.nextStepIndex;
     checkpoint.nextAction = source.nextAction;
     checkpoint.approvedTools = source.approvedTools;
     checkpoint.pendingApprovalCalls = source.pendingApprovalCalls;
@@ -130,7 +130,7 @@ export class LibSqlCheckpointStore implements CheckpointStore {
       turnId: ckpt.turnId,
       threadId: ckpt.threadId,
       version: ckpt.version,
-      stepIndex: ckpt.stepIndex,
+      nextStepIndex: ckpt.nextStepIndex,
       nextAction: ckpt.nextAction,
       snapshot: JSON.stringify(ckpt),
       createdAt: ckpt.createdAt,

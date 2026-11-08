@@ -16,7 +16,11 @@ export async function ensureCheckpointTables(
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vico_checkpoints'
   `);
   const ckptColNames = (ckptCols[0] as unknown as Array<{ COLUMN_NAME: string }>).map((r) => r.COLUMN_NAME);
-  if (ckptColNames.length > 0 && (!ckptColNames.includes('id') || !ckptColNames.includes('parent_id'))) {
+  // 旧结构触发 DROP 重建：① 无 id/parent_id（复合主键版）② 仍用旧列名 step_index（未重命名为 next_step_index）
+  if (ckptColNames.length > 0 && (
+    !ckptColNames.includes('id') || !ckptColNames.includes('parent_id') ||
+    (ckptColNames.includes('step_index') && !ckptColNames.includes('next_step_index'))
+  )) {
     await db.execute(sql`DROP TABLE vico_checkpoints`);
   }
 
@@ -28,7 +32,7 @@ export async function ensureCheckpointTables(
       turn_id VARCHAR(36) NOT NULL,
       thread_id VARCHAR(36) NOT NULL,
       version INT NOT NULL,
-      step_index INT NOT NULL,
+      next_step_index INT NOT NULL,
       next_action VARCHAR(20) NOT NULL,
       snapshot TEXT NOT NULL,
       created_at BIGINT NOT NULL,
