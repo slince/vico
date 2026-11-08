@@ -470,13 +470,12 @@ export class LoopAgent
       const step: TurnStep = { index: steps, messages: context.messages };
 
       // 恢复续跑的首个迭代：LLM 已在上轮完成，跳过 step.start 与 executeModelStep
-      const pendingResume = resume;
-      if (!pendingResume) {
+      if (!resume) {
         this.emit({ type: 'step.start', step: step.index });
       }
 
-      const r: ModelStepResult = pendingResume
-        ? { action: 'continue', resolved: pendingResume, usage: emptyUsage() }
+      const r: ModelStepResult = resume
+        ? { action: 'continue', resolved: resume, usage: emptyUsage() }
         : await this.executeModelStep(step, context);
       // 恢复清单只消费一次（非恢复路径 resume 本就是 null，赋 null 无副作用）
       resume = null;
@@ -484,7 +483,7 @@ export class LoopAgent
       usage = addUsage(usage, r.usage);
 
       if (r.action === 'pause') {
-        // 暂停现场进版本树（nextAction='tool-approval'）
+        // 暂停现场进版本树（nextAction='tool-approval'），步骤未完成，不发 step.end
         const resolved = r.resolved!;
         await this.saveCheckpoint(context, 'tool-approval', {
           pendingApprovalCalls: resolved.pendingApprovalCalls,
@@ -500,22 +499,24 @@ export class LoopAgent
         return { status: 'paused', steps, usage };
       }
 
-      if (r.action === 'break') {
-        // 如果是因为模型错误 直接短路
-        if (r.error) {
-          return { status: 'failed', steps, usage, error: r.error };
-        }
-        // 终态步骤也要闭合 step 生命周期（start 已发，补发 end）
-        this.emit({ type: 'step.end', step: step.index });
-        break
+      // 模型错误导致的 break：短路（步骤异常终止，不发 step.end）
+      if (r.action === 'break' && r.error) {
+        return { status: 'failed', steps, usage, error: r.error };
       }
 
-      // 接下来处理多轮循环， action === 'continue'
-      // 执行本轮 auto 批准的调用，拒绝结果一并落消息链（结果只落消息链，checkpoint 已留执行清单）
-      const resolved = r.resolved!;
-      await this.executeToolCalls(context, resolved.approvedCalls, resolved.deniedResults);
+      // 走到这里只有两种成功情形：break（终态，无工具）或 continue（有工具待执行）。
+      // 仅 continue 需要执行工具，结果一并落消息链（checkpoint 已留执行清单）。
+      if (r.action === 'continue') {
+        const resolved = r.resolved!;
+        await this.executeToolCalls(context, resolved.approvedCalls, resolved.deniedResults);
+      }
 
+      // 步骤完成，统一闭合生命周期（break 终态 / continue 推进共用）
       this.emit({ type: 'step.end', step: step.index });
+
+      if (r.action === 'break') {
+        break
+      }
       // step 完成 → 推进版本：清单清空，标志本轮决策执行完毕
       steps++;
     }
