@@ -29,7 +29,9 @@ import {
   createModelStreamTransformer,
   emptyUsage,
   finishPart,
+  finishStepPart,
   stampRunId,
+  startStepPart,
   toolApprovalRequestPart,
   toolApprovalResponsePart,
   toolOutputDeniedPart,
@@ -468,11 +470,10 @@ export class LoopAgent
     while (context.stepIndex < this.maxSteps && !signal.aborted) {
       const step: TurnStep = { index: context.stepIndex, messages: context.messages };
 
-      // 恢复续跑的首个迭代：LLM 已在上轮完成，跳过 step.start 与 executeModelStep
-      if (!resume) {
-        this.emit({ type: 'step.start', step: step.index });
-      }
+      // step 开始边界（前端 STEP_STARTED）：每个迭代都发，含恢复补跑工具的阶段
+      context.output.write(stampRunId(context.runId, startStepPart(context.stepIndex)));
 
+      // 恢复续跑的首个迭代：LLM 已在上轮完成，跳过 executeModelStep，直接消费恢复清单
       const r: ModelStepResult = resume
         ? { action: 'continue', resolved: resume, usage: emptyUsage() }
         : await this.executeModelStep(step, context);
@@ -483,7 +484,7 @@ export class LoopAgent
       context.usage = addUsage(context.usage, r.usage);
 
       if (r.action === 'pause') {
-        // 暂停现场进版本树（nextAction='tool-approval'），步骤未完成，不发 step.end
+        // 暂停现场进版本树（nextAction='tool-approval'），步骤未完成，不发 finish-step
         const resolved = r.resolved!;
         await this.saveCheckpoint(context, 'tool-approval', {
           pendingApprovalCalls: resolved.pendingApprovalCalls,
@@ -499,7 +500,7 @@ export class LoopAgent
         return { status: 'paused', steps: context.stepIndex, usage: context.usage };
       }
 
-      // 模型错误导致的 break：短路（步骤异常终止，不发 step.end）
+      // 模型错误导致的 break：短路（步骤异常终止，不发 finish-step）
       if (r.action === 'break' && r.error) {
         return { status: 'failed', steps: context.stepIndex, usage: context.usage, error: r.error };
       }
@@ -511,8 +512,8 @@ export class LoopAgent
         await this.executeToolCalls(context, resolved.approvedCalls, resolved.deniedResults);
       }
 
-      // 步骤完成，统一闭合生命周期（break 终态 / continue 推进共用）
-      this.emit({ type: 'step.end', step: step.index });
+      // step 结束边界（前端 STEP_FINISHED）：工具执行完（continue）或终态答案（break）后发
+      context.output.write(stampRunId(context.runId, finishStepPart(context.stepIndex, r.usage)));
 
       if (r.action === 'break') {
         break
@@ -628,7 +629,7 @@ export class LoopAgent
     const allApprovedCalls = [...checkpoint.approvedCalls, ...approvedCalls].filter(call => !completedToolCallIds.has(call.id))
     const allDeniedResults = [...checkpoint.deniedResults, ...deniedResults].filter(result => !completedToolCallIds.has(result.callId))
 
-    // 交由 runLoop 循环统一执行（复用 executeToolCalls → step.end → steps++ 路径）
+    // 交由 runLoop 循环统一执行（复用 executeToolCalls → finish-step → stepIndex++ 路径）
     if (allApprovedCalls.length === 0 && allDeniedResults.length === 0) {
       return null
     }
@@ -928,7 +929,7 @@ export class LoopAgent
       };
       try {
         const result = await context.modelClient.stream(request);
-        const stream = result.stream.pipeThrough(createModelStreamTransformer(context.runId, request));
+        const stream = result.stream.pipeThrough(createModelStreamTransformer(context.runId));
         // 已盖章的 chunk 流泵入输出写入器
         await output.forward(stream);
         return result.result();

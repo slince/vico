@@ -12,7 +12,6 @@
 //   LoopAgent 将其转换为引擎层协议（Chunk）后对外输出；
 //   UI 层（服务端路由）再转换为 UIMessageChunk（过渡）或 ag-ui 事件（目标态）。
 import type {ModelMessage, ModelProviderMetadata} from '@vico/model';
-import type {SharedV4Warning} from '@ai-sdk/provider';
 import type {UsageMetrics} from '@vico/types';
 
 /** JSON 值（可安全 JSON.stringify，供 SSE 序列化） */
@@ -177,32 +176,18 @@ export interface RawPayload {
   raw: unknown;
 }
 
-/** step 开始（携带本步输入消息与 warnings） */
+/** step 开始（携带本步序号，供前端 STEP_STARTED 的 stepName 使用） */
 export interface StartStepPayload {
-  request: { messages: ModelMessage[] };
-  warnings: SharedV4Warning[];
+  /** 本 step 序号（引擎 stepIndex，0 起始，跨暂停/恢复连续） */
+  stepIndex: number;
 }
 
-/** step 性能指标（由 finishStepPart 按时间戳计算） */
-export interface StepPerformance {
-  /** 本 step 模型调用总耗时（ms） */
-  stepTimeMs: number;
-  /** 首个输出 chunk 到达耗时（ms，无输出时为 undefined） */
-  timeToFirstOutputMs?: number;
-  /** 有效输出 token 速率（outputTokens / 秒） */
-  effectiveOutputTokensPerSecond: number;
-  /** 有效总 token 速率（totalTokens / 秒） */
-  effectiveTotalTokensPerSecond: number;
-}
-
-/** step 结束（携带 response / usage / performance / finishReason） */
+/** step 结束（携带本步序号与本步模型调用累计用量） */
 export interface FinishStepPayload {
-  response: { id: string; modelId: string; timestamp: string };
+  /** 本 step 序号（与对应 start-step 配对） */
+  stepIndex: number;
+  /** 本 step 的模型调用累计用量 */
   usage: UsageMetrics;
-  performance: StepPerformance;
-  finishReason: string;
-  rawFinishReason?: string;
-  providerMetadata?: ProviderMetadata;
 }
 
 /** 扁平化语言模型用量（finish 终态的 totalUsage，供 UI 兼容展示） */

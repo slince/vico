@@ -26,8 +26,6 @@ export function createChunkToAgUiTransformer(opts: {
 
   // 本次 run 的稳定 assistant 消息 id（所有文本块与工具调用归属同一条 assistant 消息）
   const assistantMessageId = randomUUID();
-  // step 计数（STEP_STARTED/STEP_FINISHED 的 stepName）
-  let stepIndex = 0;
   // 审批门禁：收集 tool-approval-request，finish 时以 interrupt outcome 收尾
   const interrupts: Interrupt[] = [];
   // 终态状态：aborted / errored / finished（避免重复发终态事件）
@@ -44,12 +42,11 @@ export function createChunkToAgUiTransformer(opts: {
           break;
 
         case 'start-step':
-          stepIndex += 1;
-          enqueue.enqueue({ type: EventType.STEP_STARTED, stepName: `step-${stepIndex}` });
+          enqueue.enqueue({ type: EventType.STEP_STARTED, stepName: `step-${chunk.payload.stepIndex}` });
           break;
 
         case 'finish-step':
-          enqueue.enqueue({ type: EventType.STEP_FINISHED, stepName: `step-${stepIndex}` });
+          enqueue.enqueue({ type: EventType.STEP_FINISHED, stepName: `step-${chunk.payload.stepIndex}` });
           break;
 
         case 'text-start':

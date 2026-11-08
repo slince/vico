@@ -35,7 +35,6 @@ export type {
   FinishPayload,
   ErrorPayload,
   AbortPayload,
-  StepPerformance,
   TotalUsage,
 } from './types.js';
 export { stampRunId } from './types.js';
@@ -51,7 +50,6 @@ export {
   startStepPart,
   finishStepPart,
   finishPart,
-  type FinishStepParams,
   type FinishReason,
 } from './stream-parts.js';
 export { emptyUsage, addTokenCount, addUsage, fromV4Usage } from './usage.js';

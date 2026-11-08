@@ -1,57 +1,30 @@
 // @vico/stream - createModelStreamTransformer: 将 provider 原生 V4 流转换为引擎层 ChunkType 的 TransformStream
-import type {ModelRequest, ModelStreamPart} from '@vico/model';
+import type {ModelStreamPart} from '@vico/model';
 import type {ToolCall} from '@vico/tool';
-import {createToolCall, finishStepPart, startStepPart, v4FilePart, v4ToolResultPart} from './stream-parts.js';
+import {createToolCall, v4FilePart, v4ToolResultPart} from './stream-parts.js';
 import {stampRunId, type ChunkType, type CustomPayload, type RawPayload, type SourcePayload} from './types.js';
 
 /**
  * 创建 V4 → 引擎层 ChunkType 的 TransformStream。
  *
- * 转换逻辑（V4 → 引擎层协议映射）与 step 级状态（start-step / response-metadata / finish-step）
- * 内聚在 transform 回调中；文本 / 推理 / 工具调用 / usage 的累积仍由 BufferedModelStream 完成，
- * 调用方 pipeThrough 后消费输出流，再经 result.result() 取回完整结果。
+ * 转换逻辑（V4 → 引擎层协议映射）内聚在 transform 回调中；文本 / 推理 / 工具调用 / usage 的
+ * 累积仍由 BufferedModelStream 完成，调用方 pipeThrough 后消费输出流，再经 result.result() 取回完整结果。
+ * step 级边界（start-step / finish-step）不在此层发，由 LoopAgent.runLoop 统一发（覆盖 LLM + 工具执行）。
  *
  * 从 LoopAgent.callModel 中抽出，使 V4 → 引擎层协议的映射逻辑独立成函数，
  * callModel 仅负责组装请求、获取流，并将流 pipeThrough 本转换器后转发。
  *
  * @param runId - 本次 stream() 调用的 run 标识（盖章到每条 chunk）
- * @param request - 本 step 模型请求（供 start-step part 携带 request）
  * @returns provider 原生 V4 part → 引擎层 ChunkType 的转换流
  */
 export function createModelStreamTransformer(
   runId: string,
-  request: ModelRequest,
 ): TransformStream<ModelStreamPart, ChunkType> {
-  // ── V4 → ChunkType 转换所需的 step 级状态 ──
-  const stepStartTime = Date.now();
-  /** 首个输出 chunk 到达时间（性能指标 timeToFirstOutputMs） */
-  let firstChunkTime: number | undefined;
-  /** start-step 是否已发出（stream-start 携带 warnings；未收到时由首个内容 part 兜底触发） */
-  let stepStarted = false;
-  /** 从 V4 response-metadata 捕获，进 finish-step.response */
-  let responseMeta: { id?: string; modelId?: string; timestamp?: Date } = {};
   /** toolCallId → ToolCall，供 provider 端 tool-result / tool-approval-request 关联 input */
   const callsById = new Map<string, ToolCall>();
 
-  /** start-step 兜底：stream-start 时携带 warnings 触发，其余 part 到达前无 warnings 兜底触发 */
-  const ensureStepStarted = (
-    controller: TransformStreamDefaultController<ChunkType>,
-    warnings: import('@ai-sdk/provider').SharedV4Warning[] = [],
-  ): void => {
-    if (stepStarted) return;
-    stepStarted = true;
-    controller.enqueue(stampRunId(runId, startStepPart(request.messages, warnings)));
-  };
-
   return new TransformStream<ModelStreamPart, ChunkType>({
     transform(chunk, controller) {
-      // stream-start 携带 warnings → start-step；不对外透出 stream-start 本身
-      if (chunk.type === 'stream-start') {
-        ensureStepStarted(controller, chunk.warnings);
-        return;
-      }
-      ensureStepStarted(controller);
-
       switch (chunk.type) {
         // ── 同形透传（重建对象以对齐引擎层类型）──
         case 'text-start':
@@ -69,12 +42,10 @@ export function createModelStreamTransformer(
 
         // ── 文本/推理 delta：V4 的 delta 字段 → ChunkType 的 text 字段 ──
         case 'text-delta':
-          firstChunkTime ??= Date.now();
           controller.enqueue(stampRunId(runId, { type: 'text-delta', payload: { id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata } }));
           break;
 
         case 'reasoning-delta':
-          firstChunkTime ??= Date.now();
           controller.enqueue(stampRunId(runId, { type: 'reasoning-delta', payload: { id: chunk.id, text: chunk.delta, providerMetadata: chunk.providerMetadata } }));
           break;
 
@@ -154,21 +125,8 @@ export function createModelStreamTransformer(
           break;
         }
 
-        // ── 响应元数据：捕获进 finish-step.response ──
-        case 'response-metadata':
-          responseMeta = { id: chunk.id, modelId: chunk.modelId, timestamp: chunk.timestamp };
-          break;
-
-        // ── V4 finish（单次调用级）→ finish-step（携带 response/usage/performance）──
+        // ── V4 finish：单次模型调用结束；不对外发 part（step 级 finish-step 由 runLoop 统一发）──
         case 'finish':
-          controller.enqueue(stampRunId(runId, finishStepPart({
-            usage: chunk.usage,
-            finishReason: chunk.finishReason,
-            providerMetadata: chunk.providerMetadata,
-            response: responseMeta,
-            startTime: stepStartTime,
-            firstChunkTime,
-          })));
           break;
 
         case 'error': {
