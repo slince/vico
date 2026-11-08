@@ -11,12 +11,8 @@ import type {AgentMessage, TurnSession} from '@vico/thread';
 export interface ModelStepResult {
   /** 步骤执行后的动作：break=终止循环, pause=暂停等待审批, continue=继续下一步 */
   action: 'break' | 'pause' | 'continue';
-  /** 待审批的 ToolCall（action 为 pause 时需要） */
-  pendingApprovalCalls?: ToolCall[];
-  /** 本轮审批通过待执行的调用（pause：恢复时差集补跑；continue：执行前落「计划版本」清单） */
-  approvedCalls?: ToolCall[];
-  /** 本轮被拒绝的结果（pause：恢复时落库；continue：随执行结果一并落库） */
-  deniedResults?: ToolResult[];
+  /** 审批处置结果（通过 / 拒绝 / 待审批三组），action 为 pause/continue 时提供；break 时无 */
+  resolved?: ResolvedApprovals;
   /** 本 step 的 token 用量 */
   usage: UsageMetrics;
   /** 本step是否执行出错*/

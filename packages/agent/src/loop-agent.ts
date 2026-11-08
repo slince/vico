@@ -458,27 +458,38 @@ export class LoopAgent
   private async runLoop(context: TurnContext): Promise<StepLoopResult> {
     let usage = emptyUsage();
 
-    const {session: {turn}, signal, checkpoint} = context
+    const {session: {turn}, signal} = context
 
-    // 加载最近的 CR，未完结的尝试恢复
-    await this.loadCheckpoint(context)
+    // 恢复现场 + 解析出待执行工具清单（不执行）；null 表示无待执行（初始 turn / 已完结）
+    let resume = await this.loadCheckpoint(context)
 
-    let steps = checkpoint.stepIndex;
+    // loadCheckpoint 不再推进 stepIndex，这里读到的即恢复点 N（无 stale 引用问题）
+    let steps = context.checkpoint.stepIndex;
 
     while (steps < this.maxSteps && !signal.aborted) {
       const step: TurnStep = { index: steps, messages: context.messages };
 
-      this.emit({ type: 'step.start', step: step.index });
+      // 恢复续跑的首个迭代：LLM 已在上轮完成，跳过 step.start 与 executeModelStep
+      const pendingResume = resume;
+      if (!pendingResume) {
+        this.emit({ type: 'step.start', step: step.index });
+      }
 
-      const { action, pendingApprovalCalls, approvedCalls, deniedResults, usage: stepUsage, error } = await this.executeModelStep(step, context);
-      usage = addUsage(usage, stepUsage);
+      const r: ModelStepResult = pendingResume
+        ? { action: 'continue', resolved: pendingResume, usage: emptyUsage() }
+        : await this.executeModelStep(step, context);
+      // 恢复清单只消费一次（非恢复路径 resume 本就是 null，赋 null 无副作用）
+      resume = null;
 
-      if (action === 'pause') {
+      usage = addUsage(usage, r.usage);
+
+      if (r.action === 'pause') {
         // 暂停现场进版本树（nextAction='tool-approval'）
+        const resolved = r.resolved!;
         await this.saveCheckpoint(context, 'tool-approval', {
-          pendingApprovalCalls: pendingApprovalCalls ?? [],
-          approvedCalls: approvedCalls ?? [],
-          deniedResults: deniedResults ?? [],
+          pendingApprovalCalls: resolved.pendingApprovalCalls,
+          approvedCalls: resolved.approvedCalls,
+          deniedResults: resolved.deniedResults,
         })
         // 暂停前写 usage 快照：历史累计（context.usage）+ 本次 loop 累计，恢复时据此续算
         await this.thread.updateTurn(turn.id, {
@@ -489,17 +500,20 @@ export class LoopAgent
         return { status: 'paused', steps, usage };
       }
 
-      if (action === 'break') {
+      if (r.action === 'break') {
         // 如果是因为模型错误 直接短路
-        if (error) {
-          return { status: 'failed', steps, usage, error };
+        if (r.error) {
+          return { status: 'failed', steps, usage, error: r.error };
         }
+        // 终态步骤也要闭合 step 生命周期（start 已发，补发 end）
+        this.emit({ type: 'step.end', step: step.index });
         break
       }
 
       // 接下来处理多轮循环， action === 'continue'
       // 执行本轮 auto 批准的调用，拒绝结果一并落消息链（结果只落消息链，checkpoint 已留执行清单）
-      await this.executeToolCalls(context, approvedCalls ?? [], deniedResults ?? []);
+      const resolved = r.resolved!;
+      await this.executeToolCalls(context, resolved.approvedCalls, resolved.deniedResults);
 
       this.emit({ type: 'step.end', step: step.index });
       // step 完成 → 推进版本：清单清空，标志本轮决策执行完毕
@@ -547,12 +561,12 @@ export class LoopAgent
    * @param context
    * @private
    */
-  private async loadCheckpoint(context: TurnContext){
+  private async loadCheckpoint(context: TurnContext): Promise<ResolvedApprovals | null> {
     const {checkpoint} = context
 
     // 已完结的忽略
     if (checkpoint.nextAction === 'end') {
-      return
+      return null
     }
 
     // 还原到上下文
@@ -607,11 +621,15 @@ export class LoopAgent
     // session 级审批批量落库：一次 updateThread，避免逐个写入
     await this.saveSessionApprovals(context, sessionScopedTools);
 
-    // 本轮次要执行的 tool calls
+    // 待执行的 tool calls：checkpoint 已批准的 + 本轮解析批准的，差集掉已完成的（防崩溃残留重复执行）
     const allApprovedCalls = [...checkpoint.approvedCalls, ...approvedCalls].filter(call => !completedToolCallIds.has(call.id))
     const allDeniedResults = [...checkpoint.deniedResults, ...deniedResults].filter(result => !completedToolCallIds.has(result.callId))
 
-    await this.executeToolCalls(context, allApprovedCalls, allDeniedResults);
+    // 交由 runLoop 循环统一执行（复用 executeToolCalls → step.end → steps++ 路径）
+    if (allApprovedCalls.length === 0 && allDeniedResults.length === 0) {
+      return null
+    }
+    return { approvedCalls: allApprovedCalls, deniedResults: allDeniedResults, pendingApprovalCalls: [] };
   }
 
   /**
@@ -654,7 +672,7 @@ export class LoopAgent
    * @param context 本 turn 的共享上下文（消息、审批状态、中断信号、流控制器、checkpoint）
    * @returns 步骤结果，action 三态：
    *   - `break`：token 耗尽 / 模型出错 / 已中止 / 无工具调用，终止循环
-   *   - `pause`：存在待审批工具，暂停 turn 等待客户端审批（附 pendingApprovalCalls）
+   *   - `pause`：存在待审批工具，暂停 turn 等待客户端审批（附 resolved.pendingApprovalCalls）
    *   - `continue`：工具已审批通过，交由 runLoop 落「计划版本」后执行
    */
   private async executeModelStep(step: TurnStep, context: TurnContext): Promise<ModelStepResult> {
@@ -675,12 +693,12 @@ export class LoopAgent
 
     usage = addUsage(usage, modelResult.usage);
 
-    // 审批 + 执行 + 持久化
-    const { approvedCalls, deniedResults, pendingApprovalCalls } = await this.resolveToolApprovals(modelResult.toolCalls, context);
+    // 审批分类（不执行工具，执行由 runLoop 统一调度）
+    const resolved = await this.resolveToolApprovals(modelResult.toolCalls, context);
 
     // 模型输出后的消息处理（text + tool-call parts 组装为原生 assistant 消息）
     if (modelResult.text || modelResult.toolCalls.length > 0) {
-      const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning, pendingApprovalCalls);
+      const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning, resolved.pendingApprovalCalls);
       context.messages.push({ ...assistantMsg, turnId: context.session.turn.id });
       // usage 与 assistant 消息一一对应：仅在持久化副本上挂载，消息链保持纯净（不随上下文发给模型）
       await this.persistMessages(context, [{ ...assistantMsg, usage: modelResult.usage }]);
@@ -692,13 +710,13 @@ export class LoopAgent
 
     // 有待审批的工具 → 暂停 turn
     // 因为未决的 tool_use 不能出现在发给模型的后续请求中
-    if (pendingApprovalCalls.length > 0) {
-      return { action: 'pause', pendingApprovalCalls, approvedCalls, deniedResults, usage };
+    if (resolved.pendingApprovalCalls.length > 0) {
+      return { action: 'pause', resolved, usage };
     }
 
     // 已批准的调用不再在此执行——审批分类结果返回 runLoop：先落「计划版本」清单再执行，
     // 使工具执行中途中断/崩溃时可按「checkpoint 清单 − 消息链已完成」差集恢复补跑。
-    return { action: 'continue', approvedCalls, deniedResults, usage };
+    return { action: 'continue', resolved, usage };
   }
 
   /**
