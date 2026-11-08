@@ -38,8 +38,8 @@ export interface Checkpoint {
   approvedCalls: ToolCall[];
   deniedResults: ToolResult[];
   lastMessageId: string | null;
-  /** turn 累计 token 用量（恢复现场用；旧快照可能缺失，缺失时回退 turn.metadata.usage） */
-  usage?: UsageMetrics;
+  /** turn 累计 token 用量（恢复现场用） */
+  usage: UsageMetrics;
   schemaVersion: number;
   createdAt: number;
 }
@@ -97,6 +97,17 @@ export interface CheckpointStore {
   purgeExpired(ttlMs: number): Promise<string[]>;
 }
 
+/**
+ * 空用量（所有明细字段为 undefined）。
+ * 与 @vico/model 的 emptyUsage 语义一致；checkpoint 层不依赖 model，避免引入 AI SDK 依赖。
+ */
+function emptyUsage(): UsageMetrics {
+  return {
+    inputTokens: { total: undefined, noCache: undefined, cacheRead: undefined, cacheWrite: undefined },
+    outputTokens: { total: undefined, text: undefined, reasoning: undefined },
+  };
+}
+
 /** 构造初始版本快照（id=uuid、parentId=null、version=1、平铺字段空数组） */
 export function createCheckpoint(turnId: string, threadId: string): Checkpoint {
   return {
@@ -113,6 +124,7 @@ export function createCheckpoint(turnId: string, threadId: string): Checkpoint {
     approvedCalls: [],
     deniedResults: [],
     lastMessageId: null,
+    usage: emptyUsage(),
     schemaVersion: CHECKPOINT_CURRENT_VERSION,
     createdAt: Date.now(),
   };

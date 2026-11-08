@@ -343,8 +343,8 @@ export class LoopAgent
         output,
         runId,
         checkpoint,
-        // 恢复时优先从 checkpoint.usage 读回累计用量（崩溃恢复不丢量），旧快照缺失则回退 turn.metadata.usage
-        usage: checkpoint.usage ?? session.turn.metadata?.usage ?? emptyUsage(),
+        // 从 checkpoint.usage 读回累计用量（崩溃恢复不丢量；usage 为必选字段，createCheckpoint 已初始化空用量）
+        usage: checkpoint.usage,
         reasoning,
         modelClient,
         approvalMode,
