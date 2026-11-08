@@ -343,6 +343,8 @@ export class LoopAgent
         output,
         runId,
         checkpoint,
+        // 当前 step 序号，从 checkpoint 读回恢复点 N；saveCheckpoint 据此取值
+        stepIndex: checkpoint.stepIndex,
         // 从 checkpoint.usage 读回累计用量（崩溃恢复不丢量；usage 为必选字段，createCheckpoint 已初始化空用量）
         usage: checkpoint.usage,
         reasoning,
@@ -462,11 +464,9 @@ export class LoopAgent
     // 恢复现场 + 解析出待执行工具清单（不执行）；null 表示无待执行（初始 turn / 已完结）
     let resume = await this.loadCheckpoint(context)
 
-    // loadCheckpoint 不再推进 stepIndex，这里读到的即恢复点 N（无 stale 引用问题）
-    let steps = context.checkpoint.stepIndex;
-
-    while (steps < this.maxSteps && !signal.aborted) {
-      const step: TurnStep = { index: steps, messages: context.messages };
+    // stepIndex 已在 startTurn 从 checkpoint 读回恢复点 N；loadCheckpoint 不再推进它
+    while (context.stepIndex < this.maxSteps && !signal.aborted) {
+      const step: TurnStep = { index: context.stepIndex, messages: context.messages };
 
       // 恢复续跑的首个迭代：LLM 已在上轮完成，跳过 step.start 与 executeModelStep
       if (!resume) {
@@ -493,15 +493,15 @@ export class LoopAgent
         // 暂停前写 usage 快照：context.usage 已是累计值（历史 + 本次 loop）
         await this.thread.updateTurn(turn.id, {
           status: 'paused',
-          steps,
+          steps: context.stepIndex,
           metadata: { ...turn.metadata, usage: context.usage },
         });
-        return { status: 'paused', steps, usage: context.usage };
+        return { status: 'paused', steps: context.stepIndex, usage: context.usage };
       }
 
       // 模型错误导致的 break：短路（步骤异常终止，不发 step.end）
       if (r.action === 'break' && r.error) {
-        return { status: 'failed', steps, usage: context.usage, error: r.error };
+        return { status: 'failed', steps: context.stepIndex, usage: context.usage, error: r.error };
       }
 
       // 走到这里只有两种成功情形：break（终态，无工具）或 continue（有工具待执行）。
@@ -518,9 +518,9 @@ export class LoopAgent
         break
       }
       // step 完成 → 推进版本：清单清空，标志本轮决策执行完毕
-      steps++;
+      context.stepIndex++;
     }
-    return { status: signal.aborted ? 'aborted' : 'completed', steps, usage: context.usage };
+    return { status: signal.aborted ? 'aborted' : 'completed', steps: context.stepIndex, usage: context.usage };
   }
 
   /**
@@ -534,8 +534,8 @@ export class LoopAgent
 
     const {checkpoint} = context
 
-    // 模型调用，stepIndex + 1
-    const stepIndex = nextAction === 'model' ? checkpoint.stepIndex + 1 : checkpoint.stepIndex;
+    // 模型调用，stepIndex + 1（从 context.stepIndex 取当前步，而非 checkpoint 里持久化的值）
+    const stepIndex = nextAction === 'model' ? context.stepIndex + 1 : context.stepIndex;
 
     // tool call 已经调用完结，不需要继承
     const withoutToolCall = nextAction === 'model' || nextAction === 'end' || nextAction === 'failed';

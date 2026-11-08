@@ -48,6 +48,8 @@ export interface TurnContext {
   runId: string;
   /** 本 turn 的 checkpoint 对象（startTurn/resumeTurn 创建，append-only 版本链：step 完成 / pause / 终态时由 loop-agent append 新版本） */
   checkpoint: Checkpoint;
+  /** 当前 step 序号（0 起始），随循环推进；saveCheckpoint 据此落版本 */
+  stepIndex: number;
   usage: UsageMetrics;
   /** 本次运行的思考强度（覆盖 agent 级 reasoning），不传则回退 this.reasoning */
   reasoning?: ReasoningEffort;
