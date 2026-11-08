@@ -89,6 +89,8 @@ export interface TurnResult {
 export interface RunOptions {
   /** 会话线程对象（必传，通过 agent.createThread() 创建） */
   thread: Thread;
+  /** 本次 run 标识，可选；由调用方（如 ag-ui 路由层）传入以关联前端请求，缺省时内部生成 UUID */
+  runId?: string;
   /** 思考强度（推理力度），可选；不传则回退到 agent 构造时的 reasoning */
   reasoning?: ReasoningEffort;
   /** 模型名，可选；仅切换模型，provider/apiKey/baseUrl 复用 agent 原始配置，不传则用 agent 默认模型 */

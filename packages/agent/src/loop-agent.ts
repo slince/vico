@@ -198,8 +198,8 @@ export class LoopAgent
     // 统一中断源：TurnOutput.abort() / 流 cancel 直接取消它，外部 signal 经聚合联动到同一 ac
     const abortController = createAggregatedAbortController(options.signal);
 
-    // runId：本次 stream() 调用的标识，盖章到每条 chunk（暂停恢复走新 run，产生新 runId）
-    const runId = randomUUID();
+    // runId：本次 stream() 调用的标识，盖章到每条 chunk（优先采用调用方传入的 runId，缺省时生成；暂停恢复走新 run）
+    const runId = options.runId ?? randomUUID();
 
     const stream = new ReadableStream<ChunkType>({
       start: async (controller) => {

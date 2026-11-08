@@ -79,6 +79,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       agentId,
       messages,
       threadId,
+      runId: input.runId,
       userId: auth.userId,
       model: config?.modelName,
       reasoning: toReasoningEffort(config?.reasoningEffort),

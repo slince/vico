@@ -14,6 +14,8 @@ export interface ExecuteChatParams {
   messages: ModelMessage[];
   /** 客户端传入的真实线程 ID；为空时新建线程 */
   threadId?: string;
+  /** 客户端下发的 run 标识，透传给 agent（盖到 chunk 信封，供前端关联） */
+  runId?: string;
   userId?: string;
   /** 客户端模型选择器下发的模型名，覆盖 agent 默认模型（provider/apiKey/baseUrl 复用） */
   model?: string;
@@ -95,14 +97,14 @@ async function resolveThread(
 export async function executeAgentChat(
   params: ExecuteChatParams,
 ): Promise<ExecuteChatResult> {
-  const { agentId, messages, threadId, userId, model, reasoning, approvalMode, workspace, signal } = params;
+  const { agentId, messages, threadId, runId, userId, model, reasoning, approvalMode, workspace, signal } = params;
 
   const agent = await getAgent(agentId);
   const thread = await resolveThread(agent, threadId, userId, messages, workspace);
 
   const output = await agent.stream(messages, {
     thread, model, reasoning,
-    approvalMode, signal
+    approvalMode, signal, runId
   });
 
   return { output, thread };
