@@ -32,6 +32,7 @@ export type {
   RawPayload,
   StartStepPayload,
   FinishStepPayload,
+  StepFinishReason,
   FinishPayload,
   ErrorPayload,
   AbortPayload,

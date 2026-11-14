@@ -11,6 +11,7 @@ import type {
   ChunkDraft,
   FilePayload,
   FinishPayload,
+  StepFinishReason,
   ToolCallPayload,
   ToolResultPayload,
   ToolErrorPayload,
@@ -132,9 +133,12 @@ export function startStepPart(stepIndex: number): ChunkDraft {
   return { type: 'start-step', payload: { stepIndex } };
 }
 
-/** step 结束 part：携带本步序号与本步模型调用累计用量（工具执行完 / 终态答案后由 runLoop 发） */
-export function finishStepPart(stepIndex: number, usage: UsageMetrics): ChunkDraft {
-  return { type: 'finish-step', payload: { stepIndex, usage } };
+/**
+ * step 结束 part：携带本步序号、完成原因与本步模型调用累计用量。
+ * 由 runLoop 统一发：正常完成（end）/ 暂停等待审批（pause）/ 模型出错（error）。
+ */
+export function finishStepPart(stepIndex: number, reason: StepFinishReason, usage: UsageMetrics): ChunkDraft {
+  return { type: 'finish-step', payload: { stepIndex, reason, usage } };
 }
 
 /**

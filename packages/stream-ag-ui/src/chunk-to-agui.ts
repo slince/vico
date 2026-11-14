@@ -46,7 +46,12 @@ export function createChunkToAgUiTransformer(opts: {
           break;
 
         case 'finish-step':
-          enqueue.enqueue({ type: EventType.STEP_FINISHED, stepName: `step-${chunk.payload.stepIndex}` });
+          enqueue.enqueue({
+            type: EventType.STEP_FINISHED,
+            stepName: `step-${chunk.payload.stepIndex}`,
+            // 完成原因（end / pause / error）经 metadata 透传，前端据此区分 step 结束态
+            metadata: { reason: chunk.payload.reason },
+          });
           break;
 
         case 'text-start':

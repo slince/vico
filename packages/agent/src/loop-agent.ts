@@ -484,7 +484,10 @@ export class LoopAgent
       context.usage = addUsage(context.usage, r.usage);
 
       if (r.action === 'pause') {
-        // 暂停现场进版本树（nextAction='tool-approval'），步骤未完成，不发 finish-step
+        // 暂停：先闭合本 step（前端 STEP_FINISHED，reason=pause），再落现场与状态
+        context.output.write(stampRunId(context.runId, finishStepPart(context.stepIndex, 'pause', r.usage)));
+
+        // 暂停现场进版本树（nextAction='tool-approval'）
         const resolved = r.resolved!;
         await this.saveCheckpoint(context, 'tool-approval', {
           pendingApprovalCalls: resolved.pendingApprovalCalls,
@@ -500,8 +503,9 @@ export class LoopAgent
         return { status: 'paused', steps: context.stepIndex, usage: context.usage };
       }
 
-      // 模型错误导致的 break：短路（步骤异常终止，不发 finish-step）
+      // 模型错误导致的 break：先闭合本 step（前端 STEP_FINISHED，reason=error），再短路
       if (r.action === 'break' && r.error) {
+        context.output.write(stampRunId(context.runId, finishStepPart(context.stepIndex, 'error', r.usage)));
         return { status: 'failed', steps: context.stepIndex, usage: context.usage, error: r.error };
       }
 
@@ -512,8 +516,8 @@ export class LoopAgent
         await this.executeToolCalls(context, resolved.approvedCalls, resolved.deniedResults);
       }
 
-      // step 结束边界（前端 STEP_FINISHED）：工具执行完（continue）或终态答案（break）后发
-      context.output.write(stampRunId(context.runId, finishStepPart(context.stepIndex, r.usage)));
+      // step 结束边界（前端 STEP_FINISHED）：工具执行完（continue）或终态答案（break）后发，reason=end
+      context.output.write(stampRunId(context.runId, finishStepPart(context.stepIndex, 'end', r.usage)));
 
       if (r.action === 'break') {
         break

@@ -182,10 +182,15 @@ export interface StartStepPayload {
   stepIndex: number;
 }
 
-/** step 结束（携带本步序号与本步模型调用累计用量） */
+/** step 完成原因：end 正常完成 / pause 暂停等待审批 / error 出错 */
+export type StepFinishReason = 'end' | 'pause' | 'error';
+
+/** step 结束（携带本步序号、完成原因与本步模型调用累计用量） */
 export interface FinishStepPayload {
   /** 本 step 序号（与对应 start-step 配对） */
   stepIndex: number;
+  /** 本 step 的完成原因（正常完成 / 暂停等待审批 / 出错） */
+  reason: StepFinishReason;
   /** 本 step 的模型调用累计用量 */
   usage: UsageMetrics;
 }
