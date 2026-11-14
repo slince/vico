@@ -2,7 +2,17 @@
 //
 // 后端持久化仍是 ModelMessage.content；本模块只做 model → ag-ui 的展示映射。
 // 前端用 @assistant-ui/react-ag-ui 的 fromAgUiMessages 还原为 assistant-ui 消息。
-import type {AssistantMessage, Interrupt, Message as AgUiMessage, ReasoningMessage, SystemMessage, ToolCall, ToolMessage, UserMessage} from '@ag-ui/core';
+import type {
+  AssistantMessage,
+  Interrupt,
+  Message as AgUiMessage,
+  ReasoningMessage,
+  SystemMessage,
+  ToolCall,
+  ToolMessage,
+  UserMessage
+} from '@ag-ui/core';
+import type {ReasoningPart, TextPart, ToolApprovalRequest, ToolCallPart, ToolResultPart} from '@ai-sdk/provider-utils';
 import type {ModelMessage} from '@vico/model';
 import type {Message} from '@vico/thread';
 import {modelContentToAguiContent} from './model-to-agui-content.js';
@@ -12,8 +22,8 @@ import {toolApprovalInterrupt} from './interrupts.js';
 /** 提取 parts 数组中的纯文本 */
 function textOf(content: Extract<ModelMessage['content'], unknown[]>): string {
   return content
-    .filter((p) => (p as { type: string }).type === 'text')
-    .map((p) => (p as { text?: string }).text ?? '')
+    .filter((p): p is TextPart => p.type === 'text')
+    .map((p) => p.text)
     .join('');
 }
 
@@ -75,9 +85,8 @@ function resolvedToolCallIds(entries: Message[]): Set<string> {
 
   for (const entry of entries) {
     if (entry.role !== 'tool' || typeof entry.content === 'string') continue;
-    for (const p of entry.content) {
-      const part = p as { type: string; toolCallId?: string };
-      if (part.type === 'tool-result' && part.toolCallId) ids.add(part.toolCallId);
+    for (const part of entry.content.filter((p): p is ToolResultPart => p.type === 'tool-result')) {
+      ids.add(part.toolCallId);
     }
   }
 
@@ -141,13 +150,11 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
       }
 
       case 'assistant': {
-        const reasoningParts = content.filter((p) => (p as { type: string }).type === 'reasoning');
+        const reasoningParts = content.filter((p): p is ReasoningPart => p.type === 'reasoning');
         const text = textOf(content);
 
         // tool-call part → 记录 toolName/input，供 toolCalls 与审批 interrupt 复用
-        const callParts = content
-          .filter((p) => (p as { type: string }).type === 'tool-call')
-          .map((p) => p as { toolCallId: string; toolName: string; input: unknown });
+        const callParts = content.filter((p): p is ToolCallPart => p.type === 'tool-call');
         const toolCalls: ToolCall[] = callParts.map((tc) => ({
           id: tc.toolCallId,
           type: 'function' as const,
@@ -159,8 +166,7 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
         //   已落 tool-result 的调用表示审批已通过/拒绝，不再渲染为 pending）
         const callById = new Map(callParts.map((tc) => [tc.toolCallId, tc]));
         const interrupts: Interrupt[] = content
-          .filter((p) => (p as { type: string }).type === 'tool-approval-request')
-          .map((p) => p as { approvalId: string; toolCallId: string })
+          .filter((p): p is ToolApprovalRequest => p.type === 'tool-approval-request')
           .filter((req) => !resolvedIds.has(req.toolCallId))
           .map((req) => {
             const call = callById.get(req.toolCallId);
@@ -173,7 +179,7 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
           const msg: ReasoningMessage = {
             id: `${entry.id}:reasoning`,
             role: 'reasoning',
-            content: (r as { text?: string }).text ?? '',
+            content: r.text,
             metadata,
           };
           result.push(msg);
@@ -191,21 +197,18 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
       }
 
       case 'tool': {
-        for (const p of content) {
-          const part = p as { type: string; toolCallId?: string; output?: unknown };
-          if (part.type === 'tool-result' && part.toolCallId) {
-            const { text, isError } = toolOutputText(part.output);
-            const msg: ToolMessage = {
-              id: entry.id,
-              role: 'tool',
-              content: text,
-              toolCallId: part.toolCallId,
-              ...(isError ? { error: text } : {}),
-              metadata,
-            };
-            result.push(msg);
-          }
-          // tool-approval-response 由 fromAgUiMessages 无法还原，历史里忽略（审批态已随 checkpoint 恢复）
+        // tool-approval-response 由 fromAgUiMessages 无法还原，历史里忽略（审批态已随 checkpoint 恢复）
+        for (const part of content.filter((p): p is ToolResultPart => p.type === 'tool-result')) {
+          const { text, isError } = toolOutputText(part.output);
+          const msg: ToolMessage = {
+            id: entry.id,
+            role: 'tool',
+            content: text,
+            toolCallId: part.toolCallId,
+            ...(isError ? { error: text } : {}),
+            metadata,
+          };
+          result.push(msg);
         }
         break;
       }
