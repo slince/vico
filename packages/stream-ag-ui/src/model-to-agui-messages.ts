@@ -26,12 +26,20 @@ function toolOutputText(output: unknown): { text: string; isError: boolean } {
   return { text: o?.value !== undefined ? JSON.stringify(o.value) : JSON.stringify(output), isError: false };
 }
 
+/** 组装消息 metadata：透传自定义上下文字段，并附带所属 turnId（供前端按 turn 聚合/关联） */
+function metadataOf(entry: Message): Record<string, unknown> | undefined {
+  if (!entry.metadata && !entry.turnId) return undefined;
+  return { ...entry.metadata, turnId: entry.turnId };
+}
+
 /**
  * ThreadStore Message → ag-ui Message（历史展示用）。
  *
  * - assistant 的 reasoning part → 独立 ReasoningMessage（fromAgUiMessages 会折叠回 assistant）
  * - assistant 的 tool-call part → AssistantMessage.toolCalls
  * - tool 消息的 tool-result part → ToolMessage（error 走 error 字段）
+ *
+ * 每条产出的 ag-ui 消息 metadata 均附带所属 turnId，前端据此按 turn 聚合展示。
  *
  * @param entries - 线程存储返回的消息条目（content 为原生 ModelMessage.content）
  * @returns 可直接由前端 fromAgUiMessages 还原的 ag-ui 消息数组
@@ -41,9 +49,15 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
 
   for (const entry of entries) {
     const content = entry.content;
+    const metadata = metadataOf(entry);
 
     if (typeof content === 'string') {
-      result.push({ id: entry.id, role: entry.role as AgUiMessage['role'], content } as AgUiMessage);
+      result.push({
+        id: entry.id,
+        role: entry.role as AgUiMessage['role'],
+        content,
+        metadata,
+      } as AgUiMessage);
       continue;
     }
 
@@ -54,14 +68,19 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
           role: 'user',
           // user 消息 content 实为 TextPart/FilePart，完整映射保留媒体 part
           content: modelContentToAguiContent(content as ModelUserContentParts),
-          ...(entry.metadata ? { metadata: entry.metadata as Record<string, unknown> } : {}),
+          metadata,
         };
         result.push(msg);
         break;
       }
 
       case 'system': {
-        const msg: SystemMessage = { id: entry.id, role: 'system', content: textOf(content) };
+        const msg: SystemMessage = {
+          id: entry.id,
+          role: 'system',
+          content: textOf(content),
+          metadata,
+        };
         result.push(msg);
         break;
       }
@@ -82,7 +101,12 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
 
         // reasoning → 独立 ReasoningMessage（置于 assistant 之前）
         for (const r of reasoningParts) {
-          const msg: ReasoningMessage = { id: `${entry.id}:reasoning`, role: 'reasoning', content: (r as { text?: string }).text ?? '' };
+          const msg: ReasoningMessage = {
+            id: `${entry.id}:reasoning`,
+            role: 'reasoning',
+            content: (r as { text?: string }).text ?? '',
+            metadata,
+          };
           result.push(msg);
         }
 
@@ -91,7 +115,7 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
           role: 'assistant',
           content: text,
           ...(toolCalls.length > 0 ? { toolCalls } : {}),
-          ...(entry.metadata ? { metadata: entry.metadata as Record<string, unknown> } : {}),
+          metadata,
         };
         result.push(msg);
         break;
@@ -108,6 +132,7 @@ export function toAgUiMessages(entries: Message[]): AgUiMessage[] {
               content: text,
               toolCallId: part.toolCallId,
               ...(isError ? { error: text } : {}),
+              metadata,
             };
             result.push(msg);
           }
