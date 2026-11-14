@@ -8,6 +8,7 @@ import {randomUUID} from 'node:crypto';
 import {EventType, type Event, type Interrupt, type TokenUsage} from '@ag-ui/core';
 import type {ChunkType} from '@vico/stream';
 import type {UsageMetrics} from '@vico/types';
+import {toolApprovalInterrupt} from './interrupts.js';
 
 /**
  * 创建 ChunkType → ag-ui Event 的 TransformStream。
@@ -123,25 +124,12 @@ export function createChunkToAgUiTransformer(opts: {
 
         // 审批门禁：暂停 turn，等待用户决议（决议经 resume 回传）
         case 'tool-approval-request':
-          interrupts.push({
-            id: chunk.payload.approvalId,
-            reason: 'tool_call',
-            message: `Approve tool "${chunk.payload.toolCall.toolName}"?`,
-            toolCallId: chunk.payload.toolCall.toolCallId,
-            responseSchema: {
-              type: 'object',
-              properties: {
-                approved: { type: 'boolean' },
-                reason: { type: 'string' },
-                scope: { type: 'string', enum: ['turn', 'session'] },
-              },
-              required: ['approved'],
-            },
-            metadata: {
-              toolName: chunk.payload.toolCall.toolName,
-              input: chunk.payload.toolCall.input,
-            },
-          });
+          interrupts.push(toolApprovalInterrupt(
+            chunk.payload.approvalId,
+            chunk.payload.toolCall.toolCallId,
+            chunk.payload.toolCall.toolName,
+            chunk.payload.toolCall.input,
+          ));
           break;
 
         // 恢复执行时回放的审批决策：仅作信息透传（前端不直接消费）
