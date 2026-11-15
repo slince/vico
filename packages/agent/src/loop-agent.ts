@@ -91,33 +91,34 @@ export class LoopAgent
   private readonly modelOverrides = new Map<string, ModelClient>();
 
   constructor(options: LoopAgentOptions) {
-    const { processors, ...rest } = options;
-    this.id = rest.id;
-    this.name = rest.name;
-    this.systemPrompt = rest.systemPrompt;
-    this.model = rest.model;
+    this.id = options.id;
+    this.name = options.name;
+    this.systemPrompt = options.systemPrompt;
+    this.model = options.model;
 
     // 构建大语言模型
-    const languageModel = isLanguageModel(rest.model) ? rest.model : createLanguageModel(rest.model)
+    const languageModel = isLanguageModel(options.model) ? options.model : createLanguageModel(options.model)
     this.modelClient = new ModelClient(languageModel);
 
-    this.temperature = rest.temperature;
-    this.reasoning = rest.reasoning;
-    this.maxTokens = rest.maxTokens;
-    this.maxSteps = rest.maxSteps;
-    this.skills = rest.skills;
-    this.tools = rest.tools;
-    this.memory = rest.memory;
-    this.thread = rest.thread;
-    this.approvalResolver = rest.approvalResolver ?? composeResolvers(...defaultApprovalResolvers);
-    this.events = rest.events;
-    this.workspace = rest.workspace;
-    this.compactor = rest.compactor;
-    this.checkpointStore = rest.checkpointStore;
-    this.logger = rest.logger ?? pino();
+    this.temperature = options.temperature;
+    this.reasoning = options.reasoning;
+    this.maxTokens = options.maxTokens;
+    this.maxSteps = options.maxSteps;
+    this.skills = options.skills;
+    this.tools = options.tools;
+    this.memory = options.memory;
+    this.thread = options.thread;
+    this.approvalResolver = options.approvalResolver ?? composeResolvers(...defaultApprovalResolvers);
+    this.events = options.events;
+    this.workspace = options.workspace;
+    this.compactor = options.compactor;
+    this.checkpointStore = options.checkpointStore;
+    this.logger = options.logger ?? pino();
 
-    this.toolExecutor = new ToolExecutor({ tools: rest.tools });
-    this.contextProcessors = new Pipeline<ModelRequestContext>().use(...(processors ?? createDefaultProcessors(rest.skills, rest.memory)));
+    this.toolExecutor = new ToolExecutor({ tools: options.tools });
+
+    const processors = options.processors ?? createDefaultProcessors(options.skills, options.memory)
+    this.contextProcessors = new Pipeline<ModelRequestContext>().use(...processors);
   }
 
   get log(): Logger {
