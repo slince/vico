@@ -1,6 +1,7 @@
 // @vico/agent — 独立 Agent 构建函数，不依赖 Vico 容器
 import type {Agent} from './agent.js';
 import {LoopAgent} from './loop-agent.js';
+import {createDefaultProcessors} from './utils.js';
 import {isLanguageModel, type LanguageModel, type ModelConfig, type ModelRef, type ReasoningEffort} from '@vico/model';
 import type {TurnEvent} from './types.js';
 import type {ApprovalResolver, Tool} from '@vico/tool';
@@ -13,6 +14,7 @@ import {MittEventRecorder} from '@vico/events';
 import {ConversationHistoryMemory} from '@vico/memory';
 import {DEFAULT_CONVERSATION_WINDOW} from '@vico/memory';
 import {composeResolvers, defaultApprovalResolvers} from '@vico/tool';
+import type {ContextProcessor} from '@vico/context';
 import type {CheckpointStore} from '@vico/checkpoint';
 import {MemoryCheckpointStore} from '@vico/checkpoint';
 import {ModelContextCompactor} from '@vico/compaction';
@@ -36,6 +38,8 @@ export interface AgentConfig {
   tools?: Tool[];
   /** Agent 绑定的 Skill 列表（已加载） */
   skills?: Skill[];
+  /** 额外追加的上下文处理器（在默认管道之上，如 DI 按 context-processor 标签注入的扩展） */
+  processors?: ContextProcessor[];
   memory?: MemoryStore;
   /** 会话历史滑动窗口大小（已完成轮次数），仅在未显式传入 memory 时生效 */
   conversationWindow?: number;
@@ -62,6 +66,12 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 
   const skills = config.skills ?? [];
   const tools = config.tools ?? [];
+
+  // 上下文处理器：默认管道 + 调用方追加的处理器（洋葱层顺序由各自 priority 决定）
+  const processors = [
+    ...createDefaultProcessors(skills, memory),
+    ...(config.processors ?? []),
+  ];
 
   // 上下文压缩器：仅在显式配置 compaction 时构造；模型为 ModelConfig 时才能拿到 contextWindow/摘要模型
   const modelConfig = !isLanguageModel(config.model) ? config.model : undefined;
@@ -96,6 +106,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
     maxSteps: config.maxSteps ?? 10,
     skills,
     tools,
+    processors,
     memory: memory,
     thread: thread,
     workspace: config.workspace,

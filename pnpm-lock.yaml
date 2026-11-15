@@ -262,9 +262,6 @@ importers:
       '@vico/events':
         specifier: workspace:*
         version: link:../events
-      '@vico/fs-tool':
-        specifier: workspace:*
-        version: link:../fs-tool
       '@vico/memory':
         specifier: workspace:*
         version: link:../memory
@@ -379,6 +376,9 @@ importers:
       '@vico/checkpoint-mysql':
         specifier: workspace:*
         version: link:../checkpoint-mysql
+      '@vico/context':
+        specifier: workspace:*
+        version: link:../context
       '@vico/di':
         specifier: workspace:*
         version: link:../di
@@ -1055,6 +1055,9 @@ importers:
       '@vico/compaction':
         specifier: workspace:*
         version: link:../../packages/compaction
+      '@vico/context':
+        specifier: workspace:*
+        version: link:../../packages/context
       '@vico/di':
         specifier: workspace:*
         version: link:../../packages/di

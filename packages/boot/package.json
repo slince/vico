@@ -18,6 +18,7 @@
     "@vico/checkpoint": "workspace:*",
     "@vico/checkpoint-libsql": "workspace:*",
     "@vico/checkpoint-mysql": "workspace:*",
+    "@vico/context": "workspace:*",
     "@vico/di": "workspace:*",
     "@vico/events": "workspace:*",
     "@vico/fs": "workspace:*",

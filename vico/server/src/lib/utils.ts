@@ -7,6 +7,7 @@
 import { buildTools } from '@vico/boot';
 import { createAgent } from '@vico/agent';
 import type { Agent, AgentConfig } from '@vico/agent';
+import type { ContextProcessor } from '@vico/context';
 import type { Skill } from '@vico/skill';
 import type { ThreadStore } from '@vico/thread';
 import { getContainer } from '../container.js';
@@ -21,6 +22,7 @@ export async function listSkills(): Promise<Skill[]> {
  *
  * AgentConfig 未显式指定 tools/skills/memory/thread/checkpointStore/events 时，
  * fallback 到 boot 容器装配的全局实例，保持与旧 Vico 类一致的语义。
+ * 上下文处理器额外从容器按 `context-processor` 标签取出（与 config.processors 合并后注入）。
  */
 export async function createIfAbsent(agentId: string, factory: () => Promise<AgentConfig>): Promise<Agent> {
   const c = getContainer();
@@ -39,10 +41,17 @@ export async function createIfAbsent(agentId: string, factory: () => Promise<Age
     semanticMemory: c.get('memory').semantic,
     skills,
   });
+  // 上下文处理器：调用方 config 追加 + 容器按 context-processor 标签注入的扩展（如 fs-tool-selection）
+  const processors = [
+    ...(config.processors ?? []),
+    ...c.getByTag<ContextProcessor>('context-processor'),
+  ];
+
   const agent = await createAgent({
     ...config,
     skills,
     tools,
+    processors,
     memory: config.memory ?? c.get('memory'),
     thread: config.thread ?? c.get('thread'),
     checkpointStore: config.checkpointStore ?? c.get('checkpointStore'),

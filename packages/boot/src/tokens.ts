@@ -1,5 +1,6 @@
 // @vico/boot - 依赖 token 映射与容器/provider 类型别名
 
+import type { ContextProcessor } from '@vico/context';
 import type { Container, ServiceProvider } from '@vico/di';
 import type { AgentRuntime, TurnEvent } from '@vico/agent';
 import type { CheckpointPurge, CheckpointStore } from '@vico/checkpoint';
@@ -42,6 +43,8 @@ export interface VicoTokens {
   workspace: string;
   /** 文件系统实现（fs 工具组注入用，默认本地文件系统） */
   filesystem: Filesystem;
+  /** 文件系统工具选择上下文处理器（打 context-processor 标签，createIfAbsent 按标签取出注入 Agent） */
+  fsToolSelectionProcessor: ContextProcessor;
   /** shell 命令执行工具（bash.backend 决定 local 自动选择 / ssh 远端执行） */
   shellTool: Tool;
   /** Agent 运行时（LRU 缓存） */

@@ -26,6 +26,7 @@
     "@vico/checkpoint": "workspace:*",
     "@vico/checkpoint-libsql": "workspace:*",
     "@vico/compaction": "workspace:*",
+    "@vico/context": "workspace:*",
     "@vico/di": "workspace:*",
     "@vico/memory-libsql": "workspace:*",
     "@vico/model": "workspace:*",

@@ -9,7 +9,6 @@ import {SystemPromptProcessor} from '@vico/context';
 import {SkillProcessor} from '@vico/context';
 import {WorkspaceToolProcessor} from '@vico/context';
 import {MemoryProcessor} from '@vico/context';
-import {FsToolSelectionProcessor} from '@vico/fs-tool';
 
 /**
  * UserMessage 归一化为本轮输入消息组：
@@ -46,7 +45,6 @@ export async function collectTurnResult(
 export function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextProcessor[] {
   return [
     new SystemPromptProcessor(),
-    new FsToolSelectionProcessor(),
     new SkillProcessor(skills),
     new WorkspaceToolProcessor(),
     new MemoryProcessor(memory),

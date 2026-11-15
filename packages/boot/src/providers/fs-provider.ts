@@ -1,15 +1,18 @@
 // @vico/boot - 文件系统领域 provider（默认工作空间 + 文件系统实现）
 
 import { localFilesystem } from '@vico/fs';
+import { FsToolSelectionProcessor } from '@vico/fs-tool';
 import { resolveWorkspacePath } from '@vico/utils';
 import { fsSchema } from '../config/schemas/index.js';
 import type { VicoServiceProvider } from '../tokens.js';
 
 /**
- * 文件系统 provider：声明 `fs` 配置段 schema，并注册两个服务——
+ * 文件系统 provider：声明 `fs` 配置段 schema，并注册三个服务——
  *
  * - `workspace`：默认工作空间（`fs.base_path` 展开 `~` 并解析为绝对路径）；
- * - `filesystem`：文件系统实现（由 `fs.filesystem_backend` 驱动，当前仅 `local`）。
+ * - `filesystem`：文件系统实现（由 `fs.filesystem_backend` 驱动，当前仅 `local`）；
+ * - `fsToolSelectionProcessor`：文件系统工具选择策略处理器（打 `context-processor`
+ *   标签，由 server 层 createIfAbsent 按标签取出注入 Agent，不进入默认处理器管道）。
  *
  * Agent 未单独指定 workspace 时，server 层从 `workspace` 取默认值兜底；fs 工具组从
  * `filesystem` 取实现注入，未来扩展 S3 / 内存等适配器时只需在此按配置切换。
@@ -29,5 +32,8 @@ export const fsProvider: VicoServiceProvider = {
           return localFilesystem;
       }
     });
+
+    // 工具选择策略处理器：打 context-processor 标签，供 server 层 createIfAbsent 按标签取出注入 Agent
+    c.register('fsToolSelectionProcessor', () => new FsToolSelectionProcessor(), { tags: ['context-processor'] });
   },
 };
