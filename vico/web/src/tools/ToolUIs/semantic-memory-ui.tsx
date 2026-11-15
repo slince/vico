@@ -3,13 +3,13 @@
  *
  * auto mutation（无需审批），按 mode 分三种视图：
  * - append：展示追加内容 + 更新状态；
- * - replace：展示被替换片段（target）与替换后内容（replacement）；
+ * - replace：以 diff 形式展示被替换片段（- 行）与替换后内容（+ 行）；
  * - overwrite：展示完整新记忆 Markdown + 更新状态。
  * 折叠能力由共享 ToolCard 统一提供。
  */
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
-import {ArrowDown, Brain, Check} from 'lucide-react';
+import {Brain, Check} from 'lucide-react';
 import {ToolCard} from './tool-card';
 import type {SemanticMemoryArgs, SemanticMemoryResult} from '../semantic-memory.tool';
 
@@ -33,29 +33,22 @@ function MemoryBlock({content, emptyLabel}: {content: string; emptyLabel: string
   );
 }
 
-/** replace 结果视图 — 被替换内容（红）→ 替换后内容（绿） */
-function ReplaceView({target, replacement}: {target: string; replacement: string}) {
-  const {t} = useTranslation('assistant');
+/** replace 结果视图 — 类似文件 diff：被替换片段 - 行（红），替换后内容 + 行（绿） */
+function ReplaceDiff({target, replacement}: {target: string; replacement: string}) {
   return (
-    <div className="space-y-1">
-      <div>
-        <p className="mb-1 text-[11px] font-medium text-red-600 dark:text-red-400">
-          {t('tool.semanticMemory.replaced')}
-        </p>
-        <MemoryBlock content={target} emptyLabel={t('tool.semanticMemory.empty')} />
-      </div>
-
-      <div className="flex justify-center text-muted-foreground">
-        <ArrowDown size={14} />
-      </div>
-
-      <div>
-        <p className="mb-1 text-[11px] font-medium text-green-600 dark:text-green-400">
-          {t('tool.semanticMemory.replacedWith')}
-        </p>
-        <MemoryBlock content={replacement} emptyLabel={t('tool.semanticMemory.deleted')} />
-      </div>
-    </div>
+    <pre className="text-[11px] leading-relaxed font-mono overflow-x-auto whitespace-pre-wrap break-all bg-background/50 rounded p-2">
+      {target.split('\n').map((line, i) => (
+        <div key={`del-${i}`} className="text-red-600 dark:text-red-400">
+          {`- ${line || ' '}`}
+        </div>
+      ))}
+      {replacement !== '' &&
+        replacement.split('\n').map((line, i) => (
+          <div key={`add-${i}`} className="text-green-600 dark:text-green-400">
+            {`+ ${line || ' '}`}
+          </div>
+        ))}
+    </pre>
   );
 }
 
@@ -101,7 +94,7 @@ export const SemanticMemoryRenderer: ToolCallMessagePartComponent<SemanticMemory
           )}
 
           {args.mode === 'replace' && (
-            <ReplaceView target={args.target} replacement={args.replacement} />
+            <ReplaceDiff target={args.target} replacement={args.replacement} />
           )}
         </div>
       )}

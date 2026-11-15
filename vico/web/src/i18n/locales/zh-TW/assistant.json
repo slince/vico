@@ -140,10 +140,7 @@
     "semanticMemory": {
       "title": "更新語義記憶",
       "updated": "已更新",
-      "empty": "（空）",
-      "replaced": "被替換的內容",
-      "replacedWith": "替換為",
-      "deleted": "（已刪除）"
+      "empty": "（空）"
     },
     "weather": {
       "title": "天氣查詢",
