@@ -262,6 +262,9 @@ importers:
       '@vico/events':
         specifier: workspace:*
         version: link:../events
+      '@vico/fs-tool':
+        specifier: workspace:*
+        version: link:../fs-tool
       '@vico/memory':
         specifier: workspace:*
         version: link:../memory
@@ -628,6 +631,9 @@ importers:
 
   packages/fs-tool:
     dependencies:
+      '@vico/context':
+        specifier: workspace:*
+        version: link:../context
       '@vico/fs':
         specifier: workspace:*
         version: link:../fs

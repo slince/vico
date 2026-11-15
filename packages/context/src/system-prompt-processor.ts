@@ -26,37 +26,6 @@ export class SystemPromptProcessor implements ContextProcessor {
       );
     }
 
-    this.registerToolSelection(ctx);
-
     await next();
-  }
-
-  /**
-   * 注入工具选择策略 — 引导优先使用专用工具，而非用 bash 原生命令查看/查找文件。
-   *
-   * 按实际绑定工具条件生成：仅当 bash 与对应专用工具同时存在时才写入规则，
-   * 避免对未绑定这些工具的 Agent 造成误导。
-   */
-  private registerToolSelection(ctx: ModelRequestContext): void {
-    const has = (name: string): boolean => ctx.tools.has(name);
-
-    if (!has('bash')) return;
-
-    const rules: string[] = [];
-    if (has('read')) rules.push('- To view a file, use `read` (not `bash` with cat/head/tail).');
-    if (has('glob')) rules.push('- To find files by name, use `glob` (not `bash` with find/ls).');
-    if (has('grep')) rules.push('- To search file contents, use `grep` (not `bash` with grep/rg).');
-
-    if (rules.length === 0) return;
-
-    const readOnly = ['read', 'glob', 'grep'].filter(has).map((n) => `\`${n}\``).join('/');
-
-    const text =
-      'Prefer dedicated tools over shell commands when one fits:\n' +
-      rules.join('\n') +
-      `\nReserve \`bash\` for actions no dedicated tool covers (scripts, builds, tests, git, package managers, etc.). ` +
-      `\`bash\` is a mutation tool and may require user approval; ${readOnly} are read-only and run without approval.`;
-
-    ctx.systemPrompt.registerSection('tool-selection', text);
   }
 }

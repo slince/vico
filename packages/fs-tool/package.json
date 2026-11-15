@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vico/context": "workspace:*",
     "@vico/fs": "workspace:*",
     "@vico/tool": "workspace:*",
     "@vico/utils": "workspace:*",

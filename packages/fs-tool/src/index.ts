@@ -13,6 +13,7 @@ export { createWriteTool } from './write-tool.js';
 export { createEditTool } from './edit-tool.js';
 export { createGrepTool } from './grep-tool.js';
 export { createGlobTool } from './glob-tool.js';
+export { FsToolSelectionProcessor } from './fs-tool-selection-processor.js';
 
 /**
  * 创建文件系统工具集（需要 workspace）。
