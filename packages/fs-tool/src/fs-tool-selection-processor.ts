@@ -13,16 +13,14 @@ export class FsToolSelectionProcessor implements ContextProcessor {
   readonly priority = Priority.HIGH - 50;
 
   async handle(ctx: ModelRequestContext, next: Next): Promise<void> {
-    const has = (name: string): boolean => ctx.tools.has(name);
-
-    if (has('bash')) {
+    if (ctx.tools.has('bash')) {
       const rules: string[] = [];
-      if (has('read')) rules.push('- To view a file, use `read` (not `bash` with cat/head/tail).');
-      if (has('glob')) rules.push('- To find files by name, use `glob` (not `bash` with find/ls).');
-      if (has('grep')) rules.push('- To search file contents, use `grep` (not `bash` with grep/rg).');
+      if (ctx.tools.has('read')) rules.push('- To view a file, use `read` (not `bash` with cat/head/tail).');
+      if (ctx.tools.has('glob')) rules.push('- To find files by name, use `glob` (not `bash` with find/ls).');
+      if (ctx.tools.has('grep')) rules.push('- To search file contents, use `grep` (not `bash` with grep/rg).');
 
       if (rules.length > 0) {
-        const readOnly = ['read', 'glob', 'grep'].filter(has).map((n) => `\`${n}\``).join('/');
+        const readOnly = ['read', 'glob', 'grep'].filter((name) => ctx.tools.has(name)).map((n) => `\`${n}\``).join('/');
         ctx.systemPrompt.registerSection(
           'tool-selection',
           'Prefer dedicated tools over shell commands when one fits:\n' +
