@@ -16,5 +16,4 @@ export {
 export { SystemPromptProcessor } from './system-prompt-processor.js';
 export { SkillProcessor } from './skill-processor.js';
 export { MemoryProcessor } from './memory-processor.js';
-export { RagProcessor } from './rag-processor.js';
 export { WorkspaceToolProcessor } from './workspace-tool-processor.js';

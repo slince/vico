@@ -12,7 +12,6 @@
   "dependencies": {
     "@vico/memory": "workspace:*",
     "@vico/model": "workspace:*",
-    "@vico/rag": "workspace:*",
     "@vico/skill": "workspace:*",
     "@vico/thread": "workspace:*",
     "@vico/tool": "workspace:*",

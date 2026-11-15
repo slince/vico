@@ -562,9 +562,6 @@ importers:
       '@vico/model':
         specifier: workspace:*
         version: link:../model
-      '@vico/rag':
-        specifier: workspace:*
-        version: link:../rag
       '@vico/skill':
         specifier: workspace:*
         version: link:../skill
