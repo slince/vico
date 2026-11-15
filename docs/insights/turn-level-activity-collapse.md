@@ -2,7 +2,7 @@
 
 > 把 `CompletedActivityGroup` 从 message 维度升级到 **turn 维度**：会话完成后，
 > 只平铺展示最后一个 assistant 消息，此前所有 assistant 消息统一收进 turn 级
-> 「已完成」折叠块；每条消息内部仍按原逻辑渲染（推理 + 工具调用可折叠，文本正常）。
+> 「已完成」折叠块；每条消息内部推理、工具调用与文本照常平铺渲染。
 
 ---
 
@@ -10,10 +10,10 @@
 
 - **turn** = 一次「用户 → 助手」往返（含审批/续跑产生的多条 assistant 消息）。
 - 会话完成后：
-  - **正文（最后一条 assistant 消息）**：正常渲染，推理 + 工具调用折叠、文本正常。
+  - **正文（最后一条 assistant 消息）**：正常渲染，推理、工具调用与文本照常平铺。
   - **折叠块**：此前所有 assistant 消息整体收进 `CompletedActivityGroup`，每条
-    消息内部仍由标准 `AssistantMessage` 负责「推理 + 工具调用」折叠与文本渲染，
-    不再按「步骤 N」拆分标题。
+    消息内部推理、工具调用与文本照常平铺，不再做消息级折叠，也不再按「步骤 N」
+    拆分标题。
 - 时长文案：「已完成，用时 X」仅对实时完成（running → complete）的 turn 显示；
   历史 turn 只显示「已完成」。
 
@@ -71,11 +71,10 @@ ThreadMessageList
 关键点：
 
 - 完成态与未完成态统一走 `MESSAGE_COMPONENTS`（标准 `AssistantMessage`），因此
-  推理折叠、工具平铺、文本渲染、审批 UI、错误态、分支选择器、操作栏全部复用同一
-  套既有实现，没有「正文/活动/步骤」三套切面。
+  推理、工具调用、文本、审批 UI、错误态、分支选择器、操作栏全部复用同一套既有
+  实现，没有「正文/活动/步骤」三套切面，也没有消息级折叠。
 - 折叠只在最后一条消息 `status.type === "complete"` 且存在中间消息时发生；
-  单条 assistant 消息的 turn 不出现 turn 级折叠块（其内部折叠仍由 AssistantMessage
-  自行处理）。
+  单条 assistant 消息的 turn 不出现 turn 级折叠块（消息内部照常平铺渲染）。
 - `useTurnStreamDuration`（`TurnView` 内）以最后一条消息的
   running/requires-action → complete 为打点边界，结算 turn 级时长；`TurnView`
   按 `turn.key` 持久，故状态不会在 turn 间串扰。

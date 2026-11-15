@@ -63,11 +63,7 @@ import {
 import {type ComponentType, createContext, type FC, type PropsWithChildren, useContext, useEffect, useMemo, useRef, useState,} from "react";
 import {useTranslation} from "react-i18next";
 import {AssistantThinking} from "@/components/assistant-ui/assistant-thinking";
-import {
-  CompletedActivityGroup,
-  MessageStreamDurationContext,
-  useMessageStreamDuration,
-} from "@/components/assistant-ui/elements/message-run-activity";
+import {CompletedActivityGroup} from "@/components/assistant-ui/elements/message-run-activity";
 import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
 import {AgentSelectorAction} from "@/components/assistant-ui/agent-selector-action";
 import {ApprovalModeSelectorAction} from "@/components/assistant-ui/approval-mode-selector-action";
@@ -83,9 +79,9 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
  * `Welcome` replace whole sections; `ReasoningGroup` overrides how reasoning
  * part groups render.
  *
- * 工具调用 running / 审批 / 失败态在正文平铺渲染（ToolActivityContent），
- * complete 态统一收进「已完成」折叠块（CompletedActivityGroup）。`ToolFallback`
- * / `ToolGroup` / `TaskGroup` 三个槽位仅为向后兼容保留，默认渲染管线不再读取。
+ * 工具调用 running / 审批 / 失败态在正文平铺渲染；推理与工具调用始终平铺，
+ * 不再做消息级折叠（折叠只发生在 turn 维度）。`ToolFallback` / `ToolGroup` /
+ * `TaskGroup` 三个槽位仅为向后兼容保留，默认渲染管线不再读取。
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -102,16 +98,8 @@ export type ThreadComponents = {
 
 const messageGroupBy = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
-  // 工具调用不分组（作为独立 part 平铺渲染）；complete 态由 completedGroupBy 收进折叠块
+  // 工具调用不分组（作为独立 part 平铺渲染）；推理与工具始终平铺，不做消息级折叠
   "tool-call": [],
-  "standalone-tool-call": [],
-});
-
-// 完成态：推理与工具调用归入同一外层 group，统一折叠进「已完成」块；
-// 第二层 key 区分 reasoning 与 tool，便于分别套用样式（muted 正文 / 工具卡片）。
-const completedGroupBy = groupPartByType({
-  reasoning: ["group-activity", "group-chainOfThought", "group-reasoning"],
-  "tool-call": ["group-activity"],
   "standalone-tool-call": [],
 });
 
@@ -573,16 +561,8 @@ const AssistantMessage: FC = () => {
     TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
 
-  // 完成态：推理与工具统一折叠进「已完成」块，正文不再单独渲染
-  const isComplete = useAuiState((s) => s.message.status?.type === "complete");
-  const groupBy = isComplete
-    ? completedGroupBy
-    : TaskGroupComponent
-      ? taskAwareGroupBy
-      : messageGroupBy;
-
-  // 流式生成时长：running 打点、complete 结算，经 context 传给 CompletedActivityGroup
-  const streamDuration = useMessageStreamDuration();
+  // 推理与工具始终平铺（消息级折叠已移除，折叠只发生在 turn 维度）
+  const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -598,71 +578,64 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
-        <MessageStreamDurationContext.Provider value={streamDuration}>
-          <MessagePrimitive.GroupedParts groupBy={groupBy}>
-            {({ part, children }) => {
-              switch (part.type) {
-                case "group-chainOfThought":
-                  return <div data-slot="aui_chain-of-thought">{children}</div>;
-                case "group-task":
-                  return TaskGroupComponent ? (
-                    <TaskGroupComponent group={part} />
-                  ) : null;
-                case "group-tool":
-                  if (ToolGroup) {
-                    return <ToolGroup group={part}>{children}</ToolGroup>;
-                  }
+        <MessagePrimitive.GroupedParts groupBy={groupBy}>
+          {({ part, children }) => {
+            switch (part.type) {
+              case "group-chainOfThought":
+                return <div data-slot="aui_chain-of-thought">{children}</div>;
+              case "group-task":
+                return TaskGroupComponent ? (
+                  <TaskGroupComponent group={part} />
+                ) : null;
+              case "group-tool":
+                if (ToolGroup) {
+                  return <ToolGroup group={part}>{children}</ToolGroup>;
+                }
+                return (
+                  <AutoOpenToolGroup group={part}>{children}</AutoOpenToolGroup>
+                );
+              case "group-reasoning": {
+                if (ReasoningGroup) {
                   return (
-                    <AutoOpenToolGroup group={part}>{children}</AutoOpenToolGroup>
-                  );
-                case "group-reasoning": {
-                  if (ReasoningGroup) {
-                    return (
-                      <ReasoningGroup group={part}>{children}</ReasoningGroup>
-                    );
-                  }
-                  const running = part.status.type === "running";
-                  return (
-                    <ReasoningRoot streaming={running}>
-                      <ReasoningTrigger active={running} />
-                      <ReasoningContent aria-busy={running}>
-                        <ReasoningText>{children}</ReasoningText>
-                      </ReasoningContent>
-                    </ReasoningRoot>
+                    <ReasoningGroup group={part}>{children}</ReasoningGroup>
                   );
                 }
-                case "group-activity":
-                  // 完成态统一折叠块：推理 + 工具都收进这里，标题「已完成，用时 …」
-                  return (
-                    <CompletedActivityGroup>{children}</CompletedActivityGroup>
-                  );
-                case "text":
-                  return <MarkdownText />;
-                case "reasoning":
-                  return <Reasoning {...part} />;
-                case "tool-call":
-                  return part.toolUI ?? <ToolFallbackComponent {...part} />;
-                case "data":
-                  return part.dataRendererUI;
-                case "file":
-                  return (
-                    <div data-slot="aui_assistant-message-file" className="py-1">
-                      <File {...part} />
-                    </div>
-                  );
-                case "image":
-                  return (
-                    <div data-slot="aui_assistant-message-image" className="py-1">
-                      <Image {...part} />
-                    </div>
-                  );
-                case "indicator":
-                default:
-                  return null;
+                const running = part.status.type === "running";
+                return (
+                  <ReasoningRoot streaming={running}>
+                    <ReasoningTrigger active={running} />
+                    <ReasoningContent aria-busy={running}>
+                      <ReasoningText>{children}</ReasoningText>
+                    </ReasoningContent>
+                  </ReasoningRoot>
+                );
               }
-            }}
-          </MessagePrimitive.GroupedParts>
-        </MessageStreamDurationContext.Provider>
+              case "text":
+                return <MarkdownText />;
+              case "reasoning":
+                return <Reasoning {...part} />;
+              case "tool-call":
+                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+              case "data":
+                return part.dataRendererUI;
+              case "file":
+                return (
+                  <div data-slot="aui_assistant-message-file" className="py-1">
+                    <File {...part} />
+                  </div>
+                );
+              case "image":
+                return (
+                  <div data-slot="aui_assistant-message-image" className="py-1">
+                    <Image {...part} />
+                  </div>
+                );
+              case "indicator":
+              default:
+                return null;
+            }
+          }}
+        </MessagePrimitive.GroupedParts>
         {/* 运行中的活动指示（思考中 / 正在执行某工具 + 已用时）；非运行态内部自动返回 null */}
         <AssistantThinking className="mt-2" />
         <MessageError />
@@ -1016,8 +989,8 @@ const MESSAGE_COMPONENTS: MessageComponentsConfig = {
  * 单个 turn 的渲染：user 消息 + 中间 assistant 消息折叠块 + 最后一条消息。
  *
  * 完成后只平铺展示最后一条 assistant 消息，此前的 assistant 消息整体收进
- * CompletedActivityGroup 折叠块；每条消息内部仍由标准 AssistantMessage 负责
- * 「推理 + 工具调用」的折叠与文本的正常渲染。
+ * CompletedActivityGroup 折叠块；每条消息内部推理、工具调用与文本照常平铺渲染，
+ * 不再做消息级折叠。
  */
 const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
   const last = turn.assistantMessages[turn.assistantMessages.length - 1];
