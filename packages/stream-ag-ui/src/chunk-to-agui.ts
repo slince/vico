@@ -27,6 +27,8 @@ export function createChunkToAgUiTransformer(opts: {
 
   // 本次 run 的稳定 assistant 消息 id（所有文本块与工具调用归属同一条 assistant 消息）
   const assistantMessageId = randomUUID();
+  // 本次 run 所属 turn 的 id（来自引擎 start chunk，经 RUN_STARTED / 消息事件 metadata 透传给前端）
+  let turnId: string | undefined;
   // 审批门禁：收集 tool-approval-request，finish 时以 interrupt outcome 收尾
   const interrupts: Interrupt[] = [];
   // 终态状态：aborted / errored / finished（避免重复发终态事件）
@@ -39,7 +41,14 @@ export function createChunkToAgUiTransformer(opts: {
     transform(chunk, enqueue) {
       switch (chunk.type) {
         case 'start':
-          enqueue.enqueue({ type: EventType.RUN_STARTED, threadId, runId });
+          turnId = chunk.payload.turnId;
+          enqueue.enqueue({
+            type: EventType.RUN_STARTED,
+            threadId,
+            runId,
+            // turn 归属经 metadata 透传：前端据此把实时 assistant 消息关联到所属 turn
+            metadata: { turnId },
+          });
           break;
 
         case 'start-step':
@@ -56,7 +65,12 @@ export function createChunkToAgUiTransformer(opts: {
           break;
 
         case 'text-start':
-          enqueue.enqueue({ type: EventType.TEXT_MESSAGE_START, messageId: assistantMessageId });
+          enqueue.enqueue({
+            type: EventType.TEXT_MESSAGE_START,
+            messageId: assistantMessageId,
+            // 直接携带 turnId，前端订阅 TEXT_MESSAGE_START 即可把 messageId 关联到 turn
+            metadata: turnId !== undefined ? { turnId } : undefined,
+          });
           break;
         case 'text-delta':
           enqueue.enqueue({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: assistantMessageId, delta: chunk.payload.text });
@@ -66,7 +80,12 @@ export function createChunkToAgUiTransformer(opts: {
           break;
 
         case 'reasoning-start':
-          enqueue.enqueue({ type: EventType.REASONING_MESSAGE_START, messageId: chunk.payload.id, role: 'reasoning' });
+          enqueue.enqueue({
+            type: EventType.REASONING_MESSAGE_START,
+            messageId: chunk.payload.id,
+            role: 'reasoning',
+            metadata: turnId !== undefined ? { turnId } : undefined,
+          });
           break;
         case 'reasoning-delta':
           enqueue.enqueue({ type: EventType.REASONING_MESSAGE_CONTENT, messageId: chunk.payload.id, delta: chunk.payload.text });

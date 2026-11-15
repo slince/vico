@@ -6,6 +6,7 @@
     "copied": "Copied!",
     "completed": "Completed",
     "completedWithDuration": "Completed in {{duration}}",
+    "step": "Step {{n}}",
     "tokenUsage": {
       "label": "Token usage",
       "input": "Input",

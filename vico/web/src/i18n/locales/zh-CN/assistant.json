@@ -8,6 +8,7 @@
     "copied": "已复制！",
     "completed": "已完成",
     "completedWithDuration": "已完成，用时 {{duration}}",
+    "step": "步骤 {{n}}",
     "tokenUsage": {
       "label": "Token 用量",
       "input": "输入",

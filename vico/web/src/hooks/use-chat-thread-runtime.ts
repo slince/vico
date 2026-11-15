@@ -11,6 +11,7 @@ import {useAui, useAuiState, WebSpeechDictationAdapter, type LanguageModelConfig
 import {useTranslation} from 'react-i18next';
 
 import {createThreadHistoryAdapter} from '@/lib/thread-adapter';
+import {recordMessageTurnId} from '@/lib/turn-metadata';
 
 /**
  * i18n 语言 → Web Speech API `SpeechRecognition.lang`（BCP-47）映射。
@@ -75,6 +76,15 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError}: UseCha
         const newThreadId = event.threadId;
         if (newThreadId && newThreadId !== remoteId) {
           onThreadCreatedRef.current?.(newThreadId);
+        }
+      },
+      // 实时消息没有历史路径的 metadata 映射，这里把 TEXT_MESSAGE_START 携带的
+      // turnId 登记到 turn 归属表，供前端按 turn 聚合展示实时消息
+      onTextMessageStartEvent: ({ event }) => {
+        const metadata = event.metadata as { turnId?: unknown } | undefined;
+        const turnId = metadata?.turnId;
+        if (typeof turnId === 'string' && event.messageId) {
+          recordMessageTurnId(event.messageId, turnId);
         }
       },
     });

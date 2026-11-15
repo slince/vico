@@ -100,10 +100,22 @@ function useMessageStreamDuration(): number | undefined {
  *
  * 默认折叠，标题只显示「已完成，用时 xx分xx秒」（时长取流式生成时长），
  * 点击展开后 children 依次是 reasoning / tool 的渲染结果。
+ *
+ * @param children - 折叠内容（reasoning / tool 的渲染结果）
+ * @param elapsed - 显式传入的时长（turn 维度结算）；缺省回退消息级 context
  */
-function CompletedActivityGroup({ children }: { children: ReactNode }) {
+function CompletedActivityGroup({
+  children,
+  elapsed: elapsedProp,
+}: {
+  children: ReactNode;
+  /** 显式传入的时长（turn 维度结算）；缺省回退消息级 context（message 维度） */
+  elapsed?: number;
+}) {
   const [open, setOpen] = useState(false);
-  const elapsed = useContext(MessageStreamDurationContext);
+  const contextElapsed = useContext(MessageStreamDurationContext);
+  // 优先使用外部传入的时长（turn 维度），否则回退消息级 context
+  const elapsed = elapsedProp ?? contextElapsed;
   const {t, i18n} = useTranslation("assistant");
 
   // 时长文案跟随当前语言：中文用「分/秒」，其余语言用英文缩写

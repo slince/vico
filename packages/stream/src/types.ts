@@ -45,8 +45,11 @@ export interface ToolCallPayload {
 // 各 type 对应的 payload
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 流开始（无负载，仅作生命周期信号） */
-export interface StartPayload {}
+/** 流开始（生命周期信号，并携带本次 run 所属 turn 的 id） */
+export interface StartPayload {
+  /** 本次 run 所属 turn 的 id（一个 turn = 一次用户→助手往返，供前端按 turn 聚合展示） */
+  turnId: string;
+}
 
 /** 文本块开始 */
 export interface TextStartPayload {

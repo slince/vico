@@ -322,7 +322,7 @@ export class LoopAgent
     const { session, userMessages, signal, output, runId, checkpoint, reasoning, modelClient, approvalMode } = params;
 
     this.emit({ type: 'turn.start', thread: session.thread, turn: session.turn });
-    output.write(stampRunId(runId, { type: 'start', payload: {} }));
+    output.write(stampRunId(runId, { type: 'start', payload: { turnId: session.turn.id } }));
 
     const {decisions} = extractApprovalResponses(userMessages)
 
