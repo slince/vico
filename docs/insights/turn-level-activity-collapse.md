@@ -1,8 +1,8 @@
 # Turn 维度「已完成」折叠块
 
 > 把 `CompletedActivityGroup` 从 message 维度升级到 **turn 维度**：会话完成后，
-> 只把最后一个 assistant 消息的正文展示出来，此前所有 assistant 消息（以及最后
-> 一条消息自身的推理/工具活动）统一收进 turn 级「已完成」折叠块。
+> 只平铺展示最后一个 assistant 消息，此前所有 assistant 消息统一收进 turn 级
+> 「已完成」折叠块；每条消息内部仍按原逻辑渲染（推理 + 工具调用可折叠，文本正常）。
 
 ---
 
@@ -10,9 +10,10 @@
 
 - **turn** = 一次「用户 → 助手」往返（含审批/续跑产生的多条 assistant 消息）。
 - 会话完成后：
-  - **正文**：只展示最后一条 assistant 消息的文本与内容类 part（file/image/data）。
-  - **折叠块**：中间 assistant 消息按「步骤 N」分组平铺，加上最后一条消息自身的
-    推理 + 工具活动。
+  - **正文（最后一条 assistant 消息）**：正常渲染，推理 + 工具调用折叠、文本正常。
+  - **折叠块**：此前所有 assistant 消息整体收进 `CompletedActivityGroup`，每条
+    消息内部仍由标准 `AssistantMessage` 负责「推理 + 工具调用」折叠与文本渲染，
+    不再按「步骤 N」拆分标题。
 - 时长文案：「已完成，用时 X」仅对实时完成（running → complete）的 turn 显示；
   历史 turn 只显示「已完成」。
 
@@ -62,18 +63,19 @@ ThreadMessageList
             ├─ 未完成（running / requires-action / incomplete）
             │     └─ 最后一条消息完整平铺（沿用 AssistantMessage，含推理/工具/思考）
             └─ 已完成
-                  ├─ CompletedActivityGroup(elapsed)（仅当 hasTurnActivity）
-                  │     ├─ TurnStep × N（中间消息，stepGroupBy 完整平铺）
-                  │     └─ 最后一条消息的活动（answerActivityGroupBy：只留推理+工具）
-                  └─ 正文（answerGroupBy：只隐藏推理+工具，保留文本/文件/图片/数据）
+                  ├─ CompletedActivityGroup(elapsed)（仅当 prevMessages.length > 0）
+                  │     └─ 中间 assistant 消息 × N（每条经 MESSAGE_COMPONENTS 完整渲染）
+                  └─ 最后一条消息（MESSAGE_COMPONENTS 完整渲染）
 ```
 
 关键点：
 
-- 通过 `ThreadPrimitive.Unstable_MessageById` 按 id 渲染同一消息的不同切面
-  （正文 / 活动 / 步骤），各自套不同的 `groupPartByType` 与组件配置。
-- 未完成态沿用原 `AssistantMessage`，因此审批 UI、错误态、流式思考指示都保持原样；
-  折叠只在最后一条消息 `status.type === "complete"` 时发生。
+- 完成态与未完成态统一走 `MESSAGE_COMPONENTS`（标准 `AssistantMessage`），因此
+  推理折叠、工具平铺、文本渲染、审批 UI、错误态、分支选择器、操作栏全部复用同一
+  套既有实现，没有「正文/活动/步骤」三套切面。
+- 折叠只在最后一条消息 `status.type === "complete"` 且存在中间消息时发生；
+  单条 assistant 消息的 turn 不出现 turn 级折叠块（其内部折叠仍由 AssistantMessage
+  自行处理）。
 - `useTurnStreamDuration`（`TurnView` 内）以最后一条消息的
   running/requires-action → complete 为打点边界，结算 turn 级时长；`TurnView`
   按 `turn.key` 持久，故状态不会在 turn 间串扰。
@@ -87,13 +89,12 @@ ThreadMessageList
 | `packages/stream-ag-ui/src/chunk-to-agui.ts` | turnId 写入 RUN_STARTED / TEXT_MESSAGE_START 的 metadata |
 | `vico/web/src/lib/turn-metadata.ts`（新增） | 实时 `messageId → turnId` 登记表 |
 | `vico/web/src/hooks/use-chat-thread-runtime.ts` | 订阅 `onTextMessageStartEvent` 登记 turnId |
-| `vico/web/src/components/assistant-ui/elements/thread.aui.tsx` | turn 分组 + 渲染管线 |
+| `vico/web/src/components/assistant-ui/elements/thread.aui.tsx` | turn 分组 + 渲染管线（折叠块收中间消息） |
 | `vico/web/src/components/assistant-ui/elements/message-run-activity.tsx` | `CompletedActivityGroup` 增加 `elapsed` prop |
-| `vico/web/src/i18n/locales/*/assistant.json` | 新增 `message.step` 文案 |
 
 ## 六、遗留与边界
 
-- 历史中间步骤若含待审批工具（审批/续跑场景），步骤内仍会渲染其审批 UI；这是沿用
+- 折叠块内的中间消息若含待审批工具（审批/续跑场景），仍会渲染其审批 UI；这是沿用
   `part.toolUI` 的既有行为，未单独做「已决议」降级。
-- `source` part 在正文/步骤中沿用旧行为（默认不渲染），未在本轮补齐渲染。
+- `source` part 沿用旧行为（默认不渲染），未在本轮补齐渲染。
 - `data-turn-id` 目前仅作调试属性，turnId 尚未承载分组或持久化职责。

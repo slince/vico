@@ -950,30 +950,6 @@ function groupMessagesIntoTurns(
 }
 
 /**
- * 一条 assistant 消息是否含「活动」（推理或工具调用）。
- *
- * @param message - assistant 消息
- * @returns 是否含推理或工具调用
- */
-function hasMessageActivity(message: ThreadMessage): boolean {
-  return message.content.some(
-    (part) => part.type === "reasoning" || part.type === "tool-call",
-  );
-}
-
-/**
- * 一个 turn 是否有需要折叠的活动：存在中间步骤，或最后一条消息含推理/工具。
- *
- * @param turn - turn 分组
- * @returns 是否展示折叠块
- */
-function hasTurnActivity(turn: TurnGroup): boolean {
-  if (turn.assistantMessages.length > 1) return true;
-  const only = turn.assistantMessages[0];
-  return only ? hasMessageActivity(only) : false;
-}
-
-/**
  * 测量一个 turn 的流式生成时长（毫秒）。
  *
  * 以最后一条 assistant 消息的 running/requires-action → complete 为打点边界；
@@ -1009,57 +985,6 @@ function useTurnStreamDuration(
   return elapsed;
 }
 
-// 步骤（中间 assistant 消息）在折叠块内完整平铺：推理折叠、工具平铺、文本正常
-const stepGroupBy = groupPartByType({
-  reasoning: ["group-reasoning"],
-  "tool-call": [],
-  "standalone-tool-call": [],
-});
-
-// 正文（turn 完成后最后一条消息）：只隐藏推理与工具调用，文本/文件/图片等照常展示
-const answerGroupBy = groupPartByType({
-  reasoning: ["group-hidden"],
-  "tool-call": ["group-hidden"],
-  "standalone-tool-call": ["group-hidden"],
-});
-
-// 最后一条消息自身的「活动」（推理 + 工具）在折叠块内平铺：隐藏文本与内容类 part
-const answerActivityGroupBy = groupPartByType({
-  text: ["group-hidden"],
-  source: ["group-hidden"],
-  file: ["group-hidden"],
-  image: ["group-hidden"],
-  data: ["group-hidden"],
-  "generative-ui": ["group-hidden"],
-  reasoning: ["group-reasoning"],
-  "tool-call": [],
-  "standalone-tool-call": [],
-});
-
-/**
- * 折叠块内的推理分组渲染：默认折叠的 ReasoningRoot，兼容 ReasoningGroup 槽位。
- */
-const CollapseReasoning: FC<PropsWithChildren<{ group: ThreadGroupPart }>> = ({
-  group,
-  children,
-}) => {
-  const { ReasoningGroup } = useContext(ThreadComponentsContext);
-
-  if (ReasoningGroup) {
-    return <ReasoningGroup group={group}>{children}</ReasoningGroup>;
-  }
-
-  const running = group.status.type === "running";
-  return (
-    <ReasoningRoot streaming={running}>
-      <ReasoningTrigger active={running} />
-      <ReasoningContent aria-busy={running}>
-        <ReasoningText>{children}</ReasoningText>
-      </ReasoningContent>
-    </ReasoningRoot>
-  );
-};
-
 /**
  * user 消息分派：语音消息走 SpokenMessage，否则走常规 UserMessage。
  */
@@ -1080,125 +1005,6 @@ const ThreadAssistantMessage: FC = () => {
   return <AssistantMessageComponent />;
 };
 
-/**
- * turn 正文：最后一条 assistant 消息只展示文本与内容类 part（推理/工具已进折叠块），
- * 并保留分支选择器与操作栏。
- */
-const TurnAnswer: FC = () => {
-  return (
-    <MessagePrimitive.Root
-      data-slot="aui_turn-answer"
-      data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
-    >
-      <div
-        data-slot="aui_turn-answer-content"
-        className="text-foreground px-2 leading-relaxed wrap-break-word"
-      >
-        <MessagePrimitive.GroupedParts groupBy={answerGroupBy}>
-          {({ part }) => {
-            switch (part.type) {
-              case "text":
-                return <MarkdownText />;
-              case "file":
-                return (
-                  <div data-slot="aui_turn-answer-file" className="py-1">
-                    <File {...part} />
-                  </div>
-                );
-              case "image":
-                return (
-                  <div data-slot="aui_turn-answer-image" className="py-1">
-                    <Image {...part} />
-                  </div>
-                );
-              case "data":
-                return part.dataRendererUI;
-              case "group-hidden":
-              case "indicator":
-              default:
-                return null;
-            }
-          }}
-        </MessagePrimitive.GroupedParts>
-      </div>
-
-      <div
-        data-slot="aui_turn-answer-footer"
-        className="ms-2 flex min-h-7.5 items-center pt-1.5"
-      >
-        <BranchPicker />
-        <AssistantActionBar />
-      </div>
-    </MessagePrimitive.Root>
-  );
-};
-
-/**
- * 最后一条消息自身的推理/工具活动（供折叠块内平铺，不含正文）。
- */
-const AnswerActivityContent: FC = () => {
-  const { ToolFallback: ToolFallbackComponent = ToolFallback } =
-    useContext(ThreadComponentsContext);
-
-  return (
-    <MessagePrimitive.GroupedParts groupBy={answerActivityGroupBy}>
-      {({ part, children }) => {
-        switch (part.type) {
-          case "group-reasoning":
-            return <CollapseReasoning group={part}>{children}</CollapseReasoning>;
-          case "tool-call":
-            return part.toolUI ?? <ToolFallbackComponent {...part} />;
-          case "group-hidden":
-          case "indicator":
-          default:
-            return null;
-        }
-      }}
-    </MessagePrimitive.GroupedParts>
-  );
-};
-
-/**
- * 中间步骤的消息内容（供折叠块内完整平铺，无操作栏）。
- */
-const StepMessageContent: FC = () => {
-  const { ToolFallback: ToolFallbackComponent = ToolFallback } =
-    useContext(ThreadComponentsContext);
-
-  return (
-    <MessagePrimitive.GroupedParts groupBy={stepGroupBy}>
-      {({ part, children }) => {
-        switch (part.type) {
-          case "text":
-            return <MarkdownText />;
-          case "group-reasoning":
-            return <CollapseReasoning group={part}>{children}</CollapseReasoning>;
-          case "tool-call":
-            return part.toolUI ?? <ToolFallbackComponent {...part} />;
-          case "file":
-            return (
-              <div data-slot="aui_turn-step-file" className="py-1">
-                <File {...part} />
-              </div>
-            );
-          case "image":
-            return (
-              <div data-slot="aui_turn-step-image" className="py-1">
-                <Image {...part} />
-              </div>
-            );
-          case "data":
-            return part.dataRendererUI;
-          case "indicator":
-          default:
-            return null;
-        }
-      }}
-    </MessagePrimitive.GroupedParts>
-  );
-};
-
 /** 完整消息渲染（user / 运行中的 assistant）——按角色分派 */
 const MESSAGE_COMPONENTS: MessageComponentsConfig = {
   UserMessage: ThreadUserMessage,
@@ -1206,54 +1012,12 @@ const MESSAGE_COMPONENTS: MessageComponentsConfig = {
   EditComposer,
 };
 
-/** 正文渲染——最后一条 assistant 消息只展示文本与内容 */
-const ANSWER_COMPONENTS: MessageComponentsConfig = {
-  UserMessage: ThreadUserMessage,
-  AssistantMessage: TurnAnswer,
-  EditComposer,
-};
-
-/** 活动渲染——最后一条消息的推理/工具（进折叠块） */
-const ANSWER_ACTIVITY_COMPONENTS: MessageComponentsConfig = {
-  UserMessage: ThreadUserMessage,
-  AssistantMessage: AnswerActivityContent,
-  EditComposer,
-};
-
-/** 步骤渲染——中间 assistant 消息完整平铺（进折叠块） */
-const STEP_COMPONENTS: MessageComponentsConfig = {
-  UserMessage: ThreadUserMessage,
-  AssistantMessage: StepMessageContent,
-  EditComposer,
-};
-
 /**
- * 折叠块内的单个步骤：`步骤 N` 标题 + 该中间 assistant 消息的完整内容。
- */
-const TurnStep: FC<{ stepIndex: number; messageId: string }> = ({
-  stepIndex,
-  messageId,
-}) => {
-  const { t } = useTranslation("assistant");
-
-  return (
-    <div data-slot="aui_turn-step" className="flex flex-col gap-1">
-      <div
-        data-slot="aui_turn-step-title"
-        className="text-muted-foreground/80 text-xs font-medium"
-      >
-        {t("message.step", { n: stepIndex + 1 })}
-      </div>
-      <ThreadPrimitive.Unstable_MessageById
-        messageId={messageId}
-        components={STEP_COMPONENTS}
-      />
-    </div>
-  );
-};
-
-/**
- * 单个 turn 的渲染：user 消息 + （运行中）最后一条消息 / （已完成）折叠块 + 正文。
+ * 单个 turn 的渲染：user 消息 + 中间 assistant 消息折叠块 + 最后一条消息。
+ *
+ * 完成后只平铺展示最后一条 assistant 消息，此前的 assistant 消息整体收进
+ * CompletedActivityGroup 折叠块；每条消息内部仍由标准 AssistantMessage 负责
+ * 「推理 + 工具调用」的折叠与文本的正常渲染。
  */
 const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
   const last = turn.assistantMessages[turn.assistantMessages.length - 1];
@@ -1261,8 +1025,8 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
 
   // turn 级流式时长：running → complete 结算（历史 turn 无时长）
   const duration = useTurnStreamDuration(turn.assistantMessages);
-  const showCollapse = isComplete && hasTurnActivity(turn);
   const prevMessages = turn.assistantMessages.slice(0, -1);
+  const showCollapse = isComplete && prevMessages.length > 0;
 
   const first = turn.userMessage ?? turn.assistantMessages[0];
   const turnId = turnIdOf(first);
@@ -1286,30 +1050,23 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
         )
       ) : (
         <>
-          {/* 折叠块位于正文上方：中间步骤 + 最后一条消息自身的推理/工具 */}
+          {/* 中间 assistant 消息整体折叠，最后一条消息正常渲染 */}
           {showCollapse && (
             <CompletedActivityGroup elapsed={duration}>
-              {prevMessages.map((message, index) => (
-                <TurnStep
+              {prevMessages.map((message) => (
+                <ThreadPrimitive.Unstable_MessageById
                   key={message.id}
-                  stepIndex={index}
                   messageId={message.id}
+                  components={MESSAGE_COMPONENTS}
                 />
               ))}
-              {last && hasMessageActivity(last) && (
-                <ThreadPrimitive.Unstable_MessageById
-                  messageId={last.id}
-                  components={ANSWER_ACTIVITY_COMPONENTS}
-                />
-              )}
             </CompletedActivityGroup>
           )}
 
-          {/* 正文：最后一条消息的文本与内容 */}
           {last && (
             <ThreadPrimitive.Unstable_MessageById
               messageId={last.id}
-              components={ANSWER_COMPONENTS}
+              components={MESSAGE_COMPONENTS}
             />
           )}
         </>

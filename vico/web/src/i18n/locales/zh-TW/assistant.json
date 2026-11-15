@@ -6,7 +6,6 @@
     "copied": "已複製！",
     "completed": "已完成",
     "completedWithDuration": "已完成，用時 {{duration}}",
-    "step": "步驟 {{n}}",
     "tokenUsage": {
       "label": "Token 用量",
       "input": "輸入",
