@@ -1,24 +1,20 @@
 "use client";
 
 import {
+  type ComponentPropsWithoutRef,
+  createContext,
+  type ReactNode,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
-  createContext,
-  useContext,
-  type ComponentPropsWithoutRef,
-  type ReactNode,
 } from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import {cva, type VariantProps} from "class-variance-authority";
+import {CheckIcon, ChevronDownIcon} from "lucide-react";
+import {cn} from "@/lib/utils";
+import {Popover, PopoverContent, PopoverTrigger,} from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -28,7 +24,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
+import {RadioGroup as RadioGroupPrimitive} from "radix-ui";
 
 export type ModelSelectorEffortOption = {
   id: string;
@@ -36,6 +32,7 @@ export type ModelSelectorEffortOption = {
 };
 
 export const DEFAULT_EFFORT_OPTIONS: readonly ModelSelectorEffortOption[] = [
+  { id: "none", name: None },
   { id: "low", name: "Low" },
   { id: "medium", name: "Med" },
   { id: "high", name: "High" },
