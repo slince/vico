@@ -38,12 +38,13 @@ turn，其后的 assistant 消息都属于该 turn。选择结构性切分而非
    `start` chunk 携带的 turnId 无法落到实时消息 metadata。改为在
    `use-chat-thread-runtime` 订阅 `HttpAgent` 的 `onTextMessageStartEvent`，
    读取原始 `event.metadata.turnId`，登记进 `turn-metadata` 模块 store
-   （`messageId → turnId`，`useSyncExternalStore` 驱动重渲染）。
+   （`messageId → turnId`，`useSyncExternalStore` 驱动重渲染；登记表为有界
+   FIFO，超出上限淘汰最旧条目，避免长期会话无界增长）。
 
 引擎侧改动：`packages/stream` 的 `StartPayload` 增加 `turnId`；
 `loop-agent.ts` 的 `start` chunk 携带 `session.turn.id`；
-`chunk-to-agui.ts` 把 turnId 写入 `RUN_STARTED` / `TEXT_MESSAGE_START` /
-`REASONING_MESSAGE_START` 的 metadata。
+`chunk-to-agui.ts` 把 turnId 写入 `RUN_STARTED` 与 `TEXT_MESSAGE_START` 的
+metadata（`REASONING_MESSAGE_START` 不携带，前端只订阅文本消息事件）。
 
 ## 四、渲染结构（`thread.aui.tsx` 尾部）
 
@@ -77,7 +78,7 @@ ThreadMessageList
 |------|------|
 | `packages/stream/src/types.ts` | `StartPayload` 增加 `turnId` |
 | `packages/agent/src/loop-agent.ts` | `start` chunk payload 带 `session.turn.id` |
-| `packages/stream-ag-ui/src/chunk-to-agui.ts` | turnId 写入 RUN_STARTED / 消息事件 metadata |
+| `packages/stream-ag-ui/src/chunk-to-agui.ts` | turnId 写入 RUN_STARTED / TEXT_MESSAGE_START 的 metadata |
 | `vico/web/src/lib/turn-metadata.ts`（新增） | 实时 `messageId → turnId` 登记表 |
 | `vico/web/src/hooks/use-chat-thread-runtime.ts` | 订阅 `onTextMessageStartEvent` 登记 turnId |
 | `vico/web/src/components/assistant-ui/elements/thread.aui.tsx` | turn 分组 + 渲染管线 |

@@ -84,7 +84,6 @@ export function createChunkToAgUiTransformer(opts: {
             type: EventType.REASONING_MESSAGE_START,
             messageId: chunk.payload.id,
             role: 'reasoning',
-            metadata: turnId !== undefined ? { turnId } : undefined,
           });
           break;
         case 'reasoning-delta':

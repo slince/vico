@@ -10,7 +10,13 @@
  */
 import { useSyncExternalStore } from "react";
 
-/** messageId → turnId 登记表（消息 id 为全局唯一 UUID，无需按线程清理） */
+/**
+ * 登记表上限：实时消息量远小于此值（单线程数百条、跨线程也不到上千），
+ * FIFO 淘汰最旧条目后只会丢掉最久远消息的调试属性，不影响分组与渲染。
+ */
+const MAX_ENTRIES = 2000;
+
+/** messageId → turnId 登记表（有界 FIFO：超出上限淘汰最早登记的条目，防止无界增长） */
 const turnIdByMessageId = new Map<string, string>();
 
 /** 订阅者集合（触发 React 重渲染） */
@@ -35,6 +41,15 @@ function emitChange(): void {
 export function recordMessageTurnId(messageId: string, turnId: string): void {
   if (turnIdByMessageId.get(messageId) === turnId) return;
   turnIdByMessageId.set(messageId, turnId);
+
+  // 有界 FIFO：登记表只作实时消息的「短暂桥接」，超过上限淘汰最旧条目
+  //（turnId 仅用于 data-turn-id 调试属性，淘汰无功能影响，但可避免内存无界增长）
+  while (turnIdByMessageId.size > MAX_ENTRIES) {
+    const oldest = turnIdByMessageId.keys().next().value;
+    if (oldest === undefined) break;
+    turnIdByMessageId.delete(oldest);
+  }
+
   version += 1;
   emitChange();
 }
