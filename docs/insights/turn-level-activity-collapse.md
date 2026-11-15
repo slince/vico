@@ -46,6 +46,12 @@ turn，其后的 assistant 消息都属于该 turn。选择结构性切分而非
 `chunk-to-agui.ts` 把 turnId 写入 `RUN_STARTED` 与 `TEXT_MESSAGE_START` 的
 metadata（`REASONING_MESSAGE_START` 不携带，前端只订阅文本消息事件）。
 
+注意一个容易踩的边界：`start` 是 turn 级（每个 turn 一次），而 assistant 消息是
+**step 级**（每个 `start-step` 一次模型调用即一条）。因此 `chunk-to-agui` 在
+`start-step` 时分配新的 assistant `messageId`，文本与工具调用的 `parentMessageId`
+都跟随当前 step——不能整个 run 共用一条消息 id，否则审批/续跑产生的多个 step
+会被 ag-ui 合并成一条 assistant 消息。
+
 ## 四、渲染结构（`thread.aui.tsx` 尾部）
 
 ```

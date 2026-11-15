@@ -25,8 +25,9 @@ export function createChunkToAgUiTransformer(opts: {
 }): TransformStream<ChunkType, Event> {
   const { threadId, runId } = opts;
 
-  // 本次 run 的稳定 assistant 消息 id（所有文本块与工具调用归属同一条 assistant 消息）
-  const assistantMessageId = randomUUID();
+  // 当前 step 的 assistant 消息 id：一个 step（一次模型调用）对应一条 assistant 消息，
+  // 审批/续跑会在同一 turn 内产生多个 step，不能整个 run 共用一条消息 id
+  let stepMessageId = randomUUID();
   // 本次 run 所属 turn 的 id（来自引擎 start chunk，经 RUN_STARTED / 消息事件 metadata 透传给前端）
   let turnId: string | undefined;
   // 审批门禁：收集 tool-approval-request，finish 时以 interrupt outcome 收尾
@@ -52,6 +53,8 @@ export function createChunkToAgUiTransformer(opts: {
           break;
 
         case 'start-step':
+          // 每个 step 开启一条新的 assistant 消息（同一 turn 内多 step 不可共用 messageId）
+          stepMessageId = randomUUID();
           enqueue.enqueue({ type: EventType.STEP_STARTED, stepName: `step-${chunk.payload.stepIndex}` });
           break;
 
@@ -67,16 +70,16 @@ export function createChunkToAgUiTransformer(opts: {
         case 'text-start':
           enqueue.enqueue({
             type: EventType.TEXT_MESSAGE_START,
-            messageId: assistantMessageId,
+            messageId: stepMessageId,
             // 直接携带 turnId，前端订阅 TEXT_MESSAGE_START 即可把 messageId 关联到 turn
             metadata: turnId !== undefined ? { turnId } : undefined,
           });
           break;
         case 'text-delta':
-          enqueue.enqueue({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: assistantMessageId, delta: chunk.payload.text });
+          enqueue.enqueue({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: stepMessageId, delta: chunk.payload.text });
           break;
         case 'text-end':
-          enqueue.enqueue({ type: EventType.TEXT_MESSAGE_END, messageId: assistantMessageId });
+          enqueue.enqueue({ type: EventType.TEXT_MESSAGE_END, messageId: stepMessageId });
           break;
 
         case 'reasoning-start':
@@ -94,7 +97,7 @@ export function createChunkToAgUiTransformer(opts: {
           break;
 
         case 'tool-input-start':
-          enqueue.enqueue({ type: EventType.TOOL_CALL_START, toolCallId: chunk.payload.toolCallId, toolCallName: chunk.payload.toolName, parentMessageId: assistantMessageId });
+          enqueue.enqueue({ type: EventType.TOOL_CALL_START, toolCallId: chunk.payload.toolCallId, toolCallName: chunk.payload.toolName, parentMessageId: stepMessageId });
           break;
         case 'tool-input-delta':
           enqueue.enqueue({ type: EventType.TOOL_CALL_ARGS, toolCallId: chunk.payload.toolCallId, delta: chunk.payload.delta });
@@ -104,7 +107,7 @@ export function createChunkToAgUiTransformer(opts: {
           break;
 
         case 'tool-call': {
-          enqueue.enqueue({ type: EventType.TOOL_CALL_START, toolCallId: chunk.payload.toolCallId, toolCallName: chunk.payload.toolName, parentMessageId: assistantMessageId });
+          enqueue.enqueue({ type: EventType.TOOL_CALL_START, toolCallId: chunk.payload.toolCallId, toolCallName: chunk.payload.toolName, parentMessageId: stepMessageId });
           enqueue.enqueue({ type: EventType.TOOL_CALL_ARGS, toolCallId: chunk.payload.toolCallId, delta: JSON.stringify(chunk.payload.input) });
           enqueue.enqueue({ type: EventType.TOOL_CALL_END, toolCallId: chunk.payload.toolCallId });
           break;
