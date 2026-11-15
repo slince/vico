@@ -31,7 +31,13 @@ export interface ToolApproval {
   approvedAt: number;
 }
 
-/** 工具审批策略 */
+/**
+ * 工具审批策略 — 描述该工具在何时需要人工审批。
+ *
+ * - `auto`：交给审批模式（approvalMode）决策；
+ * - `always`：每次调用都需人工审批；
+ * - `never`：永不需要审批，直接放行。
+ */
 export type ToolPolicy = 'auto' | 'always' | 'never';
 
 /** 工具类别：只读 or 变更 */

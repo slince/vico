@@ -67,10 +67,6 @@ export class ToolExecutor {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 未找到` };
     }
 
-    if (tool.policy === 'never') {
-      return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被策略阻止` };
-    }
-
     const storm = this.stormBreaker.check(call.name, call.args);
     if (storm.blocked) {
       return { callId: call.id, name: call.name, status: 'error', output: null, error: `工具 ${call.name} 被风暴检测阻止：重复调用次数过多` };

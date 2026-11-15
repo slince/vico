@@ -43,17 +43,18 @@ export const ApprovalPriority = {
 /**
  * tool.policy 通用 resolver：只处理 `never` 与 `always`，`auto` 交予其它 resolver。
  *
- * - `never`：硬拒绝，优先级最高、不可被覆盖；
+ * - `never`：永不需要审批，直接放行，优先级最高、不可被覆盖；
  * - `always`：必审批。
  */
 export const toolPolicyResolver: ApprovalResolver = {
   order: () => ApprovalPriority.HIGH,
   support: tool => tool.policy === 'never' || tool.policy === 'always',
   resolve: (call, _tool, policy) => {
-    // never 硬拒绝，不可被 workspace 等后续 resolver 覆盖
+    // never 直接放行，优先于任何审批模式（approve-all 亦不拦截）
     if (policy === 'never') {
-      return { status: 'denied', reason: `工具 ${call.name} 被策略阻止` };
+      return { status: 'approved' };
     }
+
     // always 必审批
     return { status: 'paused', reason: `工具 ${call.name} 需要用户审批` };
   },
