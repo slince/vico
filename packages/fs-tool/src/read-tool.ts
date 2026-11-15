@@ -108,7 +108,7 @@ export function createReadTool(fs: Filesystem) {
   return createTool({
     name: 'read',
     description:
-      'Read a file in the workspace with optional line offset and line limit. Image files are auto-detected and returned as base64. Use to inspect workspace file contents.',
+      'Read a file in the workspace with optional line offset and line limit. Image files are auto-detected and returned as base64. This is the preferred way to inspect a file — use it instead of running cat/head/tail in a shell.',
     inputSchema: readParams,
     outputSchema: readOutputSchema,
     policy: 'auto',

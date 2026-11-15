@@ -88,7 +88,7 @@ export function createGrepTool() {
   return createTool({
     name: 'grep',
     description:
-      'Search file contents with a regular expression. Returns matching lines with line numbers.',
+      'Search file contents with a regular expression. Returns matching lines with line numbers. This is the preferred way to search contents (uses ripgrep) — use it instead of running grep/rg in a shell.',
     inputSchema: grepParams,
     outputSchema: grepOutputSchema,
     policy: 'auto',

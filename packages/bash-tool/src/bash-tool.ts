@@ -36,7 +36,7 @@ export function createBashTool(
   return createTool({
     name: 'bash',
     description:
-      'Execute a shell command in the workspace root and return its standard output, standard error and exit code. Supports a timeout (default 120000ms). Provide a description of the command intent.',
+      'Execute a shell command in the workspace root and return its standard output, standard error and exit code. Supports a timeout (default 120000ms). Do NOT use this tool to read or find files: use `read` to view a file, `glob` to find files by name, and `grep` to search file contents. Reserve bash for what those tools cannot do (scripts, builds, tests, git, package managers, etc.). Note: bash is a mutation tool and may require user approval; read/glob/grep are read-only and run without approval.',
     inputSchema: bashParams,
     outputSchema: bashOutput,
     policy: 'auto',

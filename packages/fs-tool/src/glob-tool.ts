@@ -47,7 +47,7 @@ export function createGlobTool() {
   return createTool({
     name: 'glob',
     description:
-      'Find files in the workspace by glob pattern, sorted by modification time (newest first). Use to locate files by naming pattern.',
+      'Find files in the workspace by glob pattern, sorted by modification time (newest first). This is the preferred way to locate files by name — use it instead of running find/ls in a shell.',
     inputSchema: globParams,
     outputSchema: globOutputSchema,
     policy: 'auto',
