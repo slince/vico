@@ -21,13 +21,12 @@ export class FsToolSelectionProcessor implements ContextProcessor {
 
       if (rules.length > 0) {
         const readOnly = ['read', 'glob', 'grep'].filter((name) => ctx.tools.has(name)).map((n) => `\`${n}\``).join('/');
-        ctx.systemPrompt.registerSection(
-          'tool-selection',
-          'Prefer dedicated tools over shell commands when one fits:\n' +
-            rules.join('\n') +
-            `\nReserve \`bash\` for actions no dedicated tool covers (scripts, builds, tests, git, package managers, etc.). ` +
+        ctx.systemPrompt.registerSection('tool-selection', [
+          'Prefer dedicated tools over shell commands when one fits:',
+          ...rules,
+          `Reserve \`bash\` for actions no dedicated tool covers (scripts, builds, tests, git, package managers, etc.). ` +
             `\`bash\` is a mutation tool and may require user approval; ${readOnly} are read-only and run without approval.`,
-        );
+        ]);
       }
     }
 

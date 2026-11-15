@@ -25,17 +25,18 @@ export class PromptSectionBuilder {
    * 追加一个具名 section；同名已存在时覆盖其内容并返回既有对象。
    *
    * @param name - section 唯一名称
-   * @param content - 提示词片段内容
+   * @param content - 提示词片段内容；传 `string[]` 时内部用 `\n` 拼接为字符串块
    * @returns 注册后的 section（可直接调整 content）
    */
-  registerSection(name: string, content: string): PromptSection {
+  registerSection(name: string, content: string | string[]): PromptSection {
+    const text = Array.isArray(content) ? content.join('\n') : content;
     const existing = this.sections.get(name);
     if (existing) {
-      existing.content = content;
+      existing.content = text;
       return existing;
     }
 
-    const section: PromptSection = { name, content };
+    const section: PromptSection = { name, content: text };
     this.sections.set(name, section);
     this.order.push(name);
     return section;
