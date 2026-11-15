@@ -68,6 +68,13 @@ export const SemanticMemoryRenderer: ToolCallMessagePartComponent<SemanticMemory
 }) => {
   const {t} = useTranslation('assistant');
 
+  // 审批态内容：按 mode 展示本次要写入/替换的记忆原文（replace 以 -/+ 行区分删除与新增）
+  const approvalCommand = args
+    ? args.mode === 'replace'
+      ? `- ${args.target}\n+ ${args.replacement}`
+      : args.memory
+    : undefined;
+
   return (
     <ToolCard
       title={t('tool.semanticMemory.title')}
@@ -80,6 +87,7 @@ export const SemanticMemoryRenderer: ToolCallMessagePartComponent<SemanticMemory
       resume={resume}
       addResult={addResult}
       respondToApproval={respondToApproval}
+      approvalCommand={approvalCommand}
     >
       {result && args && (
         <div className="space-y-1.5">

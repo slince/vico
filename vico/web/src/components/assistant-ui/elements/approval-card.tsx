@@ -116,7 +116,7 @@ export function ApprovalCard({
         <div
           className={cn(
             field,
-            "text-foreground/70 rounded-xl px-3.5 py-2.5 font-mono text-xs",
+            "text-foreground/70 rounded-xl px-3.5 py-2.5 font-mono text-xs whitespace-pre-wrap break-words",
           )}
         >
           {command}
