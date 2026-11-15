@@ -85,15 +85,20 @@ export class MemoryProcessor implements ContextProcessor {
 
     const dataBlock = current || template;
 
-    ctx.systemPrompt.registerSection(
-      'semantic-memory',
-      `Use the update_semantic_memory tool ONLY to store durable, long-term facts about the user (identity, preferences, goals, constraints).\n\n` +
-      `Guidelines:\n` +
-      `1. Store only stable, long-lived user facts that will matter across conversations\n` +
-      `2. Prefer mode="append" to add new facts; use mode="replace" to fix a specific fragment; use mode="overwrite" only when restructuring the whole memory\n` +
-      `3. Do NOT store the current task, its progress, or any transient state — that belongs to the conversation history\n` +
-      `4. Use the Markdown format below — never output the template text directly, always update through the tool\n\n` +
-      `Current semantic memory:\n\`\`\`markdown\n${dataBlock}\n\`\`\``);
+    ctx.systemPrompt.registerSection('semantic-memory', [
+      'Use the update_semantic_memory tool ONLY to store durable, long-term facts about the user (identity, preferences, goals, constraints).',
+      '',
+      'Guidelines:',
+      '1. Store only stable, long-lived user facts that will matter across conversations',
+      '2. Prefer mode="append" to add new facts; use mode="replace" to fix a specific fragment; use mode="overwrite" only when restructuring the whole memory',
+      '3. Do NOT store the current task, its progress, or any transient state — that belongs to the conversation history',
+      '4. Use the Markdown format below — never output the template text directly, always update through the tool',
+      '',
+      'Current semantic memory:',
+      '```markdown',
+      dataBlock,
+      '```',
+    ]);
   }
 
   /**
@@ -111,7 +116,9 @@ export class MemoryProcessor implements ContextProcessor {
     const relevant = items.filter((m) => m.score >= RECALL_MIN_SCORE);
     if (relevant.length === 0) return;
 
-    const memText = relevant.map((m) => `- ${m.content}`).join('\n');
-    ctx.systemPrompt.registerSection('episodic-recall', `Relevant memories:\n${memText}`);
+    ctx.systemPrompt.registerSection('episodic-recall', [
+      'Relevant memories:',
+      ...relevant.map((m) => `- ${m.content}`),
+    ]);
   }
 }

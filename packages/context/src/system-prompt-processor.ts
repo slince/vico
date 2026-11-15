@@ -1,10 +1,10 @@
-// @vico/context - SystemPromptProcessor: injects agent base system prompt
+// @vico/context - SystemPromptProcessor: injects base system prompt and filters workspace-dependent tools
 import type {ContextProcessor} from './context-processor.js';
 import {Priority} from './context-processor.js';
 import type {ModelRequestContext} from './model-request-context.js';
 import type {Next} from '@vico/utils';
 
-/** 注入 agent 基础系统提示词，并强化用户原始目标（HIGH 优先级） */
+/** 注入 agent 基础系统提示词；按 session 是否有 workspace 决定注入工作区说明或过滤 requires-workspace 工具 */
 export class SystemPromptProcessor implements ContextProcessor {
   readonly name = 'system-prompt';
   readonly priority = Priority.HIGH - 100;
@@ -24,6 +24,11 @@ export class SystemPromptProcessor implements ContextProcessor {
           `When you mention a file in your reply, reference it by its path relative to the working directory, wrapped in single backticks (e.g. \`src/index.ts\`), and only for files you actually read, wrote, or edited this turn. Do not prepend the full absolute path.`,
         ].join(' '),
       );
+    } else {
+      // 无 workspace 时移除依赖工作目录的工具，避免模型调用在无目录环境下失败
+      for (const tool of ctx.tools.list()) {
+        if (tool.tags.includes('requires-workspace')) ctx.tools.delete(tool.name);
+      }
     }
 
     await next();

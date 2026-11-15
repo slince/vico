@@ -7,7 +7,6 @@ import {ContextProcessor} from '@vico/context';
 import {Skill} from '@vico/skill';
 import {SystemPromptProcessor} from '@vico/context';
 import {SkillProcessor} from '@vico/context';
-import {WorkspaceToolProcessor} from '@vico/context';
 import {MemoryProcessor} from '@vico/context';
 
 /**
@@ -41,12 +40,11 @@ export async function collectTurnResult(
 }
 
 
-/** 组装默认上下文处理器管道：系统提示词 + Skill 目录 + 工作区过滤 + 记忆 */
+/** 组装默认上下文处理器管道：系统提示词（含工作区注入与工具过滤）+ Skill 目录 + 记忆 */
 export function createDefaultProcessors(skills: Skill[], memory: MemoryStore): ContextProcessor[] {
   return [
     new SystemPromptProcessor(),
     new SkillProcessor(skills),
-    new WorkspaceToolProcessor(),
     new MemoryProcessor(memory),
   ];
 }
