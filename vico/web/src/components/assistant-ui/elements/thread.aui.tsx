@@ -64,7 +64,7 @@ import {type ComponentType, createContext, type FC, type PropsWithChildren, useC
 import {useTranslation} from "react-i18next";
 import {AssistantThinking} from "@/components/assistant-ui/assistant-thinking";
 import {CompletedActivityGroup} from "@/components/assistant-ui/elements/message-run-activity";
-import {AutoOpenToolGroup} from "@/components/assistant-ui/AutoOpenToolGroup";
+import {AutoOpenToolGroup} from "@/components/assistant-ui/auto-open-tool-group";
 import {AgentSelectorAction} from "@/components/assistant-ui/agent-selector-action";
 import {ApprovalModeSelectorAction} from "@/components/assistant-ui/approval-mode-selector-action";
 import {ComposerSlashCommands} from "@/components/assistant-ui/composer-slash-commands";
@@ -136,6 +136,9 @@ const EMPTY_COMPONENTS: ThreadComponents = {};
 
 const ThreadComponentsContext =
   createContext<ThreadComponents>(EMPTY_COMPONENTS);
+
+/** 折叠区域内的 assistant 消息是否隐藏 footer（分支选择器 + 操作栏） */
+const MessageFooterHiddenContext = createContext(false);
 
 // Startup exposes a loading placeholder thread; treat it as a new chat so
 // the composer mounts centered. Loads after startup keep the docked layout.
@@ -564,6 +567,9 @@ const AssistantMessage: FC = () => {
   // 推理与工具始终平铺（消息级折叠已移除，折叠只发生在 turn 维度）
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
+  // 折叠区域内隐藏 footer，且不再预留 footer 占位（pb/-mb 抵消那套）
+  const footerHidden = useContext(MessageFooterHiddenContext);
+
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
@@ -572,7 +578,10 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      className={cn(
+        "fade-in slide-in-from-bottom-1 animate-in relative duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]",
+        !footerHidden && "-mb-7.5 pb-7.5",
+      )}
     >
       <div
         data-slot="aui_assistant-message-content"
@@ -641,13 +650,15 @@ const AssistantMessage: FC = () => {
         <MessageError />
       </div>
 
-      <div
-        data-slot="aui_assistant-message-footer"
-        className={cn("ms-2 flex items-center", ACTION_BAR_HEIGHT)}
-      >
-        <BranchPicker />
-        <AssistantActionBar />
-      </div>
+      {!footerHidden && (
+        <div
+          data-slot="aui_assistant-message-footer"
+          className={cn("ms-2 flex items-center", ACTION_BAR_HEIGHT)}
+        >
+          <BranchPicker />
+          <AssistantActionBar />
+        </div>
+      )}
     </MessagePrimitive.Root>
   );
 };
@@ -1026,13 +1037,15 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
           {/* 中间 assistant 消息整体折叠，最后一条消息正常渲染 */}
           {showCollapse && (
             <CompletedActivityGroup elapsed={duration}>
-              {prevMessages.map((message) => (
-                <ThreadPrimitive.Unstable_MessageById
-                  key={message.id}
-                  messageId={message.id}
-                  components={MESSAGE_COMPONENTS}
-                />
-              ))}
+              <MessageFooterHiddenContext.Provider value={true}>
+                {prevMessages.map((message) => (
+                  <ThreadPrimitive.Unstable_MessageById
+                    key={message.id}
+                    messageId={message.id}
+                    components={MESSAGE_COMPONENTS}
+                  />
+                ))}
+              </MessageFooterHiddenContext.Provider>
             </CompletedActivityGroup>
           )}
 

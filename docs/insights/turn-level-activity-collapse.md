@@ -73,6 +73,9 @@ ThreadMessageList
 - 完成态与未完成态统一走 `MESSAGE_COMPONENTS`（标准 `AssistantMessage`），因此
   推理、工具调用、文本、审批 UI、错误态、分支选择器、操作栏全部复用同一套既有
   实现，没有「正文/活动/步骤」三套切面，也没有消息级折叠。
+- 折叠块内的中间消息隐藏 footer（分支选择器 + 操作栏）：`TurnView` 用
+  `MessageFooterHiddenContext` 关闭，`AssistantMessage` 据此同时去掉 footer 与
+  根节点的 `-mb-7.5 pb-7.5` 占位，避免折叠区出现额外空隙。
 - 折叠只在最后一条消息 `status.type === "complete"` 且存在中间消息时发生；
   单条 assistant 消息的 turn 不出现 turn 级折叠块（消息内部照常平铺渲染）。
 - `useTurnStreamDuration`（`TurnView` 内）以最后一条消息的
