@@ -143,7 +143,10 @@
     "semanticMemory": {
       "title": "更新语义记忆",
       "updated": "已更新",
-      "empty": "（空）"
+      "empty": "（空）",
+      "replaced": "被替换的内容",
+      "replacedWith": "替换为",
+      "deleted": "（已删除）"
     },
     "weather": {
       "title": "天气查询",

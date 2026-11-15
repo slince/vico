@@ -140,7 +140,10 @@
     "semanticMemory": {
       "title": "Update Semantic Memory",
       "updated": "Updated",
-      "empty": "(Empty)"
+      "empty": "(Empty)",
+      "replaced": "Replaced",
+      "replacedWith": "Replaced with",
+      "deleted": "(Deleted)"
     },
     "weather": {
       "title": "Weather",

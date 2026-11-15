@@ -54,7 +54,7 @@ export function createUpdateSemanticMemoryTool(sm: SemanticMemory) {
     async execute(args: UpdateSemanticMemoryArgs, ctx: ToolCallContext) {
       const userId = ctx.session.thread.userId;
       if (!userId) {
-        throw new Error('缺少用户标识，无法更新语义记忆');
+        throw new Error('Missing user id; cannot update semantic memory');
       }
 
       const current = await sm.get(userId);
@@ -64,7 +64,7 @@ export function createUpdateSemanticMemoryTool(sm: SemanticMemory) {
           // 追加模式：在现有记忆末尾追加新事实（文件不存在时直接落为新内容）
           const addition = args.memory.trim();
           if (!addition) {
-            throw new Error('追加内容不能为空');
+            throw new Error('Append content must not be empty');
           }
 
           const merged = current ? `${current.trimEnd()}\n\n${addition}` : addition;
@@ -75,13 +75,13 @@ export function createUpdateSemanticMemoryTool(sm: SemanticMemory) {
         case 'replace': {
           // 选择性替换：target 须精确命中现有记忆片段，命中处全部替换为 replacement（空串即删除）
           if (!current) {
-            throw new Error('当前没有语义记忆，无法替换，请改用 append 或 overwrite');
+            throw new Error('No existing semantic memory to replace; use mode "append" or "overwrite" instead');
           }
           if (!args.target) {
-            throw new Error('替换目标不能为空');
+            throw new Error('Replace target must not be empty');
           }
           if (!current.includes(args.target)) {
-            throw new Error('未在当前语义记忆中找到要替换的片段，请从 Current semantic memory 中复制原文，或改用 overwrite');
+            throw new Error('Target fragment not found in the current semantic memory; copy it verbatim from "Current semantic memory" or use mode "overwrite" instead');
           }
 
           // split/join 纯字符串操作，避免 target 中的正则元字符被当作正则解析
@@ -92,7 +92,7 @@ export function createUpdateSemanticMemoryTool(sm: SemanticMemory) {
         case 'overwrite': {
           // 全量覆盖：沿用空模板防呆保护（宽松归一化比对，忽略换行/空格差异）
           if (current && normalize(args.memory) === normalize(sm.getTemplate())) {
-            throw new Error('拒绝用空模板覆盖语义记忆');
+            throw new Error('Refusing to overwrite semantic memory with the empty template');
           }
 
           await sm.set(userId, args.memory);
@@ -101,7 +101,7 @@ export function createUpdateSemanticMemoryTool(sm: SemanticMemory) {
 
         default: {
           // 穷尽性兜底（正常不可达）
-          throw new Error('未知的语义记忆更新模式');
+          throw new Error('Unknown semantic memory update mode');
         }
       }
     },

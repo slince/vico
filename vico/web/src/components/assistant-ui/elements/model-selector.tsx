@@ -32,7 +32,7 @@ export type ModelSelectorEffortOption = {
 };
 
 export const DEFAULT_EFFORT_OPTIONS: readonly ModelSelectorEffortOption[] = [
-  { id: "none", name: None },
+  { id: "none", name: "None" },
   { id: "low", name: "Low" },
   { id: "medium", name: "Med" },
   { id: "high", name: "High" },
