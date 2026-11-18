@@ -4,11 +4,7 @@
  * - createThreadListAdapter: 线程列表适配器（list、delete、initialize）
  * - createThreadHistoryAdapter: 历史消息适配器，通过 useAgUiRuntime 的 adapters.history 自动加载
  */
-import type {
-  RemoteThreadListAdapter,
-  ThreadHistoryAdapter,
-  ThreadMessage,
-} from '@assistant-ui/react';
+import type {RemoteThreadListAdapter, ThreadHistoryAdapter, ThreadMessage,} from '@assistant-ui/react';
 import {ExportedMessageRepository} from '@assistant-ui/react';
 import {fromAgUiMessages} from '@assistant-ui/react-ag-ui';
 import type {Message as AgUiMessage} from '@ag-ui/client';
@@ -140,7 +136,10 @@ export function createThreadHistoryAdapter(remoteId: string | undefined): Thread
       }
       const data = await api<ThreadDetail>(`/threads/${remoteId}`);
       const msgs = data.messages || [];
-      return ExportedMessageRepository.fromArray(fromAgUiMessages(msgs));
+
+      const messages = fromAgUiMessages(msgs);
+      console.log("thread adapter:", messages);
+      return ExportedMessageRepository.fromArray(messages);
     },
 
     async append() {
