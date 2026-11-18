@@ -38,8 +38,7 @@ export class ModelClient {
       tools,
       maxOutputTokens: request.maxOutputTokens,
       temperature: request.temperature,
-      // 不传 reasoning 字段时交给 provider 默认行为
-      ...(request.reasoning ? { reasoning: request.reasoning } : {}),
+      reasoning: request.reasoning ?? 'provider-default',
       abortSignal: request.abortSignal,
     }
 
