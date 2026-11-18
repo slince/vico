@@ -16,7 +16,7 @@
 import {useState} from 'react';
 import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
-import {HelpCircle, Check, X} from 'lucide-react';
+import {Check, HelpCircle, X} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {cn} from '@/lib/utils';
@@ -68,7 +68,7 @@ function QuestionField({question, state, disabled, onToggle, onCustom}: Question
                 className={cn(
                   'flex items-center gap-2.5 w-full px-3 py-2 text-sm rounded-lg border text-left transition-colors disabled:opacity-50',
                   isSelected
-                    ? 'border-primary bg-primary/10 text-primary'
+                    ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'border-border bg-background hover:bg-muted',
                 )}
               >
@@ -76,7 +76,7 @@ function QuestionField({question, state, disabled, onToggle, onCustom}: Question
                   <span
                     className={cn(
                       'shrink-0 h-4 w-4 rounded border flex items-center justify-center',
-                      isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40',
+                      isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-muted-foreground/40',
                     )}
                   >
                     {isSelected && <Check size={12} />}
@@ -85,20 +85,20 @@ function QuestionField({question, state, disabled, onToggle, onCustom}: Question
                   <span
                     className={cn(
                       'shrink-0 h-4 w-4 rounded-full border flex items-center justify-center',
-                      isSelected ? 'border-primary' : 'border-muted-foreground/40',
+                      isSelected ? 'border-emerald-500' : 'border-muted-foreground/40',
                     )}
                   >
-                    {isSelected && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    {isSelected && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
                   </span>
                 )}
                 <span className="flex-1 min-w-0 truncate">{option.label}</span>
                 {option.recommended === true && (
                   <span
                     className={cn(
-                      'shrink-0 text-[10px] leading-none px-1.5 py-0.5 rounded-full border',
+                      'shrink-0 text-[10px] leading-none px-1.5 py-0.5 rounded-full border font-medium',
                       isSelected
-                        ? 'border-primary/40 bg-background/60 text-primary'
-                        : 'border-primary/30 bg-primary/10 text-primary',
+                        ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                        : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
                     )}
                   >
                     {t('tool.askUser.recommended')}
