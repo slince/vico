@@ -139,18 +139,18 @@ const ThreadComponentsContext =
 
 /** 一条 assistant 消息在其所属 turn 里的渲染上下文 */
 type TurnMessageContextValue = {
-  /** turn 是否已完成（完成态才做 body / activity 拆分与折叠） */
-  complete: boolean;
+  /** turn 是否已完成（完成态才做 text / 非 text 拆分与折叠） */
+  isComplete: boolean;
   /** 当前消息是否是 turn 的最后一条 assistant 消息 */
   isLast: boolean;
-  /** 渲染段：full = 完整；body = 仅正文（text）；activity = 仅活动（非 text） */
-  section: "full" | "body" | "activity";
+  /** 是否位于折叠区内（折叠区内隐藏 footer；last 消息据此切换 text / 非 text） */
+  inCollapse: boolean;
 };
 
 const TurnMessageContext = createContext<TurnMessageContextValue>({
-  complete: false,
+  isComplete: false,
   isLast: false,
-  section: "full",
+  inCollapse: false,
 });
 
 // Startup exposes a loading placeholder thread; treat it as a new chat so
@@ -580,11 +580,11 @@ const AssistantMessage: FC = () => {
   // 推理与工具始终平铺（消息级折叠已移除，折叠只发生在 turn 维度）
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
-  // turn 渲染上下文：完成态折叠区内隐藏 footer，last 消息按段拆分 body / activity
-  const { complete, isLast, section } = useContext(TurnMessageContext);
+  // turn 渲染上下文：完成态折叠区内隐藏 footer，last 消息据此拆分 text / 非 text
+  const { isComplete, isLast, inCollapse } = useContext(TurnMessageContext);
 
-  // 完成态中间消息与 last 的 activity 段在折叠区内，隐藏 footer 与占位
-  const footerHidden = complete && (!isLast || section === "activity");
+  // 折叠区内的消息隐藏 footer 与占位
+  const footerHidden = inCollapse;
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -605,10 +605,10 @@ const AssistantMessage: FC = () => {
       >
         <MessagePrimitive.GroupedParts groupBy={groupBy}>
           {({ part, children }) => {
-            // 完成态最后一条消息拆两段：body 段只留 text，activity 段只留非 text
-            if (complete && isLast) {
-              if (section === "body" && part.type !== "text") return null;
-              if (section === "activity" && part.type === "text") return null;
+            // 完成态最后一条消息拆两段：折叠区内只留非 text（活动），折叠区外只留 text（正文）
+            if (isComplete && isLast) {
+              if (inCollapse && part.type === "text") return null;
+              if (!inCollapse && part.type !== "text") return null;
             }
 
             switch (part.type) {
@@ -1071,7 +1071,7 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
               {prevMessages.map((message) => (
                 <TurnMessageContext.Provider
                   key={message.id}
-                  value={{ complete: true, isLast: false, section: "full" }}
+                  value={{ isComplete, isLast: false, inCollapse: true }}
                 >
                   <ThreadPrimitive.Unstable_MessageById
                     messageId={message.id}
@@ -1081,7 +1081,7 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
               ))}
               {lastHasActivity && last && (
                 <TurnMessageContext.Provider
-                  value={{ complete: true, isLast: true, section: "activity" }}
+                  value={{ isComplete, isLast: true, inCollapse: true }}
                 >
                   <ThreadPrimitive.Unstable_MessageById
                     messageId={last.id}
@@ -1095,7 +1095,7 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
           {/* 折叠区外：最后一条消息仅 text 正文（footer 正常显示） */}
           {last && (
             <TurnMessageContext.Provider
-              value={{ complete: true, isLast: true, section: "body" }}
+              value={{ isComplete, isLast: true, inCollapse: false }}
             >
               <ThreadPrimitive.Unstable_MessageById
                 messageId={last.id}

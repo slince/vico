@@ -66,8 +66,8 @@ ThreadMessageList
             └─ 已完成
                   ├─ CompletedActivityGroup(elapsed)（仅当有中间消息或最后一条含非 text 活动）
                   │     ├─ 中间 assistant 消息 × N（完整渲染）
-                  │     └─ 最后一条消息的非 text 段（推理/工具，section = activity）
-                  └─ 最后一条消息的 text 段（section = body，footer 正常显示）
+                  │     └─ 最后一条消息的非 text 段（推理/工具，inCollapse = true）
+                  └─ 最后一条消息的 text 段（inCollapse = false，footer 正常显示）
 ```
 
 关键点：
@@ -76,9 +76,9 @@ ThreadMessageList
   工具调用、文本、审批 UI、错误态、分支选择器、操作栏全部复用同一套既有实现，
   没有消息级折叠；完成态最后一条消息只按 part 类型做一次 text / 非 text 二切。
 - 最后一条消息的拆分与折叠区内 footer 隐藏统一由 `TurnMessageContext` 表达
-  （`{ complete, isLast, section }`）：`AssistantMessage` 据此在 `GroupedParts`
-  回调里过滤——body 段只留 `text`，activity 段只留非 `text`；footer 在完成态
-  中间消息与 activity 段隐藏（同时去掉 `-mb-7.5 pb-7.5` 占位）。
+  （`{ isComplete, isLast, inCollapse }`）：`AssistantMessage` 据此在 `GroupedParts`
+  回调里过滤——完成态最后一条消息折叠区内只留非 `text`、折叠区外只留 `text`；
+  footer 在折叠区内隐藏（同时去掉 `-mb-7.5 pb-7.5` 占位）。
 - 折叠只在最后一条消息 `status.type === "complete"` 且（存在中间消息或最后一条
   含非 text 活动）时发生；单条纯文本 assistant 消息的 turn 不出现 turn 级折叠块。
 - `useTurnStreamDuration`（`TurnView` 内）以最后一条消息的
