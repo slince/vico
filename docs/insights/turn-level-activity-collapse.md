@@ -1,8 +1,8 @@
 # Turn 维度「已完成」折叠块
 
 > 把 `CompletedActivityGroup` 从 message 维度升级到 **turn 维度**：会话完成后，
-> 只平铺展示最后一个 assistant 消息，此前所有 assistant 消息统一收进 turn 级
-> 「已完成」折叠块；每条消息内部推理、工具调用与文本照常平铺渲染。
+> 最后一条 assistant 消息拆成两段——正文（text）在折叠区外平铺，推理/工具等
+> 非 text 活动与此前所有 assistant 消息统一收进 turn 级「已完成」折叠块。
 
 ---
 
@@ -10,10 +10,11 @@
 
 - **turn** = 一次「用户 → 助手」往返（含审批/续跑产生的多条 assistant 消息）。
 - 会话完成后：
-  - **正文（最后一条 assistant 消息）**：正常渲染，推理、工具调用与文本照常平铺。
-  - **折叠块**：此前所有 assistant 消息整体收进 `CompletedActivityGroup`，每条
-    消息内部推理、工具调用与文本照常平铺，不再做消息级折叠，也不再按「步骤 N」
-    拆分标题。
+  - **正文（最后一条 assistant 消息的 text）**：在折叠区外平铺渲染。
+  - **折叠块**：最后一条消息的推理/工具等非 text 活动，加上此前所有 assistant
+    消息，整体收进 `CompletedActivityGroup`；中间消息内部推理、工具调用与文本
+    照常平铺，不再做消息级折叠，也不再按「步骤 N」拆分标题。
+- 运行中 / 等待审批 / 异常：turn 内所有 assistant 消息完整平铺，不做折叠。
 - 时长文案：「已完成，用时 X」仅对实时完成（running → complete）的 turn 显示；
   历史 turn 只显示「已完成」。
 
@@ -61,23 +62,25 @@ ThreadMessageList
        ├─ 用户消息（MESSAGE_COMPONENTS）
        └─ 分支：
             ├─ 未完成（running / requires-action / incomplete）
-            │     └─ 最后一条消息完整平铺（沿用 AssistantMessage，含推理/工具/思考）
+            │     └─ 所有 assistant 消息完整平铺 × N（不折叠）
             └─ 已完成
-                  ├─ CompletedActivityGroup(elapsed)（仅当 prevMessages.length > 0）
-                  │     └─ 中间 assistant 消息 × N（每条经 MESSAGE_COMPONENTS 完整渲染）
-                  └─ 最后一条消息（MESSAGE_COMPONENTS 完整渲染）
+                  ├─ CompletedActivityGroup(elapsed)（仅当有中间消息或最后一条含非 text 活动）
+                  │     ├─ 中间 assistant 消息 × N（完整渲染）
+                  │     └─ 最后一条消息的非 text 段（推理/工具，section = activity）
+                  └─ 最后一条消息的 text 段（section = body，footer 正常显示）
 ```
 
 关键点：
 
-- 完成态与未完成态统一走 `MESSAGE_COMPONENTS`（标准 `AssistantMessage`），因此
-  推理、工具调用、文本、审批 UI、错误态、分支选择器、操作栏全部复用同一套既有
-  实现，没有「正文/活动/步骤」三套切面，也没有消息级折叠。
-- 折叠块内的中间消息隐藏 footer（分支选择器 + 操作栏）：`TurnView` 用
-  `MessageFooterHiddenContext` 关闭，`AssistantMessage` 据此同时去掉 footer 与
-  根节点的 `-mb-7.5 pb-7.5` 占位，避免折叠区出现额外空隙。
-- 折叠只在最后一条消息 `status.type === "complete"` 且存在中间消息时发生；
-  单条 assistant 消息的 turn 不出现 turn 级折叠块（消息内部照常平铺渲染）。
+- 完成态与未完成态统一走 `MESSAGE_COMPONENTS`（标准 `AssistantMessage`），推理、
+  工具调用、文本、审批 UI、错误态、分支选择器、操作栏全部复用同一套既有实现，
+  没有消息级折叠；完成态最后一条消息只按 part 类型做一次 text / 非 text 二切。
+- 最后一条消息的拆分与折叠区内 footer 隐藏统一由 `TurnMessageContext` 表达
+  （`{ complete, isLast, section }`）：`AssistantMessage` 据此在 `GroupedParts`
+  回调里过滤——body 段只留 `text`，activity 段只留非 `text`；footer 在完成态
+  中间消息与 activity 段隐藏（同时去掉 `-mb-7.5 pb-7.5` 占位）。
+- 折叠只在最后一条消息 `status.type === "complete"` 且（存在中间消息或最后一条
+  含非 text 活动）时发生；单条纯文本 assistant 消息的 turn 不出现 turn 级折叠块。
 - `useTurnStreamDuration`（`TurnView` 内）以最后一条消息的
   running/requires-action → complete 为打点边界，结算 turn 级时长；`TurnView`
   按 `turn.key` 持久，故状态不会在 turn 间串扰。
@@ -91,7 +94,7 @@ ThreadMessageList
 | `packages/stream-ag-ui/src/chunk-to-agui.ts` | turnId 写入 RUN_STARTED / TEXT_MESSAGE_START 的 metadata |
 | `vico/web/src/lib/turn-metadata.ts`（新增） | 实时 `messageId → turnId` 登记表 |
 | `vico/web/src/hooks/use-chat-thread-runtime.ts` | 订阅 `onTextMessageStartEvent` 登记 turnId |
-| `vico/web/src/components/assistant-ui/elements/thread.aui.tsx` | turn 分组 + 渲染管线（折叠块收中间消息） |
+| `vico/web/src/components/assistant-ui/elements/thread.aui.tsx` | turn 分组 + 渲染管线（完成态最后一条按 text/非 text 拆分，`TurnMessageContext` 承载 turn 状态与 last 判定） |
 | `vico/web/src/components/assistant-ui/elements/message-run-activity.tsx` | `CompletedActivityGroup` 增加 `elapsed` prop |
 
 ## 六、遗留与边界
@@ -99,4 +102,7 @@ ThreadMessageList
 - 折叠块内的中间消息若含待审批工具（审批/续跑场景），仍会渲染其审批 UI；这是沿用
   `part.toolUI` 的既有行为，未单独做「已决议」降级。
 - `source` part 沿用旧行为（默认不渲染），未在本轮补齐渲染。
+- 完成态拆分用「text / 非 text」二分：`data` / `file` / `image` 等非 text part
+  也会归入 activity 段收进折叠区（Vico 的 assistant 消息实际以 text / reasoning /
+  tool-call 为主，该边界影响极小）。
 - `data-turn-id` 目前仅作调试属性，turnId 尚未承载分组或持久化职责。
