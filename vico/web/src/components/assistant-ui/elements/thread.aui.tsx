@@ -1040,6 +1040,9 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
   const showCollapse =
     isComplete && (prevMessages.length > 0 || lastHasActivity);
 
+  // 折叠区要渲染的消息：最后一条含非 text 活动时连同它一起收进折叠区，否则只收中间消息
+  const collapsedMessages = lastHasActivity ? turn.assistantMessages : prevMessages;
+
   const first = turn.userMessage ?? turn.assistantMessages[0];
   const turnId = turnIdOf(first);
 
@@ -1068,10 +1071,10 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
           {/* 折叠区：中间消息完整渲染 + 最后一条消息仅非 text 活动 */}
           {showCollapse && (
             <CompletedActivityGroup elapsed={duration}>
-              {prevMessages.map((message) => (
+              {collapsedMessages.map((message) => (
                 <TurnMessageContext.Provider
                   key={message.id}
-                  value={{ isComplete, isLast: false, inCollapse: true }}
+                  value={{ isComplete, isLast: message === last, inCollapse: true }}
                 >
                   <ThreadPrimitive.Unstable_MessageById
                     messageId={message.id}
@@ -1079,16 +1082,6 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
                   />
                 </TurnMessageContext.Provider>
               ))}
-              {lastHasActivity && last && (
-                <TurnMessageContext.Provider
-                  value={{ isComplete, isLast: true, inCollapse: true }}
-                >
-                  <ThreadPrimitive.Unstable_MessageById
-                    messageId={last.id}
-                    components={MESSAGE_COMPONENTS}
-                  />
-                </TurnMessageContext.Provider>
-              )}
             </CompletedActivityGroup>
           )}
 
