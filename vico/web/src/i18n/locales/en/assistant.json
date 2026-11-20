@@ -40,7 +40,8 @@
     "listView": "List view",
     "workspaceView": "Group by workspace",
     "ungrouped": "Ungrouped",
-    "closeSearch": "Close search"
+    "closeSearch": "Close search",
+    "newInWorkspace": "New chat in this workspace"
   },
   "welcome": { "title": "How can I help you?" },
   "thinking": { "runningTool": "Running {{tool}}" },

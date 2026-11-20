@@ -42,7 +42,8 @@
     "listView": "列表模式",
     "workspaceView": "按工作区分组",
     "ungrouped": "未分组",
-    "closeSearch": "关闭搜索"
+    "closeSearch": "关闭搜索",
+    "newInWorkspace": "在此工作区新建对话"
   },
   "welcome": { "title": "请问有什么可以帮您？" },
   "thinking": { "runningTool": "正在运行 {{tool}}" },

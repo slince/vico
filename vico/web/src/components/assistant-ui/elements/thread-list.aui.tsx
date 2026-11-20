@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { usePersistedState } from "@/hooks/use-persisted-state";
+import { useWorkspaceSelection } from "@/stores/workspace-selection";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -39,6 +40,7 @@ import {
   type FC,
 } from "react";
 import {useTranslation} from "react-i18next";
+import {useNavigate} from "react-router-dom";
 
 /** 会话列表视图模式：list=按日期分组，workspace=按工作区分组 */
 export type ThreadListViewMode = "list" | "workspace";
@@ -413,11 +415,20 @@ const WORKSPACE_COLLAPSED_STORAGE_KEY = "thread_list_workspace_collapsed";
 const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery = "" }) => {
   const { threadIds, filteredIndices, groups } = useWorkspaceGroups(searchQuery);
   const { t } = useTranslation("assistant");
+  const navigate = useNavigate();
+  const setWorkspace = useWorkspaceSelection((s) => s.setWorkspace);
   // 各分组折叠状态持久化（key 为 workspace 原文，未分组用空串）
   const [collapsed, setCollapsed] = usePersistedState<Record<string, boolean>>(
     WORKSPACE_COLLAPSED_STORAGE_KEY,
     {},
   );
+
+  // 在该工作区下新建会话：预设 workspace 后导航到 /chat，受控 threadId 清空即切新线程
+  // （首消息时 workspace 随 modelContext 下发给服务端写入 thread.metadata）
+  const handleCreate = (workspace: string | undefined) => {
+    setWorkspace(workspace ?? null);
+    navigate('/chat');
+  };
 
   if (searchQuery.trim() && filteredIndices.length === 0) {
     return (
@@ -437,29 +448,40 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
         const isCollapsed = collapsed[key] === true;
         return (
           <div key={key || "__ungrouped__"} data-slot="aui_thread-workspace-group" className="flex flex-col gap-0.5">
-            <button
-              type="button"
-              onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !isCollapsed }))}
-              aria-expanded={!isCollapsed}
-              className="group text-muted-foreground hover:bg-muted hover:text-foreground flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2.5 pt-3 pb-1 text-xs font-medium transition-colors"
-            >
-              {/* 默认展示 folder；悬浮切换为折叠方向箭头。两图标重叠在固定宽度网格内，避免切换时 title 位移 */}
-              <span className="relative grid size-3.5 shrink-0 place-items-center">
-                <Folder
-                  size={13}
-                  className="col-start-1 row-start-1 transition-opacity duration-150 group-hover:opacity-0"
-                />
-                <ChevronDown
-                  size={14}
-                  className={cn(
-                    "col-start-1 row-start-1 opacity-0 transition-all duration-150 group-hover:opacity-100",
-                    isCollapsed ? "-rotate-90" : "rotate-0",
-                  )}
-                />
-              </span>
-              <span className="flex-1 min-w-0 truncate text-left">{group.label}</span>
-              <span className="text-muted-foreground/70 text-[10px]">{group.indices.length}</span>
-            </button>
+            <div className="flex w-full items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !isCollapsed }))}
+                aria-expanded={!isCollapsed}
+                className="group text-muted-foreground hover:bg-muted hover:text-foreground flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md px-2.5 pt-3 pb-1 text-xs font-medium transition-colors"
+              >
+                {/* 默认展示 folder；悬浮切换为折叠方向箭头。两图标重叠在固定宽度网格内，避免切换时 title 位移 */}
+                <span className="relative grid size-3.5 shrink-0 place-items-center">
+                  <Folder
+                    size={13}
+                    className="col-start-1 row-start-1 transition-opacity duration-150 group-hover:opacity-0"
+                  />
+                  <ChevronDown
+                    size={14}
+                    className={cn(
+                      "col-start-1 row-start-1 opacity-0 transition-all duration-150 group-hover:opacity-100",
+                      isCollapsed ? "-rotate-90" : "rotate-0",
+                    )}
+                  />
+                </span>
+                <span className="flex-1 min-w-0 truncate text-left">{group.label}</span>
+                <span className="text-muted-foreground/70 text-[10px]">{group.indices.length}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCreate(group.workspace)}
+                aria-label={t("threadList.newInWorkspace")}
+                title={t("threadList.newInWorkspace")}
+                className="text-muted-foreground hover:bg-muted hover:text-foreground mr-2 shrink-0 cursor-pointer rounded-md p-1.5 transition-colors"
+              >
+                <PlusIcon size={14} />
+              </button>
+            </div>
             {!isCollapsed && (
               // 缩进到标题文字列（icon 14px + gap 6px），避免与图标左边缘对齐
               <div className="flex flex-col gap-0.5 pl-5">
@@ -484,12 +506,15 @@ export const ThreadListNew = forwardRef<
   ComponentPropsWithoutRef<typeof Button> & { labelClassName?: string }
 >(({ className, labelClassName, children, ...props }, ref) => {
   const {t} = useTranslation("assistant");
+  // 普通「新建对话」入口：清空工作区预设（从工作区 header 新建不经过此处）
+  const setWorkspace = useWorkspaceSelection((s) => s.setWorkspace);
   return (
     <ThreadListPrimitive.New asChild>
       <Button
         ref={ref}
         variant="ghost"
         data-slot="aui_thread-list-new"
+        onClick={() => setWorkspace(null)}
         className={cn(
           "hover:bg-muted data-active:bg-muted h-8 justify-start gap-2 rounded-md px-2.5 text-sm font-normal",
           className,

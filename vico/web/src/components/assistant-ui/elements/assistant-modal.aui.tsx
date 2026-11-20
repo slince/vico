@@ -29,6 +29,7 @@ import {
   ThreadListSearch,
 } from "@/components/assistant-ui/elements/thread-list.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import { useWorkspaceSelection } from "@/stores/workspace-selection";
 
 type ModalView = "thread" | "list";
 
@@ -253,6 +254,8 @@ const AssistantModalHeader: FC<{
 }> = ({ titleId, view, onViewChange }) => {
   const title = useAuiState((s) => s.threadListItem.title);
   const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
+  // 弹窗内普通「新建对话」也清空工作区预设（与工作区 header 的预设入口区分）
+  const setWorkspace = useWorkspaceSelection((s) => s.setWorkspace);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const shownViewRef = useRef(view);
 
@@ -295,7 +298,10 @@ const AssistantModalHeader: FC<{
             tooltip="New Thread"
             side="bottom"
             className="aui-modal-new text-muted-foreground hover:text-foreground size-7 rounded-md p-0"
-            onClick={() => onViewChange("thread")}
+            onClick={() => {
+              setWorkspace(null);
+              onViewChange("thread");
+            }}
           >
             <PlusIcon className="size-3.5" />
           </TooltipIconButton>

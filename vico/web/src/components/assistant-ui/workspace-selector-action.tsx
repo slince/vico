@@ -14,6 +14,7 @@ import { FolderPickerDialog } from "@/components/file-explorer/FolderPickerDialo
 
 // 4. Hooks
 import { useChat } from "@/providers/chat-provider";
+import { useWorkspaceSelection } from "@/stores/workspace-selection";
 
 /** 携带 workspace 的 modelContext config（随请求透传 body.config.workspace） */
 type WorkspaceConfig = LanguageModelConfig & { workspace?: string };
@@ -35,7 +36,9 @@ export function WorkspaceSelectorAction() {
   const { threadId, isChatRoute } = useChat();
   const api = useAui();
   const { t } = useTranslation("threads");
-  const [workspace, setWorkspace] = useState<string | null>(null);
+  // 工作区选择来自共享 store（工作区 header 的新建图标可预设），选择后回写 store
+  const workspace = useWorkspaceSelection((s) => s.workspace);
+  const setWorkspace = useWorkspaceSelection((s) => s.setWorkspace);
   const [open, setOpen] = useState(false);
 
   // 将当前选择的工作区注册进 modelContext，随请求下发 body.config.workspace
