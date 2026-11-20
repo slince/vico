@@ -15,12 +15,17 @@ import {
 import {
   ArchiveIcon,
   ArchiveRestoreIcon,
+  ChevronDown,
+  Folder,
+  FolderTree,
+  List,
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
   TrashIcon,
+  X,
 } from "lucide-react";
 import {
   forwardRef,
@@ -34,21 +39,106 @@ import {
 } from "react";
 import {useTranslation} from "react-i18next";
 
-/** ThreadList 顶层组件 — searchable 控制是否渲染搜索框（默认 true），showNew 控制是否渲染新建按钮（默认 true） */
-export const ThreadList: FC<{ searchable?: boolean; showNew?: boolean }> = ({
-  searchable = true,
-  showNew = true,
+/** 会话列表视图模式：list=按日期分组，workspace=按工作区分组 */
+export type ThreadListViewMode = "list" | "workspace";
+
+/** 会话列表头部 — 视图切换按钮 + 搜索按钮（搜索态整条变为输入框） */
+const ThreadListHeader: FC<{
+  viewMode: ThreadListViewMode;
+  onToggleMode: () => void;
+  searchOpen: boolean;
+  search: string;
+  onSearchChange: (value: string) => void;
+  onOpenSearch: () => void;
+  onCloseSearch: () => void;
+}> = ({
+  viewMode,
+  onToggleMode,
+  searchOpen,
+  search,
+  onSearchChange,
+  onOpenSearch,
+  onCloseSearch,
 }) => {
+  const { t } = useTranslation("assistant");
+
+  // 搜索态：header 整条替换为搜索输入框 + 关闭按钮
+  if (searchOpen) {
+    return (
+      <div data-slot="aui_thread-list-header" className="flex items-center gap-1 px-2 py-1">
+        <Input
+          autoFocus
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder={t("threadList.search")}
+          aria-label={t("threadList.search")}
+          className="h-7 flex-1 text-sm"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onCloseSearch}
+          aria-label={t("threadList.closeSearch")}
+          title={t("threadList.closeSearch")}
+          className="size-7 shrink-0"
+        >
+          <X size={14} />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div data-slot="aui_thread-list-header" className="flex items-center gap-1 px-2.5 py-1">
+      <span className="text-muted-foreground flex-1 min-w-0 truncate text-xs font-semibold">
+        {t("threadList.title")}
+      </span>
+      {/* 视图切换：图标表示点击后切换到的模式 */}
+      <button
+        type="button"
+        onClick={onToggleMode}
+        aria-label={viewMode === "list" ? t("threadList.workspaceView") : t("threadList.listView")}
+        title={viewMode === "list" ? t("threadList.workspaceView") : t("threadList.listView")}
+        className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-md p-1.5 transition-colors"
+      >
+        {viewMode === "list" ? <FolderTree size={14} /> : <List size={14} />}
+      </button>
+      <button
+        type="button"
+        onClick={onOpenSearch}
+        aria-label={t("threadList.search")}
+        title={t("threadList.search")}
+        className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-md p-1.5 transition-colors"
+      >
+        <SearchIcon size={14} />
+      </button>
+    </div>
+  );
+};
+
+/** ThreadList 顶层组件 — 顶部视图切换/搜索 header + 会话列表（showNew 控制新建按钮，默认 true） */
+export const ThreadList: FC<{ showNew?: boolean }> = ({ showNew = true }) => {
+  const [viewMode, setViewMode] = useState<ThreadListViewMode>("list");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const hasThreads = useAuiState((s) => s.threads.threadIds.length > 0);
 
   return (
     <ThreadListRoot>
+      <ThreadListHeader
+        viewMode={viewMode}
+        onToggleMode={() => setViewMode((mode) => (mode === "list" ? "workspace" : "list"))}
+        searchOpen={searchOpen}
+        search={search}
+        onSearchChange={setSearch}
+        onOpenSearch={() => setSearchOpen(true)}
+        onCloseSearch={() => {
+          setSearchOpen(false);
+          setSearch("");
+        }}
+      />
       {showNew && <ThreadListNew />}
-      {searchable && hasThreads && (
-        <ThreadListSearch value={search} onValueChange={setSearch} />
-      )}
-      <ThreadListItems searchQuery={searchable && hasThreads ? search : ""} />
+      <ThreadListItems viewMode={viewMode} searchQuery={searchOpen ? search : ""} />
       <ArchivedThreadList />
     </ThreadListRoot>
   );
@@ -97,8 +187,12 @@ export const ThreadListRoot: FC<
 };
 
 export const ThreadListItems: FC<
-  ComponentPropsWithoutRef<"div"> & { searchQuery?: string }
-> = ({ className, searchQuery = "", ...props }) => {
+  ComponentPropsWithoutRef<"div"> & {
+    searchQuery?: string;
+    /** 分组视图：list=按日期，workspace=按工作区（默认 list） */
+    viewMode?: ThreadListViewMode;
+  }
+> = ({ className, searchQuery = "", viewMode = "list", ...props }) => {
   return (
     <div
       data-slot="aui_thread-list-items"
@@ -109,7 +203,11 @@ export const ThreadListItems: FC<
         <ThreadListSkeleton />
       </AuiIf>
       <AuiIf condition={(s) => !s.threads.isLoading}>
-        <ThreadListItemGroups searchQuery={searchQuery} />
+        {viewMode === "workspace" ? (
+          <WorkspaceThreadListGroups searchQuery={searchQuery} />
+        ) : (
+          <ThreadListItemGroups searchQuery={searchQuery} />
+        )}
       </AuiIf>
     </div>
   );
@@ -184,6 +282,70 @@ export const useThreadListGroups = (searchQuery = "") => {
   }, [threadIds, threadItems, query, newChatFallback]);
 };
 
+export type WorkspaceThreadGroup = {
+  /** 分组标题展示名（workspace 末段路径；无 workspace 为「未分组」） */
+  label: string;
+  /** 原始 workspace 值（undefined 表示未分组） */
+  workspace: string | undefined;
+  /** 该分组内 thread 在 threadIds 中的索引 */
+  indices: number[];
+};
+
+/**
+ * 按工作区分组线程：从 thread 的 custom.workspace 取工作区，无 workspace 的
+ * 归入「未分组」。先按搜索词过滤标题，再按 workspace 分组（保持后端时间序）。
+ */
+export const useWorkspaceGroups = (searchQuery = "") => {
+  const threadIds = useAuiState((s) => s.threads.threadIds);
+  const threadItems = useAuiState((s) => s.threads.threadItems);
+  const { t } = useTranslation("assistant");
+
+  return useMemo(() => {
+    const itemsById = new Map(threadItems.map((item) => [item.id, item]));
+    const query = searchQuery.trim().toLowerCase();
+    const fallback = t("threadList.newChat");
+
+    // 过滤：按标题匹配（未命名会话回退到本地化默认标题）
+    const filteredIndices = threadIds
+      .map((id, index) => ({ id, index }))
+      .filter(({ id }) => {
+        if (!query) return true;
+        const title = (itemsById.get(id)?.title || fallback).toLowerCase();
+        return title.includes(query);
+      })
+      .map(({ index }) => index);
+
+    // 工作区提取：custom.workspace 须为非空字符串，否则归入未分组
+    const workspaceOf = (index: number): string | undefined => {
+      const custom = itemsById.get(threadIds[index])?.custom;
+      const w = custom?.workspace;
+      return typeof w === "string" && w ? w : undefined;
+    };
+
+    // 按首次出现顺序分组
+    const byWorkspace = new Map<string | undefined, number[]>();
+    for (const index of filteredIndices) {
+      const w = workspaceOf(index);
+      const bucket = byWorkspace.get(w);
+      if (bucket) bucket.push(index);
+      else byWorkspace.set(w, [index]);
+    }
+
+    const groups: WorkspaceThreadGroup[] = [...byWorkspace.entries()].map(
+      ([workspace, indices]) => ({
+        workspace,
+        // 展示末段路径；无 workspace 用「未分组」
+        label: workspace
+          ? workspace.split(/[\\/]/).filter(Boolean).pop() || workspace
+          : t("threadList.ungrouped"),
+        indices,
+      }),
+    );
+
+    return { threadIds, filteredIndices, groups };
+  }, [threadIds, threadItems, searchQuery, t]);
+};
+
 const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
   searchQuery = "",
 }) => {
@@ -230,6 +392,63 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
       ))}
     </Fragment>
   ));
+};
+
+/** 工作区分组列表 — 手风琴折叠，每组标题展示 workspace 名与会话数 */
+const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery = "" }) => {
+  const { threadIds, filteredIndices, groups } = useWorkspaceGroups(searchQuery);
+  const { t } = useTranslation("assistant");
+  // 各分组折叠状态（key 为 workspace 原文，未分组用空串）
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  if (searchQuery.trim() && filteredIndices.length === 0) {
+    return (
+      <div
+        data-slot="aui_thread-list-empty"
+        className="text-muted-foreground px-2.5 py-4 text-sm"
+      >
+        {t("threadList.noResults")}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {groups.map((group) => {
+        const key = group.workspace ?? "";
+        const isCollapsed = collapsed[key] === true;
+        return (
+          <div key={key || "__ungrouped__"} data-slot="aui_thread-workspace-group">
+            <button
+              type="button"
+              onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !isCollapsed }))}
+              aria-expanded={!isCollapsed}
+              className="text-muted-foreground hover:text-foreground flex w-full items-center gap-1.5 px-2.5 pt-3 pb-1 text-xs font-medium transition-colors"
+            >
+              <ChevronDown
+                size={14}
+                className={cn(
+                  "shrink-0 transition-transform duration-200",
+                  isCollapsed ? "-rotate-90" : "rotate-0",
+                )}
+              />
+              <Folder size={13} className="shrink-0" />
+              <span className="flex-1 min-w-0 truncate text-left">{group.label}</span>
+              <span className="text-muted-foreground/70 text-[10px]">{group.indices.length}</span>
+            </button>
+            {!isCollapsed &&
+              group.indices.map((index) => (
+                <ThreadListPrimitive.ItemByIndex
+                  key={threadIds[index]}
+                  index={index}
+                  components={{ ThreadListItem }}
+                />
+              ))}
+          </div>
+        );
+      })}
+    </>
+  );
 };
 
 export const ThreadListNew = forwardRef<

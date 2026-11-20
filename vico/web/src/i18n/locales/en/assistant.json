@@ -35,7 +35,12 @@
     "archive": "Archive",
     "unarchive": "Unarchive",
     "delete": "Delete",
-    "archived": "Archived"
+    "archived": "Archived",
+    "title": "Threads",
+    "listView": "List view",
+    "workspaceView": "Group by workspace",
+    "ungrouped": "Ungrouped",
+    "closeSearch": "Close search"
   },
   "welcome": { "title": "How can I help you?" },
   "thinking": { "runningTool": "Running {{tool}}" },
