@@ -1,11 +1,11 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
-import { usePersistedState } from "@/hooks/use-persisted-state";
-import { useWorkspaceSelection } from "@/stores/workspace-selection";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Skeleton} from "@/components/ui/skeleton";
+import {cn} from "@/lib/utils";
+import {usePersistedState} from "@/hooks/use-persisted-state";
+import {useWorkspaceSelection} from "@/stores/workspace-selection";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -30,14 +30,14 @@ import {
   X,
 } from "lucide-react";
 import {
+  type ComponentPropsWithoutRef,
+  type FC,
   forwardRef,
   Fragment,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ComponentPropsWithoutRef,
-  type FC,
 } from "react";
 import {useTranslation} from "react-i18next";
 import {useNavigate} from "react-router-dom";
@@ -448,12 +448,13 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
         const isCollapsed = collapsed[key] === true;
         return (
           <div key={key || "__ungrouped__"} data-slot="aui_thread-workspace-group" className="flex flex-col gap-0.5">
-            <div className="flex w-full items-center gap-0.5">
+            {/* 整个 header 共享悬浮背景；count 与新建 + 图标悬浮后才显示 */}
+            <div className="group flex w-full items-center gap-0.5 rounded-md px-2.5 py-1 hover:bg-muted transition-colors">
               <button
                 type="button"
                 onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !isCollapsed }))}
                 aria-expanded={!isCollapsed}
-                className="group text-muted-foreground hover:bg-muted hover:text-foreground flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-md px-2.5 pt-3 pb-1 text-xs font-medium transition-colors"
+                className="text-muted-foreground group-hover:text-foreground flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 py-0.5 text-xs font-medium transition-colors"
               >
                 {/* 默认展示 folder；悬浮切换为折叠方向箭头。两图标重叠在固定宽度网格内，避免切换时 title 位移 */}
                 <span className="relative grid size-3.5 shrink-0 place-items-center">
@@ -470,14 +471,16 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
                   />
                 </span>
                 <span className="flex-1 min-w-0 truncate text-left">{group.label}</span>
-                <span className="text-muted-foreground/70 text-[10px]">{group.indices.length}</span>
               </button>
+              <span className="text-muted-foreground/70 text-[10px] opacity-0 transition-opacity group-hover:opacity-100">
+                {group.indices.length}
+              </span>
               <button
                 type="button"
                 onClick={() => handleCreate(group.workspace)}
                 aria-label={t("threadList.newInWorkspace")}
                 title={t("threadList.newInWorkspace")}
-                className="text-muted-foreground hover:bg-muted hover:text-foreground mr-2 shrink-0 cursor-pointer rounded-md p-1.5 transition-colors"
+                className="text-muted-foreground/60 hover:text-foreground shrink-0 cursor-pointer rounded-md p-1.5 opacity-0 transition-opacity group-hover:opacity-100"
               >
                 <PlusIcon size={14} />
               </button>
