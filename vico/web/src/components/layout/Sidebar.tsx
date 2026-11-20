@@ -149,7 +149,7 @@ export function Sidebar() {
               </Tooltip>
             );
           }
-          return <span key={to}>{link}</span>;
+          return <div key={to}>{link}</div>;
         })}
       </nav>
 
