@@ -9,6 +9,7 @@ import {ThemeProvider} from '@/hooks/use-theme';
 import {FontSizeProvider} from '@/hooks/use-font-size';
 import {router} from './router';
 import './i18n';
+import 'overlayscrollbars/overlayscrollbars.css';
 import './index.css';
 import '@eternalheart/react-file-preview/style.css';
 

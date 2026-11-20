@@ -1353,6 +1353,12 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      overlayscrollbars:
+        specifier: ^2.17.1
+        version: 2.17.1
+      overlayscrollbars-react:
+        specifier: ^0.5.8
+        version: 0.5.8(overlayscrollbars@2.17.1)(react@19.3.1)
       parse-diff:
         specifier: ^0.12.0
         version: 0.12.0
@@ -7420,6 +7426,15 @@ packages:
   ora@8.2.0:
     resolution: {integrity: sha512-weP+BZ8MVNnlCm8c0Qdc1WSWq4Qn7I+9CJGm7Qali6g44e/PUzbjNqJX5NJ9ljlNMosfJvg1fKEGILklK9cwnw==}
     engines: {node: '>=18'}
+
+  overlayscrollbars-react@0.5.8:
+    resolution: {integrity: sha512-/O4yRQdLnagaN38klq9bK4QAVMjl9oipDstrSNtxZNU1ce54PO3+LARNYnfqikFJ/IgW5/WoYpSWMVWF13Zecw==}
+    peerDependencies:
+      overlayscrollbars: ^2.0.0
+      react: '>=16.8.0'
+
+  overlayscrollbars@2.17.1:
+    resolution: {integrity: sha512-EVBOsCB/BhvdP4WMLvIej8jHikJtGCxrWRBC8qX8xj3QmvSuY+PJgOr02du9Y2ad9dn9T8c7vp4MiMDQNWT9RQ==}
 
   own-keys@1.0.2:
     resolution: {integrity: sha512-19YVAg7T+WTrxggPukVq7DjTv6+PJ867TmhCvBsYwmbFCsZd344rq2Ld1p0wo8f8Qrrhgp82c6FJRqdXWtSEhg==}
@@ -15163,6 +15178,13 @@ snapshots:
       stdin-discarder: 0.2.2
       string-width: 7.2.0
       strip-ansi: 7.2.0
+
+  overlayscrollbars-react@0.5.8(overlayscrollbars@2.17.1)(react@19.3.1):
+    dependencies:
+      overlayscrollbars: 2.17.1
+      react: 19.3.1
+
+  overlayscrollbars@2.17.1: {}
 
   own-keys@1.0.2:
     dependencies:

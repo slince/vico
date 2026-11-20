@@ -862,3 +862,13 @@
 .aui-thin-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* overlay 滚动条（overlayscrollbars）— 悬浮不占布局宽度，配色对齐细滚动条，随 light/dark 自动适配 */
+.os-scrollbar {
+  --os-size: 6px;
+  --os-handle-border-radius: 9999px;
+  --os-track-bg: transparent;
+  --os-handle-bg: color-mix(in oklab, var(--border) 70%, transparent);
+  --os-handle-bg-hover: color-mix(in oklab, var(--border) 100%, transparent);
+  --os-handle-bg-active: color-mix(in oklab, var(--border) 100%, transparent);
+}

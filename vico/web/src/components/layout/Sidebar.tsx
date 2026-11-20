@@ -1,6 +1,8 @@
 import {useMemo, useState} from 'react';
 import {NavLink, useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
+import {OverlayScrollbarsComponent} from 'overlayscrollbars-react';
+import type {PartialOptions} from 'overlayscrollbars';
 import {useAuth} from '@/hooks/use-auth';
 import {usePersistedState} from '@/hooks/use-persisted-state';
 import {useChat} from '@/providers/chat-provider';
@@ -27,6 +29,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {ThreadList} from '@/components/assistant-ui/elements/thread-list.aui';
+
+/** 会话列表 overlay 滚动条配置 — 悬浮不占布局宽度，滚动时浮现 */
+const THREAD_LIST_SCROLL_OPTIONS: PartialOptions = {
+  scrollbars: { autoHide: 'scroll' },
+};
 
 export function Sidebar() {
   const { user, logout } = useAuth();
@@ -150,9 +157,16 @@ export function Sidebar() {
       {showChatSection && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-sidebar-border">
           {/* 会话列表（含「新建对话」按钮，需 AssistantRuntimeProvider 上下文） */}
-          <div className="vico-scrollbar-thin flex-1 min-h-0 overflow-y-auto p-2">
-            <ThreadList showNew={false}/>
-          </div>
+          <OverlayScrollbarsComponent
+            element="div"
+            options={THREAD_LIST_SCROLL_OPTIONS}
+            defer
+            className="flex-1 min-h-0"
+          >
+            <div className="p-2">
+              <ThreadList showNew={false}/>
+            </div>
+          </OverlayScrollbarsComponent>
         </div>
       )}
 
