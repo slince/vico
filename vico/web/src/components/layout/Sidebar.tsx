@@ -1,7 +1,8 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useMemo, useState} from 'react';
 import {NavLink, useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {useAuth} from '@/hooks/use-auth';
+import {useLocalStorageState} from '@/hooks/use-local-storage-state';
 import {useChat} from '@/providers/chat-provider';
 import {cn} from '@/lib/utils';
 import {
@@ -27,8 +28,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {ThreadList} from '@/components/assistant-ui/elements/thread-list.aui';
 
-const STORAGE_KEY = 'sidebar_collapsed';
-
 export function Sidebar() {
   const { user, logout } = useAuth();
   const { t } = useTranslation('sidebar');
@@ -38,20 +37,9 @@ export function Sidebar() {
   // Chat 全局状态 — 用于在 Chat 路由下渲染会话列表
   const { isChatRoute } = useChat();
 
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // 侧边栏折叠态持久化，下次进入沿用
+  const [collapsed, setCollapsed] = useLocalStorageState<boolean>('sidebar_collapsed', false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, String(collapsed));
-    } catch { /* ignore */ }
-  }, [collapsed]);
 
   const toggle = () => setCollapsed((prev) => !prev);
 

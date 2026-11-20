@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useLocalStorageState } from "@/hooks/use-local-storage-state";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -117,9 +118,20 @@ const ThreadListHeader: FC<{
   );
 };
 
+/** 视图模式 localStorage key — 下次进入沿用上次选择 */
+const VIEW_MODE_STORAGE_KEY = "thread_list_view_mode";
+
 /** ThreadList 顶层组件 — 顶部视图切换/搜索 header + 会话列表（showNew 控制新建按钮，默认 true） */
 export const ThreadList: FC<{ showNew?: boolean }> = ({ showNew = true }) => {
-  const [viewMode, setViewMode] = useState<ThreadListViewMode>("list");
+  // 视图模式持久化（裸字符串存储，与旧数据兼容），下次进入沿用上次选择
+  const [viewMode, setViewMode] = useLocalStorageState<ThreadListViewMode>(
+    VIEW_MODE_STORAGE_KEY,
+    "list",
+    {
+      serialize: (value) => value,
+      deserialize: (raw) => (raw === "workspace" ? "workspace" : "list"),
+    },
+  );
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -423,16 +435,22 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
               type="button"
               onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !isCollapsed }))}
               aria-expanded={!isCollapsed}
-              className="text-muted-foreground hover:text-foreground flex w-full items-center gap-1.5 px-2.5 pt-3 pb-1 text-xs font-medium transition-colors"
+              className="group text-muted-foreground hover:bg-muted hover:text-foreground flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2.5 pt-3 pb-1 text-xs font-medium transition-colors"
             >
-              <ChevronDown
-                size={14}
-                className={cn(
-                  "shrink-0 transition-transform duration-200",
-                  isCollapsed ? "-rotate-90" : "rotate-0",
-                )}
-              />
-              <Folder size={13} className="shrink-0" />
+              {/* 默认展示 folder；悬浮切换为折叠方向箭头。两图标重叠在固定宽度网格内，避免切换时 title 位移 */}
+              <span className="relative grid size-3.5 shrink-0 place-items-center">
+                <Folder
+                  size={13}
+                  className="col-start-1 row-start-1 transition-opacity duration-150 group-hover:opacity-0"
+                />
+                <ChevronDown
+                  size={14}
+                  className={cn(
+                    "col-start-1 row-start-1 opacity-0 transition-all duration-150 group-hover:opacity-100",
+                    isCollapsed ? "-rotate-90" : "rotate-0",
+                  )}
+                />
+              </span>
               <span className="flex-1 min-w-0 truncate text-left">{group.label}</span>
               <span className="text-muted-foreground/70 text-[10px]">{group.indices.length}</span>
             </button>
