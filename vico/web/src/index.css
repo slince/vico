@@ -872,3 +872,9 @@
   --os-handle-bg-hover: color-mix(in oklab, var(--border) 100%, transparent);
   --os-handle-bg-active: color-mix(in oklab, var(--border) 100%, transparent);
 }
+
+/* workspace 分组内的会话项：背景随项全宽，文字相对 workspace 图标缩进（10px 内边距 + 14px 图标 + 6px 间隙）留出空隙 */
+[data-slot="aui_thread-workspace-group"] [data-slot="aui_thread-list-item-trigger"],
+[data-slot="aui_thread-workspace-group"] [data-slot="aui_thread-list-item-rename"] {
+  padding-inline-start: 1.875rem;
+}

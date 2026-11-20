@@ -486,8 +486,8 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
               </button>
             </div>
             {!isCollapsed && (
-              // 缩进到标题文字列（icon 14px + gap 6px），避免与图标左边缘对齐
-              <div className="flex flex-col gap-0.5 pl-5">
+              // 会话项与 workspace 同宽（背景全宽），文字缩进交由 CSS 处理
+              <div className="flex flex-col gap-0.5">
                 {group.indices.map((index) => (
                   <ThreadListPrimitive.ItemByIndex
                     key={threadIds[index]}
