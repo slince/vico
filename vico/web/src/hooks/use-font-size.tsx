@@ -1,7 +1,6 @@
 // 1. React
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-
-const STORAGE_KEY = 'chat-font-size';
+import { createContext, useContext, type ReactNode } from 'react';
+import { useLocalStorageState } from '@/hooks/use-local-storage-state';
 
 /** 会话区默认字体大小（px） */
 export const DEFAULT_FONT_SIZE = 12;
@@ -16,16 +15,18 @@ const FontSizeContext = createContext<{
 
 /** 会话区字体大小提供者 — 仅影响 chat 会话区域，localStorage 持久化，默认 12px */
 export function FontSizeProvider({ children }: { children: ReactNode }) {
-  const [fontSize, setFontSizeState] = useState<number>(() => {
-    const stored = Number(localStorage.getItem(STORAGE_KEY));
-    return Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_FONT_SIZE;
-  });
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(fontSize));
-  }, [fontSize]);
-
-  const setFontSize = (px: number) => setFontSizeState(px);
+  // 字号持久化（数字转字符串存储，非法值回退默认 12px）
+  const [fontSize, setFontSize] = useLocalStorageState<number>(
+    'chat-font-size',
+    DEFAULT_FONT_SIZE,
+    {
+      serialize: (px) => String(px),
+      deserialize: (raw) => {
+        const n = Number(raw);
+        return Number.isFinite(n) && n > 0 ? n : DEFAULT_FONT_SIZE;
+      },
+    },
+  );
 
   return (
     <FontSizeContext.Provider value={{ fontSize, setFontSize }}>

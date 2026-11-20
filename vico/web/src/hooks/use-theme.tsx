@@ -1,25 +1,22 @@
 // 1. React
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { useLocalStorageState } from '@/hooks/use-local-storage-state';
 
 type Theme = 'light' | 'dark';
-const STORAGE_KEY = 'theme';
 
 const ThemeContext = createContext<{ theme: Theme; setTheme: (t: Theme) => void } | null>(null);
 
 /** 主题提供者 — 切换 <html>.dark class，localStorage 持久化，默认 light */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'dark' ? 'dark' : 'light';
+  // 主题持久化（裸字符串存储，默认 light）
+  const [theme, setTheme] = useLocalStorageState<Theme>('theme', 'light', {
+    serialize: (t) => t,
+    deserialize: (raw) => (raw === 'dark' ? 'dark' : 'light'),
   });
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem(STORAGE_KEY, theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
-
-  const setTheme = (t: Theme) => setThemeState(t);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
