@@ -5,7 +5,7 @@
 //   tool-approval-request → 记录 interrupt，finish 时以 RUN_FINISHED{outcome:'interrupt'} 收尾；
 //   恢复时前端经 RunAgentInput.resume 回传决议，由 model-messages 还原为 tool-approval-response。
 import {randomUUID} from 'node:crypto';
-import {EventType, type Event, type Interrupt, type TokenUsage} from '@ag-ui/core';
+import {type Event, EventType, type Interrupt, type TokenUsage} from '@ag-ui/core';
 import type {ChunkType} from '@vico/stream';
 import type {UsageMetrics} from '@vico/types';
 import {toolApprovalInterrupt} from './interrupts.js';
@@ -28,8 +28,6 @@ export function createChunkToAgUiTransformer(opts: {
   // 当前 step 的 assistant 消息 id：一个 step（一次模型调用）对应一条 assistant 消息，
   // 审批/续跑会在同一 turn 内产生多个 step，不能整个 run 共用一条消息 id
   let stepMessageId = randomUUID();
-  // 本次 run 所属 turn 的 id（来自引擎 start chunk，经 RUN_STARTED / 消息事件 metadata 透传给前端）
-  let turnId: string | undefined;
   // 审批门禁：收集 tool-approval-request，finish 时以 interrupt outcome 收尾
   const interrupts: Interrupt[] = [];
   // 终态状态：aborted / errored / finished（避免重复发终态事件）
@@ -42,13 +40,12 @@ export function createChunkToAgUiTransformer(opts: {
     transform(chunk, enqueue) {
       switch (chunk.type) {
         case 'start':
-          turnId = chunk.payload.turnId;
           enqueue.enqueue({
             type: EventType.RUN_STARTED,
             threadId,
             runId,
             // turn 归属经 metadata 透传：前端据此把实时 assistant 消息关联到所属 turn
-            metadata: { turnId },
+            metadata: { turnId: chunk.payload.turnId },
           });
           break;
 
@@ -71,8 +68,6 @@ export function createChunkToAgUiTransformer(opts: {
           enqueue.enqueue({
             type: EventType.TEXT_MESSAGE_START,
             messageId: stepMessageId,
-            // 直接携带 turnId，前端订阅 TEXT_MESSAGE_START 即可把 messageId 关联到 turn
-            metadata: turnId !== undefined ? { turnId } : undefined,
           });
           break;
         case 'text-delta':
