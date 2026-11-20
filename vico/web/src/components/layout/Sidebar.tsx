@@ -162,7 +162,7 @@ export function Sidebar() {
       {showChatSection && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-sidebar-border">
           {/* 会话列表（含「新建对话」按钮，需 AssistantRuntimeProvider 上下文） */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-2">
+          <div className="vico-scrollbar-thin flex-1 min-h-0 overflow-y-auto p-2">
             <ThreadList searchable={false} showNew={false}/>
           </div>
         </div>
