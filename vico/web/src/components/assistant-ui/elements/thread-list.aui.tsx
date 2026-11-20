@@ -406,12 +406,18 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
   ));
 };
 
+/** 工作区分组折叠状态 localStorage key — 下次进入沿用上次折叠选择 */
+const WORKSPACE_COLLAPSED_STORAGE_KEY = "thread_list_workspace_collapsed";
+
 /** 工作区分组列表 — 手风琴折叠，每组标题展示 workspace 名与会话数 */
 const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery = "" }) => {
   const { threadIds, filteredIndices, groups } = useWorkspaceGroups(searchQuery);
   const { t } = useTranslation("assistant");
-  // 各分组折叠状态（key 为 workspace 原文，未分组用空串）
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // 各分组折叠状态持久化（key 为 workspace 原文，未分组用空串）
+  const [collapsed, setCollapsed] = usePersistedState<Record<string, boolean>>(
+    WORKSPACE_COLLAPSED_STORAGE_KEY,
+    {},
+  );
 
   if (searchQuery.trim() && filteredIndices.length === 0) {
     return (
@@ -454,14 +460,18 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
               <span className="flex-1 min-w-0 truncate text-left">{group.label}</span>
               <span className="text-muted-foreground/70 text-[10px]">{group.indices.length}</span>
             </button>
-            {!isCollapsed &&
-              group.indices.map((index) => (
-                <ThreadListPrimitive.ItemByIndex
-                  key={threadIds[index]}
-                  index={index}
-                  components={{ ThreadListItem }}
-                />
-              ))}
+            {!isCollapsed && (
+              // 缩进到标题文字列（icon 14px + gap 6px），避免与图标左边缘对齐
+              <div className="flex flex-col gap-0.5 pl-5">
+                {group.indices.map((index) => (
+                  <ThreadListPrimitive.ItemByIndex
+                    key={threadIds[index]}
+                    index={index}
+                    components={{ ThreadListItem }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
