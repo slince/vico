@@ -35,6 +35,7 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
           remoteId: t.id,
           title: t.title || 'New Chat',
           lastMessageAt: new Date(t.updatedAt),
+          custom: t.metadata,
         })),
       };
     },
@@ -46,6 +47,7 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
         remoteId: item.id,
         title: item.title || 'New Chat',
         lastMessageAt: new Date(item.updatedAt),
+        custom: item.metadata,
       };
     },
 
@@ -113,6 +115,8 @@ interface ThreadItem {
   title: string;
   /** 是否已归档（对应 assistant-ui 的 archived status） */
   archived: boolean;
+  /** 自定义元数据，透传给 assistant-ui 的 RemoteThreadMetadata.custom */
+  metadata?: Record<string, unknown>;
   updatedAt: number;
 }
 
