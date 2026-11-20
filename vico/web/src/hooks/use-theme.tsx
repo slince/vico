@@ -1,6 +1,6 @@
 // 1. React
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
-import { useLocalStorageState } from '@/hooks/use-local-storage-state';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 
 type Theme = 'light' | 'dark';
 
@@ -9,7 +9,7 @@ const ThemeContext = createContext<{ theme: Theme; setTheme: (t: Theme) => void 
 /** 主题提供者 — 切换 <html>.dark class，localStorage 持久化，默认 light */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // 主题持久化（裸字符串存储，默认 light）
-  const [theme, setTheme] = useLocalStorageState<Theme>('theme', 'light', {
+  const [theme, setTheme] = usePersistedState<Theme>('theme', 'light', {
     serialize: (t) => t,
     deserialize: (raw) => (raw === 'dark' ? 'dark' : 'light'),
   });

@@ -1,6 +1,6 @@
 // 1. React
 import { createContext, useContext, type ReactNode } from 'react';
-import { useLocalStorageState } from '@/hooks/use-local-storage-state';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 
 /** 会话区默认字体大小（px） */
 export const DEFAULT_FONT_SIZE = 12;
@@ -16,7 +16,7 @@ const FontSizeContext = createContext<{
 /** 会话区字体大小提供者 — 仅影响 chat 会话区域，localStorage 持久化，默认 12px */
 export function FontSizeProvider({ children }: { children: ReactNode }) {
   // 字号持久化（数字转字符串存储，非法值回退默认 12px）
-  const [fontSize, setFontSize] = useLocalStorageState<number>(
+  const [fontSize, setFontSize] = usePersistedState<number>(
     'chat-font-size',
     DEFAULT_FONT_SIZE,
     {

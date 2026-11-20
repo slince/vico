@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useLocalStorageState } from "@/hooks/use-local-storage-state";
+import { usePersistedState } from "@/hooks/use-persisted-state";
 import {
   AuiIf,
   ThreadListItemMorePrimitive,
@@ -124,7 +124,7 @@ const VIEW_MODE_STORAGE_KEY = "thread_list_view_mode";
 /** ThreadList 顶层组件 — 顶部视图切换/搜索 header + 会话列表（showNew 控制新建按钮，默认 true） */
 export const ThreadList: FC<{ showNew?: boolean }> = ({ showNew = true }) => {
   // 视图模式持久化（裸字符串存储，与旧数据兼容），下次进入沿用上次选择
-  const [viewMode, setViewMode] = useLocalStorageState<ThreadListViewMode>(
+  const [viewMode, setViewMode] = usePersistedState<ThreadListViewMode>(
     VIEW_MODE_STORAGE_KEY,
     "list",
     {

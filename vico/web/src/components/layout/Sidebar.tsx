@@ -2,7 +2,7 @@ import {useMemo, useState} from 'react';
 import {NavLink, useNavigate} from 'react-router-dom';
 import {useTranslation} from 'react-i18next';
 import {useAuth} from '@/hooks/use-auth';
-import {useLocalStorageState} from '@/hooks/use-local-storage-state';
+import {usePersistedState} from '@/hooks/use-persisted-state';
 import {useChat} from '@/providers/chat-provider';
 import {cn} from '@/lib/utils';
 import {
@@ -38,7 +38,7 @@ export function Sidebar() {
   const { isChatRoute } = useChat();
 
   // 侧边栏折叠态持久化，下次进入沿用
-  const [collapsed, setCollapsed] = useLocalStorageState<boolean>('sidebar_collapsed', false);
+  const [collapsed, setCollapsed] = usePersistedState<boolean>('sidebar_collapsed', false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const toggle = () => setCollapsed((prev) => !prev);
