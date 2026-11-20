@@ -22,7 +22,6 @@ import {TooltipIconButton} from "@/components/assistant-ui/elements/tooltip-icon
 import {Button} from "@/components/ui/button";
 import {Skeleton} from "@/components/ui/skeleton";
 import {cn} from "@/lib/utils";
-import {getMessageTurnId, useLiveTurnIdsVersion} from "@/lib/turn-metadata";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -35,9 +34,9 @@ import {
   groupPartByType,
   type ImageMessagePartComponent,
   MessagePrimitive,
-  type ThreadMessage,
   SuggestionPrimitive,
   type TextMessagePartComponent,
+  type ThreadMessage,
   ThreadPrimitive,
   type ToolCallMessagePartComponent,
   useAuiState,
@@ -60,7 +59,17 @@ import {
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from "lucide-react";
-import {type ComponentType, createContext, type FC, type PropsWithChildren, useContext, useEffect, useMemo, useRef, useState,} from "react";
+import {
+  type ComponentType,
+  createContext,
+  type FC,
+  type PropsWithChildren,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {useTranslation} from "react-i18next";
 import {AssistantThinking} from "@/components/assistant-ui/assistant-thinking";
 import {CompletedActivityGroup} from "@/components/assistant-ui/elements/message-run-activity";
@@ -584,7 +593,7 @@ const AssistantMessage: FC = () => {
   const { isComplete, isLast, inCollapse } = useContext(TurnMessageContext);
 
   // 折叠区内的消息隐藏 footer 与占位
-  const footerHidden = inCollapse;
+  const footerHidden = inCollapse || !isComplete;
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -889,7 +898,7 @@ type MessageComponentsConfig =
 
 /** 一个 turn 的分组结果 */
 type TurnGroup = {
-  /** 稳定 React key（以 turn 首条消息 id 定位，turnId 迟到也不会导致重挂载） */
+  /** 稳定 React key（以 turn 首条消息 id 定位） */
   key: string;
   /** 开启该 turn 的 user 消息（正常线程必然存在） */
   userMessage?: ThreadMessage;
@@ -898,25 +907,10 @@ type TurnGroup = {
 };
 
 /**
- * 读取一条消息所属的 turn id。
- *
- * 历史消息走 `metadata.custom.turnId`（后端 toAgUiMessages 写入）；实时消息走
- * turn-metadata 登记表（use-chat-thread-runtime 订阅 TEXT_MESSAGE_START 时登记）。
- *
- * @param message - 消息
- * @returns 该消息所属 turn 的 id
- */
-function turnIdOf(message: ThreadMessage): string | undefined {
-  const custom = message.metadata.custom as { turnId?: unknown } | undefined;
-  if (typeof custom?.turnId === "string") return custom.turnId;
-  return getMessageTurnId(message.id);
-}
-
-/**
  * 把线程消息按 user 消息结构性切分为 turn。
  *
  * 一条 user 消息开启一个 turn，其后的 assistant 消息都属于该 turn。结构性切分
- * 对乐观 user 消息、无文本的纯工具步骤同样稳健，不依赖 turnId 是否已到。
+ * 对乐观 user 消息、无文本的纯工具步骤同样稳健。
  *
  * @param messages - 线程消息（按序）
  * @returns turn 分组列表
@@ -1043,11 +1037,8 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
   // 折叠区要渲染的消息：最后一条含非 text 活动时连同它一起收进折叠区，否则只收中间消息
   const collapsedMessages = lastHasActivity ? turn.assistantMessages : prevMessages;
 
-  const first = turn.userMessage ?? turn.assistantMessages[0];
-  const turnId = turnIdOf(first);
-
   return (
-    <div data-slot="aui_turn" data-turn-id={turnId} className="contents">
+    <div data-slot="aui_turn" className="contents">
       {turn.userMessage && (
         <ThreadPrimitive.Unstable_MessageById
           messageId={turn.userMessage.id}
@@ -1107,9 +1098,6 @@ const TurnView: FC<{ turn: TurnGroup }> = ({ turn }) => {
  */
 const ThreadMessageList: FC = () => {
   const messages = useAuiState((s) => s.thread.messages);
-
-  // 订阅 turnId 登记表版本号：实时消息晚到的 turnId 会触发重渲染，刷新 data-turn-id
-  useLiveTurnIdsVersion();
 
   const turns = useMemo(() => groupMessagesIntoTurns(messages), [messages]);
 
