@@ -7,7 +7,7 @@ import type {ToolCallMessagePartComponent} from '@assistant-ui/react';
 import { useTranslation } from 'react-i18next';
 import {Globe} from 'lucide-react';
 import {ToolCard} from './tool-card';
-import type {WebFetchResult} from '../web-fetch.tool';
+import type {WebFetchArgs, WebFetchResult} from '../web-fetch.tool';
 
 /** HTTP 状态码着色：2xx 绿、4xx/5xx 红、其余默认 */
 function statusClass(status: number): string {
@@ -43,8 +43,9 @@ function WebFetchView({result}: {result: WebFetchResult}) {
 /**
  * Web 请求渲染器 — 展示状态行与响应体。
  */
-export const WebFetchRenderer: ToolCallMessagePartComponent = ({
+export const WebFetchRenderer: ToolCallMessagePartComponent<WebFetchArgs, WebFetchResult> = ({
   status,
+  args,
   result,
   isError,
   approval,
@@ -57,6 +58,7 @@ export const WebFetchRenderer: ToolCallMessagePartComponent = ({
   return (
     <ToolCard
       title={t('tool.webFetch.title')}
+      subtitle={args?.url}
       icon={Globe}
       status={status}
       result={result}
