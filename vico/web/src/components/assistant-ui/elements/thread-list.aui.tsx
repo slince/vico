@@ -430,7 +430,7 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
         const key = group.workspace ?? "";
         const isCollapsed = collapsed[key] === true;
         return (
-          <div key={key || "__ungrouped__"} data-slot="aui_thread-workspace-group">
+          <div key={key || "__ungrouped__"} data-slot="aui_thread-workspace-group" className="flex flex-col gap-0.5">
             <button
               type="button"
               onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !isCollapsed }))}
