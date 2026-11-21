@@ -8,9 +8,11 @@ import type {RemoteThreadListAdapter, ThreadHistoryAdapter, ThreadMessage,} from
 import {ExportedMessageRepository} from '@assistant-ui/react';
 import {fromAgUiMessages} from '@assistant-ui/react-ag-ui';
 import type {Message as AgUiMessage} from '@ag-ui/client';
+import {createAssistantStream} from 'assistant-stream';
 import {api} from '@/api/client';
 import {queryClient} from '@/lib/query-client';
 import {useAgentSelection} from '@/stores/agent-selection';
+import {useWorkspaceSelection} from '@/stores/workspace-selection';
 
 /**
  * 创建适配器，连接后端线程列表。
@@ -54,13 +56,29 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
     /**
      * 新线程初始化 — 首次发送消息前由 assistant-ui 调用（发送前会 await 本方法），
      * 这里先请求后端创建会话拿到真实 thread id，再作为 remoteId 返回。
+     *
+     * 同时透传 draft custom 里的 workspace（WorkspaceSelectorAction 写入），
+     * 后端据此在创建 thread 时一并写入 metadata.workspace，
+     * 使新会话无需刷新即可归入正确工作区分组。
      */
-    async initialize(_threadId: string) {
+    async initialize(
+      _threadId: string,
+      options?: { custom?: Record<string, unknown> },
+    ) {
       const id = agentId ?? useAgentSelection.getState().selectedAgent?.id;
       if (!id) throw new Error('No agent selected');
+
+      const workspace =
+        (options?.custom?.workspace as string | undefined) ??
+        useWorkspaceSelection.getState().workspace ??
+        undefined;
+
+      const body: { agentId: string; workspace?: string } = { agentId: id };
+      if (workspace) body.workspace = workspace;
+
       const thread = await api<{ id: string }>('/threads', {
         method: 'POST',
-        body: JSON.stringify({ agentId: id }),
+        body: JSON.stringify(body),
       });
       return { remoteId: thread.id, externalId: undefined };
     },
@@ -97,14 +115,18 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
     },
 
     async generateTitle(
-      _remoteId: string,
+      remoteId: string,
       _unstable_messages: readonly ThreadMessage[],
     ) {
-      // 返回空流，标题由后端管理
-      return new ReadableStream({
-        start(controller) {
-          controller.close();
-        },
+      // 后端在首条消息时生成标题；这里读回并把标题追加进流，
+      // 使新会话标题无需整体刷新即可更新
+      return createAssistantStream(async (controller) => {
+        try {
+          const item = await api<ThreadItem>(`/threads/${remoteId}`);
+          if (item.title) controller.appendText(item.title);
+        } catch {
+          // 读回失败静默，标题保持 fallback，下次 list 仍会取到后端标题
+        }
       });
     },
   };

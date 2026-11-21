@@ -1302,6 +1302,9 @@ importers:
       assistant-cloud:
         specifier: 0.2.8
         version: 0.2.8(ai@7.0.150(zod@4.6.7))
+      assistant-stream:
+        specifier: 0.3.54
+        version: 0.3.54(ai@7.0.150(zod@4.6.7))
       beautiful-mermaid:
         specifier: ^1.1.3
         version: 1.1.3

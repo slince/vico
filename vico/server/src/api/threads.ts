@@ -17,8 +17,10 @@ export function threadRoutes(app: Hono<{ Variables: Variables }>) {
       return c.json({ error: 'agentId is required' }, 400);
     }
 
+    const workspace = typeof body.workspace === 'string' ? (body.workspace as string) : undefined;
+
     const agent = await getAgent(agentId);
-    const thread = await agent.createThread({ userId: auth.userId });
+    const thread = await agent.createThread({ userId: auth.userId, workspace });
     return c.json(thread, 201);
   });
 

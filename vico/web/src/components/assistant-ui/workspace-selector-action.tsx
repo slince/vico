@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 // 2. Third-party
 import { useTranslation } from "react-i18next";
-import { useAui, type LanguageModelConfig } from "@assistant-ui/react";
+import { useAui, useAuiState, type LanguageModelConfig } from "@assistant-ui/react";
 import { ChevronDownIcon, Folder } from "lucide-react";
 
 // 3. UI / 子组件
@@ -40,6 +40,19 @@ export function WorkspaceSelectorAction() {
   const workspace = useWorkspaceSelection((s) => s.workspace);
   const setWorkspace = useWorkspaceSelection((s) => s.setWorkspace);
   const [open, setOpen] = useState(false);
+
+  // 新线程草稿 id（__LOCALID_ 前缀）；initialize 前非空，用于把 workspace 写入新线程 custom
+  const newThreadId = useAuiState((s) => s.threads.newThreadId);
+
+  // 将 workspace 写入新线程草稿的 custom：
+  // - 列表按 custom.workspace 分组，写入后新会话无需刷新即可归入正确工作区
+  // - assistant-ui 在 initialize 时会把该 custom 作为 draft metadata 传给 adapter，
+  //   由 adapter 透传后端，创建 thread 时一并写入 metadata.workspace
+  useEffect(() => {
+    if (!isChatRoute || threadId) return;
+    if (!newThreadId) return;
+    api.threads.item({ id: newThreadId }).updateCustom(workspace ? { workspace } : undefined);
+  }, [api, isChatRoute, threadId, workspace, newThreadId]);
 
   // 将当前选择的工作区注册进 modelContext，随请求下发 body.config.workspace
   useEffect(() => {
