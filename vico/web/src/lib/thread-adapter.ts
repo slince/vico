@@ -15,31 +15,30 @@ import {useAgentSelection} from '@/stores/agent-selection';
 import {useWorkspaceSelection} from '@/stores/workspace-selection';
 
 /**
- * 新建线程 ID 桥接。
- *
- * `adapter.initialize()` 是唯一同步拿到后端新线程 ID 的地方；assistant-ui 的线程列表
- * 状态要等 React 提交后才刷新，紧随 initialize 的首条消息请求读不到它，因此在这里先记一份。
- * 同时记录本地草稿 ID，保证只有该草稿的请求才会用到这个 ID。
- */
-let recentlyCreatedThread: {localId: string; remoteId: string} | undefined;
-
-/**
  * 同一草稿的 initialize 任务缓存。
  *
- * 请求发出前的 await 与 assistant-ui 自身（RemoteThreadResource 的 initialize 事件）可能
- * 同时触发 initialize，缓存保证同一个草稿只向 /threads 发一次 POST。
+ * assistant-ui 自身（RemoteThreadResource 的 initialize 事件）只会在首条消息发送前调用一次，
+ * 但列表/受控切换等路径也可能再次调用，缓存保证同一个草稿只向 /threads 发一次 POST。
  */
 const initializeTasks = new Map<string, Promise<{remoteId: string; externalId?: string}>>();
 
-/** 读取最近一次 initialize 创建出的线程（本地草稿 ID + 后端 ID），状态接管后为 undefined */
-export function getRecentlyCreatedThread(): {localId: string; remoteId: string} | undefined {
-  return recentlyCreatedThread;
-}
+/**
+ * 草稿本地 ID → initialize 返回的后端 ID。
+ *
+ * assistant-ui 的线程列表状态要等 React 提交后才刷新，紧随 initialize 的首条消息请求读不到
+ * `remoteId`；而草稿一激活 assistant-ui 就会触发 initialize（发送前不一定等到它完成），
+ * 所以这里把结果同步记下来：请求发出时先读这里，读不到再由 `VicoHttpAgent` await 同一任务的缓存。
+ */
+const initializedThreadIds = new Map<string, string>();
 
-/** 线程列表状态已经拿到真实 ID，桥接值不再需要 */
-export function clearRecentlyCreatedThread(): void {
-  if (recentlyCreatedThread) initializeTasks.delete(recentlyCreatedThread.localId);
-  recentlyCreatedThread = undefined;
+/**
+ * 读取某个草稿 initialize 创建出的后端 thread ID。
+ *
+ * @param localId - 草稿的本地 ID（`__LOCALID_` 前缀）
+ * @returns 后端 ID；该草稿尚未 initialize 或创建失败时为 undefined
+ */
+export function getInitializedThreadId(localId: string): string | undefined {
+  return initializedThreadIds.get(localId);
 }
 
 /**
@@ -93,7 +92,7 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
       threadId: string,
       options?: { custom?: Record<string, unknown> },
     ) {
-      // 同一个草稿只创建一次：请求前的 await 与 assistant-ui 内部触发可能同时到达这里
+      // 同一个草稿只创建一次：assistant-ui 内部的 initialize 与其它路径可能同时到达这里
       const pending = initializeTasks.get(threadId);
       if (pending) return pending;
 
@@ -113,8 +112,8 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
           method: 'POST',
           body: JSON.stringify(body),
         });
-        // 抢先记下真实 ID，供紧随其后的首条消息请求使用（详见 recentlyCreatedThread）
-        recentlyCreatedThread = {localId: threadId, remoteId: thread.id};
+        // 请求发出时同步读取（详见 getInitializedThreadId）
+        initializedThreadIds.set(threadId, thread.id);
         return { remoteId: thread.id, externalId: undefined };
       })();
 
@@ -145,6 +144,20 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
       });
       queryClient.invalidateQueries({ queryKey: ['thread', remoteId] });
       queryClient.invalidateQueries({ queryKey: ['threads'] });
+    },
+
+    /**
+     * 草稿自定义元数据（目前只有 workspace）。
+     *
+     * assistant-ui 在草稿被乐观 promote（initialize 已发起、remoteId 尚未回填）时会要求 adapter
+     * 提供本方法，否则 updateCustom 直接抛错，草稿的 custom 写不进去 —— 表现为新会话首次
+     * 出现在「未分组」，刷新后（改由 list() 读后端 metadata）才归位。
+     *
+     * 这里只做本地占位：assistant-ui 会把 custom 写进列表项（乐观更新已生效），
+     * 后端则由首条消息的 config.workspace 在 resolveThread 时回写 thread.metadata。
+     */
+    async updateCustom(_remoteId: string, _custom?: Record<string, unknown>) {
+      // no-op：本地列表项已由 assistant-ui 更新，后端在首条消息时落库
     },
 
     async unarchive(remoteId: string) {

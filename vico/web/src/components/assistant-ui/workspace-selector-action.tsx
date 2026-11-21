@@ -51,7 +51,12 @@ export function WorkspaceSelectorAction() {
   useEffect(() => {
     if (!isChatRoute || threadId) return;
     if (!newThreadId) return;
-    api.threads.item({ id: newThreadId }).updateCustom(workspace ? { workspace } : undefined);
+    try {
+      // 草稿已被乐观 promote 时由 adapter.updateCustom 兜底写本地 custom
+      api.threads.item({ id: newThreadId }).updateCustom(workspace ? { workspace } : undefined);
+    } catch (error) {
+      console.warn('[workspace] 写入新会话分组失败', error);
+    }
   }, [api, isChatRoute, threadId, workspace, newThreadId]);
 
   // 将当前选择的工作区注册进 modelContext，随请求下发 body.config.workspace

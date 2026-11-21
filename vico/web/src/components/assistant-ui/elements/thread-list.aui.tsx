@@ -416,6 +416,7 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
   const { threadIds, filteredIndices, groups } = useWorkspaceGroups(searchQuery);
   const { t } = useTranslation("assistant");
   const navigate = useNavigate();
+  const aui = useAui();
   const setWorkspace = useWorkspaceSelection((s) => s.setWorkspace);
   // 各分组折叠状态持久化（key 为 workspace 原文，未分组用空串）
   const [collapsed, setCollapsed] = usePersistedState<Record<string, boolean>>(
@@ -423,10 +424,17 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
     {},
   );
 
-  // 在该工作区下新建会话：预设 workspace 后导航到 /chat，受控 threadId 清空即切新线程
-  // （首消息时 workspace 随 modelContext 下发给服务端写入 thread.metadata）
-  const handleCreate = (workspace: string | undefined) => {
+  // 在该工作区下新建会话：预设 workspace 后显式切到新草稿线程，再导航到 /chat。
+  // 只靠受控 threadId 变 undefined 触发切换并不可靠（例如当前已在无 id 的 /chat 上时受控值没变化，
+  // 或者切换时机与 store 里的 newThreadId 冲突），会留下上一个会话的消息继续渲染。
+  // 首消息时 workspace 随 modelContext 下发给服务端写入 thread.metadata。
+  const handleCreate = async (workspace: string | undefined) => {
     setWorkspace(workspace ?? null);
+    try {
+      await aui.threads.switchToNewThread();
+    } catch (e) {
+      console.warn('[workspace] 切换到新会话失败', e);
+    }
     navigate('/chat');
   };
 
