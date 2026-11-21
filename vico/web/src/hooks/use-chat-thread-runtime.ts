@@ -7,7 +7,7 @@
 import {useEffect, useMemo, useRef} from 'react';
 import {HttpAgent} from '@ag-ui/client';
 import {useAgUiRuntime} from '@assistant-ui/react-ag-ui';
-import {useAui, useAuiState, WebSpeechDictationAdapter, type LanguageModelConfig} from '@assistant-ui/react';
+import {type LanguageModelConfig, useAui, useAuiState, WebSpeechDictationAdapter} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
 
 import {createThreadHistoryAdapter} from '@/lib/thread-adapter';
@@ -60,12 +60,13 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError}: UseCha
     });
   }, [aui, agentId]);
 
+  console.log("runtime config", remoteId);
+
   // 为此线程创建 HttpAgent — 自定义 fetch 注入 credentials（session cookie）
   const agent = useMemo(() => {
     const http = new HttpAgent({
       url: '/api/v1/chat',
-      threadId: remoteId,
-      fetch: (url, init) => fetch(url, { ...init, credentials: 'include' }),
+      threadId: remoteId
     });
     // 只把最后一条消息发给后端，历史由后端按 threadId 补全
     http.use((input, next) => next.run({ ...input, messages: input.messages.slice(-1) }));

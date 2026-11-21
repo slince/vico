@@ -124,8 +124,9 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
         try {
           const item = await api<ThreadItem>(`/threads/${remoteId}`);
           if (item.title) controller.appendText(item.title);
-        } catch {
+        } catch (e) {
           // 读回失败静默，标题保持 fallback，下次 list 仍会取到后端标题
+          console.error("generateTitle:", e)
         }
       });
     },
