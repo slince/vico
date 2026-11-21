@@ -52,7 +52,7 @@ function deriveTitle(messages: ModelMessage[]): string | undefined {
 }
 
 /**
- * 解析会话线程：有真实 threadId 则查库复用，查不到或未传则新建。
+ * 解析会话线程：有真实 threadId 则查库复用，查不到或跨用户直接报错；未传则新建。
  *
  * @param agent - 已解析的 Agent 实例
  * @param threadId - 客户端传入的线程 ID（可能为空）
@@ -60,6 +60,7 @@ function deriveTitle(messages: ModelMessage[]): string | undefined {
  * @param messages - 本轮输入消息组（用于标题派生）
  * @param workspace - 客户端选择的工作区（新建线程时写入；复用线程时若与已存工作区不符则回写）
  * @returns 待执行的 Thread
+ * @throws 传了 threadId 但查不到或归属他人时抛出
  */
 async function resolveThread(
   agent: Agent,
@@ -70,26 +71,28 @@ async function resolveThread(
 ): Promise<Thread> {
   if (threadId) {
     const existing = await agent.thread.getThread(threadId);
-    // 仅复用归属当前用户的线程，防止跨用户恢复他人会话
-    if (existing && (!existing.userId || existing.userId === userId)) {
-      // 线程由前端提交前预先创建，标题为默认值；此处用首条消息补全标题
-      const title = deriveTitle(messages);
-      const needsTitle = !!title && (!existing.title || existing.title === 'New thread');
-      // 工作区与当前传参不符时，按当前传参回写 thread.metadata.workspace
-      const needsWorkspace = !!workspace && existing.metadata?.workspace !== workspace;
-      const nextMetadata = needsWorkspace ? { ...existing.metadata, workspace } : undefined;
-
-      if (needsTitle || needsWorkspace) {
-        const patch: Partial<Pick<Thread, 'title' | 'metadata'>> = {};
-        if (needsTitle) patch.title = title;
-        if (nextMetadata) patch.metadata = nextMetadata;
-        await agent.thread.updateThread(existing.id, patch);
-      }
-      if (needsTitle) existing.title = title;
-      if (nextMetadata) existing.metadata = nextMetadata;
-      return existing;
+    // 传了线程 ID 就必须命中且归属当前用户，否则直接报错，绝不静默新建
+    if (!existing || (existing.userId && existing.userId !== userId)) {
+      throw new Error(`Thread not found: ${threadId}`);
     }
+    // 线程由前端提交前预先创建，标题为默认值；此处用首条消息补全标题
+    const title = deriveTitle(messages);
+    const needsTitle = !!title && (!existing.title || existing.title === 'New thread');
+    // 工作区与当前传参不符时，按当前传参回写 thread.metadata.workspace
+    const needsWorkspace = !!workspace && existing.metadata?.workspace !== workspace;
+    const nextMetadata = needsWorkspace ? { ...existing.metadata, workspace } : undefined;
+
+    if (needsTitle || needsWorkspace) {
+      const patch: Partial<Pick<Thread, 'title' | 'metadata'>> = {};
+      if (needsTitle) patch.title = title;
+      if (nextMetadata) patch.metadata = nextMetadata;
+      await agent.thread.updateThread(existing.id, patch);
+    }
+    if (needsTitle) existing.title = title;
+    if (nextMetadata) existing.metadata = nextMetadata;
+    return existing;
   }
+  // 仅未传线程 ID 时才新建
   return agent.createThread({ userId, title: deriveTitle(messages), workspace });
 }
 
