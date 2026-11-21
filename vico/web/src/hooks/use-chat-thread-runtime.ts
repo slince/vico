@@ -1,13 +1,13 @@
 /**
  * 对话线程运行时 hook — 为单个线程创建 useAgUiRuntime 实例。
  *
- * 封装 HttpAgent 创建、历史适配器注入、onRunFinished threadId 回写和错误处理，
+ * 封装 HttpAgent 创建（threadId 取自 threads 作用域实时 remoteId）、历史适配器注入和错误处理，
  * useAssistantRuntime 的 runtimeHook 和 useTeamAssistantRuntime 共用此 hook。
  */
 import {useEffect, useMemo, useRef} from 'react';
 import {HttpAgent} from '@ag-ui/client';
 import {useAgUiRuntime} from '@assistant-ui/react-ag-ui';
-import {type LanguageModelConfig, useAui, WebSpeechDictationAdapter} from '@assistant-ui/react';
+import {type LanguageModelConfig, useAui, useAuiState, WebSpeechDictationAdapter} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
 
 import {createThreadHistoryAdapter} from '@/lib/thread-adapter';
@@ -38,10 +38,22 @@ export interface UseChatThreadRuntimeOptions {
  * @returns AssistantRuntime 实例
  */
 export function useChatThreadRuntime({agentId, threadId, onThreadCreated, onError}: UseChatThreadRuntimeOptions) {
+  // 主线程真实 remoteId：新会话 initialize 后 reconcile 会把 remoteId 写进 threads 作用域，
+  // 这里读 threads（而非 threadListItem，后者订阅在 reconcile 后不刷新）并实时跟随，
+  // 避免首个消息仍携带空 threadId 导致后端另建线程
+  const remoteId = useAuiState((state) => {
+    const item = state.threads.threadItems.find((i) => i.id === state.threads.mainThreadId);
+    return item?.remoteId;
+  });
+
+  // 有效 threadId：优先 store 里的真实 ID；页面刷新直接进 /chat/:id 时列表尚未加载，
+  // 回退 URL 传入的 threadId
+  const effectiveThreadId = remoteId && !remoteId.startsWith('__LOCALID_') ? remoteId : threadId;
+
   // 历史消息适配器 — 使用 useAgUiRuntime 的 adapters.history 自动加载
   const history = useMemo(
-    () => createThreadHistoryAdapter(threadId),
-    [threadId],
+    () => createThreadHistoryAdapter(effectiveThreadId),
+    [effectiveThreadId],
   );
 
   // 用 ref 持有 onThreadCreated，避免订阅闭包捕获旧引用
@@ -58,18 +70,18 @@ export function useChatThreadRuntime({agentId, threadId, onThreadCreated, onErro
     });
   }, [aui, agentId]);
 
-  console.log("runtime config", threadId);
+  console.log("runtime config", effectiveThreadId);
 
   // 为此线程创建 HttpAgent — 自定义 fetch 注入 credentials（session cookie）
   const agent = useMemo(() => {
     const http = new HttpAgent({
       url: '/api/v1/chat',
-      threadId: threadId
+      threadId: effectiveThreadId
     });
     // 只把最后一条消息发给后端，历史由后端按 threadId 补全
     http.use((input, next) => next.run({ ...input, messages: input.messages.slice(-1) }));
     return http;
-  }, [threadId]);
+  }, [effectiveThreadId]);
 
   // 语音听写适配器 — 识别语言跟随应用 i18n 设置，切换语言时重建
   const { i18n } = useTranslation();
