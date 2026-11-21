@@ -1,5 +1,6 @@
 // @vico/memory - ConversationHistoryMemory: 读取会话历史并转为模型消息
-import type {AgentMessage, ThreadStore} from '@vico/thread';
+import type {AgentMessage} from '@vico/model';
+import type {ThreadStore} from '@vico/thread';
 import {toModelMessages} from '@vico/thread';
 
 /**

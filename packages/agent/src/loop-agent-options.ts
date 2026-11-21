@@ -1,11 +1,11 @@
 import type {UsageMetrics} from '@vico/types';
 import {type ApprovalMode, type Tool, ToolApproval, ToolCall, ToolCallApproval, ToolResult} from '@vico/tool';
 import type {Checkpoint} from '@vico/checkpoint';
-import type {ModelClient, ModelMessage, ReasoningEffort} from '@vico/model';
+import type {AgentMessage, ModelClient, ModelMessage, ReasoningEffort} from '@vico/model';
 import type {ChunkType} from '@vico/stream';
 import type {StreamWriter} from '@vico/utils';
 import {Thread, Turn} from '@vico/thread';
-import type {AgentMessage, TurnSession} from '@vico/thread';
+import type {TurnSession} from '@vico/thread';
 
 /** executeModelStep 返回值 */
 export interface ModelStepResult {

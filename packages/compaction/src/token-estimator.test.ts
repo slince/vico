@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type {ModelMessage} from '@vico/model';
-import type { PersistableMessage } from '@vico/thread';
+import type {ModelMessage, PersistableMessage} from '@vico/model';
 import {
   BLOCK_OVERHEAD, CHARS_PER_TOKEN, ROLE_OVERHEAD,
   estimateContent, estimateMessage, estimateMessages, measure,

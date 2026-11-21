@@ -1,6 +1,6 @@
 // @vico/compaction — ModelContextCompactor 默认实现（持久化增量滚动压缩）
-import type {AgentMessage, Thread, ThreadStore, Turn, TurnStatus} from '@vico/thread';
-import type {ModelConfig} from '@vico/model';
+import type {Thread, ThreadStore, Turn, TurnStatus} from '@vico/thread';
+import type {AgentMessage, ModelConfig} from '@vico/model';
 import {createLanguageModel, ModelClient} from '@vico/model';
 import {KeyedMutex} from '@vico/utils';
 import {estimateMessage, estimateMessages, measure} from './token-estimator.js';

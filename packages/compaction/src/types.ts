@@ -1,6 +1,6 @@
 // @vico/compaction — 上下文压缩的类型与端口定义
-import type {AgentMessage, Thread, ThreadStore, Turn} from '@vico/thread';
-import type {ModelClient, ModelConfig} from '@vico/model';
+import type {Thread, ThreadStore, Turn} from '@vico/thread';
+import type {AgentMessage, ModelClient, ModelConfig} from '@vico/model';
 import type {CompactionSettings} from './compaction-config.js';
 
 /** 压缩触发类型：pressure（窗口压力）/ context-overflow（模型报错超限） */

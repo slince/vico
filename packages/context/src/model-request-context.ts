@@ -1,8 +1,8 @@
 // @vico/context - ModelRequestContext: 穿过洋葱层各处理器的可变上下文
-import type {ModelMessage} from '@vico/model';
+import type {AgentMessage, ModelMessage} from '@vico/model';
 import {getMessageText, pickPrimaryUserMessage} from '@vico/model';
 import type {Tool} from '@vico/tool';
-import type {AgentMessage, Thread, TurnSession, TurnStep} from '@vico/thread';
+import type {Thread, TurnSession, TurnStep} from '@vico/thread';
 import {PromptSectionBuilder} from './prompt-section-builder.js';
 import {ToolRegistry} from './tool-registry.js';
 

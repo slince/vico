@@ -1,6 +1,5 @@
 // @vico/compaction - Token 估算：分 part 定价 + ROLE/BLOCK 开销 + 消息链自带 usage 锚定
-import type {ModelMessage} from '@vico/model';
-import type {PersistableMessage} from '@vico/thread';
+import type {ModelMessage, PersistableMessage} from '@vico/model';
 import {getMessageText} from '@vico/model';
 
 /** 每 token 对应字符数（固定启发式） */

@@ -1,7 +1,7 @@
 // src/thread/utils.ts — ThreadStore Message 与原生 ModelMessage 的相互转换
 import type {Message, MessageContent} from './thread-store.js';
 import type {UsageMetrics} from '@vico/types';
-import type {ModelMessage} from '@vico/model';
+import type {AgentMessage, PersistableMessage} from '@vico/model';
 
 /**
  * ThreadStore Message → AgentMessage（content 原样透传，usage 从 metadata 还原，turnId 原样透传）。
@@ -18,17 +18,6 @@ export function toModelMessages(entries: Message[]): AgentMessage[] {
     return msg;
   });
 }
-
-/**
- * 可持久化消息：原生 ModelMessage 附带可选 usage（该次调用的完整用量，仅 assistant 消息携带）。
- * 与 AgentMessage 的区别在于不要求自带 turnId —— 持久化时 turnId 由持久化方统一补充。
- */
-export type PersistableMessage = ModelMessage & { usage?: UsageMetrics };
-
-/**
- * Agent 内部统一消息载体：PersistableMessage 附所属 turnId（必传），消息自描述所属 turn。
- */
-export type AgentMessage = PersistableMessage & { turnId: string };
 
 /**
  * 原生 ModelMessage → ThreadStore 持久化字段（content 原样透传，usage 写入 metadata）。

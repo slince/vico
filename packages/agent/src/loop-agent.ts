@@ -4,7 +4,7 @@ import type {Logger} from 'pino';
 import pino from 'pino';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import type {CallModelResult, ModelMessage, ModelRequest, ReasoningEffort} from '@vico/model';
+import type {CallModelResult, ModelMessage, ModelRequest, PersistableMessage, ReasoningEffort} from '@vico/model';
 import {
   buildAssistantMessage,
   buildToolResultMessage,
@@ -21,7 +21,7 @@ import {composeResolvers, defaultApprovalResolvers, ToolExecutor} from '@vico/to
 import type {Skill} from '@vico/skill';
 import type {MemoryStore} from '@vico/memory';
 import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@vico/thread';
-import {fromModelMessage, type PersistableMessage} from '@vico/thread';
+import {fromModelMessage} from '@vico/thread';
 import type {EventPayload, EventRecorder, EventType} from '@vico/events';
 import type {ChunkType, UserMessage} from '@vico/stream';
 import {
