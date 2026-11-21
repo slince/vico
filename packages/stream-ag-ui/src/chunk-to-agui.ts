@@ -35,6 +35,10 @@ export function createChunkToAgUiTransformer(opts: {
   let errored = false;
   let errorMessage: string | undefined;
   let finished = false;
+  // 已由 tool-input-* 三段表达过的工具调用：provider 对同一次调用既会流式发参数，
+  // 也会在生成完毕后补一条 tool-call 汇总，不做去重会让前端收到两次 TOOL_CALL_START
+  const streamedInputIds = new Set<string>();
+  const completedInputIds = new Set<string>();
 
   return new TransformStream<ChunkType, Event>({
     transform(chunk, enqueue) {
@@ -92,19 +96,28 @@ export function createChunkToAgUiTransformer(opts: {
           break;
 
         case 'tool-input-start':
+          streamedInputIds.add(chunk.payload.toolCallId);
           enqueue.enqueue({ type: EventType.TOOL_CALL_START, toolCallId: chunk.payload.toolCallId, toolCallName: chunk.payload.toolName, parentMessageId: stepMessageId });
           break;
         case 'tool-input-delta':
           enqueue.enqueue({ type: EventType.TOOL_CALL_ARGS, toolCallId: chunk.payload.toolCallId, delta: chunk.payload.delta });
           break;
         case 'tool-input-end':
+          completedInputIds.add(chunk.payload.toolCallId);
           enqueue.enqueue({ type: EventType.TOOL_CALL_END, toolCallId: chunk.payload.toolCallId });
           break;
 
         case 'tool-call': {
-          enqueue.enqueue({ type: EventType.TOOL_CALL_START, toolCallId: chunk.payload.toolCallId, toolCallName: chunk.payload.toolName, parentMessageId: stepMessageId });
-          enqueue.enqueue({ type: EventType.TOOL_CALL_ARGS, toolCallId: chunk.payload.toolCallId, delta: JSON.stringify(chunk.payload.input) });
-          enqueue.enqueue({ type: EventType.TOOL_CALL_END, toolCallId: chunk.payload.toolCallId });
+          const toolCallId = chunk.payload.toolCallId;
+          // 流式三段已完整送达时，这条调用在 AG-UI 侧已表达完毕，汇总事件只用于兜底
+          if (completedInputIds.has(toolCallId)) break;
+          // 已发过 START 但没收到 END（参数流被截断）：不再补 START，只补完整参数与 END
+          if (!streamedInputIds.has(toolCallId)) {
+            enqueue.enqueue({ type: EventType.TOOL_CALL_START, toolCallId, toolCallName: chunk.payload.toolName, parentMessageId: stepMessageId });
+          }
+          enqueue.enqueue({ type: EventType.TOOL_CALL_ARGS, toolCallId, delta: JSON.stringify(chunk.payload.input) });
+          enqueue.enqueue({ type: EventType.TOOL_CALL_END, toolCallId });
+          completedInputIds.add(toolCallId);
           break;
         }
 
