@@ -7,7 +7,7 @@
 import {useEffect, useMemo, useRef} from 'react';
 import {HttpAgent} from '@ag-ui/client';
 import {useAgUiRuntime} from '@assistant-ui/react-ag-ui';
-import {type LanguageModelConfig, useAui, useAuiState, WebSpeechDictationAdapter} from '@assistant-ui/react';
+import {type LanguageModelConfig, useAui, WebSpeechDictationAdapter} from '@assistant-ui/react';
 import {useTranslation} from 'react-i18next';
 
 import {createThreadHistoryAdapter} from '@/lib/thread-adapter';
@@ -24,6 +24,7 @@ const SPEECH_LANG_MAP: Record<string, string> = {
 export interface UseChatThreadRuntimeOptions {
   /** Agent ID — Agent 详情页测试区传入（注入 modelContext → forwardedProps.agentId）；Chat 路由不传 */
   agentId?: string;
+  threadId?: string;
   /** 首次对话创建 thread 后的回调 */
   onThreadCreated?: (threadId: string) => void;
   /** 错误回调 */
@@ -36,14 +37,11 @@ export interface UseChatThreadRuntimeOptions {
  * @param options - 配置选项
  * @returns AssistantRuntime 实例
  */
-export function useChatThreadRuntime({agentId, onThreadCreated, onError}: UseChatThreadRuntimeOptions) {
-  // 线程真实 ID（initialize 预创建后写入 remoteId；本地临时 ID 时为 undefined）
-  const remoteId = useAuiState((state) => state.threadListItem.remoteId);
-
+export function useChatThreadRuntime({agentId, threadId, onThreadCreated, onError}: UseChatThreadRuntimeOptions) {
   // 历史消息适配器 — 使用 useAgUiRuntime 的 adapters.history 自动加载
   const history = useMemo(
-    () => createThreadHistoryAdapter(remoteId),
-    [remoteId],
+    () => createThreadHistoryAdapter(threadId),
+    [threadId],
   );
 
   // 用 ref 持有 onThreadCreated，避免订阅闭包捕获旧引用
@@ -60,27 +58,18 @@ export function useChatThreadRuntime({agentId, onThreadCreated, onError}: UseCha
     });
   }, [aui, agentId]);
 
-  console.log("runtime config", remoteId);
+  console.log("runtime config", threadId);
 
   // 为此线程创建 HttpAgent — 自定义 fetch 注入 credentials（session cookie）
   const agent = useMemo(() => {
     const http = new HttpAgent({
       url: '/api/v1/chat',
-      threadId: remoteId
+      threadId: threadId
     });
     // 只把最后一条消息发给后端，历史由后端按 threadId 补全
     http.use((input, next) => next.run({ ...input, messages: input.messages.slice(-1) }));
-    // RUN_FINISHED 时回写服务端真实 threadId（服务端新建线程的兜底路径）
-    http.subscribe({
-      onRunFinishedEvent: ({ event }) => {
-        const newThreadId = event.threadId;
-        if (newThreadId && newThreadId !== remoteId) {
-          onThreadCreatedRef.current?.(newThreadId);
-        }
-      },
-    });
     return http;
-  }, [remoteId]);
+  }, [threadId]);
 
   // 语音听写适配器 — 识别语言跟随应用 i18n 设置，切换语言时重建
   const { i18n } = useTranslation();

@@ -39,7 +39,7 @@ export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError
 
   const runtime = useRemoteThreadListRuntime({
     runtimeHook:  () => {
-      return useChatThreadRuntime({ agentId, onThreadCreated, onError });
+      return useChatThreadRuntime({ agentId, threadId, onThreadCreated, onError });
     },
     adapter,
     threadId,
