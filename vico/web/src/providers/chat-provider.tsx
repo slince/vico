@@ -95,15 +95,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [location.pathname],
   );
 
-  // 首次对话创建 thread 后回写 URL，并刷新设置页的会话记录与当前会话标题
+  // 主线程真实 ID 变化（首次对话创建 thread / 切换会话）后回写 URL，并刷新会话列表与标题
   const handleThreadCreated = useCallback(
     (newThreadId: string) => {
+      // 已经是当前路由上的会话就不要重复导航 / 失效查询
+      if (newThreadId === threadId) return;
       navigate(`/chat/${newThreadId}`, { replace: true });
       queryClient.invalidateQueries({ queryKey: ['threads'] });
       // 服务端已在流式响应前补全会话标题，这里失效单会话查询让顶部 nav 拿到标题
       queryClient.invalidateQueries({ queryKey: ['thread', newThreadId] });
     },
-    [navigate, queryClient],
+    [navigate, queryClient, threadId],
   );
 
   const runtime = useAssistantRuntime({

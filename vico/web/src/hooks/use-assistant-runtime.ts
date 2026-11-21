@@ -39,10 +39,16 @@ export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError
 
   const runtime = useRemoteThreadListRuntime({
     runtimeHook:  () => {
-      return useChatThreadRuntime({ agentId, threadId, onThreadCreated, onError });
+      return useChatThreadRuntime({ agentId, threadId, onError });
     },
     adapter,
     threadId,
+    // 线程真实 ID 变化（新建会话 initialize 成功 / 切换会话）时回写路由：
+    // 受控 threadId 一旦停在旧会话，下一次发送就可能带着旧 ID
+    onThreadIdChange: (newThreadId) => {
+      if (!newThreadId || newThreadId.startsWith('__LOCALID_')) return;
+      onThreadCreated?.(newThreadId);
+    },
   });
 
   return enabled ? runtime : null;

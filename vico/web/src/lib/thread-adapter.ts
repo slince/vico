@@ -15,6 +15,34 @@ import {useAgentSelection} from '@/stores/agent-selection';
 import {useWorkspaceSelection} from '@/stores/workspace-selection';
 
 /**
+ * 新建线程 ID 桥接。
+ *
+ * `adapter.initialize()` 是唯一同步拿到后端新线程 ID 的地方；assistant-ui 的线程列表
+ * 状态要等 React 提交后才刷新，紧随 initialize 的首条消息请求读不到它，因此在这里先记一份。
+ * 同时记录本地草稿 ID，保证只有该草稿的请求才会用到这个 ID。
+ */
+let recentlyCreatedThread: {localId: string; remoteId: string} | undefined;
+
+/**
+ * 同一草稿的 initialize 任务缓存。
+ *
+ * 请求发出前的 await 与 assistant-ui 自身（RemoteThreadResource 的 initialize 事件）可能
+ * 同时触发 initialize，缓存保证同一个草稿只向 /threads 发一次 POST。
+ */
+const initializeTasks = new Map<string, Promise<{remoteId: string; externalId?: string}>>();
+
+/** 读取最近一次 initialize 创建出的线程（本地草稿 ID + 后端 ID），状态接管后为 undefined */
+export function getRecentlyCreatedThread(): {localId: string; remoteId: string} | undefined {
+  return recentlyCreatedThread;
+}
+
+/** 线程列表状态已经拿到真实 ID，桥接值不再需要 */
+export function clearRecentlyCreatedThread(): void {
+  if (recentlyCreatedThread) initializeTasks.delete(recentlyCreatedThread.localId);
+  recentlyCreatedThread = undefined;
+}
+
+/**
  * 创建适配器，连接后端线程列表。
  *
  * @param agentId - 固定 Agent ID（Agent 详情页测试对话区传入）；Chat 路由不传，
@@ -62,25 +90,39 @@ export function createThreadListAdapter(agentId?: string, enabled = true): Remot
      * 使新会话无需刷新即可归入正确工作区分组。
      */
     async initialize(
-      _threadId: string,
+      threadId: string,
       options?: { custom?: Record<string, unknown> },
     ) {
-      const id = agentId ?? useAgentSelection.getState().selectedAgent?.id;
-      if (!id) throw new Error('No agent selected');
+      // 同一个草稿只创建一次：请求前的 await 与 assistant-ui 内部触发可能同时到达这里
+      const pending = initializeTasks.get(threadId);
+      if (pending) return pending;
 
-      const workspace =
-        (options?.custom?.workspace as string | undefined) ??
-        useWorkspaceSelection.getState().workspace ??
-        undefined;
+      const task = (async () => {
+        const id = agentId ?? useAgentSelection.getState().selectedAgent?.id;
+        if (!id) throw new Error('No agent selected');
 
-      const body: { agentId: string; workspace?: string } = { agentId: id };
-      if (workspace) body.workspace = workspace;
+        const workspace =
+          (options?.custom?.workspace as string | undefined) ??
+          useWorkspaceSelection.getState().workspace ??
+          undefined;
 
-      const thread = await api<{ id: string }>('/threads', {
-        method: 'POST',
-        body: JSON.stringify(body),
+        const body: { agentId: string; workspace?: string } = { agentId: id };
+        if (workspace) body.workspace = workspace;
+
+        const thread = await api<{ id: string }>('/threads', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        // 抢先记下真实 ID，供紧随其后的首条消息请求使用（详见 recentlyCreatedThread）
+        recentlyCreatedThread = {localId: threadId, remoteId: thread.id};
+        return { remoteId: thread.id, externalId: undefined };
+      })();
+
+      initializeTasks.set(threadId, task);
+      task.catch(() => {
+        if (initializeTasks.get(threadId) === task) initializeTasks.delete(threadId);
       });
-      return { remoteId: thread.id, externalId: undefined };
+      return task;
     },
 
     async delete(remoteId: string) {
