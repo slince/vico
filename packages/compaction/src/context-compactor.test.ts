@@ -47,7 +47,7 @@ async function seed(store: InMemoryThreadStore, texts: string[]): Promise<void> 
   let createdAt = 1000;
   for (const text of texts) {
     const turn = await store.createTurn('thread-1');
-    await store.appendEntries([{ threadId: 'thread-1', turnId: turn.id, role: 'user', content: text }]);
+    await store.appendEntries([{ id: `m-${createdAt}`, threadId: 'thread-1', turnId: turn.id, role: 'user', content: text }]);
     await store.updateTurn(turn.id, { status: 'completed', createdAt: createdAt++ });
   }
 }
@@ -208,7 +208,7 @@ describe('ModelContextCompactor 集成', () => {
 
     // 追加一条短 turn，使其成为唯一保留的 tail，旧摘要与 v 一起成为 head
     const turn = await store.createTurn('thread-1');
-    await store.appendEntries([{ threadId: 'thread-1', turnId: turn.id, role: 'user', content: 'q'.repeat(100) }]);
+    await store.appendEntries([{ id: 'm-tail', threadId: 'thread-1', turnId: turn.id, role: 'user', content: 'q'.repeat(100) }]);
     await store.updateTurn(turn.id, { status: 'completed', createdAt: 99999 });
 
     // 第二次压缩：head 含旧摘要（约 272 token）+ v（约 108 token），新摘要约 218 token 小于 head，通过 shrink check

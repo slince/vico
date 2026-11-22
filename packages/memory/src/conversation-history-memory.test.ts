@@ -13,8 +13,8 @@ describe('ConversationHistoryMemory.get', () => {
     const { store } = await seed();
     const t1 = await store.createTurn('thread-1');
     const t2 = await store.createTurn('thread-1');
-    await store.appendEntries([{ threadId: 'thread-1', turnId: t1.id, role: 'user', content: 'one' }]);
-    await store.appendEntries([{ threadId: 'thread-1', turnId: t2.id, role: 'user', content: 'two' }]);
+    await store.appendEntries([{ id: 'm1', threadId: 'thread-1', turnId: t1.id, role: 'user', content: 'one' }]);
+    await store.appendEntries([{ id: 'm2', threadId: 'thread-1', turnId: t2.id, role: 'user', content: 'two' }]);
 
     const mem = new ConversationHistoryMemory(store);
     const history = await mem.get('thread-1');
@@ -24,13 +24,13 @@ describe('ConversationHistoryMemory.get', () => {
   it('摘要以用户消息前置，归档消息不读取', async () => {
     const { store } = await seed();
     const t1 = await store.createTurn('thread-1');
-    await store.appendEntries([{ threadId: 'thread-1', turnId: t1.id, role: 'user', content: 'old' }]);
+    await store.appendEntries([{ id: 'm1', threadId: 'thread-1', turnId: t1.id, role: 'user', content: 'old' }]);
     await store.archiveMessagesByTurns('thread-1', [t1.id]);
 
     // 写摘要 + 摘要后的新消息
-    await store.appendEntries([{ threadId: 'thread-1', turnId: 'thread-1', role: 'summary', content: 'prior summary' }]);
+    await store.appendEntries([{ id: 'm2', threadId: 'thread-1', turnId: 'thread-1', role: 'summary', content: 'prior summary' }]);
     const t2 = await store.createTurn('thread-1');
-    await store.appendEntries([{ threadId: 'thread-1', turnId: t2.id, role: 'user', content: 'after summary' }]);
+    await store.appendEntries([{ id: 'm3', threadId: 'thread-1', turnId: t2.id, role: 'user', content: 'after summary' }]);
 
     const mem = new ConversationHistoryMemory(store);
     const history = await mem.get('thread-1');

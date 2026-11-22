@@ -18,20 +18,19 @@ describe('InMemoryThreadStore.createTurn（forkedFrom）', () => {
 });
 
 describe('InMemoryThreadStore.appendEntries（id 归属）', () => {
-  it('调用方指定 id 时沿用，未指定时生成', async () => {
+  it('落库沿用调用方指定的 id', async () => {
     const store = new InMemoryThreadStore();
     await store.createThread('a', 't', 'thread-1');
-    const [specified, generated] = await store.appendEntries([
+    const [m1, m2] = await store.appendEntries([
       { id: 'engine-id-1', threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'assistant', content: 'yo' },
+      { id: 'engine-id-2', threadId: 'thread-1', turnId: 'turn-1', role: 'assistant', content: 'yo' },
     ]);
 
-    expect(specified.id).toBe('engine-id-1');
-    expect(generated.id).toBeTruthy();
-    expect(generated.id).not.toBe('engine-id-1');
+    expect(m1.id).toBe('engine-id-1');
+    expect(m2.id).toBe('engine-id-2');
 
     const entries = await store.getEntries('thread-1');
-    expect(entries.map((m) => m.id)).toEqual(['engine-id-1', generated.id]);
+    expect(entries.map((m) => m.id)).toEqual(['engine-id-1', 'engine-id-2']);
   });
 });
 
@@ -40,8 +39,8 @@ describe('InMemoryThreadStore.archiveMessagesByTurns / includeArchived', () => {
     const store = new InMemoryThreadStore();
     await store.createThread('a', 't', 'thread-1');
     const [m1, m2] = await store.appendEntries([
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
-      { threadId: 'thread-1', turnId: 'turn-2', role: 'assistant', content: 'yo' },
+      { id: 'm1', threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
+      { id: 'm2', threadId: 'thread-1', turnId: 'turn-2', role: 'assistant', content: 'yo' },
     ]);
 
     await store.archiveMessagesByTurns('thread-1', ['turn-1']);
@@ -59,8 +58,8 @@ describe('InMemoryThreadStore.archiveMessagesByTurns / includeArchived', () => {
     const store = new InMemoryThreadStore();
     await store.createThread('a', 't', 'thread-1');
     await store.appendEntries([
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
-      { threadId: 'thread-1', turnId: 'turn-2', role: 'assistant', content: 'yo' },
+      { id: 'm1', threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
+      { id: 'm2', threadId: 'thread-1', turnId: 'turn-2', role: 'assistant', content: 'yo' },
     ]);
     await store.archiveMessagesByTurns('thread-1', ['turn-1']);
 
@@ -72,7 +71,7 @@ describe('InMemoryThreadStore.archiveMessagesByTurns / includeArchived', () => {
     const store = new InMemoryThreadStore();
     await store.createThread('a', 't', 'thread-1');
     await store.appendEntries([
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
+      { id: 'm1', threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
     ]);
     await store.archiveMessagesByTurns('thread-1', ['turn-1', 'nope']);
     await store.archiveMessagesByTurns('thread-1', ['turn-1']);

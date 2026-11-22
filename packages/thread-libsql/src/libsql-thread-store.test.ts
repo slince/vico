@@ -17,8 +17,8 @@ describe('LibSqlThreadStore archiveMessagesByTurns / includeArchived', () => {
   it('archiveMessagesByTurns 软标记；includeArchived:false 排除', async () => {
     await store.createThread('a', 't', 'thread-1');
     const [m1, m2] = await store.appendEntries([
-      { threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
-      { threadId: 'thread-1', turnId: 'turn-2', role: 'assistant', content: 'yo' },
+      { id: 'm1', threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
+      { id: 'm2', threadId: 'thread-1', turnId: 'turn-2', role: 'assistant', content: 'yo' },
     ]);
     await store.archiveMessagesByTurns('thread-1', ['turn-1']);
     const active = await store.getEntries('thread-1', { includeArchived: false });

@@ -130,14 +130,15 @@ export class MysqlThreadStore implements ThreadStore {
   // --- Message ---
 
   async appendEntries(
-    entries: Omit<Message, 'id' | 'createdAt'>[],
+    entries: Omit<Message, 'createdAt'>[],
   ): Promise<Message[]> {
     const now = Date.now();
     const results: Message[] = [];
     const rows: (typeof messages.$inferInsert)[] = [];
     for (const entry of entries) {
-      const id = crypto.randomUUID();
-      results.push({ ...entry, id, createdAt: now });
+      // id 由调用方（引擎）指定，落库沿用保证流式与历史是同一标识
+      const { id } = entry;
+      results.push({ ...entry, createdAt: now });
       rows.push({
         id,
         thread_id: entry.threadId,

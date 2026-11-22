@@ -1,4 +1,5 @@
 // @vico/compaction — ModelContextCompactor 默认实现（持久化增量滚动压缩）
+import {randomUUID} from 'node:crypto';
 import type {Thread, ThreadStore, Turn, TurnStatus} from '@vico/thread';
 import type {AgentMessage, ModelConfig} from '@vico/model';
 import {createLanguageModel, ModelClient} from '@vico/model';
@@ -154,6 +155,7 @@ export class ModelContextCompactor implements ContextCompactor {
 
       // append-only 落库：先写新摘要，再按 turn 归档 head（先写后删，崩溃不丢上下文）
       const summaryEntry = {
+        id: randomUUID(),
         threadId: thread.id,
         turnId: summaryTurnId,
         role: SUMMARY_ROLE,
