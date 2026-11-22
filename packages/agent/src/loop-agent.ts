@@ -327,11 +327,15 @@ export class LoopAgent
 
     const {decisions} = extractApprovalResponses(userMessages)
 
-    // 本轮输入消息统一补 id：前端传 AgentMessage（已带 id）时沿用，缺失则由引擎生成，
-    // 保证「内存消息链 → 落库 → 历史接口」是同一个标识
-    const userMessagesWithId = userMessages.map((m) => ({...m, id: (m as { id?: string }).id ?? randomUUID()}));
+    // 本轮输入消息补 id + turnId：id 前端已带则沿用、缺失由引擎生成；
+    // turnId 统一归属本轮 turn，保证「内存消息链 → 落库 → 历史接口」一致
+    const converted: AgentMessage[] = userMessages.map((m) => ({
+      ...m,
+      id: (m as { id?: string }).id ?? randomUUID(),
+      turnId: session.turn.id,
+    }));
 
-    const requestContext = new ModelRequestContext({agent: this, userMessages: userMessagesWithId, tools: this.tools, session});
+    const requestContext = new ModelRequestContext({agent:  this, userMessages: converted, tools: this.tools, session});
 
     // 洋葱执行：各处理器前置注入（enter 段）→ 核心（构建 TurnContext + runLoop）→ 逆序后置（resolve 段）。
     // 核心产物经闭包传出；resolve 段跑完后统一交给 finalizeTurn 收尾（落库 + 流终结）。
@@ -363,7 +367,7 @@ export class LoopAgent
       this.loadSessionApprovals(session, context);
 
       // 保存本轮会话消息
-      await this.persistMessages(context, userMessagesWithId);
+      await this.persistMessages(context, converted);
 
       // 历史压力压缩
       await this.compactForPressure(context);

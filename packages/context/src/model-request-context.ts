@@ -20,8 +20,8 @@ export interface AgentRef {
 export class ModelRequestContext {
   /** Agent 配置（只读引用） */
   readonly agent: AgentRef;
-  /** 本轮输入消息组 — 用户原始输入，无 usage 等扩展字段；id 为消息标识（入链后必填） */
-  readonly userMessages: (ModelMessage & { id: string })[];
+  /** 本轮输入消息组 — 调用方已补齐 id 与 turnId 的输入消息，直接入链 */
+  readonly userMessages: AgentMessage[];
   /** 消息列表 — 处理器可追加 history（unshift） */
   messages: AgentMessage[];
   /** 暴露给 LLM 的工具注册表（以工具名为键，处理器可增删改查） */
@@ -44,7 +44,7 @@ export class ModelRequestContext {
     step,
   }: {
     agent: AgentRef;
-    userMessages?: (ModelMessage & { id: string })[];
+    userMessages?: AgentMessage[];
     messages?: AgentMessage[];
     tools?: Tool[];
     session: TurnSession;
@@ -53,8 +53,8 @@ export class ModelRequestContext {
     this.agent = agent;
     this.userMessages = userMessages ?? [];
     this.messages = messages ? [...messages] : [];
-    // 首次构造：用户消息打上所属 turn 标识（消息自描述所属 turn）
-    this.messages.push(...this.userMessages.map((m) => ({ ...m, turnId: session.turn.id })));
+    // 调用方已补 id + turnId，直接入链
+    this.messages.push(...this.userMessages);
     this.systemPrompt = new PromptSectionBuilder();
     this.tools = new ToolRegistry(tools ?? []);
     this.session = session;
