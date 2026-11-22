@@ -106,6 +106,13 @@
       "when": 1791400000002,
       "tag": "0015_drop_agents_max_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1795356020031,
+      "tag": "0016_light_apps",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,12 @@ skills:
     - "~/vico/skills"
   compatible: true
 
+# 轻应用托管：从这些目录扫描 app.json 清单；每个应用获得独立私有数据目录
+apps:
+  scan_paths:
+    - "~/vico/apps"
+  data_dir: "~/vico/app-data"
+
 memory:
   stm_window: 20
   ltm_auto_extract: true

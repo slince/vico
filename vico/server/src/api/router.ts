@@ -14,6 +14,7 @@ import { observabilityRoutes } from './observability.js';
 import { fsRoutes } from './fs.js';
 import { providerRoutes } from './providers.js';
 import { terminalRoutes } from './terminal.js';
+import { appRoutes } from './apps.js';
 export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   authRoutes(app);
   agentRoutes(app);
@@ -29,4 +30,5 @@ export function registerRoutes(app: Hono<{ Variables: Variables }>) {
   fsRoutes(app);
   providerRoutes(app);
   terminalRoutes(app);
+  appRoutes(app);
 }

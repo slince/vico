@@ -7,7 +7,8 @@
     "dev:server": "pnpm --filter @vico/server dev",
     "dev:web": "pnpm --filter @vico/web dev",
     "db:migrate": "pnpm --filter @vico/server db:migrate",
-    "skill:install": "pnpm --filter @vico/server skill:install"
+    "skill:install": "pnpm --filter @vico/server skill:install",
+    "app:build": "pnpm --filter @vico/server app:build"
   },
   "packageManager": "pnpm@12.11.2"
 }

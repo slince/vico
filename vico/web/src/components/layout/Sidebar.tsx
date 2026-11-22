@@ -12,6 +12,7 @@ import {
   Cpu,
   Database,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   MessageCircle,
   MessageSquare,
@@ -60,6 +61,7 @@ export function Sidebar() {
 
   const navItems = useMemo(() => [
     { to: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
+    { to: '/apps', label: t('apps'), icon: LayoutGrid },
     { to: '/chat', label: t('chat'), icon: MessageCircle },
   ], [t]);
 

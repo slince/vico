@@ -11,6 +11,7 @@ import skillsZhCN from './locales/zh-CN/skills.json';
 import threadsZhCN from './locales/zh-CN/threads.json';
 import knowledgeZhCN from './locales/zh-CN/knowledge.json';
 import settingsZhCN from './locales/zh-CN/settings.json';
+import appsZhCN from './locales/zh-CN/apps.json';
 
 import commonZhTW from './locales/zh-TW/common.json';
 import assistantZhTW from './locales/zh-TW/assistant.json';
@@ -22,6 +23,7 @@ import skillsZhTW from './locales/zh-TW/skills.json';
 import threadsZhTW from './locales/zh-TW/threads.json';
 import knowledgeZhTW from './locales/zh-TW/knowledge.json';
 import settingsZhTW from './locales/zh-TW/settings.json';
+import appsZhTW from './locales/zh-TW/apps.json';
 
 import commonEn from './locales/en/common.json';
 import assistantEn from './locales/en/assistant.json';
@@ -33,6 +35,7 @@ import skillsEn from './locales/en/skills.json';
 import threadsEn from './locales/en/threads.json';
 import knowledgeEn from './locales/en/knowledge.json';
 import settingsEn from './locales/en/settings.json';
+import appsEn from './locales/en/apps.json';
 
 i18n
   .use(LanguageDetector)
@@ -49,6 +52,7 @@ i18n
         threads: threadsZhCN,
         knowledge: knowledgeZhCN,
         settings: settingsZhCN,
+        apps: appsZhCN,
         assistant: assistantZhCN,
       },
       'zh-TW': {
@@ -61,6 +65,7 @@ i18n
         threads: threadsZhTW,
         knowledge: knowledgeZhTW,
         settings: settingsZhTW,
+        apps: appsZhTW,
         assistant: assistantZhTW,
       },
       en: {
@@ -73,6 +78,7 @@ i18n
         threads: threadsEn,
         knowledge: knowledgeEn,
         settings: settingsEn,
+        apps: appsEn,
         assistant: assistantEn,
       },
     },

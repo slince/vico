@@ -18,6 +18,11 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      // 轻应用静态托管（vico server 从应用 dist 目录读取）
+      '/app-static': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   worker: {

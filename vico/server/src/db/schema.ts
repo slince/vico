@@ -166,3 +166,17 @@ export const thread_messages = sqliteTable('thread_messages', {
   metadata: text('metadata'),
   created_at: integer('created_at').notNull(),
 });
+
+/**
+ * 轻应用安装状态表 — 记录用户对文件系统轻应用的安装/启用状态。
+ *
+ * 只有存在记录且 installed=1 的应用才允许打开；enabled=0 表示保留安装但暂停
+ * 路由注入与前端访问。应用清单本身来自 `~/vico/apps` 目录扫描，不落库。
+ */
+export const light_apps = sqliteTable('light_apps', {
+  id: text('id').primaryKey(),
+  installed: integer('installed').notNull().default(1),
+  enabled: integer('enabled').notNull().default(1),
+  installed_at: integer('installed_at').notNull(),
+  updated_at: integer('updated_at').notNull(),
+});

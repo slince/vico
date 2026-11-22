@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from '@/hooks/use-auth';
 // 新版页面（shadcn/ui 重写）
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
+import AppCenter from '@/pages/AppCenter';
+import LightApp from '@/pages/LightApp';
 import AgentDetail from '@/pages/AgentDetail';
 import KnowledgeDetail from '@/pages/KnowledgeDetail';
 import Settings from '@/pages/Settings';
@@ -37,6 +39,8 @@ export const router = createBrowserRouter([
           // ===================== 新版路由（默认） =====================
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard', element: <Dashboard /> },
+          { path: 'apps', element: <AppCenter /> },
+          { path: 'apps/:appId', element: <LightApp /> },
           { path: 'chat', element: <Chat /> },
           { path: 'chat/:threadId', element: <Chat /> },
           { path: 'agents/:id', element: <SettingsLayout activeSection="agents"><AgentDetail /></SettingsLayout> },

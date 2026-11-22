@@ -50,6 +50,12 @@ export const uploadSchema = z.object({
   ]),
 });
 
+/** 轻应用托管配置（应用扫描目录 + 应用私有数据目录） */
+export const appsSchema = z.object({
+  scan_paths: z.array(z.string()).default(['~/vico/apps']),
+  data_dir: z.string().default('~/vico/app-data'),
+});
+
 /** server 配置段映射：framework 段 + 应用层专属段 */
 export interface ServerConfigKeys extends VicoConfigKeys {
   server: typeof serverSchema;
@@ -57,6 +63,7 @@ export interface ServerConfigKeys extends VicoConfigKeys {
   database: typeof databaseSchema;
   file_storage: typeof fileStorageSchema;
   upload: typeof uploadSchema;
+  apps: typeof appsSchema;
 }
 
 /** 文件持久化存储配置切片（供 StorageManager 构造注入） */
@@ -64,3 +71,6 @@ export type FileStorageConfig = z.infer<typeof fileStorageSchema>;
 
 /** 文件上传配置切片（供 KnowledgeManager 构造注入） */
 export type UploadConfig = z.infer<typeof uploadSchema>;
+
+/** 轻应用托管配置切片（供 AppManager 构造注入） */
+export type AppsConfig = z.infer<typeof appsSchema>;
