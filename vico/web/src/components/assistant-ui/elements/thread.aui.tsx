@@ -156,6 +156,15 @@ type TurnMessageContextValue = {
   inCollapse: boolean;
 };
 
+/**
+ * 渲染「什么都不显示」的占位元素。
+ *
+ * `MessagePrimitive.GroupedParts` 把渲染函数的 `null` 当作「交给默认/注册 UI 渲染」
+ * （见其 `children(...) ?? <DefaultPartFallback/>`），直接 return null 会回落到内置工具卡，
+ * 造成折叠区内外的重复渲染。因此这里必须返回一个真实但空渲染的元素。
+ */
+const HiddenPart: FC = () => null;
+
 const TurnMessageContext = createContext<TurnMessageContextValue>({
   isComplete: false,
   isLast: false,
@@ -616,8 +625,8 @@ const AssistantMessage: FC = () => {
           {({ part, children }) => {
             // 完成态最后一条消息拆两段：折叠区内只留非 text（活动），折叠区外只留 text（正文）
             if (isComplete && isLast) {
-              if (inCollapse && part.type === "text") return null;
-              if (!inCollapse && part.type !== "text") return null;
+              if (inCollapse && part.type === "text") return <HiddenPart />;
+              if (!inCollapse && part.type !== "text") return <HiddenPart />;
             }
 
             switch (part.type) {
