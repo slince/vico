@@ -615,7 +615,11 @@ const AssistantMessage: FC = () => {
       data-slot="aui_assistant-message-root"
       data-role="assistant"
       className={cn(
-        "fade-in slide-in-from-bottom-1 animate-in relative duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]",
+        "fade-in slide-in-from-bottom-1 animate-in relative duration-150",
+        // 折叠区内的消息不启用 content-visibility：面板收起时内容被跳过渲染，
+        // Base UI 量到的 --collapsible-panel-height 是 200px 的占位高度而不是真实高度，
+        // 展开时就会先撑到占位高度再缩回真实高度（表现为展开闪一下）
+        !inCollapse && "[contain-intrinsic-size:auto_200px] [content-visibility:auto]",
         !footerHidden && "-mb-7.5 pb-7.5",
       )}
     >

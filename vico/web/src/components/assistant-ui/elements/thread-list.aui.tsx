@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import {
   type ComponentPropsWithoutRef,
+  type CSSProperties,
   type FC,
   forwardRef,
   Fragment,
@@ -627,6 +628,69 @@ const ThreadListSkeleton: FC = () => {
   );
 };
 
+/**
+ * 会话标题：未溢出时按原样截断；标题过长时，悬浮所在条目后以走马灯向左循环滚动。
+ * 溢出与否由实测文本宽度判断（截断块的 scrollWidth，外层 overflow-hidden 读不到），
+ * 避免短标题也跑动画。
+ */
+const ThreadListItemTitle: FC = () => {
+  const rawTitle = useAuiState((s) => s.threadListItem.title);
+  const { t } = useTranslation("assistant");
+  const title = rawTitle || t("threadList.newChat");
+
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  const [duration, setDuration] = useState(12);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const check = () => {
+      // 非溢出态 measureRef 是截断块；溢出态取轨道首份副本的布局宽度
+      const textWidth =
+        measureRef.current?.scrollWidth ??
+        container.querySelector<HTMLElement>(".thread-title-marquee > span:first-child")
+          ?.offsetWidth ??
+        container.clientWidth;
+      const isOverflow = textWidth > container.clientWidth + 1;
+      setOverflow(isOverflow);
+      if (isOverflow) {
+        // 按文字宽度换算时长（约 60px/s），长短标题滚动速度一致，下限 6s
+        setDuration(Math.max(6, textWidth / 60));
+      }
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [title, overflow]);
+
+  return (
+    <span
+      ref={containerRef}
+      data-slot="aui_thread-list-item-title"
+      className="relative min-w-0 flex-1 overflow-hidden"
+    >
+      {overflow ? (
+        <span
+          className="thread-title-marquee flex w-max items-center"
+          style={{ "--marquee-duration": `${duration}s` } as CSSProperties}
+        >
+          <span className="shrink-0 whitespace-nowrap pe-6">{title}</span>
+          <span className="shrink-0 whitespace-nowrap pe-6" aria-hidden="true">
+            {title}
+          </span>
+        </span>
+      ) : (
+        <span ref={measureRef} className="block truncate">
+          {title}
+        </span>
+      )}
+    </span>
+  );
+};
+
 export const ThreadListItem: FC = () => {
   const isRunning = useAuiState((s) => s.threadListItem.isRunning);
   const {t} = useTranslation("assistant");
@@ -665,12 +729,7 @@ export const ThreadListItem: FC = () => {
               className="text-muted-foreground me-1.5 size-3.5 shrink-0 animate-spin"
             />
           )}
-          <span
-            data-slot="aui_thread-list-item-title"
-            className="min-w-0 flex-1 truncate"
-          >
-            <ThreadListItemPrimitive.Title fallback={t("threadList.newChat")} />
-          </span>
+          <ThreadListItemTitle />
           {isRunning && <span className="sr-only">{t("threadList.running")}</span>}
         </ThreadListItemPrimitive.Trigger>
       )}

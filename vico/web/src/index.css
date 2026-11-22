@@ -878,3 +878,22 @@
 [data-slot="aui_thread-workspace-group"] [data-slot="aui_thread-list-item-rename"] {
   padding-inline-start: 1.875rem;
 }
+
+/* 会话标题走马灯：仅标题溢出时由 JS 渲染 .thread-title-marquee；默认暂停，悬浮所在条目时向左循环 */
+@keyframes thread-title-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.thread-title-marquee {
+  animation: thread-title-marquee var(--marquee-duration, 12s) linear infinite;
+  animation-play-state: paused;
+}
+
+.group:hover .thread-title-marquee {
+  animation-play-state: running;
+}
