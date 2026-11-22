@@ -240,7 +240,9 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
       }}
     >
       <ThreadPrimitive.Viewport
-        turnAnchor="top"
+        // 用默认 bottom 锚定：turnAnchor="top" 会注入 data-aui-top-anchor-reserve 补偿元素，
+        // 而折叠区把最后一条消息渲染了两份（活动/正文各一个 root），target 会命中折叠区那份，
+        // 补偿高度被塞进 CollapsibleContent 里（收起失效、展开多一块空白）。
         data-slot="aui_thread-viewport"
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
