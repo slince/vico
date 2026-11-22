@@ -19,17 +19,17 @@ export function useVicoRuntime(options: VicoRuntimeOptions): VicoRuntime {
 
   const runtime: AssistantRuntime = useRemoteThreadListRuntime({
     adapter: threadList,
-    ...(threadId !== undefined && {threadId}),
-    ...(onThreadIdChange !== undefined && {onThreadIdChange}),
+    threadId,
+    onThreadIdChange,
     runtimeHook: () =>
       useVicoThreadRuntime({
         transport,
-        ...(threadId !== undefined && {threadId}),
-        ...(agentId !== undefined && {agentId}),
-        ...(adapters !== undefined && {adapters}),
-        ...(onThreadIdChange !== undefined && {onThreadIdChange}),
-        ...(onError !== undefined && {onError}),
-        ...(maxSteps !== undefined && {maxSteps}),
+        threadId,
+        agentId,
+        adapters,
+        onThreadIdChange,
+        onError,
+        maxSteps,
       }),
   });
 

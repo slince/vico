@@ -72,14 +72,14 @@ export function useVicoThreadRuntime(options: Omit<VicoRuntimeOptions, 'threadLi
       createVicoChatModelAdapter({
         transport: options.transport,
         resolveThreadId,
-        ...(options.agentId !== undefined && {agentId: options.agentId}),
+        agentId: options.agentId,
         // 运行配置由宿主各选择器注册进 modelContext，读取时机必须在发送当刻
         getConfig: () => {
           const config = aui.modelContext.getModelContext().config;
           return config as Record<string, unknown> | undefined;
         },
         onThreadId: (id) => options.onThreadIdChange?.(id),
-        ...(options.onError !== undefined && {onError: options.onError}),
+        onError: options.onError,
       }),
     [aui, options.transport, options.agentId, options.onThreadIdChange, options.onError, resolveThreadId],
   );
