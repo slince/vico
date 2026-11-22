@@ -309,7 +309,8 @@ export type WorkspaceThreadGroup = {
 
 /**
  * 按工作区分组线程：从 thread 的 custom.workspace 取工作区，无 workspace 的
- * 归入「未分组」。先按搜索词过滤标题，再按 workspace 分组（保持后端时间序）。
+ * 归入「未分组」。先按搜索词过滤标题，分组按名称字母序排列（未分组垫底），
+ * 组内会话保持后端时间序；分组顺序不随会话增删而跳变。
  */
 export const useWorkspaceGroups = (searchQuery = "") => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
@@ -348,7 +349,7 @@ export const useWorkspaceGroups = (searchQuery = "") => {
       if (matchesQuery(threadIds[index])) filteredIndices.push(index);
     }
 
-    // 按首次出现顺序分组（保持后端时间序）
+    // 按首次出现顺序收集分桶（组内保持后端时间序）
     const byWorkspace = new Map<string | undefined, number[]>();
     for (const index of filteredIndices) {
       const w = workspaceOf(index);
@@ -357,8 +358,9 @@ export const useWorkspaceGroups = (searchQuery = "") => {
       else byWorkspace.set(w, [index]);
     }
 
-    const groups: WorkspaceThreadGroup[] = [...byWorkspace.entries()].map(
-      ([workspace, indices]) => ({
+    const collator = new Intl.Collator(undefined, { sensitivity: "base" });
+    const groups: WorkspaceThreadGroup[] = [...byWorkspace.entries()]
+      .map(([workspace, indices]) => ({
         workspace,
         // 展示末段路径；无 workspace 用「未分组」
         label: workspace
@@ -366,8 +368,17 @@ export const useWorkspaceGroups = (searchQuery = "") => {
           : t("threadList.ungrouped"),
         indices,
         total: allByWorkspace.get(workspace)?.length ?? 0,
-      }),
-    );
+      }))
+      .sort((a, b) => {
+        // 未分组固定排在最后
+        if (!a.workspace) return 1;
+        if (!b.workspace) return -1;
+        // 先按展示名字母序，重名时回退到完整路径
+        const labelCmp = collator.compare(a.label, b.label);
+        return labelCmp !== 0
+          ? labelCmp
+          : collator.compare(a.workspace, b.workspace);
+      });
 
     return {
       threadIds,
