@@ -4,13 +4,13 @@ import {createTool} from '../create-tool.js';
 import type {ToolCallContext} from '../types.js';
 
 const todoEntry = z.object({
-  id: z.string().describe('Unique identifier for the task'),
-  content: z.string().describe('Task description'),
-  status: z.enum(['pending', 'in_progress', 'completed']).describe('Task status'),
+  id: z.string().describe('Stable identifier for the task; reuse the same id across calls to update a task'),
+  content: z.string().describe('Short, concrete description of the task'),
+  status: z.enum(['pending', 'in_progress', 'completed']).describe('Task status; at most one task should be in_progress at a time'),
 });
 
 const todoParams = z.object({
-  tasks: z.array(todoEntry).describe('Task list (replaces the entire current list)'),
+  tasks: z.array(todoEntry).describe('Complete task list (replaces the entire current list); pass an empty array to clear all tasks'),
 });
 
 const todoOutput = z.object({
@@ -39,7 +39,7 @@ async function executeTodo(args: z.infer<typeof todoParams>, ctx: ToolCallContex
 export const todoTool = createTool({
   name: 'todo_write',
   description:
-    'Create and update a structured task list to track progress across multi-step work. Each call replaces the entire list. Each task has an id, content, and status (pending/in_progress/completed).',
+    'Create and maintain a task list for multi-step work. Use it when the user gives a complex task (3+ distinct steps), a numbered or comma-separated list of tasks, or asks to track progress. Update it silently — never announce or narrate todo changes to the user. Each call REPLACES the entire list with the tasks you provide, so always include every current task, not just the one that changed. Give each task a stable, readable id (e.g. "1", "2", "3") and reuse the same id across calls. Mark the task you are working on as in_progress (at most one), and mark it completed as soon as it is done. Pass an empty tasks array to clear the list.',
   inputSchema: todoParams,
   outputSchema: todoOutput,
   policy: 'never',
