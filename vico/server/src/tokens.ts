@@ -23,6 +23,7 @@ import type { StorageManager } from './services/knowledge/storage-manager.js';
 import type { DocumentManager } from './services/knowledge/document-manager.js';
 import type { RAGManager } from './lib/rag-manager.js';
 import type { TerminalSessionManager } from '@vico/terminal';
+import type { AppManager } from './apps/app-manager.js';
 import type { weatherTool } from './agent/tools/weather-tool.js';
 import type { meta, providers } from './llm/providers/index.js';
 
@@ -45,6 +46,8 @@ export interface ServerTokens extends VicoTokens {
   documentManager: DocumentManager;
   ragManager: RAGManager;
   terminalSessionManager: TerminalSessionManager;
+  /** 轻应用管理器（扫描 apps、安装状态、后端路由分发与静态托管） */
+  appManager: AppManager;
   weatherTool: typeof weatherTool;
   llmProviders: { meta: typeof meta; providers: typeof providers };
 }

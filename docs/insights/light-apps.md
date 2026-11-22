@@ -58,7 +58,7 @@ export default async function setup(app, ctx) {
 | 模块 | 路径 | 职责 |
 |------|------|------|
 | 配置 | `vico/server/src/config/schemas.ts`、`server.config.yaml` | `apps.scan_paths`（默认 `../../apps`，相对 `vico/server` 包根目录，即仓库根 `apps/`）、`apps.data_dir`（默认 `~/vico/app-data`） |
-| 管理器 | `vico/server/src/apps/app-manager.ts` | 清单扫描校验、安装状态读写、子 app 懒加载、静态托管 |
+| 管理器 | `vico/server/src/apps/app-manager.ts` | 清单扫描校验、安装状态读写、子 app 懒加载、静态托管；由 `services-provider` 注册为容器服务 `appManager`（注入 db / apps 配置 / logger），路由通过 `getContainer().get('appManager')` 取用 |
 | 路由 | `vico/server/src/api/apps.ts` | `/api/v1/apps*` 管理接口、`/api/apps/<id>/*` 分发、`/app-static/<id>/*` 静态 |
 | 表 | `vico/server/src/db/schema.ts` + `drizzle/0016_light_apps.sql` | `light_apps`（id/installed/enabled/时间戳） |
 | 构建 CLI | `vico/server/src/apps/build.ts` | `pnpm app:build [appId]` 在应用目录执行 `pnpm build` |

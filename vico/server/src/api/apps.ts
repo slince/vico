@@ -9,7 +9,8 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { Variables } from '../index.js';
 import { getAuthContext, requireAdmin } from './helpers.js';
-import { AppLoadError, getAppManager } from '../apps/app-manager.js';
+import { AppLoadError } from '../apps/app-manager.js';
+import { getContainer } from '../container.js';
 
 /**
  * 注册轻应用相关路由。
@@ -21,7 +22,7 @@ export function appRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/api/v1/apps', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    return c.json(await getAppManager().list());
+    return c.json(await getContainer().get('appManager').list());
   });
 
   /** 单个应用摘要 */
@@ -29,7 +30,7 @@ export function appRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
-    const detail = await getAppManager().get(c.req.param('id'));
+    const detail = await getContainer().get('appManager').get(c.req.param('id'));
     if (!detail) return c.json({ error: 'App not found' }, 404);
     return c.json(detail);
   });
@@ -40,7 +41,7 @@ export function appRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     try {
-      return c.json(await getAppManager().install(c.req.param('id')));
+      return c.json(await getContainer().get('appManager').install(c.req.param('id')));
     } catch (err) {
       if (err instanceof AppLoadError) return c.json({ error: err.message }, 400);
       throw err;
@@ -52,7 +53,7 @@ export function appRoutes(app: Hono<{ Variables: Variables }>) {
     const auth = await requireAdmin(c);
     if (auth instanceof Response) return auth;
 
-    await getAppManager().uninstall(c.req.param('id'));
+    await getContainer().get('appManager').uninstall(c.req.param('id'));
     return c.json({ ok: true });
   });
 
@@ -62,7 +63,7 @@ export function appRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     try {
-      return c.json(await getAppManager().setEnabled(c.req.param('id'), true));
+      return c.json(await getContainer().get('appManager').setEnabled(c.req.param('id'), true));
     } catch (err) {
       if (err instanceof AppLoadError) return c.json({ error: err.message }, 400);
       throw err;
@@ -75,7 +76,7 @@ export function appRoutes(app: Hono<{ Variables: Variables }>) {
     if (auth instanceof Response) return auth;
 
     try {
-      return c.json(await getAppManager().setEnabled(c.req.param('id'), false));
+      return c.json(await getContainer().get('appManager').setEnabled(c.req.param('id'), false));
     } catch (err) {
       if (err instanceof AppLoadError) return c.json({ error: err.message }, 400);
       throw err;
@@ -86,7 +87,7 @@ export function appRoutes(app: Hono<{ Variables: Variables }>) {
   const dispatch = async (c: Context<{ Variables: Variables }>) => {
     const appId = c.req.param('appId')!;
     try {
-      return await getAppManager().handleApi(appId, c.req.raw);
+      return await getContainer().get('appManager').handleApi(appId, c.req.raw);
     } catch (err) {
       if (err instanceof AppLoadError) return c.json({ error: err.message }, 502);
       throw err;
@@ -107,6 +108,6 @@ export function appRoutes(app: Hono<{ Variables: Variables }>) {
   app.get('/app-static/:appId/*', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
-    return await getAppManager().serveStatic(c.req.param('appId')!, c.req.path);
+    return await getContainer().get('appManager').serveStatic(c.req.param('appId')!, c.req.path);
   });
 }

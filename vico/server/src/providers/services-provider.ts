@@ -18,9 +18,14 @@ import { TerminalSessionManager } from '@vico/terminal';
 import { weatherTool } from '../agent/tools/weather-tool.js';
 import { meta, providers } from '../llm/providers/index.js';
 import type { ServerServiceProvider } from '../tokens.js';
+import { AppManager } from '../apps/app-manager.js';
+import { appsSchema } from '../config/schemas.js';
 
 export const servicesProvider: ServerServiceProvider = {
   register(c) {
+    // 轻应用配置段由本域 provider 声明，供 appManager 工厂通过 getConfig 读取
+    c.registerConfig('apps', appsSchema);
+
     // 认证实例（懒加载 betterAuth，首次 get 时才初始化连接）
     c.register('auth', () => getAuth());
 
@@ -69,6 +74,10 @@ export const servicesProvider: ServerServiceProvider = {
       ));
 
     c.register('terminalSessionManager', ({ get }) => new TerminalSessionManager(get('logger')));
+
+    // 轻应用管理器：配置（apps 段）、数据库与日志全部由容器注入
+    c.register('appManager', ({ get, getConfig }) =>
+      new AppManager(get('db'), getConfig('apps'), get('logger')));
 
     c.register('weatherTool', () => weatherTool);
 

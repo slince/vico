@@ -5,7 +5,6 @@ import {ensureCheckpointTables} from '@vico/checkpoint-libsql';
 import {ensureMemoryTables} from '@vico/memory-libsql';
 import {ensureThreadTables} from '@vico/thread-libsql';
 import {
-  appsSchema,
   authSchema,
   databaseSchema,
   fileStorageSchema,
@@ -20,7 +19,6 @@ import {runMigrations} from './db/run-migrations.js';
 import {getDb} from './db/db.js';
 import {getClient} from './db/init-libsql.js';
 import {seedDefaultAdmin, seedMainAgent} from './auth/seed.js';
-import {getAppManager} from './apps/app-manager.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -41,8 +39,7 @@ const serverProvider: ServerServiceProvider = {
       .registerConfig('auth', authSchema)
       .registerConfig('database', databaseSchema)
       .registerConfig('file_storage', fileStorageSchema)
-      .registerConfig('upload', uploadSchema)
-      .registerConfig('apps', appsSchema);
+      .registerConfig('upload', uploadSchema);
   },
 
   async boot(c) {
@@ -60,9 +57,6 @@ const serverProvider: ServerServiceProvider = {
 
     // checkpoint 版本链 TTL 清理：启动一次 + 每小时一次
     c.get('checkpointPurge').start();
-
-    // 初始化轻应用管理器：读取扫描目录配置，后续路由按需懒加载应用后端子 app
-    getAppManager({ db, config: c.getConfig('apps'), logger });
 
     logger.info('Vico agent framework initialized');
   },

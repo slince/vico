@@ -476,18 +476,3 @@ export class AppManager {
     return dataDir;
   }
 }
-
-let appManager: AppManager | undefined;
-
-/**
- * 获取轻应用管理器单例（首次调用时按容器配置与数据库构建）。
- * @param deps 依赖注入（db/config/logger），仅首次构建时需要
- * @returns 管理器单例
- */
-export function getAppManager(deps?: { db: AppDb; config: AppsConfig; logger: Logger }): AppManager {
-  if (!appManager) {
-    if (!deps) throw new Error('[apps] AppManager 尚未初始化');
-    appManager = new AppManager(deps.db, deps.config, deps.logger);
-  }
-  return appManager;
-}
