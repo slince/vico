@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type {ModelMessage, PersistableMessage} from '@vico/model';
+import type {AgentMessage, ModelMessage} from '@vico/model';
 import {
   BLOCK_OVERHEAD, CHARS_PER_TOKEN, ROLE_OVERHEAD,
   estimateContent, estimateMessage, estimateMessages, measure,
 } from './token-estimator.js';
 
 /** 构造字段齐全的 usage（input token 数可定制） */
-function usage(inputTotal: number): NonNullable<PersistableMessage['usage']> {
+function usage(inputTotal: number): NonNullable<AgentMessage['usage']> {
   return {
     inputTokens: { total: inputTotal, noCache: inputTotal, cacheRead: 0, cacheWrite: 0 },
     outputTokens: { total: 10, text: 10, reasoning: 0 },
@@ -44,34 +44,35 @@ describe('token-estimator', () => {
   });
 
   it('measure 无 usage 时退化为纯启发式估算', () => {
-    const messages: PersistableMessage[] = [{ role: 'user', content: 'hello' }];
+    const messages: AgentMessage[] = [{ id: 'm1', role: 'user', content: 'hello' }];
     expect(measure(messages)).toBe(estimateMessages(messages));
   });
 
   it('measure 以最近一条 usage 的 input token 为基线，加其后消息估算', () => {
-    const messages: PersistableMessage[] = [
-      { role: 'user', content: 'first' },
-      { role: 'assistant', content: 'reply', usage: usage(1000) },
-      { role: 'user', content: 'second' },
+    const messages: AgentMessage[] = [
+      { id: 'm1', role: 'user', content: 'first' },
+      { id: 'm2', role: 'assistant', content: 'reply', usage: usage(1000) },
+      { id: 'm3', role: 'user', content: 'second' },
     ];
     expect(measure(messages)).toBe(1000 + estimateMessage(messages[2]));
   });
 
   it('measure 取最近一条带 usage 的消息（忽略更早的 usage）', () => {
-    const messages: PersistableMessage[] = [
-      { role: 'user', content: 'a' },
-      { role: 'assistant', content: 'b', usage: usage(100) },
-      { role: 'user', content: 'c' },
-      { role: 'assistant', content: 'd', usage: usage(200) },
-      { role: 'user', content: 'e' },
+    const messages: AgentMessage[] = [
+      { id: 'm1', role: 'user', content: 'a' },
+      { id: 'm2', role: 'assistant', content: 'b', usage: usage(100) },
+      { id: 'm3', role: 'user', content: 'c' },
+      { id: 'm4', role: 'assistant', content: 'd', usage: usage(200) },
+      { id: 'm5', role: 'user', content: 'e' },
     ];
     expect(measure(messages)).toBe(200 + estimateMessage(messages[4]));
   });
 
   it('usage 存在但 inputTokens.total 未上报时退化为纯启发式估算', () => {
-    const messages: PersistableMessage[] = [
-      { role: 'user', content: 'a' },
+    const messages: AgentMessage[] = [
+      { id: 'm1', role: 'user', content: 'a' },
       {
+        id: 'm2',
         role: 'assistant',
         content: 'b',
         usage: {

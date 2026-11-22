@@ -4,7 +4,7 @@ import type {Logger} from 'pino';
 import pino from 'pino';
 
 import type {Agent, AgentOptions, CreateThreadOptions} from './agent.js';
-import type {CallModelResult, ModelMessage, ModelRequest, PersistableMessage, ReasoningEffort} from '@vico/model';
+import type {AgentMessage, CallModelResult, ModelMessage, ModelRequest, ReasoningEffort} from '@vico/model';
 import {
   buildAssistantMessage,
   buildToolResultMessage,
@@ -833,7 +833,7 @@ export class LoopAgent
   /**
    * 批量持久化消息到 threadStore。
    */
-  async persistMessages(context: TurnContext, messages: (PersistableMessage & { id: string })[]): Promise<void> {
+  async persistMessages(context: TurnContext, messages: AgentMessage[]): Promise<void> {
     if (messages.length === 0) {
       return
     }

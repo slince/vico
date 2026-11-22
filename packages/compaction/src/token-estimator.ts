@@ -1,5 +1,5 @@
 // @vico/compaction - Token 估算：分 part 定价 + ROLE/BLOCK 开销 + 消息链自带 usage 锚定
-import type {ModelMessage, PersistableMessage} from '@vico/model';
+import type {AgentMessage, ModelMessage} from '@vico/model';
 import {getMessageText} from '@vico/model';
 
 /** 每 token 对应字符数（固定启发式） */
@@ -61,7 +61,7 @@ export function estimateMessages(messages: ModelMessage[]): number {
  * usage 是消息自带的 in-band 元数据（assistant 消息经 persistMessages 挂载），
  * 其 input token 已覆盖该消息之前的完整上下文，故只需补算其后的增量。
  */
-export function measure(messages: PersistableMessage[]): number {
+export function measure(messages: AgentMessage[]): number {
   let trailing = 0;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];

@@ -17,5 +17,5 @@ export {
   type ContentPart,
 } from './message-utils.js';
 export type { ModelMessage, ToolSet } from '@ai-sdk/provider-utils';
-export type { AgentMessage, PersistableMessage } from './message.js';
+export type { AgentMessage } from './message.js';
 export { standardizePrompt, convertToLanguageModelPrompt, prepareTools, type StandardizedPrompt } from './prompt-conversion.js';
