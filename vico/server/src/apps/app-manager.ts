@@ -8,8 +8,8 @@
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, extname, join, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { basename, dirname, extname, join, resolve, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Hono } from 'hono';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -95,10 +95,19 @@ interface RuntimeEntry {
  * @param p 配置中的路径
  * @returns 绝对路径
  */
+/** 相对路径解析基准：server 包根目录（与运行时 cwd 无关） */
+const SERVER_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+
+/**
+ * 展开 `~` 前缀并按需解析为绝对路径。
+ * 相对路径以 server 包根目录为基准，避免受启动 cwd 影响。
+ * @param p 配置中的路径
+ * @returns 绝对路径
+ */
 function expandPath(p: string): string {
   if (p === '~') return homedir();
   if (p.startsWith('~/')) return resolve(homedir(), p.slice(2));
-  return resolve(p);
+  return resolve(SERVER_ROOT, p);
 }
 
 /** 应用内部错误 — 携带对用户可读的提示信息 */

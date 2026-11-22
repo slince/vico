@@ -1,0 +1,16 @@
+{
+  "id": "snake-demo",
+  "name": "贪吃蛇",
+  "version": "1.0.0",
+  "description": "经典贪吃蛇小游戏，带本地排行榜；数据完全由应用自己的 SQLite 保存。",
+  "icon": "🐍",
+  "author": "Vico",
+  "tags": ["游戏", "示例"],
+  "frontend": {
+    "dist": "dist",
+    "entry": "index.html"
+  },
+  "server": {
+    "entry": "server/index.js"
+  }
+}

@@ -19,7 +19,7 @@ skills:
 # 轻应用托管：从这些目录扫描 app.json 清单；每个应用获得独立私有数据目录
 apps:
   scan_paths:
-    - "~/vico/apps"
+    - "../../apps"          # 项目根目录 apps/（相对 vico/server 包根目录）
   data_dir: "~/vico/app-data"
 
 memory:

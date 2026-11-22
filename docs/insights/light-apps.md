@@ -1,6 +1,6 @@
 # 轻应用托管（Light Apps）
 
-> 让 Vico 从 `~/vico/apps` 发现、安装并运行第三方轻应用：前端走 Vite 构建产物静态托管，后端以 Hono 子 app 注入路由，数据由应用自管（如 SQLite）。
+> 让 Vico 从项目根目录 `apps/` 发现、安装并运行第三方轻应用：前端走 Vite 构建产物静态托管，后端以 Hono 子 app 注入路由，数据由应用自管（如 SQLite）。
 
 ## 能力概览
 
@@ -9,10 +9,12 @@
 - 后端注入：应用 `server` 入口导出 `setup(subApp, ctx)`，vico 挂载到 `/api/apps/<id>/*`，同源携带 session cookie。
 - 应用数据：`ctx.dataDir = <apps.data_dir>/<appId>`，应用自行创建 SQLite 等存储，vico 不接管数据库结构。
 
+> 路径解析：`~` 展开为家目录；相对路径以 `vico/server` 包根目录为基准（与启动 cwd 无关）。
+
 ## 应用协议
 
 ```
-~/vico/apps/<app-id>/
+apps/<app-id>/
 ├── app.json           # 清单，id 必须与目录名一致
 ├── index.html         # 前端入口
 ├── src/               # Vite + TS 源码
@@ -55,7 +57,7 @@ export default async function setup(app, ctx) {
 
 | 模块 | 路径 | 职责 |
 |------|------|------|
-| 配置 | `vico/server/src/config/schemas.ts`、`server.config.yaml` | `apps.scan_paths`（默认 `~/vico/apps`）、`apps.data_dir`（默认 `~/vico/app-data`） |
+| 配置 | `vico/server/src/config/schemas.ts`、`server.config.yaml` | `apps.scan_paths`（默认 `../../apps`，相对 `vico/server` 包根目录，即仓库根 `apps/`）、`apps.data_dir`（默认 `~/vico/app-data`） |
 | 管理器 | `vico/server/src/apps/app-manager.ts` | 清单扫描校验、安装状态读写、子 app 懒加载、静态托管 |
 | 路由 | `vico/server/src/api/apps.ts` | `/api/v1/apps*` 管理接口、`/api/apps/<id>/*` 分发、`/app-static/<id>/*` 静态 |
 | 表 | `vico/server/src/db/schema.ts` + `drizzle/0016_light_apps.sql` | `light_apps`（id/installed/enabled/时间戳） |
@@ -76,7 +78,7 @@ export default async function setup(app, ctx) {
 
 ## 示例：贪吃蛇
 
-`~/vico/apps/snake-demo`：
+`apps/snake-demo`：
 
 - 前端 Vite + TS 手写 canvas 游戏，`base: './'` 适配 `/app-static/snake-demo/`。
 - 后端 `server/index.js` 使用 Node 内置 `node:sqlite`，在 `ctx.dataDir/scores.db` 建排行榜。

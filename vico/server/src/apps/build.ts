@@ -16,21 +16,23 @@ import { parse } from 'yaml';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = process.env.CONFIG_PATH || resolve(__dirname, '../../server.config.yaml');
+/** 相对路径解析基准：server 包根目录（与运行时 cwd 无关） */
+const SERVER_ROOT = resolve(__dirname, '../..');
 
 /** 展开 `~` 前缀为绝对路径 */
 function expandPath(p: string): string {
   if (p === '~') return homedir();
   if (p.startsWith('~/')) return resolve(homedir(), p.slice(2));
-  return resolve(p);
+  return resolve(SERVER_ROOT, p);
 }
 
-/** 读取 server.config.yaml 中 apps.scan_paths（缺省为 ~/vico/apps） */
+/** 读取 server.config.yaml 中 apps.scan_paths（缺省为 ../../apps，即项目根目录 apps/） */
 function scanPaths(): string[] {
   try {
     const config = parse(readFileSync(CONFIG_PATH, 'utf8')) as { apps?: { scan_paths?: string[] } };
-    return config.apps?.scan_paths ?? ['~/vico/apps'];
+    return config.apps?.scan_paths ?? ['../../apps'];
   } catch {
-    return ['~/vico/apps'];
+    return ['../../apps'];
   }
 }
 

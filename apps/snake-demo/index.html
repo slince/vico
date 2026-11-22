@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>贪吃蛇 · Vico 轻应用</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-icon">🐍</span>
+          <div>
+            <h1>贪吃蛇</h1>
+            <p>Vico 轻应用示例 · 排行榜由应用自己的 SQLite 提供</p>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>得分</span><strong id="score">0</strong></div>
+          <div class="stat"><span>最高</span><strong id="best">0</strong></div>
+        </div>
+      </header>
+
+      <main class="stage">
+        <div class="board-wrap">
+          <canvas id="board" width="480" height="480" aria-label="贪吃蛇游戏区域"></canvas>
+          <div class="overlay" id="overlay">
+            <h2 id="overlay-title">准备开始</h2>
+            <p id="overlay-text">方向键 / WASD 控制，空格暂停。吃掉果实变长，撞墙或咬到自己就结束。</p>
+            <button id="start-btn" class="primary">开始游戏</button>
+          </div>
+        </div>
+
+        <aside class="panel">
+          <h2>🏆 排行榜</h2>
+          <ol id="leaderboard" class="leaderboard"></ol>
+          <div class="panel-foot">
+            <input id="player-name" maxlength="12" placeholder="你的名字（可选）" />
+            <p>游戏结束后会自动提交分数到应用自己的数据库。</p>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="hint">键盘 ↑ ↓ ← → / W A S D 控制 · 空格暂停 · R 重开 · 触屏可滑动</footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -52,7 +52,7 @@ export const uploadSchema = z.object({
 
 /** 轻应用托管配置（应用扫描目录 + 应用私有数据目录） */
 export const appsSchema = z.object({
-  scan_paths: z.array(z.string()).default(['~/vico/apps']),
+  scan_paths: z.array(z.string()).default(['../../apps']),
   data_dir: z.string().default('~/vico/app-data'),
 });
 
