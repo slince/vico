@@ -11,8 +11,8 @@ import {
   Bot,
   Cpu,
   Database,
+  AppWindow,
   LayoutDashboard,
-  LayoutGrid,
   LogOut,
   MessageCircle,
   MessageSquare,
@@ -61,7 +61,7 @@ export function Sidebar() {
 
   const navItems = useMemo(() => [
     { to: '/dashboard', label: t('dashboard'), icon: LayoutDashboard },
-    { to: '/apps', label: t('apps'), icon: LayoutGrid },
+    { to: '/apps', label: t('apps'), icon: AppWindow },
     { to: '/chat', label: t('chat'), icon: MessageCircle },
   ], [t]);
 

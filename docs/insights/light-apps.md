@@ -5,7 +5,7 @@
 ## 能力概览
 
 - 应用中心：`/apps` 页面列出全部扫描到的轻应用，支持安装 / 卸载 / 启用 / 禁用；只有「已安装且已启用」的应用可点击打开。
-- 应用运行页：`/apps/:appId`，用 iframe 加载应用前端（`/app-static/<id>/`），与应用自身的样式/路由隔离。
+- 应用运行页：`/apps/:appId`，用 iframe 加载应用前端（`/app-static/<id>/`），与应用自身的样式/路由隔离；顶部可全屏展示，全屏时用覆盖层只保留应用本身（原生 Fullscreen API 可用时再叠加），`Esc` 或右上角按钮退出。
 - 后端注入：应用 `server` 入口导出 `setup(subApp, ctx)`，vico 挂载到 `/api/apps/<id>/*`，同源携带 session cookie。
 - 应用数据：`ctx.dataDir = <apps.data_dir>/<appId>`，应用自行创建 SQLite 等存储，vico 不接管数据库结构。
 

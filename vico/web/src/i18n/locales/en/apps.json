@@ -30,5 +30,8 @@
   "backToCenter": "Back to App Center",
   "reload": "Reload",
   "openInNewWindow": "Open in new window",
-  "loadError": "Failed to load app"
+  "loadError": "Failed to load app",
+  "fullscreen": "Fullscreen",
+  "exitFullscreen": "Exit fullscreen",
+  "fullscreenError": "Unable to enter fullscreen"
 }

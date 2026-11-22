@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 // 2. Third-party
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Boxes, LayoutGrid, Loader2, RefreshCw, Server, SquareArrowOutUpRight, Trash2 } from 'lucide-react';
+import { AppWindow, Boxes, Loader2, RefreshCw, Server, SquareArrowOutUpRight, Trash2 } from 'lucide-react';
 
 // 3. API / Hooks / Utils
 import { api } from '@/api/client';
@@ -184,7 +184,7 @@ export default function AppCenter() {
       {/* ====================== 空状态 ====================== */}
       {apps.length === 0 ? (
         <Empty>
-          <EmptyMedia variant="icon"><LayoutGrid size={32} /></EmptyMedia>
+          <EmptyMedia variant="icon"><AppWindow size={32} /></EmptyMedia>
           <EmptyTitle>{t('emptyTitle')}</EmptyTitle>
           <EmptyDescription>{t('emptyDescription')}</EmptyDescription>
         </Empty>

@@ -30,5 +30,8 @@
   "backToCenter": "返回應用中心",
   "reload": "重新載入",
   "openInNewWindow": "新視窗開啟",
-  "loadError": "應用載入失敗"
+  "loadError": "應用載入失敗",
+  "fullscreen": "全螢幕展示",
+  "exitFullscreen": "退出全螢幕",
+  "fullscreenError": "無法進入全螢幕"
 }
