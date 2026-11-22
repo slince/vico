@@ -42,7 +42,7 @@ export const todoTool = createTool({
     'Create and update a structured task list to track progress across multi-step work. Each call replaces the entire list. Each task has an id, content, and status (pending/in_progress/completed).',
   inputSchema: todoParams,
   outputSchema: todoOutput,
-  policy: 'auto',
+  policy: 'never',
   kind: 'mutation',
   execute: executeTodo,
 });
