@@ -1,6 +1,6 @@
 // @vico/tool - Tool module type definitions
 import type {z} from 'zod';
-import type {TurnSession} from '@vico/thread';
+import type {ThreadStore, TurnSession} from '@vico/thread';
 
 /** 客户端工具审批决策（将 toolCallId 与审批结果绑定） */
 export interface ToolCallApproval {
@@ -84,6 +84,8 @@ export interface ToolCallContext {
   signal: AbortSignal;
   /** 本 call 的审批决策（resume 恢复时才有）；澄清类工具可从中读取用户回答 */
   approval?: ToolCallApproval;
+  /** 线程存储端口（即 loop agent 的 this.thread），供需要持久化 turn 状态的工具直接读写 */
+  threadStore: ThreadStore;
 }
 
 /** 审批状态：approved 直接执行，denied 拒绝，paused 等待用户审批后恢复 */

@@ -2,13 +2,15 @@
 
 import type { Tool, ToolCall, ToolCallApproval, ToolCallContext, ToolResult } from './types.js';
 import { StormBreaker } from './storm-breaker.js';
-import type { TurnSession } from '@vico/thread';
+import type { ThreadStore, TurnSession } from '@vico/thread';
 
 /** ToolExecutor 执行工具所需的最小上下文（依赖倒置：引擎的 TurnContext 满足此结构） */
 export interface ToolExecutionContext {
   session: TurnSession;
   signal: AbortSignal;
   decisions: Map<string, ToolCallApproval>;
+  /** 线程存储端口（即 loop agent 的 this.thread），透传给工具 */
+  threadStore: ThreadStore;
 }
 
 /** ToolExecutor 构造选项 */
@@ -77,6 +79,7 @@ export class ToolExecutor {
       session: context.session,
       signal: context.signal,
       approval: context.decisions.get(call.id),
+      threadStore: context.threadStore,
     };
 
     try {

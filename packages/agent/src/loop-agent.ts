@@ -17,7 +17,7 @@ import {
   type ModelRef
 } from '@vico/model';
 import type {ApprovalDecider, ApprovalMode, Tool, ToolApproval, ToolCall, ToolResult} from '@vico/tool';
-import {composeResolvers, defaultApprovalResolvers, ToolExecutor} from '@vico/tool';
+import {composeResolvers, defaultApprovalResolvers, ToolExecutor, type ToolExecutionContext} from '@vico/tool';
 import type {Skill} from '@vico/skill';
 import type {MemoryStore} from '@vico/memory';
 import type {Thread, ThreadMetadata, ThreadStore, TurnSession, TurnStep} from '@vico/thread';
@@ -668,8 +668,16 @@ export class LoopAgent
       deniedResults: deniedResults,
     })
 
+    // 工具执行上下文：直接注入线程存储端口，供需要持久化 turn 状态的工具（如 todo_write）显式落库
+    const execContext: ToolExecutionContext = {
+      session: context.session,
+      signal: context.signal,
+      decisions: context.decisions,
+      threadStore: this.thread,
+    };
+
     // 执行本轮批准的调用；拒绝结果一并落消息链
-    const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, context, (call, result) => {
+    const toolResults = await this.toolExecutor.executeToolCalls(approvedCalls, execContext, (call, result) => {
       context.output.write(stampRunId(context.runId, toolResultPart(result, call.args)));
     });
     await this.appendToolResults([...toolResults, ...deniedResults], context);

@@ -18,18 +18,22 @@ const todoOutput = z.object({
   summary: z.string(),
 });
 
-/** per-turn 任务列表，模块级作用域 */
-let currentTasks: z.infer<typeof todoEntry>[] = [];
+async function executeTodo(args: z.infer<typeof todoParams>, ctx: ToolCallContext) {
+  const tasks = args.tasks;
 
-async function executeTodo(args: z.infer<typeof todoParams>, _ctx: ToolCallContext) {
-  currentTasks = args.tasks;
+  // 任务清单写入当前 turn 的 metadata 并显式持久化（threadStore 由引擎注入）。
+  // 依赖 TurnMetadata 的索引签名扩展，无需在类型上显式声明 todos 字段；
+  // 每次调用整体替换，跨 step 多次调用覆盖更新，暂停/恢复后仍保留
+  const metadata = ctx.session.turn.metadata ?? (ctx.session.turn.metadata = {});
+  metadata.todos = tasks;
+  await ctx.threadStore.updateTurn(ctx.session.turn.id, { metadata });
 
-  const pending = currentTasks.filter((t) => t.status === 'pending').length;
-  const inProgress = currentTasks.filter((t) => t.status === 'in_progress').length;
-  const completed = currentTasks.filter((t) => t.status === 'completed').length;
-  const summary = `Total ${currentTasks.length} tasks: ${pending} pending, ${inProgress} in progress, ${completed} completed`;
+  const pending = tasks.filter((t) => t.status === 'pending').length;
+  const inProgress = tasks.filter((t) => t.status === 'in_progress').length;
+  const completed = tasks.filter((t) => t.status === 'completed').length;
+  const summary = `Total ${tasks.length} tasks: ${pending} pending, ${inProgress} in progress, ${completed} completed`;
 
-  return { tasks: currentTasks, summary };
+  return { tasks, summary };
 }
 
 export const todoTool = createTool({
