@@ -85,7 +85,9 @@ function CompletedActivityGroup({
       : undefined;
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="my-2">
+    // 折叠块紧贴上下文：消息列表本身有 gap-y-6（24px），这里用 -my-2 抵消 8px，
+    // 使「已完成」与上方消息、下方正文的间距从 24px 收紧到 12px
+    <Collapsible open={open} onOpenChange={setOpen} className="-my-2">
       <CollapsibleTrigger className="group/trigger text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex w-full cursor-pointer items-center gap-1.5 rounded-md py-1 text-sm outline-none focus-visible:ring-[3px]">
         <CheckIcon
           aria-hidden="true"
