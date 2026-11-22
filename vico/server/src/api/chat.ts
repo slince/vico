@@ -1,8 +1,7 @@
 import {Hono} from 'hono';
-import type {RunAgentInput} from '@ag-ui/core';
 import type {ApprovalMode} from '@vico/tool';
 import type {ReasoningEffort} from '@vico/model';
-import {aguiMessagesToModelMessages, aguiSSEResponse, createChunkToAgUiTransformer, resumeToModelMessages} from '@vico/stream-ag-ui';
+import {chunkSSEResponse, resumeToModelMessages, vicoMessagesToModelMessages, type VicoRunRequest} from '@vico/stream-wire';
 import type {Variables} from '../index.js';
 import {getAuthContext} from './helpers.js';
 import {executeAgentChat} from '../chat/chat.js';
@@ -38,33 +37,29 @@ function toApprovalMode(value: unknown): ApprovalMode | undefined {
   return value as ApprovalMode;
 }
 
-/** 客户端经 forwardedProps 下发的运行配置（原 body.config 平铺到 forwardedProps） */
-interface ForwardedConfig {
-  agentId?: string;
-  modelName?: string;
-  reasoningEffort?: string;
-  approvalMode?: string;
-  workspace?: string;
-}
-
 export function chatRoutes(app: Hono<{ Variables: Variables }>) {
-  /** ag-ui 单 Agent 对话（含审批 interrupts 恢复） */
+  /**
+   * 单 Agent 对话（vico 协议：请求 `VicoRunRequest`，响应 `ChunkType` SSE）。
+   *
+   * 请求体里的 messages 直接就是 `AgentMessage[]`；审批续跑时改为下发 resume 决议。
+   */
   app.post('/api/v1/chat', async (c) => {
     const auth = await getAuthContext(c);
     if (auth instanceof Response) return auth;
 
-    const input = await c.req.json() as RunAgentInput;
-    const config = input.forwardedProps as ForwardedConfig | undefined;
+    const body = await c.req.json() as VicoRunRequest;
+    const config = body.config;
 
-    // 本地临时 threadId 视为无真实线程，交由服务端新建
-    const requestedThreadId = input.threadId;
+    // 本地草稿线程 ID 视为无真实线程，交由服务端新建（真实 ID 经 x-thread-id 回传）
+    const requestedThreadId = body.threadId;
     const isLocalThreadId = requestedThreadId?.startsWith('__LOCALID_') ?? false;
     const threadId = isLocalThreadId ? undefined : requestedThreadId;
 
-    // 审批恢复：resume → tool-approval-response；否则取最后一条 user 消息
-    const messages = input.resume?.length
-      ? resumeToModelMessages(input.resume)
-      : aguiMessagesToModelMessages(input.messages);
+    // 审批续跑：resume → tool-approval-response；否则取前端下发的本轮消息
+    const messages = body.resume?.length
+      ? resumeToModelMessages(body.resume)
+      : vicoMessagesToModelMessages(body.messages ?? []);
+
 
     if (messages.length === 0) {
       return c.json({ error: 'user message is required' }, 400);
@@ -79,7 +74,7 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       agentId,
       messages,
       threadId,
-      runId: input.runId,
+      runId: body.runId,
       userId: auth.userId,
       model: config?.modelName,
       reasoning: toReasoningEffort(config?.reasoningEffort),
@@ -88,11 +83,6 @@ export function chatRoutes(app: Hono<{ Variables: Variables }>) {
       signal: c.req.raw.signal,
     });
 
-    const events = output.stream.pipeThrough(createChunkToAgUiTransformer({
-      threadId: thread.id,
-      runId: input.runId,
-    }));
-
-    return aguiSSEResponse(events, { 'x-thread-id': thread.id });
+    return chunkSSEResponse(output.stream, { 'x-thread-id': thread.id });
   });
 }

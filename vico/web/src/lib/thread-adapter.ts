@@ -1,13 +1,10 @@
 /**
  * 线程适配器 — 将 assistant-ui 的 ThreadList 和 ThreadHistory 连接到后端 /api/v1/threads。
  *
- * - createThreadListAdapter: 线程列表适配器（list、delete、initialize）
- * - createThreadHistoryAdapter: 历史消息适配器，通过 useAgUiRuntime 的 adapters.history 自动加载
+ * 消息历史不在这里：`@vico/assistant-ui-runtime` 的 chatModel/history adapter
+ * 直接消费后端 `AgentMessage[]` 与 ChunkType 流。
  */
-import type {RemoteThreadListAdapter, ThreadHistoryAdapter, ThreadMessage,} from '@assistant-ui/react';
-import {ExportedMessageRepository} from '@assistant-ui/react';
-import {fromAgUiMessages} from '@assistant-ui/react-ag-ui';
-import type {Message as AgUiMessage} from '@ag-ui/client';
+import type {RemoteThreadListAdapter, ThreadMessage} from '@assistant-ui/react';
 import {createAssistantStream} from 'assistant-stream';
 import {api} from '@/api/client';
 import {queryClient} from '@/lib/query-client';
@@ -196,36 +193,4 @@ interface ThreadItem {
   /** 自定义元数据，透传给 assistant-ui 的 RemoteThreadMetadata.custom */
   metadata?: Record<string, unknown>;
   updatedAt: number;
-}
-
-interface ThreadDetail {
-  messages: AgUiMessage[];
-}
-
-/**
- * 创建历史消息适配器，供 useAgUiRuntime 的 adapters.history 使用。
- *
- * 后端 /api/v1/threads/:id 返回 ag-ui Message[]，经 fromAgUiMessages 还原为
- * assistant-ui 消息树（含 reasoning / tool call 的折叠）。
- *
- * @param remoteId - 线程真实 ID，为本地 ID（__LOCALID_ 前缀）时跳过加载
- */
-export function createThreadHistoryAdapter(remoteId: string | undefined): ThreadHistoryAdapter {
-  return {
-    async load() {
-      if (!remoteId || remoteId.startsWith('__LOCALID_')) {
-        return ExportedMessageRepository.fromArray([]);
-      }
-      const data = await api<ThreadDetail>(`/threads/${remoteId}`);
-      const msgs = data.messages || [];
-
-      const messages = fromAgUiMessages(msgs);
-      console.log("thread adapter:", messages);
-      return ExportedMessageRepository.fromArray(messages);
-    },
-
-    async append() {
-      // 后端通过 SSE 流已持久化消息，无需客户端重复保存
-    },
-  };
 }

@@ -20,8 +20,8 @@ export interface AgentRef {
 export class ModelRequestContext {
   /** Agent 配置（只读引用） */
   readonly agent: AgentRef;
-  /** 本轮输入消息组 — 用户原始输入，无 usage 等扩展字段 */
-  readonly userMessages: ModelMessage[];
+  /** 本轮输入消息组 — 用户原始输入，无 usage 等扩展字段；id 为消息标识（入链后必填） */
+  readonly userMessages: (ModelMessage & { id: string })[];
   /** 消息列表 — 处理器可追加 history（unshift） */
   messages: AgentMessage[];
   /** 暴露给 LLM 的工具注册表（以工具名为键，处理器可增删改查） */
@@ -44,7 +44,7 @@ export class ModelRequestContext {
     step,
   }: {
     agent: AgentRef;
-    userMessages?: ModelMessage[];
+    userMessages?: (ModelMessage & { id: string })[];
     messages?: AgentMessage[];
     tools?: Tool[];
     session: TurnSession;

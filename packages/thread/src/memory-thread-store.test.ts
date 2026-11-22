@@ -17,6 +17,24 @@ describe('InMemoryThreadStore.createTurn（forkedFrom）', () => {
   });
 });
 
+describe('InMemoryThreadStore.appendEntries（id 归属）', () => {
+  it('调用方指定 id 时沿用，未指定时生成', async () => {
+    const store = new InMemoryThreadStore();
+    await store.createThread('a', 't', 'thread-1');
+    const [specified, generated] = await store.appendEntries([
+      { id: 'engine-id-1', threadId: 'thread-1', turnId: 'turn-1', role: 'user', content: 'hi' },
+      { threadId: 'thread-1', turnId: 'turn-1', role: 'assistant', content: 'yo' },
+    ]);
+
+    expect(specified.id).toBe('engine-id-1');
+    expect(generated.id).toBeTruthy();
+    expect(generated.id).not.toBe('engine-id-1');
+
+    const entries = await store.getEntries('thread-1');
+    expect(entries.map((m) => m.id)).toEqual(['engine-id-1', generated.id]);
+  });
+});
+
 describe('InMemoryThreadStore.archiveMessagesByTurns / includeArchived', () => {
   it('archiveMessagesByTurns 软标记整个 turn 的消息；includeArchived:false 排除', async () => {
     const store = new InMemoryThreadStore();

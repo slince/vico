@@ -131,13 +131,14 @@ export class LibSqlThreadStore implements ThreadStore {
   // --- Message ---
 
   async appendEntries(
-    entries: Omit<Message, 'id' | 'createdAt'>[],
+    entries: (Omit<Message, 'id' | 'createdAt'> & { id?: string })[],
   ): Promise<Message[]> {
     const now = Date.now();
     const results: Message[] = [];
     const rows: (typeof messages.$inferInsert)[] = [];
     for (const entry of entries) {
-      const id = crypto.randomUUID();
+      // 调用方已指定 id（引擎生成）时沿用，保证流式与历史是同一标识
+      const id = entry.id ?? crypto.randomUUID();
       results.push({ ...entry, id, createdAt: now });
       rows.push({
         id,

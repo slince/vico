@@ -1,6 +1,5 @@
 import type {RecentThread, ThreadDetail, ThreadItem} from './types.js';
-import {type ThreadStore} from '@vico/thread';
-import {toAgUiMessages} from '@vico/stream-ag-ui';
+import {type ThreadStore, toModelMessages} from '@vico/thread';
 import type {AgentManager} from '../agent/agent-manager.js';
 
 /** 前台展示的消息角色 */
@@ -56,7 +55,7 @@ export class ThreadManager {
       messageCount = all.length;
     }
 
-    const messages = toAgUiMessages(entries);
+    const messages = toModelMessages(entries);
     return { ...thread, messageCount, messages};
   }
 

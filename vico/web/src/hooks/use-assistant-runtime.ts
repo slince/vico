@@ -1,15 +1,25 @@
 /**
- * Assistant UI Runtime hook — 使用 useRemoteThreadListRuntime 连接后端对话列表。
+ * Assistant UI Runtime hook — vico 协议运行时（`useVicoRuntime`）+ 远程线程列表。
  *
  * 与 Chat.tsx 中 AssistantRuntimeProvider 配合使用：
- * - 通过 RemoteThreadListAdapter 从 /api/v1/threads 加载线程列表
- * - 每个线程通过 runtimeHook 创建独立的 useChatRuntime 实例
- * - 支持历史消息加载和 threadId 回写
+ * - 线程列表 adapter 由本 hook 注入（依赖 react-query 失效与业务 store）
+ * - 消息流 / 历史 / 审批续跑全部交给 `@vico/assistant-ui-runtime`
+ * - 新会话创建后经 `onThreadIdChange` 回写路由
  */
 import {useMemo} from 'react';
-import {useRemoteThreadListRuntime} from '@assistant-ui/react';
+import {useTranslation} from 'react-i18next';
+import {WebSpeechDictationAdapter} from '@assistant-ui/react';
+import {createSseTransport, useVicoRuntime} from '@vico/assistant-ui-runtime';
 import {createThreadListAdapter} from '@/lib/thread-adapter';
-import {useChatThreadRuntime} from '@/hooks/use-chat-thread-runtime';
+
+/**
+ * i18n 语言 → Web Speech API `SpeechRecognition.lang`（BCP-47）映射。
+ */
+const SPEECH_LANG_MAP: Record<string, string> = {
+  en: 'en-US',
+  'zh-CN': 'zh-CN',
+  'zh-TW': 'zh-TW',
+};
 
 export interface UseAssistantRuntimeOptions {
   /** 固定 Agent ID（Agent 详情页测试对话区传入）；Chat 路由不传，由 composer 选中态决定 */
@@ -25,30 +35,49 @@ export interface UseAssistantRuntimeOptions {
 }
 
 /**
- * 创建 Assistant UI 聊天运行时，集成远程对话列表。
- *
- * 线程列表通过 RemoteThreadListAdapter 从后端加载，
- * 每个线程独立创建 useChatRuntime 实例处理消息。
+ * 创建 Assistant UI 聊天运行时。
  *
  * @param options - 配置选项
  * @returns AssistantRuntime 实例；enabled 为 false 时返回 null
  */
-export function useAssistantRuntime({agentId, threadId, onThreadCreated, onError, enabled = true,}: UseAssistantRuntimeOptions) {
+export function useAssistantRuntime({
+  agentId,
+  threadId,
+  onThreadCreated,
+  onError,
+  enabled = true,
+}: UseAssistantRuntimeOptions) {
   // 线程列表适配器 — 传入 agentId 时按该 Agent 过滤；否则列出全部线程
-  const adapter = useMemo(() => createThreadListAdapter(agentId, enabled), [agentId, enabled]);
+  const threadList = useMemo(() => createThreadListAdapter(agentId, enabled), [agentId, enabled]);
 
-  const runtime = useRemoteThreadListRuntime({
-    runtimeHook:  () => {
-      return useChatThreadRuntime({ agentId, threadId, onError });
-    },
-    adapter,
-    threadId,
+  // 传输层：默认走 /api/v1/chat（vico 协议 SSE）
+  const transport = useMemo(() => createSseTransport(), []);
+
+  // 语音听写适配器 — 识别语言跟随应用 i18n 设置，切换语言时重建
+  const {i18n} = useTranslation();
+  const dictation = useMemo(
+    () =>
+      new WebSpeechDictationAdapter({
+        language: SPEECH_LANG_MAP[i18n.language] ?? i18n.language,
+        continuous: true,
+        interimResults: true,
+      }),
+    [i18n.language],
+  );
+
+  const runtime = useVicoRuntime({
+    transport,
+    threadList,
+    ...(agentId !== undefined && {agentId}),
+    ...(threadId !== undefined && {threadId}),
+    adapters: {dictation},
     // 线程真实 ID 变化（新建会话 initialize 成功 / 切换会话）时回写路由：
     // 受控 threadId 一旦停在旧会话，下一次发送就可能带着旧 ID
     onThreadIdChange: (newThreadId) => {
-      if (!newThreadId || newThreadId.startsWith('__LOCALID_')) return;
+      if (!newThreadId) return;
       onThreadCreated?.(newThreadId);
     },
+    ...(onError !== undefined && {onError}),
   });
 
   return enabled ? runtime : null;

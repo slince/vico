@@ -89,7 +89,8 @@ export class ModelContextCompactor implements ContextCompactor {
    * 返回按 turn.createdAt 升序排列的候选 turn（最旧在前，供 selectCompactableRange 从头部切分）。
    */
   private async buildCandidate(messages: AgentMessage[]): Promise<CandidateTurn[]> {
-    const turnIds = [...new Set(messages.map((m) => m.turnId))];
+    // 未落 turn 的消息（如前端刚发出、尚未开始 turn）不参与压缩
+    const turnIds = [...new Set(messages.map((m) => m.turnId).filter((id): id is string => id !== undefined))];
     if (turnIds.length === 0) return [];
 
     const turns = await this.thread.getTurns(turnIds);
@@ -99,6 +100,7 @@ export class ModelContextCompactor implements ContextCompactor {
 
     const byTurn = new Map<string, CandidateTurn>();
     for (const m of messages) {
+      if (m.turnId === undefined) continue;
       const turn = finalTurns.get(m.turnId);
       if (!turn) continue; // 非完结态 turn 的消息不参与压缩
       let group = byTurn.get(m.turnId);
@@ -163,8 +165,9 @@ export class ModelContextCompactor implements ContextCompactor {
 
       return {
         summaryMessageId: created.id,
-        // 内存消息链中的摘要按 user 角色注入（与 toModelMessages 的 summary→user 映射一致）
-        summary: { role: 'user', content: summaryText, turnId: summaryTurnId },
+        // 内存消息链中的摘要按 user 角色注入（与 toModelMessages 的 summary→user 映射一致）；
+        // id 用落库返回的标识，保证后续同一摘要消息在内存与历史中是同一 id
+        summary: { id: created.id, role: 'user', content: summaryText, turnId: summaryTurnId },
         archivedTurnIds: headTurnIds,
         removedTokens: estimateMessages(headMessages),
       };

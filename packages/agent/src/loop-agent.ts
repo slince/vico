@@ -327,7 +327,11 @@ export class LoopAgent
 
     const {decisions} = extractApprovalResponses(userMessages)
 
-    const requestContext = new ModelRequestContext({agent: this, userMessages, tools: this.tools, session});
+    // 本轮输入消息统一补 id：前端传 AgentMessage（已带 id）时沿用，缺失则由引擎生成，
+    // 保证「内存消息链 → 落库 → 历史接口」是同一个标识
+    const userMessagesWithId = userMessages.map((m) => ({...m, id: (m as { id?: string }).id ?? randomUUID()}));
+
+    const requestContext = new ModelRequestContext({agent: this, userMessages: userMessagesWithId, tools: this.tools, session});
 
     // 洋葱执行：各处理器前置注入（enter 段）→ 核心（构建 TurnContext + runLoop）→ 逆序后置（resolve 段）。
     // 核心产物经闭包传出；resolve 段跑完后统一交给 finalizeTurn 收尾（落库 + 流终结）。
@@ -359,7 +363,7 @@ export class LoopAgent
       this.loadSessionApprovals(session, context);
 
       // 保存本轮会话消息
-      await this.persistMessages(context, userMessages);
+      await this.persistMessages(context, userMessagesWithId);
 
       // 历史压力压缩
       await this.compactForPressure(context);
@@ -708,9 +712,11 @@ export class LoopAgent
     // 模型输出后的消息处理（text + tool-call parts 组装为原生 assistant 消息）
     if (modelResult.text || modelResult.toolCalls.length > 0) {
       const assistantMsg = buildAssistantMessage(modelResult.text, modelResult.toolCalls, modelResult.reasoning, resolved.pendingApprovalCalls);
-      context.messages.push({ ...assistantMsg, turnId: context.session.turn.id });
+      // id 在产生时确定，内存消息链与持久化副本共用，保证流式/历史/前端是同一标识
+      const messageId = randomUUID();
+      context.messages.push({ ...assistantMsg, id: messageId, turnId: context.session.turn.id });
       // usage 与 assistant 消息一一对应：仅在持久化副本上挂载，消息链保持纯净（不随上下文发给模型）
-      await this.persistMessages(context, [{ ...assistantMsg, usage: modelResult.usage }]);
+      await this.persistMessages(context, [{ ...assistantMsg, id: messageId, usage: modelResult.usage }]);
     }
 
     if (modelResult.toolCalls.length === 0) {
@@ -827,7 +833,7 @@ export class LoopAgent
   /**
    * 批量持久化消息到 threadStore。
    */
-  async persistMessages(context: TurnContext, messages: PersistableMessage[]): Promise<void> {
+  async persistMessages(context: TurnContext, messages: (PersistableMessage & { id: string })[]): Promise<void> {
     if (messages.length === 0) {
       return
     }
@@ -835,8 +841,9 @@ export class LoopAgent
     const threadId = context.session.thread.id;
     const turnId = context.session.turn.id;
 
-    // usage 与消息一一对应：fromModelMessage 从每条消息取出 usage 写入 metadata
-    const converted = messages.map(message => ({ threadId, turnId, ...fromModelMessage(message) }))
+    // usage 与消息一一对应：fromModelMessage 从每条消息取出 usage 写入 metadata；
+    // id 透传给存储，落库沿用引擎生成的标识
+    const converted = messages.map(message => ({ threadId, turnId, id: message.id, ...fromModelMessage(message) }))
     const created = await this.thread.appendEntries(converted);
 
     // 记录最后一条消息 id，供 fork 时截断消息链精确定位
@@ -858,12 +865,14 @@ export class LoopAgent
     if (toolResults.length === 0) {
       return
     }
-    const messages: ModelMessage[] = [];
+    const messages: (ModelMessage & { id: string })[] = [];
 
     for (const r of toolResults) {
       const message = buildToolResultMessage(r);
-      context.messages.push({ ...message, turnId: context.session.turn.id });
-      messages.push(message);
+      // 与 assistant 消息同理：id 产生即定，内存消息链与持久化共用
+      const messageId = randomUUID();
+      context.messages.push({ ...message, id: messageId, turnId: context.session.turn.id });
+      messages.push({ ...message, id: messageId });
     }
 
     await this.persistMessages(context, messages);
@@ -890,8 +899,9 @@ export class LoopAgent
    */
   private applyCompaction(context: TurnContext, result: CompactionResult): void {
     const archived = new Set(result.archivedTurnIds);
-    // 保留未归档 turn 的消息（含当前 turn 自身消息，其 turnId 不在 archivedTurnIds 中）
-    const retained = context.messages.filter((m) => !archived.has(m.turnId));
+    // 保留未归档 turn 的消息（含当前 turn 自身消息，其 turnId 不在 archivedTurnIds 中；
+    // 尚未落 turn 的消息 turnId 缺失，同样保留）
+    const retained = context.messages.filter((m) => m.turnId === undefined || !archived.has(m.turnId));
     context.messages.splice(0, context.messages.length, result.summary, ...retained);
   }
 

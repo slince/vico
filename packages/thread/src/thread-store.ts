@@ -117,8 +117,14 @@ export interface ThreadStore {
 
   /** 消息操作 */
 
-  /** 批量追加对话记录 */
-  appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]>;
+  /**
+   * 批量追加对话记录。
+   *
+   * 允许调用方指定 id：引擎在消息产生时已生成 id，落库必须沿用同一标识，
+   * 否则流式期间的 assistant 消息与历史加载的同一条消息 id 不一致。
+   * 未指定时由存储实现生成。
+   */
+  appendEntries(entries: (Omit<Message, 'id' | 'createdAt'> & { id?: string })[]): Promise<Message[]>;
   /** 获取线程的对话记录列表（支持分页、角色筛选、归档过滤；按 created_at 升序返回） */
   getEntries(threadId: string, options?: { limit?: number; start?: number; roles?: string[]; includeArchived?: boolean }): Promise<Message[]>;
   /** 批量获取多个 turn 的对话记录（可选排除已归档） */

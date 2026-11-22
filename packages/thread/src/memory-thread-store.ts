@@ -90,11 +90,12 @@ export class InMemoryThreadStore implements ThreadStore {
 
   // Message 操作
 
-  async appendEntries(entries: Omit<Message, 'id' | 'createdAt'>[]): Promise<Message[]> {
+  async appendEntries(entries: (Omit<Message, 'id' | 'createdAt'> & { id?: string })[]): Promise<Message[]> {
     return entries.map(entry => {
       const msg: Message = {
         ...entry,
-        id: crypto.randomUUID(),
+        // 调用方已指定 id（引擎生成）时沿用，保证流式与历史是同一标识
+        id: entry.id ?? crypto.randomUUID(),
         createdAt: Date.now(),
       };
       const list = this.messages.get(entry.threadId) ?? [];

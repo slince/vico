@@ -10,7 +10,7 @@ import type {AgentMessage, PersistableMessage} from '@vico/model';
 export function toModelMessages(entries: Message[]): AgentMessage[] {
   return entries.map((e) => {
     const role = e.role === 'summary' ? 'user' : e.role;
-    const msg = { role, content: e.content, turnId: e.turnId } as AgentMessage;
+    const msg = { id: e.id, role, content: e.content, turnId: e.turnId } as AgentMessage;
     // usage 由 fromModelMessage 写入 metadata，这里还原到消息载体上
     if (e.metadata?.usage !== undefined) {
       msg.usage = e.metadata.usage as UsageMetrics;
