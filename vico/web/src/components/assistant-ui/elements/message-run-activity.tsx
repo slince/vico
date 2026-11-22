@@ -11,12 +11,10 @@ import {CheckIcon, ChevronRightIcon} from "lucide-react";
 import {type ReactNode, useState} from "react";
 import {useTranslation} from "react-i18next";
 
-import {cn} from "@/lib/utils";
 import {toolkit} from "@/tools/toolkit";
 import type {VicoToolkitDefinitionEntry} from "@/tools/tool-summary";
 import {formatElapsed, formatElapsedCn} from "../utils/task";
 import {CollapsibleContent, CollapsibleRoot as Collapsible, CollapsibleTrigger,} from "./collapsible-root";
-import {collapsePanel} from "./surfaces";
 import {ToolFallback} from "./tool-fallback.aui";
 
 /** `PartState` 中 tool-call 变体（含 status 的丰富 part 类型） */
@@ -103,8 +101,14 @@ function CompletedActivityGroup({
           className="size-3.5 ml-auto shrink-0 transition-transform duration-200 group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none"
         />
       </CollapsibleTrigger>
-      <CollapsibleContent className={cn(collapsePanel)}>
-        <div className="border-border ms-1.5 flex min-w-0 flex-col gap-1 border-s ps-3.5 pt-2 text-sm wrap-anywhere">
+      {/* 这里不用 surfaces 的 collapsePanel（px 高度动画）：Base UI 在展开那一帧量一次
+          scrollHeight 当目标高度，动画结束后再切回 height:auto；只要期间内容有过任何回流
+          （字体、工具 UI、换行），两者就会差几像素，收尾时肉眼可见地跳一下。
+          改成 grid-template-rows 0fr→1fr：终点本身就是自适应高度，没有 px→auto 的切换。 */}
+      <CollapsibleContent
+        className="grid grid-rows-[0fr] overflow-hidden transition-[grid-template-rows] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[open]:grid-rows-[1fr] data-[starting-style]:grid-rows-[0fr]! data-[ending-style]:grid-rows-[0fr]! motion-reduce:transition-none"
+      >
+        <div className="border-border ms-1.5 flex min-h-0 min-w-0 flex-col gap-1 overflow-hidden border-s ps-3.5 pt-2 text-sm wrap-anywhere">
           {children}
         </div>
       </CollapsibleContent>
