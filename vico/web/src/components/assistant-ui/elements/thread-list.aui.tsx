@@ -301,8 +301,10 @@ export type WorkspaceThreadGroup = {
   label: string;
   /** 原始 workspace 值（undefined 表示未分组） */
   workspace: string | undefined;
-  /** 该分组内 thread 在 threadIds 中的索引 */
+  /** 该分组内命中搜索词的 thread 在 threadIds 中的索引 */
   indices: number[];
+  /** 分组内会话总数（不受搜索过滤影响） */
+  total: number;
 };
 
 /**
@@ -314,29 +316,39 @@ export const useWorkspaceGroups = (searchQuery = "") => {
   const threadItems = useAuiState((s) => s.threads.threadItems);
   const { t } = useTranslation("assistant");
 
+  const query = searchQuery.trim().toLowerCase();
+
   return useMemo(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
-    const query = searchQuery.trim().toLowerCase();
     const fallback = t("threadList.newChat");
 
     // 过滤：按标题匹配（未命名会话回退到本地化默认标题）
-    const filteredIndices = threadIds
-      .map((id, index) => ({ id, index }))
-      .filter(({ id }) => {
-        if (!query) return true;
-        const title = (itemsById.get(id)?.title || fallback).toLowerCase();
-        return title.includes(query);
-      })
-      .map(({ index }) => index);
-
-    // 工作区提取：custom.workspace 须为非空字符串，否则归入未分组
-    const workspaceOf = (index: number): string | undefined => {
-      const custom = itemsById.get(threadIds[index])?.custom;
-      const w = custom?.workspace;
-      return typeof w === "string" && w ? w : undefined;
+    const matchesQuery = (id: string) => {
+      if (!query) return true;
+      const title = (itemsById.get(id)?.title || fallback).toLowerCase();
+      return title.includes(query);
     };
 
-    // 按首次出现顺序分组
+    // 工作区提取：custom.workspace 去空白后须为非空字符串，否则归入未分组
+    const workspaceOf = (index: number): string | undefined => {
+      const raw = itemsById.get(threadIds[index])?.custom?.workspace;
+      if (typeof raw !== "string") return undefined;
+      const w = raw.trim();
+      return w || undefined;
+    };
+
+    // 全量分桶（用于展示分组总会话数）
+    const allByWorkspace = new Map<string | undefined, number[]>();
+    const filteredIndices: number[] = [];
+    for (let index = 0; index < threadIds.length; index++) {
+      const w = workspaceOf(index);
+      const bucket = allByWorkspace.get(w);
+      if (bucket) bucket.push(index);
+      else allByWorkspace.set(w, [index]);
+      if (matchesQuery(threadIds[index])) filteredIndices.push(index);
+    }
+
+    // 按首次出现顺序分组（保持后端时间序）
     const byWorkspace = new Map<string | undefined, number[]>();
     for (const index of filteredIndices) {
       const w = workspaceOf(index);
@@ -353,11 +365,18 @@ export const useWorkspaceGroups = (searchQuery = "") => {
           ? workspace.split(/[\\/]/).filter(Boolean).pop() || workspace
           : t("threadList.ungrouped"),
         indices,
+        total: allByWorkspace.get(workspace)?.length ?? 0,
       }),
     );
 
-    return { threadIds, filteredIndices, groups };
-  }, [threadIds, threadItems, searchQuery, t]);
+    return {
+      threadIds,
+      filteredIndices,
+      groups,
+      // 全量工作区 key（未分组用空串），不受搜索过滤影响，用于清理过期折叠记录
+      allKeys: [...allByWorkspace.keys()].map((w) => w ?? ""),
+    };
+  }, [threadIds, threadItems, query, t]);
 };
 
 const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
@@ -413,7 +432,7 @@ const WORKSPACE_COLLAPSED_STORAGE_KEY = "thread_list_workspace_collapsed";
 
 /** 工作区分组列表 — 手风琴折叠，每组标题展示 workspace 名与会话数 */
 const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery = "" }) => {
-  const { threadIds, filteredIndices, groups } = useWorkspaceGroups(searchQuery);
+  const { threadIds, filteredIndices, groups, allKeys } = useWorkspaceGroups(searchQuery);
   const { t } = useTranslation("assistant");
   const navigate = useNavigate();
   const aui = useAui();
@@ -424,12 +443,28 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
     {},
   );
 
+  const searching = !!searchQuery.trim();
+
+  // 清理已不存在分组的折叠记录，避免 localStorage 只增不减（基于全量工作区，不受搜索过滤影响）
+  const knownKeys = useMemo(() => new Set(allKeys), [allKeys]);
+  useEffect(() => {
+    setCollapsed((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (knownKeys.has(k)) next[k] = v;
+      }
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+  }, [knownKeys, setCollapsed]);
+
   // 在该工作区下新建会话：预设 workspace 后显式切到新草稿线程，再导航到 /chat。
   // 只靠受控 threadId 变 undefined 触发切换并不可靠（例如当前已在无 id 的 /chat 上时受控值没变化，
   // 或者切换时机与 store 里的 newThreadId 冲突），会留下上一个会话的消息继续渲染。
   // 首消息时 workspace 随 modelContext 下发给服务端写入 thread.metadata。
   const handleCreate = async (workspace: string | undefined) => {
     setWorkspace(workspace ?? null);
+    // 确保目标分组展开，新草稿立即可见
+    setCollapsed((prev) => ({ ...prev, [workspace ?? ""]: false }));
     try {
       await aui.threads.switchToNewThread();
     } catch (e) {
@@ -438,7 +473,7 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
     navigate('/chat');
   };
 
-  if (searchQuery.trim() && filteredIndices.length === 0) {
+  if (searching && filteredIndices.length === 0) {
     return (
       <div
         data-slot="aui_thread-list-empty"
@@ -453,7 +488,8 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
     <>
       {groups.map((group) => {
         const key = group.workspace ?? "";
-        const isCollapsed = collapsed[key] === true;
+        // 搜索态忽略折叠，保证命中会话全部可见
+        const isCollapsed = !searching && collapsed[key] === true;
         return (
           <div key={key || "__ungrouped__"} data-slot="aui_thread-workspace-group" className="flex flex-col gap-0.5">
             {/* 整个 header 共享悬浮背景；count 与新建 + 图标悬浮后才显示 */}
@@ -462,6 +498,7 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
                 type="button"
                 onClick={() => setCollapsed((prev) => ({ ...prev, [key]: !isCollapsed }))}
                 aria-expanded={!isCollapsed}
+                title={group.workspace}
                 className="text-muted-foreground group-hover:text-foreground flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 py-0.5 text-xs font-medium transition-colors"
               >
                 {/* 默认展示 folder；悬浮切换为折叠方向箭头。两图标重叠在固定宽度网格内，避免切换时 title 位移 */}
@@ -480,8 +517,12 @@ const WorkspaceThreadListGroups: FC<{ searchQuery?: string }> = ({ searchQuery =
                 </span>
                 <span className="flex-1 min-w-0 truncate text-left">{group.label}</span>
               </button>
-              <span className="text-muted-foreground/70 text-[10px] opacity-0 transition-opacity group-hover:opacity-100">
-                {group.indices.length}
+              <span
+                className="text-muted-foreground/70 text-[10px] opacity-0 transition-opacity group-hover:opacity-100 tabular-nums"
+                title={t("threadList.groupCount", { count: group.total })}
+                aria-label={t("threadList.groupCount", { count: group.total })}
+              >
+                {searching ? `${group.indices.length}/${group.total}` : group.total}
               </span>
               <button
                 type="button"

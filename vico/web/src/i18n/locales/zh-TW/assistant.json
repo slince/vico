@@ -41,7 +41,8 @@
     "workspaceView": "按工作區分組",
     "ungrouped": "未分組",
     "closeSearch": "關閉搜尋",
-    "newInWorkspace": "在此工作區新建對話"
+    "newInWorkspace": "在此工作區新建對話",
+    "groupCount": "{{count}} 個對話"
   },
   "welcome": { "title": "請問有什麼可以幫您？" },
   "thinking": { "runningTool": "正在執行 {{tool}}" },

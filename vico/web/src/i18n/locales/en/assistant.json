@@ -41,7 +41,8 @@
     "workspaceView": "Group by workspace",
     "ungrouped": "Ungrouped",
     "closeSearch": "Close search",
-    "newInWorkspace": "New chat in this workspace"
+    "newInWorkspace": "New chat in this workspace",
+    "groupCount": "{{count}} chats"
   },
   "welcome": { "title": "How can I help you?" },
   "thinking": { "runningTool": "Running {{tool}}" },
